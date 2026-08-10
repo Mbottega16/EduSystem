@@ -3,9 +3,11 @@
 An embodied classroom. **You are the teacher** — you walk the room, and the
 walking is the game.
 
-> **Status: Phase 0 of 7 complete.** The foundations are in and tested: room,
-> grid, pathfinding, game state, seated students. The classroom doesn't *do*
-> anything yet — lessons, grading, homework and buying items are Phases 1–6.
+> **Status: Phases 0–1 complete, plus the classwork loop.** The class files in
+> through the door and sits down; you assign work at the podium, they take
+> five seconds to finish it, and you walk round collecting sheets and hand
+> them in at your own desk. Grading, homework and buying items are still to
+> come — see the plan for the remaining phases.
 
 ## Play
 
