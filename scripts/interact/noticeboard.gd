@@ -12,7 +12,7 @@ func can_interact() -> bool:
 
 
 func prompt_text() -> String:
-	return "Order furniture  (%d coins)" % Game.coins
+	return "Furniture  (%d coins)" % Game.coins
 
 
 func interact(by: Node) -> void:

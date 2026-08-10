@@ -19,17 +19,24 @@ the Desktop.
 
 ### A day
 
+Each day has a **subject** (Maths, Reading, Science, …) shown on the status
+strip and on the podium prompt.
+
 1. The class files in through the door and takes its seats.
 2. **Podium** — start the lesson. Everyone begins a piece of work.
-3. They get stuck. A **"?"** appears over their head and their work stops
-   dead until you walk over and help. This is the game: you cannot reach
-   everyone, so you choose.
+3. A **progress bar** over each head fills as they work. They get stuck: a
+   **"?"** appears, the bar turns red and *stops dead* until you walk over
+   and help. This is the game — you cannot reach everyone, so you choose.
 4. A finished sheet appears on each desk. **Collect** them, carry the pile to
    **your own desk**, hand it in.
 5. **Podium** — end the lesson. Everyone is graded, and tonight's homework is
    set.
-6. **Noticeboard** — spend coins on furniture. Arrows move the ghost, E puts
-   it down. It will refuse a spot that would wall the class off from the door.
+6. **Noticeboard** — the furniture shop. **Tab** swaps between the buy list
+   and the sell list (selling gives back half). Ordering something drops you
+   into a ghost cursor: arrows move it, **E** puts it down. It refuses any
+   spot that would wall the class off from the door.
+   To **move** something you already own, walk up to it and press E — same
+   cursor, and it costs nothing.
 7. **Bell** — end the day. You get paid, and homework comes back overnight to
    be collected and marked.
 
@@ -63,7 +70,7 @@ Double-click **`Run Tests.bat`**, or:
 godot --headless --path . res://tests/run.tscn
 ```
 
-184 assertions. Exits 0/1 so it can gate a commit.
+218 assertions. Exits 0/1 so it can gate a commit.
 
 **Never use `create_timer()` in a test.** `Engine.max_physics_steps_per_frame`
 (default 8) clamps catch-up, so any main-thread stall desyncs simulation time

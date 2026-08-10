@@ -27,7 +27,7 @@ func can_interact() -> bool:
 
 func prompt_text() -> String:
 	if Game.phase == Game.Phase.MORNING:
-		return "Start the lesson"
+		return "Start the lesson - %s" % Game.subject
 	if Game.phase == Game.Phase.LESSON:
 		return "End the lesson"
 	return ""

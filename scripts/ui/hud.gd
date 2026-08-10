@@ -11,6 +11,7 @@ extends Control
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING }
+enum Shop { BUY, SELL }
 
 signal item_chosen(id: String)
 
@@ -25,6 +26,7 @@ signal item_chosen(id: String)
 var mode: int = Mode.NONE
 var _player: Node = null
 var _sel: int = 0
+var _shop: int = Shop.BUY
 
 # marking state
 var _marking: Array = []       ## StudentData still to be judged
@@ -44,7 +46,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func _update_status() -> void:
-	var line := "Day %d    %d coins" % [Game.day, Game.coins]
+	var line := "Day %d  %s    %d coins" % [Game.day, Game.subject, Game.coins]
 	if _player != null and is_instance_valid(_player):
 		if _player.carrying > 0:
 			line += "    carrying %d" % _player.carrying
@@ -70,7 +72,7 @@ func _update_prompt() -> void:
 		prompt_box.visible = false
 		return
 	var target: Interactable = null
-	if _player != null and is_instance_valid(_player):
+	if _player != null and is_instance_valid(_player) 			and is_instance_valid(_player.target):
 		target = _player.target
 	var showing := target != null and target.can_interact()
 	prompt.visible = showing
@@ -97,7 +99,7 @@ func close() -> void:
 
 func show_lesson_report(results: Array) -> void:
 	_open(Mode.REPORT)
-	title.text = "END OF LESSON"
+	title.text = "END OF LESSON - %s" % Game.subject.to_upper()
 	var lines: Array[String] = []
 	for r: Dictionary in results:
 		var s: StudentData = r["student"]
@@ -126,25 +128,53 @@ func show_day_report(report: Dictionary) -> void:
 func open_catalogue() -> void:
 	_open(Mode.CATALOGUE)
 	_sel = 0
-	title.text = "FURNITURE  —  %d coins" % Game.coins
+	_shop = Shop.BUY
 	_render_catalogue()
-	hint.text = "Up/Down choose    E order    Esc cancel"
+
+
+## The list currently on screen: the catalogue when buying, the room's own
+## contents when selling.
+func _shop_rows() -> Array:
+	if _shop == Shop.BUY:
+		return Items.ORDER.duplicate()
+	return Game.room_items.duplicate()
 
 
 func _render_catalogue() -> void:
+	var rows := _shop_rows()
+	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
+
+	title.text = "%s  -  %d coins" % [
+		"BUY FURNITURE" if _shop == Shop.BUY else "SELL FURNITURE", Game.coins]
+
 	var lines: Array[String] = []
-	for i in Items.ORDER.size():
-		var id: String = Items.ORDER[i]
-		var d := Items.get_def(id)
-		var afford := Game.can_afford(int(d["cost"]))
-		lines.append("%s %-14s %4d   +%.2f within %d   %s" % [
-			">" if i == _sel else " ", String(d["name"]), int(d["cost"]),
-			float(d["bonus"]), int(d["range"]),
-			"" if afford else "(too dear)"])
-	lines.append("")
-	var sel_def := Items.get_def(Items.ORDER[_sel])
-	lines.append(String(sel_def.get("blurb", "")))
+	if rows.is_empty():
+		lines.append("   Nothing to sell - the room is bare.")
+	elif _shop == Shop.BUY:
+		for i in rows.size():
+			var id: String = rows[i]
+			var d := Items.get_def(id)
+			lines.append("%s %-13s %4d   +%.2f within %d%s" % [
+				">" if i == _sel else " ", String(d["name"]), int(d["cost"]),
+				float(d["bonus"]), int(d["range"]),
+				"" if Game.can_afford(int(d["cost"])) else "   too dear"])
+		lines.append("")
+		lines.append(String(Items.get_def(rows[_sel]).get("blurb", "")))
+	else:
+		for i in rows.size():
+			var placed: Dictionary = rows[i]
+			var pid := String(placed["id"])
+			lines.append("%s %-13s  back %3d   at %d,%d" % [
+				">" if i == _sel else " ",
+				String(Items.get_def(pid).get("name", pid)),
+				Game.sell_value(pid), placed["tile"].x, placed["tile"].y])
+		lines.append("")
+		lines.append("Selling gives back half.")
+		lines.append("To MOVE something, walk up to it instead.")
 	body.text = "\n".join(lines)
+	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [
+		"order" if _shop == Shop.BUY else "sell",
+		"sell list" if _shop == Shop.BUY else "buy list"]
 
 
 ## The homework marking game. One verdict per sheet, not per question —
@@ -220,19 +250,28 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.CATALOGUE:
+		var rows := _shop_rows()
 		if Input.is_action_just_pressed("cancel"):
 			close()
-		elif Input.is_action_just_pressed("move_up"):
-			_sel = (_sel - 1 + Items.ORDER.size()) % Items.ORDER.size()
+		elif Input.is_action_just_pressed("menu"):
+			_shop = Shop.SELL if _shop == Shop.BUY else Shop.BUY
+			_sel = 0
 			_render_catalogue()
-		elif Input.is_action_just_pressed("move_down"):
-			_sel = (_sel + 1) % Items.ORDER.size()
+		elif Input.is_action_just_pressed("move_up") and not rows.is_empty():
+			_sel = (_sel - 1 + rows.size()) % rows.size()
 			_render_catalogue()
-		elif Game.claim_interact():
-			var id: String = Items.ORDER[_sel]
-			if Game.can_afford(Items.cost(id)):
-				close()
-				item_chosen.emit(id)
+		elif Input.is_action_just_pressed("move_down") and not rows.is_empty():
+			_sel = (_sel + 1) % rows.size()
+			_render_catalogue()
+		elif Game.claim_interact() and not rows.is_empty():
+			if _shop == Shop.BUY:
+				var id: String = rows[_sel]
+				if Game.can_afford(Items.cost(id)):
+					close()
+					item_chosen.emit(id)
+			else:
+				Game.sell_item(rows[_sel]["tile"])
+				_render_catalogue()
 		return
 
 	if mode == Mode.MARKING:

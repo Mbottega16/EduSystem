@@ -37,6 +37,7 @@ var phase: int = Phase.MORNING
 var roster: Array[StudentData] = []
 var room_items: Array = []      ## [{id: String, tile: Vector2i}]
 var homework_out: bool = false  ## is there homework due back tomorrow?
+var subject: String = ""        ## what today's lesson is about
 
 var rng := RandomNumberGenerator.new()
 var _next_id: int = 1
@@ -65,6 +66,7 @@ func new_run(seed_value: int = 0) -> void:
 	roster.clear()
 	room_items.clear()
 	homework_out = false
+	subject = pick_subject()
 	_next_id = 1
 	for i in CLASS_START:
 		enrol()
@@ -134,6 +136,16 @@ func claim_interact() -> bool:
 	return true
 
 
+## Today's subject. Deliberately generic for now — it names the lesson so
+## the day has an identity, without pretending to a curriculum the game does
+## not yet model.
+const SUBJECTS := ["Maths", "Reading", "Science", "History",
+	"Geography", "Art", "Music", "Spelling"]
+
+func pick_subject() -> String:
+	return SUBJECTS[rng.randi_range(0, SUBJECTS.size() - 1)]
+
+
 func set_phase(p: int) -> void:
 	if p == phase:
 		return
@@ -193,6 +205,7 @@ func advance_day() -> Dictionary:
 		if s != null:
 			joined = s.display_name
 
+	subject = pick_subject()
 	set_phase(Phase.MORNING)
 	day_changed.emit(day)
 	save_game()
@@ -305,12 +318,56 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 	return true
 
 
+## What you get back for selling. Half, rounded down — enough that a
+## mistake is recoverable, little enough that shuffling the room for profit
+## is not a strategy.
+const SELL_FRACTION := 0.5
+
+
 func place_item(id: String, tile: Vector2i) -> bool:
 	if not spend(Items.cost(id)):
 		return false
+	add_item(id, tile)
+	return true
+
+
+## Put an item down without charging — used when MOVING one that is already
+## owned, and when a cancelled move puts it back.
+func add_item(id: String, tile: Vector2i) -> void:
 	room_items.append({"id": id, "tile": tile})
 	room_changed.emit()
-	return true
+
+
+## The placed item covering `tile`, or an empty dictionary.
+func item_at(tile: Vector2i) -> Dictionary:
+	for placed: Dictionary in room_items:
+		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+			if t == tile:
+				return placed
+	return {}
+
+
+## Lift an item off the floor. Returns its id, or "" if there was none.
+func remove_item(tile: Vector2i) -> String:
+	var placed := item_at(tile)
+	if placed.is_empty():
+		return ""
+	room_items.erase(placed)
+	room_changed.emit()
+	return String(placed["id"])
+
+
+func sell_value(id: String) -> int:
+	return int(floor(Items.cost(id) * SELL_FRACTION))
+
+
+func sell_item(tile: Vector2i) -> int:
+	var id := remove_item(tile)
+	if id == "":
+		return 0
+	var refund := sell_value(id)
+	add_coins(refund)
+	return refund
 
 
 # ------------------------------------------------------------------- save
@@ -323,6 +380,7 @@ func to_dict() -> Dictionary:
 		"version": 1, "day": day, "coins": coins,
 		"next_id": _next_id, "roster": out,
 		"homework_out": homework_out,
+		"subject": subject,
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
 	}
@@ -335,6 +393,7 @@ func from_dict(d: Dictionary) -> void:
 	coins = int(d.get("coins", 0))
 	_next_id = int(d.get("next_id", 1))
 	homework_out = bool(d.get("homework_out", false))
+	subject = String(d.get("subject", "Maths"))
 	room_items.clear()
 	for p: Dictionary in d.get("room_items", []):
 		room_items.append({"id": String(p.get("id", "")),

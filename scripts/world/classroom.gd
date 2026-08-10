@@ -22,6 +22,7 @@ const STALL_CHANCE := 0.7
 
 signal work_finished(seat_index: int)
 signal day_started(day: int)
+signal item_move_requested(id: String, tile: Vector2i)
 
 var grid := Grid.new()
 var player: Actor = null
@@ -56,6 +57,7 @@ func build() -> void:
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
+	_connect_placed()
 	_spawn_students()
 	_spawn_player()
 
@@ -198,15 +200,37 @@ func _respawn_students() -> void:
 ## filled up with invisible obstacles that pathfinding still respected.
 func _rebuild_purchased() -> void:
 	for n: Node in _purchased:
-		if is_instance_valid(n):
-			n.queue_free()
+		if not is_instance_valid(n):
+			continue
+		# Detach BEFORE freeing. queue_free() leaves a node in its groups and
+		# in the physics world until the end of the frame, so a just-sold
+		# bookshelf could still be found by the player's interact zone and by
+		# get_nodes_in_group() — you could walk up to furniture that no
+		# longer exists. remove_child takes it out immediately.
+		n.get_parent().remove_child(n)
+		n.queue_free()
 	for t: Vector2i in _purchased_tiles:
 		grid.set_cell(t, Grid.Cell.FREE)
 	_purchased_tiles.clear()
 	_purchased = RoomBuilder.build_purchased(self, grid)
+	_connect_placed()
 	for placed: Dictionary in Game.room_items:
 		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
 			_purchased_tiles.append(t)
+
+
+## Bought furniture is rebuilt from data, so its interactables are new
+## objects each time and have to be reconnected.
+func _connect_placed() -> void:
+	for body: Node in _purchased:
+		for c in body.get_children():
+			if c is Interactable and c.has_signal("move_requested"):
+				if not c.move_requested.is_connected(_on_move_requested):
+					c.move_requested.connect(_on_move_requested)
+
+
+func _on_move_requested(id: String, tile: Vector2i) -> void:
+	item_move_requested.emit(id, tile)
 
 
 ## Assign work to every seated student. Exposed so tests and future systems

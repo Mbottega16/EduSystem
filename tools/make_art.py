@@ -7,6 +7,7 @@ tweak a colour or a proportion and re-run rather than repaint by hand.
     python tools/make_art.py
 """
 import os
+import random
 
 from PIL import Image
 
@@ -105,13 +106,33 @@ TOP_WALL = 2             # top wall is 2 tiles tall (see make_room)
 # with that shared edge and cannot pass. Must match Layout.DOOR_TILES.
 DOOR_TILES = [(0, 7), (0, 8)]
 
-FLOOR_A = (196, 166, 130)
-FLOOR_B = (186, 156, 120)
-FLOOR_LINE = (170, 140, 106)
-WALL = (122, 96, 138)
-WALL_TOP = (150, 122, 166)
-WALL_BASE = (92, 70, 106)
-WALL_LINE = (70, 52, 82)
+# Two windows in the back wall, each 2 tiles wide and the full 2 tiles tall.
+WINDOW_COLS = [(5, 6), (12, 13)]
+
+# Classroom vinyl: warm off-white squares with a faint speckle, the way
+# school flooring actually looks, rather than a chequerboard.
+FLOOR_A = (224, 214, 194)
+FLOOR_B = (214, 203, 182)
+FLOOR_GROUT = (188, 176, 156)
+FLOOR_FLECK = (200, 190, 172)
+
+# Red brick.
+WALL = (152, 76, 62)
+WALL_L = (176, 96, 78)
+WALL_D = (116, 54, 44)
+WALL_TOP = (196, 122, 102)
+WALL_BASE = (92, 42, 34)
+MORTAR = (206, 192, 176)
+
+# Painted door and window frames, deliberately NOT brick-coloured so the
+# ways in and out read at a glance against a wall of red.
+DOOR_PAINT = (58, 118, 132)
+DOOR_PAINT_L = (86, 154, 168)
+DOOR_PAINT_D = (36, 80, 92)
+GLASS = (176, 214, 232)
+GLASS_L = (208, 234, 246)
+FRAME = (238, 234, 224)
+FRAME_D = (176, 170, 158)
 
 
 def px(img, x, y, c):
@@ -450,47 +471,98 @@ ITEM_ART = {
 # ====================================================================
 
 def floor_tile(vx, vy):
+    """One vinyl floor tile. The speckle is seeded from the tile position, so
+    the pattern is stable between runs but never visibly repeats."""
     t = Image.new("RGBA", (TILE, TILE))
     base = FLOOR_A if (vx + vy) % 2 == 0 else FLOOR_B
     rect(t, 0, 0, TILE - 1, TILE - 1, base)
-    # faint grout so the floor reads as tiles rather than flat colour
+    rnd = random.Random(vx * 7919 + vy * 104729)
+    for _ in range(9):
+        px(t, rnd.randrange(1, TILE - 1), rnd.randrange(1, TILE - 1), FLOOR_FLECK)
+    # grout on two edges only, so neighbouring tiles share one line
     for i in range(TILE):
-        px(t, i, 0, FLOOR_LINE)
-        px(t, 0, i, FLOOR_LINE)
+        px(t, i, 0, FLOOR_GROUT)
+        px(t, 0, i, FLOOR_GROUT)
     return t
 
 
-def wall_tile(is_bottom_row, cap=True):
+def wall_tile(is_bottom_row, cap=True, row=0):
+    """Red brick in a running bond. `row` staggers the courses so the bricks
+    offset correctly between vertically stacked tiles."""
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
+
+    course = 4
+    for i, y in enumerate(range(0, TILE, course)):
+        offset = 0 if (i + row * 4) % 2 == 0 else 4
+        for bx in range(-8 + offset, TILE, 8):
+            shade = (WALL_L, WALL_D, WALL)[(bx // 8 + i) % 3]
+            for xx in range(bx + 1, min(TILE, bx + 8)):
+                if xx < 0:
+                    continue
+                for yy in range(y + 1, min(TILE, y + course)):
+                    px(t, xx, yy, shade)
+            if 0 <= bx < TILE:
+                for yy in range(y + 1, min(TILE, y + course)):
+                    px(t, bx, yy, MORTAR)
+        rect(t, 0, y, TILE - 1, y, MORTAR)
+
     if cap:
-        rect(t, 0, 0, TILE - 1, 3, WALL_TOP)      # lit top edge
+        rect(t, 0, 0, TILE - 1, 2, WALL_TOP)
     if is_bottom_row:
-        rect(t, 0, TILE - 4, TILE - 1, TILE - 1, WALL_BASE)
-    # brick seams
-    for y in (5, 10, 15):
-        for x in range(TILE):
-            px(t, x, y, WALL_LINE)
-    for y, xs in ((5, (3, 11)), (10, (7, 15)), (15, (3, 11))):
-        for x in xs:
-            for yy in range(y, min(TILE, y + 5)):
-                px(t, x, yy, WALL_LINE)
+        rect(t, 0, TILE - 3, TILE - 1, TILE - 1, WALL_BASE)
+    return t
+
+
+def window_tile(left_half, top_half):
+    """One quarter of a 2x2-tile window: frame, glass, glazing bar, sill."""
+    t = Image.new("RGBA", (TILE, TILE))
+    rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
+    x0 = 2 if left_half else 0
+    x1 = TILE - 1 if left_half else TILE - 3
+    y0 = 3 if top_half else 0
+    y1 = TILE - 1 if top_half else TILE - 4
+
+    rect(t, x0, y0, x1, y1, FRAME)
+    gx0, gy0 = x0 + 2, y0 + 2
+    gx1 = x1 if left_half else x1 - 2
+    gy1 = y1 if top_half else y1 - 2
+    rect(t, gx0, gy0, gx1, gy1, GLASS)
+    if top_half:
+        rect(t, gx0, gy0, gx1, gy0 + 2, GLASS_L)   # daylight across the top
+    if left_half:
+        rect(t, TILE - 1, gy0, TILE - 1, gy1, FRAME_D)
+    else:
+        rect(t, 0, gy0, 0, gy1, FRAME_D)
+    if not top_half:
+        rect(t, x0, y1 - 1, x1, y1, FRAME_D)       # sill
+        rect(t, x0, TILE - 3, x1, TILE - 1, WALL_D)
     return t
 
 
 def door_tile(top):
-    """One tile of the two-tile doorway. Students come in through here."""
+    """One tile of the two-tile doorway: a painted classroom door with a
+    vision panel."""
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
-    rect(t, 1, 0, TILE - 2, TILE - 1, (46, 34, 54))   # the dark beyond
-    for y in range(TILE):                             # jambs
-        px(t, 1, y, WOOD_D)
-        px(t, TILE - 2, y, WOOD_D)
+    rect(t, 1, 0, TILE - 2, TILE - 1, DOOR_PAINT)
+    rect(t, 2, 0, 3, TILE - 1, DOOR_PAINT_L)
+    rect(t, TILE - 3, 0, TILE - 3, TILE - 1, DOOR_PAINT_D)
+    for y in range(TILE):
+        px(t, 1, y, FRAME)
+        px(t, TILE - 2, y, FRAME_D)
     if top:
-        rect(t, 0, 0, TILE - 1, 0, WALL_TOP)
-        rect(t, 1, 1, TILE - 2, 2, WOOD_D)            # lintel
+        rect(t, 0, 0, TILE - 1, 1, WALL_TOP)
+        rect(t, 1, 2, TILE - 2, 2, FRAME)
+        rect(t, 5, 6, 10, TILE - 1, GLASS)
+        rect(t, 5, 6, 10, 7, GLASS_L)
+        rect(t, 4, 5, 11, 5, FRAME)
     else:
-        rect(t, 1, TILE - 2, TILE - 2, TILE - 1, (70, 52, 82))   # threshold
+        rect(t, 5, 0, 10, 4, GLASS)
+        rect(t, 4, 5, 11, 5, FRAME)
+        px(t, TILE - 5, 8, (232, 220, 150))
+        px(t, TILE - 5, 9, (232, 220, 150))
+        rect(t, 1, TILE - 2, TILE - 2, TILE - 1, DOOR_PAINT_D)
     return t
 
 
@@ -500,12 +572,16 @@ def make_room():
         for tx in range(ROOM_W):
             edge = (tx == 0 or tx == ROOM_W - 1
                     or ty < TOP_WALL or ty == ROOM_H - 1)
+            window_here = ty < TOP_WALL and any(tx in c for c in WINDOW_COLS)
             if (tx, ty) in DOOR_TILES:
                 tile = door_tile(ty == DOOR_TILES[0][1])
+            elif window_here:
+                cols = next(c for c in WINDOW_COLS if tx in c)
+                tile = window_tile(tx == cols[0], ty == 0)
             elif edge:
                 # only the very top course gets the lit cap, so the two-tile
                 # top wall reads as one wall rather than two stacked ones
-                tile = wall_tile(ty == ROOM_H - 1, cap=(ty != 1))
+                tile = wall_tile(ty == ROOM_H - 1, cap=(ty != 1), row=ty)
             else:
                 tile = floor_tile(tx, ty)
             im.alpha_composite(tile, (tx * TILE, ty * TILE))

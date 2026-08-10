@@ -38,6 +38,13 @@ func _physics_process(delta: float) -> void:
 		)
 	walk(dir, delta)
 
+	# The thing you were standing at can be destroyed under you — sell a
+	# bookshelf and its node is freed while this still points at it. Drop a
+	# dead target before anything reads it.
+	if target != null and not is_instance_valid(target):
+		target = null
+		target_changed.emit(null)
+
 	# AFTER move_and_slide, always: Area2D overlap state updates one physics
 	# frame behind transform changes, so picking before moving would select
 	# against where you were last frame.

@@ -22,6 +22,7 @@ const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
+const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -172,6 +173,13 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		var body := add_prop(parent, tex, anchor,
 			Vector2(Items.width(id) * 16 - 2, 8))
 		body.add_to_group("purchased")
+
+		# every bought item can be picked up again
+		var it := Interactable.new()
+		it.set_script(PLACED_SCRIPT)
+		it.item_id = id
+		it.origin = placed["tile"]
+		body.add_child(it)
 		nodes.append(body)
 		for t: Vector2i in tiles:
 			grid.set_cell(t, Grid.Cell.BLOCKED)

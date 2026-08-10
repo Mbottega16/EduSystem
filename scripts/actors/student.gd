@@ -62,7 +62,33 @@ func set_bubble(on: bool) -> void:
 		bubble.visible = on
 
 
+## Colours for the little bar over their head.
+const BAR_W := 15.0
+const BAR_BG := Color(0.10, 0.09, 0.12, 0.85)
+const BAR_TRACK := Color(0.30, 0.29, 0.34)
+const BAR_FILL := Color(0.42, 0.78, 0.45)
+const BAR_STUCK := Color(0.86, 0.42, 0.36)
+
+
+## How far through their work they are. Redrawn every frame they are
+## working, which is also the frame the bar visibly stops moving if they get
+## stuck — the bar freezing is the tell, as much as the "?" is.
+func _draw() -> void:
+	if data == null or data.work_state != StudentData.Work.WORKING:
+		return
+	var frac: float = clampf(
+		1.0 - data.work_timer / StudentData.WORK_SECONDS, 0.0, 1.0)
+	var x := -BAR_W / 2.0
+	var y := -30.0
+	draw_rect(Rect2(x - 1.0, y - 1.0, BAR_W + 2.0, 5.0), BAR_BG)
+	draw_rect(Rect2(x, y, BAR_W, 3.0), BAR_TRACK)
+	draw_rect(Rect2(x, y, BAR_W * frac, 3.0),
+		BAR_STUCK if data.is_struggling() else BAR_FILL)
+
+
 func _physics_process(delta: float) -> void:
+	if data != null and data.work_state == StudentData.Work.WORKING:
+		queue_redraw()
 	if _path.is_empty():
 		return
 	if _delay > 0.0:

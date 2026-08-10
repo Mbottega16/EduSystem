@@ -90,6 +90,8 @@ func _main() -> void:
 	await test_placement()
 	await test_overlays()
 	await test_marking()
+	await test_shop()
+	await test_progress_bar()
 
 	print("")
 	if failed == 0:
@@ -767,7 +769,9 @@ func test_day_cycle() -> void:
 	chk("the bell refuses to end a day that has not had a lesson",
 		not world.bell.can_interact())
 	chk("the podium offers to start the lesson once everyone is seated",
-		world.podium.can_interact() and world.podium.prompt_text() == "Start the lesson")
+		world.podium.can_interact()
+		and world.podium.prompt_text().begins_with("Start the lesson"),
+		world.podium.prompt_text())
 
 	var assigned: int = world.start_lesson()
 	chk("starting the lesson sets the whole class working",
@@ -1012,7 +1016,7 @@ func test_overlays() -> void:
 	# open the catalogue by walking up to the noticeboard and pressing E
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
 	chk("standing at the noticeboard offers the catalogue",
-		p.target != null and p.target.prompt_text().begins_with("Order"),
+		p.target != null and p.target.prompt_text().begins_with("Furniture"),
 		"" if p.target == null else p.target.prompt_text())
 	await tap("interact")
 	chk("pressing E opens the catalogue", hud.mode == hud.Mode.CATALOGUE, hud.mode)
@@ -1143,3 +1147,159 @@ func test_marking() -> void:
 	await step(2)
 	chk("closing the summary hands control back",
 		hud.mode == hud.Mode.NONE and not p.input_locked)
+
+
+func test_shop() -> void:
+	section("BUY, SELL, MOVE")
+	var hud := _hud()
+	var p: Actor = world.player
+	var main: Node = world.get_parent()
+	Game.new_run(SEED)
+	Game.add_coins(2000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	chk("the day has a named subject", Game.subject != "", Game.subject)
+	chk("and it is one of the generic ones", Game.subject in Game.SUBJECTS)
+
+	# --- selling ---
+	Game.add_item("bookshelf", Vector2i(6, 6))
+	Game.add_item("plant", Vector2i(8, 6))
+	await step(2)
+	chk("two items are in the room", Game.room_items.size() == 2)
+
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	await tap("interact")
+	chk("the shop opens on the BUY list",
+		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.BUY)
+	await tap("menu")
+	chk("Tab switches to the SELL list", hud._shop == hud.Shop.SELL)
+	chk("the sell list shows what is actually in the room",
+		hud.body.text.contains("Bookshelf") and hud.body.text.contains("Potted Plant"),
+		hud.body.text)
+
+	var coins_before: int = Game.coins
+	var refund: int = Game.sell_value(String(Game.room_items[hud._sel]["id"]))
+	await tap("interact")
+	await step(2)
+	chk("selling removes the item and pays you back",
+		Game.room_items.size() == 1 and Game.coins == coins_before + refund,
+		"%d items, %d coins (+%d expected)" % [Game.room_items.size(), Game.coins, refund])
+	chk("you get back half, not the full price",
+		refund == int(floor(Items.cost("bookshelf") * Game.SELL_FRACTION))
+		or refund == int(floor(Items.cost("plant") * Game.SELL_FRACTION)), refund)
+	chk("the sold item's tile is free to build on again",
+		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
+
+	await tap("menu")
+	chk("Tab switches back to buying", hud._shop == hud.Shop.BUY)
+	await tap("cancel")
+	chk("Esc closes the shop", hud.mode == hud.Mode.NONE and not p.input_locked)
+
+	# --- moving ---
+	Game.room_items.clear()
+	Game.add_item("plant", Vector2i(6, 6))
+	await step(3)
+	var placed_body: Node = null
+	for n in get_tree().get_nodes_in_group("purchased"):
+		if is_instance_valid(n) and not (n as Node).is_queued_for_deletion():
+			placed_body = n
+	chk("a bought item exists in the world", placed_body != null)
+
+	await place_player(Vector2i(6, 7), Actor.DIR_UP)
+	chk("standing at your own furniture offers to move it",
+		p.target != null and p.target.prompt_text().begins_with("Move"),
+		"" if p.target == null else p.target.prompt_text())
+
+	var coins_at_move: int = Game.coins
+	await tap("interact")
+	await step(3)
+	chk("moving lifts it off the floor", Game.room_items.is_empty(), Game.room_items.size())
+	chk("and starts the ghost cursor", main.placement.active)
+	chk("moving something you own is free", Game.coins == coins_at_move)
+
+	main.placement.tile = Vector2i(11, 3)
+	main.placement._refresh()
+	chk("the new spot is valid", main.placement.is_valid())
+	await tap("interact")
+	await step(3)
+	chk("putting it down again re-places it, still free",
+		Game.room_items.size() == 1 and Game.coins == coins_at_move,
+		"%d items, %d coins" % [Game.room_items.size(), Game.coins])
+	chk("it is at the NEW tile", Game.room_items[0]["tile"] == Vector2i(11, 3),
+		Game.room_items[0]["tile"])
+	chk("the old tile is free again", world.grid.is_free(Vector2i(6, 6)))
+	chk("and you can walk once more", not p.input_locked)
+
+	# cancelling a move must put it back, not delete it
+	await place_player(Vector2i(11, 4), Actor.DIR_UP)
+	await tap("interact")
+	await step(3)
+	chk("a move is in progress", main.placement.active and Game.room_items.is_empty())
+	main.placement.tile = Vector2i(9, 6)
+	main.placement._refresh()
+	await tap("cancel")
+	await step(3)
+	chk("cancelling a move puts the item back where it was",
+		Game.room_items.size() == 1 and Game.room_items[0]["tile"] == Vector2i(11, 3),
+		Game.room_items)
+	chk("nothing was lost or charged",
+		Game.coins == coins_at_move and not p.input_locked)
+
+	chk("furniture cannot be rearranged mid-lesson", (func() -> bool:
+		Game.set_phase(Game.Phase.LESSON)
+		for n in get_tree().get_nodes_in_group("purchased"):
+			if not is_instance_valid(n) or (n as Node).is_queued_for_deletion():
+				continue
+			for c in (n as Node).get_children():
+				if c is Interactable and c.has_signal("move_requested"):
+					return not (c as Interactable).can_interact()
+		return false).call())
+	Game.set_phase(Game.Phase.AFTERNOON)
+
+
+func test_progress_bar() -> void:
+	section("PROGRESS BAR")
+	Game.new_run(SEED)
+	await step(2)
+	var frames := 0
+	while frames < 2000 and not world.everyone_seated():
+		await step(20)
+		frames += 20
+
+	var node: Actor = world.student_node(0)
+	var s := Game.student_in_seat(0)
+	chk("nothing is drawn before work is set",
+		s.work_state == StudentData.Work.NONE)
+
+	s.assign_work(Game.rng, 0.0)
+	await step(2)
+	chk("the bar has something to show once work starts",
+		s.work_state == StudentData.Work.WORKING)
+
+	# the bar reads straight off the work timer, so assert on that
+	var at_start: float = 1.0 - s.work_timer / StudentData.WORK_SECONDS
+	await step(120)
+	var later: float = 1.0 - s.work_timer / StudentData.WORK_SECONDS
+	chk("it fills as they work", later > at_start,
+		"%.2f -> %.2f" % [at_start, later])
+	chk("two seconds in, it is roughly two fifths full",
+		absf(later - 0.4) < 0.06, "%.2f" % later)
+
+	s.set_confused(true)
+	var frozen: float = s.work_timer
+	await step(120)
+	chk("it stops dead while they are stuck",
+		is_equal_approx(s.work_timer, frozen), s.work_timer)
+	chk("and the student reads as struggling, so the bar turns red",
+		s.is_struggling())
+
+	s.help()
+	await step(200)
+	chk("it fills again once you have helped",
+		s.work_timer < frozen, "%.2f -> %.2f" % [frozen, s.work_timer])
+
+	await step(220)
+	chk("at 100% the work is done and the bar is dropped",
+		s.work_state == StudentData.Work.DONE)
+	chk("the node is still alive to draw it", is_instance_valid(node))
