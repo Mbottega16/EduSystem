@@ -41,18 +41,38 @@ var work_timer: float = 0.0        ## seconds left until they finish
 
 ## Assign a fresh piece of work. Only a seated student can be given any —
 ## you can't hand a sheet to someone still walking to their chair.
-func assign_work() -> bool:
+##
+## `stall_chance` is how likely they are to get stuck partway through and
+## need you. Rolled once, up front, so the whole lesson is deterministic
+## from the seed.
+func assign_work(rng: RandomNumberGenerator = null, stall_chance: float = 0.0) -> bool:
 	if work_state != Work.NONE:
 		return false
 	work_state = Work.WORKING
 	work_timer = WORK_SECONDS
+	_elapsed = 0.0
+	_confuse_at = -1.0
+	set_confused(false)
+	if rng != null and rng.randf() < stall_chance:
+		# never on the very first or last moment — both read as a glitch
+		_confuse_at = rng.randf_range(WORK_SECONDS * 0.2, WORK_SECONDS * 0.8)
 	return true
 
 
 ## Returns true on the frame the work is finished, so the caller can react
 ## once rather than every frame afterwards.
+##
+## A confused student's timer is FROZEN — that is the entire pressure of the
+## lesson. Reach them and they finish; don't and they never do.
 func tick_work(delta: float) -> bool:
 	if work_state != Work.WORKING:
+		return false
+	if is_struggling():
+		return false
+	_elapsed += delta
+	if _confuse_at >= 0.0 and _elapsed >= _confuse_at:
+		_confuse_at = -1.0
+		set_confused(true)
 		return false
 	work_timer -= delta
 	if work_timer <= 0.0:
@@ -71,6 +91,45 @@ func collect_work() -> bool:
 		return false
 	work_state = Work.COLLECTED
 	return true
+
+
+# --- getting stuck, and being helped ----------------------------------
+# Confusion FREEZES the work timer. That is the whole pressure of a lesson:
+# an unhelped student never finishes, so there is nothing on their desk to
+# collect, so they contribute nothing. The thing you can see (a sheet
+# appearing) and the thing you're managing (attention) are the same thing.
+
+const ATTENTION_PER_HELP := 0.10
+const ATTENTION_CAP := 0.30
+
+var _elapsed: float = 0.0
+var _confuse_at: float = -1.0
+
+
+func set_confused(v: bool) -> void:
+	confusion = 1.0 if v else 0.0
+
+
+## Returns true if this actually helped — so a player mashing E at a student
+## who is fine can't farm attention credit.
+func help() -> bool:
+	if not is_struggling():
+		return false
+	set_confused(false)
+	attention_credit = minf(ATTENTION_CAP, attention_credit + ATTENTION_PER_HELP)
+	return true
+
+
+# --- homework ---------------------------------------------------------
+var hw_sheet: Dictionary = {}
+
+
+func homework_pending() -> bool:
+	return hw_state == HW.DONE or hw_state == HW.NOT_DONE
+
+
+func homework_ready_to_mark() -> bool:
+	return hw_state == HW.COLLECTED
 
 # --- homework, persists across days -----------------------------------
 var hw_state: int = HW.NONE

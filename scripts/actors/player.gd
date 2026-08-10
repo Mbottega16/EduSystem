@@ -14,7 +14,11 @@ signal carrying_changed(count: int)
 @onready var carry_icon: Sprite2D = $CarryIcon
 
 var target: Interactable = null
-var carrying: int = 0
+var carrying: int = 0        ## classwork sheets in your arms
+var carrying_hw: int = 0     ## homework collected, waiting to be marked
+## Set while a full-screen overlay owns the input, so you don't wander off
+## behind the catalogue.
+var input_locked: bool = false
 
 
 func _ready() -> void:
@@ -26,10 +30,12 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var dir := Vector2(
-		Input.get_axis("move_left", "move_right"),
-		Input.get_axis("move_up", "move_down")
-	)
+	var dir := Vector2.ZERO
+	if not input_locked:
+		dir = Vector2(
+			Input.get_axis("move_left", "move_right"),
+			Input.get_axis("move_up", "move_down")
+		)
 	walk(dir, delta)
 
 	# AFTER move_and_slide, always: Area2D overlap state updates one physics
@@ -40,7 +46,7 @@ func _physics_process(delta: float) -> void:
 		target = found
 		target_changed.emit(target)
 
-	if target != null and Input.is_action_just_pressed("interact"):
+	if not input_locked and target != null and Game.claim_interact():
 		target.interact(self)
 		# What you just did usually changes what is offered — re-pick now so
 		# the prompt doesn't advertise a stale action for a frame.
@@ -83,7 +89,19 @@ func drop_all_work() -> void:
 	carrying_changed.emit(carrying)
 
 
+func carry_homework(n: int) -> void:
+	carrying_hw += n
+	_refresh_carry_icon()
+	carrying_changed.emit(carrying)
+
+
+func drop_all_homework() -> void:
+	carrying_hw = 0
+	_refresh_carry_icon()
+	carrying_changed.emit(carrying)
+
+
 func _refresh_carry_icon() -> void:
 	if carry_icon == null:
 		return
-	carry_icon.visible = carrying > 0
+	carry_icon.visible = (carrying + carrying_hw) > 0

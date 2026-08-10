@@ -14,10 +14,14 @@ const PROP_DESK := preload("res://art/desk.png")
 const PROP_PODIUM := preload("res://art/podium.png")
 const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
 const PROP_PAPER := preload("res://art/paper.png")
+const PROP_BELL := preload("res://art/bell.png")
+const PROP_BOARD := preload("res://art/noticeboard.png")
 
 const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
 const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
-const TEACHER_DESK_SCRIPT := preload("res://scripts/interact/teacher_desk.gd")
+const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
+const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
+const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -128,8 +132,47 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var anchor := Layout.span_anchor(Layout.TEACHER_DESK)
 	var body := add_prop(parent, PROP_TEACHER_DESK, anchor, Vector2(30, 10))
 	var it := Interactable.new()
-	it.set_script(TEACHER_DESK_SCRIPT)
+	it.set_script(MARKING_DESK_SCRIPT)
 	body.add_child(it)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it
+
+
+static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
+	var body := add_prop(parent, PROP_BELL, Grid.tile_to_world(Layout.BELL), Vector2(12, 8))
+	var it := Interactable.new()
+	it.set_script(BELL_SCRIPT)
+	body.add_child(it)
+	grid.set_cell(Layout.BELL, Grid.Cell.BLOCKED)
+	return it
+
+
+static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
+	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(12, 8))
+	var it := Interactable.new()
+	it.set_script(BOARD_SCRIPT)
+	body.add_child(it)
+	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
+	return it
+
+
+## Everything the player has bought. Rebuilt from Game.room_items whenever
+## the room changes, so a save reload reconstructs it exactly.
+static func build_purchased(parent: Node2D, grid: Grid) -> Array:
+	var nodes: Array = []
+	for placed: Dictionary in Game.room_items:
+		var id := String(placed["id"])
+		var def := Items.get_def(id)
+		if def.is_empty():
+			continue
+		var tiles := Items.footprint(id, placed["tile"])
+		var anchor := Layout.span_anchor(tiles)
+		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
+		var body := add_prop(parent, tex, anchor,
+			Vector2(Items.width(id) * 16 - 2, 8))
+		body.add_to_group("purchased")
+		nodes.append(body)
+		for t: Vector2i in tiles:
+			grid.set_cell(t, Grid.Cell.BLOCKED)
+	return nodes

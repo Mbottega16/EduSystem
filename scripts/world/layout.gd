@@ -29,6 +29,9 @@ const TEACHER_DESK: Array[Vector2i] = [Vector2i(2, 2), Vector2i(3, 2)]
 ## day is a walk, not a reflex. (Not built yet — Phase 2.)
 const BELL: Vector2i = Vector2i(18, 2)
 
+## The furniture catalogue.
+const BOARD: Vector2i = Vector2i(16, 2)
+
 ## The gap in the left wall students come in through, and the tile they
 ## spawn on. Must match DOOR_TILES in tools/make_art.py, which cuts the
 ## matching hole in the wall art.

@@ -1,46 +1,44 @@
 extends Interactable
 
-## The front of the room. Assigning work to the class happens here — you walk
-## up to it rather than pressing a hotkey, because the whole premise is that
-## the teacher's movement is the game.
+## The front of the room. The lesson is started and ended here.
+##
+## You walk up to it rather than pressing a hotkey, because the whole premise
+## is that the teacher's movement is the game. The podium ends the LESSON;
+## the bell ends the DAY. Two distinct verbs, deliberately at opposite ends of
+## the room.
 
-signal work_assigned(count: int)
+signal lesson_started(assigned: int)
+signal lesson_ended(results: Array)
 
 
-## Only offer it when at least one seated student has nothing to do. That
-## stops the prompt sitting there uselessly while the class is already busy.
+func _classroom() -> Node:
+	var n := get_parent()
+	while n != null and not n.has_method("start_lesson"):
+		n = n.get_parent()
+	return n
+
+
 func can_interact() -> bool:
-	return _idle_seated_count() > 0
+	if Game.phase == Game.Phase.MORNING:
+		var room := _classroom()
+		return room != null and room.everyone_seated() and not Game.roster.is_empty()
+	return Game.phase == Game.Phase.LESSON
 
 
 func prompt_text() -> String:
-	return "Assign work (%d)" % _idle_seated_count()
+	if Game.phase == Game.Phase.MORNING:
+		return "Start the lesson"
+	if Game.phase == Game.Phase.LESSON:
+		return "End the lesson"
+	return ""
 
 
-func interact(_by: Node) -> void:
-	var n := 0
-	for s: StudentData in Game.roster:
-		if _is_seated(s) and s.assign_work():
-			n += 1
-	if n > 0:
-		work_assigned.emit(n)
-		used.emit(_by)
-
-
-## A student still walking to their chair can't be handed a sheet.
-func _is_seated(s: StudentData) -> bool:
-	var world := get_parent()
-	while world != null and not world.has_method("student_node"):
-		world = world.get_parent()
-	if world == null:
-		return true
-	var node: Actor = world.student_node(s.seat_index)
-	return node != null and node.seated
-
-
-func _idle_seated_count() -> int:
-	var n := 0
-	for s: StudentData in Game.roster:
-		if s.work_state == StudentData.Work.NONE and _is_seated(s):
-			n += 1
-	return n
+func interact(by: Node) -> void:
+	var room := _classroom()
+	if room == null:
+		return
+	if Game.phase == Game.Phase.MORNING:
+		lesson_started.emit(room.start_lesson())
+	elif Game.phase == Game.Phase.LESSON:
+		lesson_ended.emit(room.end_lesson())
+	used.emit(by)

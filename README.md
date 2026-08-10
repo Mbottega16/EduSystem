@@ -3,11 +3,10 @@
 An embodied classroom. **You are the teacher** — you walk the room, and the
 walking is the game.
 
-> **Status: Phases 0–1 complete, plus the classwork loop.** The class files in
-> through the door and sits down; you assign work at the podium, they take
-> five seconds to finish it, and you walk round collecting sheets and hand
-> them in at your own desk. Grading, homework and buying items are still to
-> come — see the plan for the remaining phases.
+> **Status: complete and playable.** Every phase of the plan is in: the class
+> files in and sits, you run a lesson, students get stuck and need reaching,
+> grades come out of it, you set and mark homework, and you spend the coins on
+> furniture that actually changes results.
 
 ## Play
 
@@ -15,14 +14,42 @@ Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
 the Desktop.
 
 - **Arrow keys / WASD** — walk
-- **E / Space** — interact with whatever the prompt at the bottom names
+- **E / Space** — do whatever the prompt at the bottom names
+- **Esc** — back out of a menu
 
-The loop: walk to the **podium** and assign work → the class works for five
-seconds → a sheet appears on each finished desk → walk to a desk to **collect**
-it → carry the pile to **your own desk** and hand it in.
+### A day
 
-You pick up what you are facing, so approaching a desk from the aisle selects
-that desk and not its neighbour.
+1. The class files in through the door and takes its seats.
+2. **Podium** — start the lesson. Everyone begins a piece of work.
+3. They get stuck. A **"?"** appears over their head and their work stops
+   dead until you walk over and help. This is the game: you cannot reach
+   everyone, so you choose.
+4. A finished sheet appears on each desk. **Collect** them, carry the pile to
+   **your own desk**, hand it in.
+5. **Podium** — end the lesson. Everyone is graded, and tonight's homework is
+   set.
+6. **Noticeboard** — spend coins on furniture. Arrows move the ghost, E puts
+   it down. It will refuse a spot that would wall the class off from the door.
+7. **Bell** — end the day. You get paid, and homework comes back overnight to
+   be collected and marked.
+
+You interact with whatever you are **facing**, so approaching a desk from the
+aisle picks that desk, not its neighbour.
+
+### How grades work
+
+**The room sets the floor, you set the ceiling.**
+
+| | |
+|---|---|
+| Perfect furniture, never helped anyone | a **C** |
+| Bare room, gave one student everything | a **C** |
+| Both | an **A** |
+
+Neither alone gets near the top. Furniture effects are **range-based from the
+item's tile**, so *where* you put a bookshelf matters as much as owning one.
+Those three rows are asserted in the test suite so tuning can't quietly break
+the design.
 
 The launcher just starts Godot on this folder. If Godot moves, edit the
 `GODOT=` line at the top of the .bat. Godot 4.7.x (standard, not .NET) —
@@ -36,7 +63,7 @@ Double-click **`Run Tests.bat`**, or:
 godot --headless --path . res://tests/run.tscn
 ```
 
-85 assertions. Exits 0/1 so it can gate a commit.
+184 assertions. Exits 0/1 so it can gate a commit.
 
 **Never use `create_timer()` in a test.** `Engine.max_physics_steps_per_frame`
 (default 8) clamps catch-up, so any main-thread stall desyncs simulation time

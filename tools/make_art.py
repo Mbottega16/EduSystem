@@ -323,9 +323,125 @@ def draw_paper():
     return outline(im)
 
 
+def draw_bell():
+    """Ends the day. Deliberately across the room from the podium."""
+    im = Image.new("RGBA", (16, 20), (0, 0, 0, 0))
+    rect(im, 4, 2, 11, 3, (198, 160, 62))     # crown
+    rect(im, 3, 4, 12, 10, (226, 186, 74))    # body
+    rect(im, 3, 4, 5, 10, (246, 214, 116))    # highlight
+    rect(im, 2, 11, 13, 12, (198, 160, 62))   # lip
+    rect(im, 7, 13, 8, 14, (150, 118, 42))    # clapper
+    rect(im, 5, 15, 10, 16, WOOD)             # stand
+    rect(im, 3, 17, 12, 19, WOOD_D)
+    return outline(im)
+
+
+def draw_noticeboard():
+    """Where you order furniture from."""
+    im = Image.new("RGBA", (16, 20), (0, 0, 0, 0))
+    rect(im, 1, 1, 14, 13, WOOD_D)            # frame
+    rect(im, 2, 2, 13, 12, (188, 156, 116))   # cork
+    rect(im, 3, 3, 7, 6, (246, 244, 236))     # pinned notes
+    rect(im, 9, 4, 12, 8, (232, 226, 200))
+    rect(im, 3, 8, 6, 11, (222, 216, 196))
+    rect(im, 6, 14, 9, 16, WOOD)              # post
+    rect(im, 4, 17, 11, 19, WOOD_D)
+    return outline(im)
+
+
+def draw_bubble_q():
+    """A confused student. The single most important readout in the game —
+    at this resolution a bubble over a head says more than any HUD label."""
+    im = Image.new("RGBA", (11, 12), (0, 0, 0, 0))
+    rect(im, 1, 0, 9, 7, (252, 250, 242))     # bubble
+    rect(im, 0, 1, 10, 6, (252, 250, 242))
+    rect(im, 4, 8, 6, 9, (252, 250, 242))     # tail
+    px(im, 5, 10, (252, 250, 242))
+    q = (196, 72, 60)
+    rect(im, 4, 1, 6, 1, q)                   # question mark
+    px(im, 7, 2, q); px(im, 6, 3, q); px(im, 5, 4, q)
+    px(im, 3, 2, q); px(im, 5, 6, q)
+    return outline(im)
+
+
 FURNITURE = {
     "chair": draw_chair, "table": draw_table, "desk": draw_desk,
     "teacher_desk": draw_teacher_desk, "podium": draw_podium, "paper": draw_paper,
+    "bell": draw_bell, "noticeboard": draw_noticeboard, "bubble_q": draw_bubble_q,
+}
+
+
+# --- purchasable classroom items -------------------------------------
+# Each is a floor prop the player buys and places. They exist as art here;
+# their effects live in scripts/data/items.gd.
+
+def _shelf(body, trim):
+    im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    rect(im, 1, 2, 14, 18, body)
+    rect(im, 1, 2, 14, 3, WOOD_L)
+    for y in (8, 13):
+        rect(im, 2, y, 13, y, WOOD_D)
+    for x in range(3, 13, 3):                 # books
+        rect(im, x, 4, x + 1, 7, trim)
+        rect(im, x, 9, x + 1, 12, (trim[0] // 2 + 60, trim[1] // 2 + 60, trim[2] // 2 + 60))
+    rect(im, 2, 19, 4, 21, WOOD_D)
+    rect(im, 11, 19, 13, 21, WOOD_D)
+    return outline(im)
+
+
+def draw_bookshelf():
+    return _shelf(WOOD, (86, 128, 196))
+
+
+def draw_lab_bench():
+    im = Image.new("RGBA", (32, 20), (0, 0, 0, 0))
+    rect(im, 1, 4, 30, 12, (132, 138, 148))   # steel top
+    rect(im, 1, 4, 30, 5, (170, 176, 186))
+    rect(im, 1, 12, 30, 13, (92, 96, 106))
+    rect(im, 4, 1, 7, 3, (108, 196, 168))     # flasks
+    rect(im, 10, 0, 13, 3, (196, 148, 84))
+    rect(im, 22, 1, 25, 3, (146, 132, 206))
+    rect(im, 3, 14, 5, 18, (92, 96, 106))
+    rect(im, 26, 14, 28, 18, (92, 96, 106))
+    return outline(im)
+
+
+def draw_art_easel():
+    im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    rect(im, 2, 1, 13, 12, (246, 244, 236))   # canvas
+    rect(im, 4, 3, 8, 7, (206, 96, 88))       # a painting in progress
+    rect(im, 8, 6, 11, 10, (104, 160, 206))
+    rect(im, 1, 12, 14, 13, WOOD)
+    rect(im, 4, 14, 5, 21, WOOD_D)            # legs
+    rect(im, 10, 14, 11, 21, WOOD_D)
+    rect(im, 7, 14, 8, 19, WOOD_D)
+    return outline(im)
+
+
+def draw_rug():
+    im = Image.new("RGBA", (32, 18), (0, 0, 0, 0))
+    rect(im, 1, 1, 30, 16, (168, 96, 104))
+    rect(im, 3, 3, 28, 14, (196, 128, 132))
+    rect(im, 6, 5, 25, 12, (168, 96, 104))
+    rect(im, 9, 7, 22, 10, (216, 176, 140))
+    return outline(im)
+
+
+def draw_plant():
+    im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    rect(im, 5, 14, 10, 20, (176, 106, 78))   # pot
+    rect(im, 4, 13, 11, 15, (196, 126, 96))
+    for pts in (((7, 2), (8, 12)), ((3, 6), (7, 11)), ((12, 5), (8, 11))):
+        x0, y0 = pts[0]
+        x1, y1 = pts[1]
+        rect(im, min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), (84, 152, 90))
+    rect(im, 6, 3, 9, 9, (108, 180, 112))
+    return outline(im)
+
+
+ITEM_ART = {
+    "bookshelf": draw_bookshelf, "lab_bench": draw_lab_bench,
+    "art_easel": draw_art_easel, "rug": draw_rug, "plant": draw_plant,
 }
 
 
@@ -403,7 +519,7 @@ if __name__ == "__main__":
         size = make_character(name, pal)
         print("art/%-18s %3dx%-3d (%d facings x %d frames of %dx%d)"
               % (name + ".png", size[0], size[1], DIRS, FRAMES, CW, CH))
-    for name, fn in FURNITURE.items():
+    for name, fn in list(FURNITURE.items()) + list(ITEM_ART.items()):
         img = fn()
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))

@@ -77,11 +77,19 @@ func _main() -> void:
 	test_grid()
 	test_game()
 	test_layout()
+	test_balance()
+	test_items()
+	test_homework()
 	await test_scene()
 	await test_movement()
 	await test_arrival()
 	await test_work_loop()
 	await test_seating()
+	await test_day_cycle()
+	await test_confusion()
+	await test_placement()
+	await test_overlays()
+	await test_marking()
 
 	print("")
 	if failed == 0:
@@ -562,3 +570,576 @@ func _body_near(p: Vector2) -> StaticBody2D:
 		if c is StaticBody2D and (c as StaticBody2D).global_position.distance_to(p) < 0.6:
 			return c
 	return null
+
+
+# ============================================ the balance contract & content
+
+func test_balance() -> void:
+	section("BALANCE CONTRACT")
+	# These three assertions ARE the design pillar: "the room sets the floor,
+	# the teacher sets the ceiling". If a tuning pass breaks any of them the
+	# game has quietly stopped being the game it was designed to be.
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	Game.room_items.clear()
+	s.attention_credit = 0.0
+	chk("a bare room with no attention is a failing grade",
+		Game.grade_letter(Game.grade_for(s)) == "F",
+		"%.2f %s" % [Game.grade_for(s), Game.grade_letter(Game.grade_for(s))])
+
+	# perfect room, zero attention -> a C
+	for id: String in Items.ORDER:
+		Game.room_items.append({"id": id, "tile": Layout.SEATS[0]})
+	chk("a perfect room ALONE tops out at a C",
+		Game.grade_letter(Game.grade_for(s)) == "C",
+		"%.2f" % Game.grade_for(s))
+	chk("room score is capped, so furniture alone can never reach an A",
+		is_equal_approx(Game.room_score(0), Game.ROOM_CAP))
+
+	# bare room, perfect attention -> also a C
+	Game.room_items.clear()
+	s.attention_credit = StudentData.ATTENTION_CAP
+	chk("perfect attention in a bare room ALSO tops out at a C",
+		Game.grade_letter(Game.grade_for(s)) == "C",
+		"%.2f" % Game.grade_for(s))
+
+	# both -> an A
+	for id: String in Items.ORDER:
+		Game.room_items.append({"id": id, "tile": Layout.SEATS[0]})
+	chk("room AND attention together earn an A",
+		Game.grade_letter(Game.grade_for(s)) == "A", "%.2f" % Game.grade_for(s))
+
+	chk("attention credit cannot be farmed past its cap", (func() -> bool:
+		s.set_confused(true)
+		for i in 20:
+			s.set_confused(true)
+			s.help()
+		return is_equal_approx(s.attention_credit, StudentData.ATTENTION_CAP)).call())
+	chk("helping a student who is fine does nothing", (func() -> bool:
+		s.set_confused(false)
+		var before := s.attention_credit
+		return not s.help() and is_equal_approx(s.attention_credit, before)).call())
+	Game.room_items.clear()
+
+
+func test_items() -> void:
+	section("ITEMS")
+	Game.new_run(SEED)
+	chk("every catalogue entry has art, a cost and an effect", (func() -> bool:
+		for id: String in Items.ORDER:
+			var d := Items.get_def(id)
+			if d.is_empty() or int(d["cost"]) <= 0 or float(d["bonus"]) <= 0.0:
+				return false
+			if not ResourceLoader.exists("res://art/%s.png" % String(d["art"])):
+				return false
+		return true).call())
+	chk("the catalogue is ordered cheapest first", (func() -> bool:
+		var last := -1
+		for id: String in Items.ORDER:
+			var c := Items.cost(id)
+			if c < last:
+				return false
+			last = c
+		return true).call())
+
+	# range is the whole point of item placement
+	Game.room_items.clear()
+	var far := Layout.SEATS[0] + Vector2i(9, 0)
+	Game.room_items.append({"id": "bookshelf", "tile": far})
+	chk("an item out of range helps nobody",
+		is_equal_approx(Game.room_score(0), Game.ROOM_BASE),
+		Game.room_score(0))
+	Game.room_items[0]["tile"] = Layout.SEATS[0] + Vector2i(2, 0)
+	chk("the same item in range does help",
+		Game.room_score(0) > Game.ROOM_BASE, Game.room_score(0))
+
+	# a 2-tile item should reach from either end, not just its anchor
+	Game.room_items.clear()
+	Game.room_items.append({"id": "lab_bench",
+		"tile": Layout.SEATS[0] + Vector2i(-4, 0)})
+	chk("a wide item measures from its NEAREST tile, not its anchor",
+		Game.room_score(0) > Game.ROOM_BASE, Game.room_score(0))
+
+	# buying
+	Game.room_items.clear()
+	Game.coins = 0
+	chk("you can't buy what you can't afford", not Game.place_item("plant", Vector2i(5, 3)))
+	Game.add_coins(1000)
+	var before := Game.coins
+	chk("buying places the item and charges you",
+		Game.place_item("plant", Vector2i(5, 3))
+		and Game.coins == before - Items.cost("plant")
+		and Game.room_items.size() == 1)
+	chk("two items can't occupy the same tile", not Game.item_fits("plant", Vector2i(5, 3)))
+	chk("a free tile still fits", Game.item_fits("plant", Vector2i(6, 3)))
+	Game.room_items.clear()
+
+
+func test_homework() -> void:
+	section("HOMEWORK")
+	Game.new_run(SEED)
+	chk("no homework is out at the start of a run", not Game.homework_out)
+	chk("assigning homework reaches the whole class",
+		Game.assign_homework() == Game.roster.size())
+	chk("assigning twice in a day is refused", Game.assign_homework() == 0)
+
+	# overnight
+	for s: StudentData in Game.roster:
+		s.last_grade = 0.7
+	var report := Game.advance_day()
+	var done := 0
+	var not_done := 0
+	for s: StudentData in Game.roster:
+		if s.hw_state == StudentData.HW.DONE:
+			done += 1
+		elif s.hw_state == StudentData.HW.NOT_DONE:
+			not_done += 1
+	chk("overnight, every set piece of homework resolves one way or the other",
+		done + not_done == Game.roster.size(), "%d done, %d not" % [done, not_done])
+	chk("the day report counts who actually did it",
+		int(report["homework_done"]) == done)
+	chk("a student who did it has a real sheet to mark", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.hw_state == StudentData.HW.DONE:
+				return s.hw_sheet.get("items", []).size() == Questions.QUESTIONS_PER_SHEET
+		return true).call())
+
+	# diligence must actually matter, over enough rolls to be meaningful
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var lazy_done := 0
+	var keen_done := 0
+	for i in 400:
+		if rng.randf() < 0.2:
+			lazy_done += 1
+		if rng.randf() < 0.9:
+			keen_done += 1
+	chk("a diligent student really does hand in more often",
+		keen_done > lazy_done * 2, "%d vs %d of 400" % [keen_done, lazy_done])
+
+	# the sheet generator
+	var r2 := RandomNumberGenerator.new()
+	r2.seed = 99
+	var good := Questions.make_sheet(1.0, r2)
+	chk("a perfect student's sheet is all correct", (func() -> bool:
+		for it: Dictionary in good["items"]:
+			if not bool(it["correct"]):
+				return false
+		return true).call())
+	chk("a perfect sheet deserves a pass", Questions.sheet_is_good(good))
+	var bad := Questions.make_sheet(0.0, r2)
+	chk("a hopeless sheet does not", not Questions.sheet_is_good(bad))
+	chk("a wrong answer shown is never the right answer", (func() -> bool:
+		for it: Dictionary in bad["items"]:
+			if bool(it["correct"]):
+				return false
+		return true).call())
+	# the tells must be imperfect, or the judgement stops being a judgement
+	var r3 := RandomNumberGenerator.new()
+	r3.seed = 7
+	var agree := 0
+	var total := 0
+	for i in 300:
+		var sh := Questions.make_sheet(r3.randf(), r3)
+		for it: Dictionary in sh["items"]:
+			total += 1
+			if bool(it["neat"]) == bool(it["correct"]):
+				agree += 1
+	var ratio := float(agree) / float(total)
+	chk("tells correlate with the truth but do not give it away",
+		ratio > 0.6 and ratio < 0.9, "%.2f agreement" % ratio)
+
+
+# ================================================== tier 2: the day, in scene
+
+func test_day_cycle() -> void:
+	section("DAY CYCLE")
+	# test_work_loop leaves the class having already done and handed in a
+	# piece of work. Clear that so this section starts from a real morning.
+	for s: StudentData in Game.roster:
+		s.reset_lesson()
+	Game.set_phase(Game.Phase.MORNING)
+	world.player.drop_all_work()
+	world.player.drop_all_homework()
+	await step(2)
+	chk("the day starts in the morning", Game.phase == Game.Phase.MORNING)
+	chk("the bell refuses to end a day that has not had a lesson",
+		not world.bell.can_interact())
+	chk("the podium offers to start the lesson once everyone is seated",
+		world.podium.can_interact() and world.podium.prompt_text() == "Start the lesson")
+
+	var assigned: int = world.start_lesson()
+	chk("starting the lesson sets the whole class working",
+		assigned == Game.roster.size() and Game.phase == Game.Phase.LESSON, assigned)
+	chk("the podium now offers to END the lesson",
+		world.podium.prompt_text() == "End the lesson")
+	chk("the bell still refuses mid-lesson", not world.bell.can_interact())
+
+	# give one student credit so the grades are not all identical
+	Game.roster[0].attention_credit = StudentData.ATTENTION_CAP
+	var results: Array = world.end_lesson()
+	chk("ending the lesson grades everybody",
+		results.size() == Game.roster.size(), results.size())
+	chk("the helped student outscores the ignored one",
+		float(results[0]["grade"]) > float(results[1]["grade"]),
+		"%.2f vs %.2f" % [results[0]["grade"], results[1]["grade"]])
+	chk("every student now has a recorded grade", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.grades.is_empty() or s.last_grade < 0.0:
+				return false
+		return true).call())
+	chk("ending the lesson also sets tonight's homework", Game.homework_out)
+	chk("the phase moves to the afternoon", Game.phase == Game.Phase.AFTERNOON)
+	chk("NOW the bell will ring", world.bell.can_interact())
+	chk("and the podium has nothing more to offer", not world.podium.can_interact())
+
+	var day_before: int = Game.day
+	var coins_before: int = Game.coins
+	var report: Dictionary = world.end_day()
+	chk("ringing the bell advances the day", Game.day == day_before + 1)
+	chk("a class that learned something gets paid",
+		Game.coins > coins_before, "%d -> %d" % [coins_before, Game.coins])
+	chk("the report says what happened",
+		report.has("average") and report.has("coins") and report.has("homework_done"))
+	chk("tomorrow starts in the morning again", Game.phase == Game.Phase.MORNING)
+	chk("the class files back in rather than starting seated",
+		not world.everyone_seated())
+
+	var frames := 0
+	while frames < 2000 and not world.everyone_seated():
+		await step(20)
+		frames += 20
+	chk("the new day's class takes its seats", world.everyone_seated())
+
+	# homework came back overnight and can be collected from the desks
+	var seat := -1
+	for s: StudentData in Game.roster:
+		if s.hw_state == StudentData.HW.DONE:
+			seat = s.seat_index
+			break
+	if seat >= 0:
+		var st: Interactable = world.station(seat)
+		chk("a desk with homework on it offers to take it",
+			st.can_interact() and st.prompt_text().begins_with("Take"), st.prompt_text())
+		await place_player(Layout.desk_tile(seat) + Vector2i(0, 1), Actor.DIR_UP)
+		await tap("interact")
+		chk("collecting homework puts it in your arms",
+			world.player.carrying_hw == 1, world.player.carrying_hw)
+		chk("that student's homework is marked collected",
+			Game.student_in_seat(seat).hw_state == StudentData.HW.COLLECTED)
+	else:
+		chk("(no homework came back this seed, so collection is untested)", true)
+
+
+func test_confusion() -> void:
+	section("GETTING STUCK")
+	Game.new_run(SEED)
+	var s := StudentData.new()
+	s.seat_index = 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+
+	# force a stall, then prove the work timer really is frozen by it
+	s.assign_work(rng, 1.0)
+	chk("work starts un-stuck", not s.is_struggling())
+	var guard := 0
+	while not s.is_struggling() and guard < 600:
+		s.tick_work(1.0 / 60.0)
+		guard += 1
+	chk("a student can get stuck partway through", s.is_struggling(), guard)
+
+	var frozen: float = s.work_timer
+	for i in 300:
+		s.tick_work(1.0 / 60.0)
+	chk("a stuck student's work does not progress at all",
+		is_equal_approx(s.work_timer, frozen), "%.3f -> %.3f" % [frozen, s.work_timer])
+	chk("and they never finish on their own", not s.has_work_to_collect())
+
+	chk("helping them clears it and earns you credit", (func() -> bool:
+		var before := s.attention_credit
+		return s.help() and not s.is_struggling() and s.attention_credit > before).call())
+
+	for i in 400:
+		s.tick_work(1.0 / 60.0)
+	chk("once helped, they finish", s.has_work_to_collect())
+
+	# never stalls at the very start or the very end, both of which read as
+	# a glitch rather than as the student getting stuck
+	var edge_ok := true
+	for i in 200:
+		var t := StudentData.new()
+		t.assign_work(rng, 1.0)
+		if t._confuse_at < StudentData.WORK_SECONDS * 0.15:
+			edge_ok = false
+		if t._confuse_at > StudentData.WORK_SECONDS * 0.85:
+			edge_ok = false
+	chk("a stall never lands on the first or last moment of the work", edge_ok)
+
+	chk("with stall chance zero nobody ever gets stuck", (func() -> bool:
+		for i in 100:
+			var t := StudentData.new()
+			t.assign_work(rng, 0.0)
+			for j in 400:
+				t.tick_work(1.0 / 60.0)
+			if not t.has_work_to_collect():
+				return false
+		return true).call())
+
+
+func test_placement() -> void:
+	section("PLACEMENT")
+	Game.new_run(SEED)
+	Game.add_coins(5000)
+	var place := Placement.new()
+	world.add_child(place)
+	place.begin("plant", world.grid, Vector2i(9, 6))
+
+	chk("an empty floor tile is a valid spot", place.is_valid())
+	place.tile = Layout.desk_tile(0)
+	place._refresh()
+	chk("furniture cannot go inside a desk", not place.is_valid())
+	place.tile = Vector2i(0, 0)
+	place._refresh()
+	chk("furniture cannot go inside a wall", not place.is_valid())
+	place.tile = Vector2i(9, 6)
+	place._refresh()
+	chk("moving back to open floor is valid again", place.is_valid())
+
+	chk("the cursor cannot leave the room", (func() -> bool:
+		place.tile = Vector2i(0, 5)
+		place.move_by(Vector2i.LEFT)
+		return place.tile == Vector2i(0, 5)).call())
+
+	# THE important one: the player must not be able to wall their own class
+	# in. Brick up the corridor beside the door leaving one gap, then check
+	# the guard refuses the tile that would finally seal it.
+	var seal := Vector2i(1, 7)
+	for ty in range(2, 10):
+		if Vector2i(1, ty) != seal:
+			world.grid.set_cell(Vector2i(1, ty), Grid.Cell.BLOCKED)
+	place.item_id = "plant"
+	place.tile = seal
+	place._refresh()
+	chk("placing the tile that would seal the class off is refused",
+		not place.is_valid())
+	for ty in range(2, 10):
+		world.grid.set_cell(Vector2i(1, ty), Grid.Cell.FREE)
+
+	place.tile = Vector2i(9, 6)
+	place._refresh()
+	var coins_before: int = Game.coins
+	var items_before: int = Game.room_items.size()
+	Game.place_item("plant", Vector2i(9, 6))
+	await step(3)
+	chk("confirming a placement buys and records it",
+		Game.room_items.size() == items_before + 1
+		and Game.coins == coins_before - Items.cost("plant"))
+	chk("the placed item blocks its tile in the world",
+		not world.grid.is_free(Vector2i(9, 6)))
+	chk("and it now helps whoever is in range", (func() -> bool:
+		for i in Layout.seat_count():
+			if Game.room_score(i) > Game.ROOM_BASE:
+				return true
+		return false).call())
+
+	place.queue_free()
+
+	# save round-trip including the room
+	var snapshot := Game.to_dict()
+	Game.from_dict(snapshot)
+	chk("a save round-trips the furniture too",
+		Game.to_dict() == snapshot and Game.room_items.size() > 0)
+	chk("the reloaded item keeps its tile as a Vector2i",
+		Game.room_items[0]["tile"] is Vector2i)
+
+	# and the save file itself
+	Game.delete_save()
+	chk("there is no save file to begin with", not Game.has_save())
+	Game.save_game()
+	chk("saving writes a file", Game.has_save())
+	var on_disk := Game.to_dict()
+	Game.new_run(1)
+	Game.load_game()
+	# NOT a byte-identical comparison: Godot's JSON writer truncates float
+	# precision (0.69671237468719 comes back as 0.6967123746872), so a disk
+	# round-trip can never be exact. The in-memory round-trip above IS exact,
+	# and that is the one that would catch a real serialisation bug. This one
+	# asserts equivalence within tolerance.
+	chk("loading from disk restores the run",
+		_same_within(Game.to_dict(), on_disk, 1e-6), Game.to_dict())
+	Game.delete_save()
+
+
+## Deep compare allowing float drift, for anything that has been through JSON.
+func _same_within(a: Variant, b: Variant, tol: float) -> bool:
+	if a is float or b is float:
+		return absf(float(a) - float(b)) <= tol
+	if a is Dictionary and b is Dictionary:
+		if (a as Dictionary).size() != (b as Dictionary).size():
+			return false
+		for k: Variant in (a as Dictionary):
+			if not (b as Dictionary).has(k):
+				return false
+			if not _same_within((a as Dictionary)[k], (b as Dictionary)[k], tol):
+				return false
+		return true
+	if a is Array and b is Array:
+		if (a as Array).size() != (b as Array).size():
+			return false
+		for i in (a as Array).size():
+			if not _same_within((a as Array)[i], (b as Array)[i], tol):
+				return false
+		return true
+	return a == b
+
+
+# ============================================== overlays, driven by real input
+
+func _hud() -> Control:
+	return world.get_parent().get_node("UI/HUD")
+
+
+func test_overlays() -> void:
+	section("OVERLAYS")
+	var hud := _hud()
+	var p: Actor = world.player
+	Game.new_run(SEED)
+	Game.add_coins(2000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	# open the catalogue by walking up to the noticeboard and pressing E
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	chk("standing at the noticeboard offers the catalogue",
+		p.target != null and p.target.prompt_text().begins_with("Order"),
+		"" if p.target == null else p.target.prompt_text())
+	await tap("interact")
+	chk("pressing E opens the catalogue", hud.mode == hud.Mode.CATALOGUE, hud.mode)
+	chk("the player is frozen while it is open", p.input_locked)
+
+	var first: int = hud._sel
+	await tap("move_down")
+	chk("Down moves the selection", hud._sel == first + 1, hud._sel)
+	await tap("move_up")
+	chk("Up moves it back", hud._sel == first)
+
+	# THE REGRESSION TEST.
+	# Input.is_action_just_pressed() reports true in both the idle frame and
+	# the physics tick. Before Game.claim_interact() existed, ONE press could
+	# close a menu and then immediately re-fire whatever the teacher was
+	# standing next to — here, re-opening the very noticeboard just closed.
+	# It cost a whole automated playthrough to find, so it is pinned.
+	await tap("cancel")
+	chk("Esc closes the catalogue", hud.mode == hud.Mode.NONE)
+	chk("and hands control back", not p.input_locked)
+	await tap("interact")
+	var opened_once: bool = hud.mode == hud.Mode.CATALOGUE
+	await tap("cancel")
+	await step(2)
+	chk("one press does one thing — closing a menu never re-opens it",
+		hud.mode == hud.Mode.NONE, hud.mode)
+	chk("(and the press that opened it genuinely did open it)", opened_once)
+
+	# order something, and place it
+	await tap("interact")
+	var chosen: String = Items.ORDER[hud._sel]
+	var coins_before: int = Game.coins
+	var items_before: int = Game.room_items.size()
+	await tap("interact")
+	await step(3)
+	var main: Node = world.get_parent()
+	chk("confirming an order starts placement mode", main.placement.active)
+	chk("the catalogue closed behind it", hud.mode == hud.Mode.NONE)
+	chk("the ghost did NOT place itself on the same press",
+		Game.room_items.size() == items_before, Game.room_items.size())
+
+	# Find a genuinely free spot rather than assuming one — an earlier
+	# section may already have put something down.
+	var spot := Vector2i(-1, -1)
+	for t: Vector2i in world.grid.free_tiles():
+		if t.y >= 3 and t.y <= 9 and t.x >= 2 and t.x <= 16 and Game.item_fits(chosen, t):
+			spot = t
+			break
+	main.placement.tile = spot
+	main.placement._refresh()
+	chk("the ghost is over a valid tile", main.placement.is_valid(), spot)
+	await tap("interact")
+	await step(3)
+	chk("pressing E puts the item down and charges for it",
+		Game.room_items.size() == items_before + 1
+		and Game.coins == coins_before - Items.cost(chosen),
+		"%d items, %d coins" % [Game.room_items.size(), Game.coins])
+	chk("placement mode ends", not main.placement.active)
+	chk("and you can walk again", not p.input_locked)
+
+	# cancelling placement must refund nothing and unlock
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	await tap("interact")
+	await tap("interact")
+	await step(3)
+	var mid_coins: int = Game.coins
+	await tap("cancel")
+	await step(3)
+	chk("cancelling placement leaves you unlocked and un-charged",
+		not main.placement.active and not p.input_locked and Game.coins == mid_coins)
+
+
+func test_marking() -> void:
+	section("MARKING")
+	var hud := _hud()
+	var p: Actor = world.player
+	Game.new_run(SEED)
+	await step(2)
+
+	# hand everyone a finished sheet to mark
+	for s: StudentData in Game.roster:
+		s.hw_state = StudentData.HW.COLLECTED
+		s.hw_true_accuracy = 0.9
+		s.hw_sheet = Questions.make_sheet(0.9, Game.rng)
+	p.carry_homework(Game.roster.size())
+
+	hud.open_marking()
+	await step(2)
+	chk("the marking game opens with a sheet per student",
+		hud.mode == hud.Mode.MARKING and hud._marking.size() == Game.roster.size(),
+		hud._marking.size())
+	chk("it names whose sheet you're looking at",
+		hud.title.text.contains(Game.roster[0].display_name), hud.title.text)
+	chk("it shows the questions and the tells",
+		hud.body.text.contains("neat") or hud.body.text.contains("rushed"))
+
+	var left: int = hud._marking.size()
+	await tap("move_right")
+	await step(2)
+	chk("a verdict moves on to the next sheet", hud._marking.size() == left - 1)
+
+	var guard := 0
+	while hud.mode == hud.Mode.MARKING and guard < 20:
+		await tap("move_right")
+		await step(2)
+		guard += 1
+	chk("marking every sheet finishes the batch", hud.mode == hud.Mode.REPORT, guard)
+	chk("your arms are empty afterwards", p.carrying_hw == 0, p.carrying_hw)
+	chk("every sheet is now marked", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.hw_state != StudentData.HW.MARKED:
+				return false
+		return true).call())
+	chk("passing genuinely good sheets counts as getting them right",
+		hud._marked_right == Game.roster.size(), hud._marked_right)
+
+	# marked homework feeds the grade
+	var s0: StudentData = Game.roster[0]
+	s0.attention_credit = 0.0
+	Game.room_items.clear()
+	var with_hw := Game.grade_for(s0)
+	s0.hw_state = StudentData.HW.COLLECTED
+	var without := Game.grade_for(s0)
+	chk("marked homework raises the grade", with_hw > without,
+		"%.3f vs %.3f" % [with_hw, without])
+
+	await tap("interact")
+	await step(2)
+	chk("closing the summary hands control back",
+		hud.mode == hud.Mode.NONE and not p.input_locked)

@@ -14,6 +14,8 @@ const ARRIVE_EPSILON := 1.5
 
 signal arrived()
 
+@onready var bubble: Sprite2D = $Bubble
+
 var data: StudentData = null
 
 var _path: Array[Vector2i] = []
@@ -53,6 +55,11 @@ func walk_to_seat(path: Array[Vector2i], delay: float = 0.0) -> void:
 
 func is_walking() -> bool:
 	return not _path.is_empty()
+
+
+func set_bubble(on: bool) -> void:
+	if bubble != null:
+		bubble.visible = on
 
 
 func _physics_process(delta: float) -> void:

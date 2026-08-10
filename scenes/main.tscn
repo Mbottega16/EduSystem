@@ -1,9 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/classroom.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="3_main"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
 
 [node name="Main" type="Node2D"]
+script = ExtResource("3_main")
 
 [node name="World" type="Node2D" parent="."]
 y_sort_enabled = true

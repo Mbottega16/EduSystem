@@ -1,7 +1,7 @@
 extends Node2D
 
 ## The world root. Owns the grid, builds the room, spawns everyone, and runs
-## the classwork clock.
+## the school day.
 ##
 ## Attached to the `World` node, which is y-sorted — so every child is drawn
 ## in the order its floor-anchor sits down the screen, and a teacher standing
@@ -16,7 +16,12 @@ const TEACHER_START := Vector2i(9, 3)
 ## Students file in rather than surging through the door as one block.
 const ENTRY_STAGGER := 0.35
 
+## How likely a student is to get stuck partway through a piece of work.
+## This is the dial that decides whether a lesson is a stroll or a scramble.
+const STALL_CHANCE := 0.7
+
 signal work_finished(seat_index: int)
+signal day_started(day: int)
 
 var grid := Grid.new()
 var player: Actor = null
@@ -24,6 +29,13 @@ var students: Array[Actor] = []
 var stations: Array = []
 var podium: Interactable = null
 var teacher_desk: Interactable = null
+var bell: Interactable = null
+var noticeboard: Interactable = null
+
+var _purchased: Array = []
+## Tiles the bought furniture is currently occupying, so they can be handed
+## back when it moves or the room is cleared.
+var _purchased_tiles: Array[Vector2i] = []
 
 
 func _ready() -> void:
@@ -32,6 +44,7 @@ func _ready() -> void:
 	# the tests take exactly the same path.
 	Game.ensure_run()
 	build()
+	Game.room_changed.connect(_rebuild_purchased)
 
 
 func build() -> void:
@@ -40,6 +53,9 @@ func build() -> void:
 	stations = RoomBuilder.build_desks(self, grid)
 	podium = RoomBuilder.build_podium(self, grid)
 	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
+	bell = RoomBuilder.build_bell(self, grid)
+	noticeboard = RoomBuilder.build_noticeboard(self, grid)
+	_purchased = RoomBuilder.build_purchased(self, grid)
 	_spawn_students()
 	_spawn_player()
 
@@ -82,6 +98,16 @@ func _physics_process(delta: float) -> void:
 	for s: StudentData in Game.roster:
 		if s.tick_work(delta):
 			_on_work_done(s)
+	_refresh_bubbles()
+
+
+## A "?" over a stuck student's head. At 320x176 this single sprite carries
+## more information than any HUD element could — it is the thing you scan
+## the room for.
+func _refresh_bubbles() -> void:
+	for n: Actor in students:
+		if n.data != null:
+			n.set_bubble(n.seated and n.data.is_struggling())
 
 
 func _on_work_done(s: StudentData) -> void:
@@ -98,7 +124,6 @@ func station(seat_index: int) -> Interactable:
 	return null
 
 
-## The student node sitting in `seat_index`, or null.
 func student_node(seat_index: int) -> Actor:
 	for n: Actor in students:
 		if n.data != null and n.data.seat_index == seat_index:
@@ -107,18 +132,89 @@ func student_node(seat_index: int) -> Actor:
 
 
 func everyone_seated() -> bool:
+	if students.is_empty():
+		return false
 	for n: Actor in students:
 		if not n.seated:
 			return false
 	return true
 
 
-## Assign work to every seated student. Exposed here as well as on the podium
-## so tests and future systems can drive it without faking an interaction.
+# ------------------------------------------------------------- the day
+
+## Podium, in the morning. Sets the whole class working.
+func start_lesson() -> int:
+	Game.set_phase(Game.Phase.LESSON)
+	var n := 0
+	for s: StudentData in Game.roster:
+		var node := student_node(s.seat_index)
+		if node != null and node.seated and s.assign_work(Game.rng, STALL_CHANCE):
+			n += 1
+	return n
+
+
+## Podium, during a lesson. Grades everyone on what actually happened, then
+## sets tonight's homework.
+func end_lesson() -> Array:
+	var results := Game.grade_class()
+	Game.assign_homework()
+	Game.set_phase(Game.Phase.AFTERNOON)
+	for s: StudentData in Game.roster:
+		s.set_confused(false)
+	_refresh_bubbles()
+	for st: Interactable in stations:
+		st.show_paper(false)
+	return results
+
+
+## The bell. Pays out, rolls overnight homework, and starts tomorrow with the
+## class filing back in.
+func end_day() -> Dictionary:
+	var report := Game.advance_day()
+	if player != null:
+		player.drop_all_work()
+		player.drop_all_homework()
+	for st: Interactable in stations:
+		st.show_paper(false)
+	_respawn_students()
+	day_started.emit(Game.day)
+	return report
+
+
+func _respawn_students() -> void:
+	for n: Actor in students:
+		n.queue_free()
+	students.clear()
+	_spawn_students()
+	if player != null:
+		player.global_position = Grid.tile_to_world(TEACHER_START)
+
+
+## Rebuild just the bought furniture. Cheaper and far less error-prone than
+## rebuilding the whole room, and it keeps the students where they are.
+##
+## Releasing the OLD tiles first is not optional: without it, removing or
+## replacing an item left its cells blocked forever, so the floor slowly
+## filled up with invisible obstacles that pathfinding still respected.
+func _rebuild_purchased() -> void:
+	for n: Node in _purchased:
+		if is_instance_valid(n):
+			n.queue_free()
+	for t: Vector2i in _purchased_tiles:
+		grid.set_cell(t, Grid.Cell.FREE)
+	_purchased_tiles.clear()
+	_purchased = RoomBuilder.build_purchased(self, grid)
+	for placed: Dictionary in Game.room_items:
+		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+			_purchased_tiles.append(t)
+
+
+## Assign work to every seated student. Exposed so tests and future systems
+## can drive it without faking an interaction.
 func assign_work_to_class() -> int:
 	var n := 0
 	for s: StudentData in Game.roster:
 		var node := student_node(s.seat_index)
-		if node != null and node.seated and s.assign_work():
+		if node != null and node.seated and s.assign_work(Game.rng, 0.0):
 			n += 1
 	return n
