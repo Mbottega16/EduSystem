@@ -1,6 +1,7 @@
 # PixelRoom
 
-A pixel character you can walk around a room. That's the whole thing.
+A pixel character you can walk around a room, with two students and some
+furniture in it.
 
 ## Play
 
@@ -24,7 +25,19 @@ Both images are drawn in code. Edit a colour or a shape and re-run:
 python tools/make_art.py
 ```
 
-- `art/player.png` — 64x96 sheet: 4 facings (down, left, right, up) x 4 walk frames of 16x24
+Characters — each a 64x96 sheet, 4 facings (down, left, right, up) x 4 walk
+frames of 16x24. All three come out of one drawing routine with different
+palettes; `long_hair` and `skirt` flags are what separate them.
+
+- `art/player.png` — brown hair, blue shirt
+- `art/student_boy.png` — black hair, green shirt
+- `art/student_girl.png` — long auburn hair, pink dress
+
+Furniture — drawn in the room's 3/4 view. The bottom row of pixels is where
+the piece meets the floor, which is the point the game positions and
+depth-sorts against.
+
+- `art/chair.png` (16x18), `art/desk.png` (16x20), `art/table.png` (32x20)
 - `art/room.png` — 320x176: 20x11 tiles of 16px, wall border, 2-tile-tall top wall
 
 ## Files
@@ -32,7 +45,7 @@ python tools/make_art.py
 ```
 project.godot          window + pixel-art settings
 scenes/main.tscn       entry point
-scripts/main.gd        builds the room, its walls, and the player
+scripts/main.gd        builds the room, its furniture, students, and the player
 scripts/player.gd      movement + walk animation
 tools/make_art.py      draws both images
 Play PixelRoom.bat     double-click launcher
