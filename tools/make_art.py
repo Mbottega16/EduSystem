@@ -19,7 +19,8 @@ EYE = (28, 24, 32)
 # --- characters ------------------------------------------------------
 CW, CH = 16, 24          # one frame
 DIRS = 4                 # rows: down, left, right, up
-FRAMES = 4               # cols: stand, step, stand, step (other foot)
+FRAMES = 5               # cols: stand, step, stand, step (other foot), SEATED
+SIT_FRAME = 4            # must match Actor.SIT_FRAME in scripts/actors/actor.gd
 
 SKIN = (240, 200, 160)
 SKIN_D = (206, 162, 122)
@@ -34,16 +35,56 @@ CHARACTERS = {
         "legs": (78, 92, 130), "shoe": (74, 53, 36),
         "long_hair": False, "skirt": False,
     },
-    "student_boy": {
+    # Eight students. Two identical sprites across eight desks badly
+    # undercuts "these are individual kids", and this is a data-table edit
+    # rather than any new drawing code. Keys must match Names.ART in
+    # scripts/data/names.gd.
+    "student_a": {
         "hair": (58, 44, 38), "hair_d": (38, 28, 24),
         "shirt": (86, 166, 96), "shirt_d": (58, 124, 68),
         "legs": (104, 84, 64), "shoe": (58, 46, 40),
         "long_hair": False, "skirt": False,
     },
-    "student_girl": {
+    "student_b": {
         "hair": (168, 102, 52), "hair_d": (126, 74, 36),
         "shirt": (214, 96, 124), "shirt_d": (170, 66, 94),
         "legs": (196, 158, 190), "shoe": (92, 60, 72),
+        "long_hair": True, "skirt": True,
+    },
+    "student_c": {
+        "hair": (222, 190, 104), "hair_d": (176, 142, 66),
+        "shirt": (238, 200, 84), "shirt_d": (194, 156, 52),
+        "legs": (72, 96, 148), "shoe": (54, 44, 38),
+        "long_hair": False, "skirt": False,
+    },
+    "student_d": {
+        "hair": (72, 52, 44), "hair_d": (48, 34, 30),
+        "shirt": (150, 108, 196), "shirt_d": (110, 76, 152),
+        "legs": (188, 166, 208), "shoe": (74, 58, 76),
+        "long_hair": True, "skirt": True,
+    },
+    "student_e": {
+        "hair": (206, 108, 58), "hair_d": (158, 76, 38),
+        "shirt": (232, 138, 72), "shirt_d": (184, 100, 48),
+        "legs": (108, 112, 120), "shoe": (56, 50, 46),
+        "long_hair": False, "skirt": False,
+    },
+    "student_f": {
+        "hair": (40, 38, 48), "hair_d": (26, 24, 32),
+        "shirt": (78, 176, 172), "shirt_d": (50, 132, 130),
+        "legs": (160, 176, 184), "shoe": (52, 58, 62),
+        "long_hair": True, "skirt": True,
+    },
+    "student_g": {
+        "hair": (140, 104, 66), "hair_d": (100, 72, 44),
+        "shirt": (206, 82, 76), "shirt_d": (160, 54, 52),
+        "legs": (58, 68, 104), "shoe": (48, 42, 40),
+        "long_hair": False, "skirt": False,
+    },
+    "student_h": {
+        "hair": (222, 218, 208), "hair_d": (176, 172, 166),
+        "shirt": (128, 206, 168), "shirt_d": (88, 160, 126),
+        "legs": (200, 196, 188), "shoe": (70, 74, 72),
         "long_hair": True, "skirt": True,
     },
 }
@@ -100,10 +141,23 @@ def outline(img, colour=LINE):
 # ====================================================================
 
 def draw_char(direction, frame, pal):
-    """One 16x24 frame. `direction` 0=down 1=left 2=right 3=up."""
+    """One 16x24 frame.
+
+    `direction` 0=down 1=left 2=right 3=up.
+    `frame` 0-3 is the walk cycle; frame 4 (SIT_FRAME) is the seated pose.
+
+    The seated pose is drawn LOWERED INSIDE the same 16x24 cell rather than
+    compensated for with a node offset in the engine. That keeps one rule
+    true of every character sprite — the bottom of the cell is where this
+    person meets the floor — which is the rule the whole game positions and
+    depth-sorts by.
+    """
     im = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     hair, hair_d = pal["hair"], pal["hair_d"]
     shirt, shirt_d = pal["shirt"], pal["shirt_d"]
+
+    seated = (frame == SIT_FRAME)
+    dy = 3 if seated else 0        # how far the figure sinks into the chair
 
     # walk cycle: frames 1 and 3 lift opposite feet, 0 and 2 stand
     step = 0
@@ -113,61 +167,67 @@ def draw_char(direction, frame, pal):
         step = -1
 
     # ---- legs ----
-    l_off = max(0, step)
-    r_off = max(0, -step)
-    leg_top = 20 if pal["skirt"] else 18      # a skirt covers the thighs
-    rect(im, 4, leg_top - l_off, 6, 21 - l_off, pal["legs"])
-    rect(im, 9, leg_top - r_off, 11, 21 - r_off, pal["legs"])
-    rect(im, 4, 22 - l_off, 6, 22 - l_off, pal["shoe"])
-    rect(im, 9, 22 - r_off, 11, 22 - r_off, pal["shoe"])
+    if seated:
+        # knees forward, feet tucked under the chair. Only the tops of the
+        # thighs read from this angle, and at a desk even those are hidden.
+        rect(im, 3, 21, 6, 23, pal["legs"])
+        rect(im, 9, 21, 12, 23, pal["legs"])
+    else:
+        l_off = max(0, step)
+        r_off = max(0, -step)
+        leg_top = 20 if pal["skirt"] else 18   # a skirt covers the thighs
+        rect(im, 4, leg_top - l_off, 6, 21 - l_off, pal["legs"])
+        rect(im, 9, leg_top - r_off, 11, 21 - r_off, pal["legs"])
+        rect(im, 4, 22 - l_off, 6, 22 - l_off, pal["shoe"])
+        rect(im, 9, 22 - r_off, 11, 22 - r_off, pal["shoe"])
 
     # ---- body ----
-    rect(im, 4, 12, 11, 18, shirt)
-    rect(im, 4, 17, 11, 18, shirt_d)          # shading under the torso
-    if pal["skirt"]:
-        rect(im, 4, 17, 11, 17, shirt)        # a flared hem over the legs
+    rect(im, 4, 12 + dy, 11, 18 + dy, shirt)
+    rect(im, 4, 17 + dy, 11, 18 + dy, shirt_d)   # shading under the torso
+    if pal["skirt"] and not seated:
+        rect(im, 4, 17, 11, 17, shirt)           # a flared hem over the legs
         rect(im, 3, 18, 12, 19, shirt)
         rect(im, 2, 20, 13, 20, shirt_d)
 
-    # ---- arms (swing opposite to the legs) ----
-    a_l = -step
-    a_r = step
-    rect(im, 2, 13 + a_l, 3, 17 + a_l, shirt_d)
-    rect(im, 12, 13 + a_r, 13, 17 + a_r, shirt_d)
-    px(im, 2, 18 + a_l, SKIN); px(im, 3, 18 + a_l, SKIN)
-    px(im, 12, 18 + a_r, SKIN); px(im, 13, 18 + a_r, SKIN)
+    # ---- arms (swing opposite to the legs; still when seated) ----
+    a_l = 0 if seated else -step
+    a_r = 0 if seated else step
+    rect(im, 2, 13 + dy + a_l, 3, 17 + dy + a_l, shirt_d)
+    rect(im, 12, 13 + dy + a_r, 13, 17 + dy + a_r, shirt_d)
+    px(im, 2, 18 + dy + a_l, SKIN); px(im, 3, 18 + dy + a_l, SKIN)
+    px(im, 12, 18 + dy + a_r, SKIN); px(im, 13, 18 + dy + a_r, SKIN)
 
     # ---- head ----
-    rect(im, 4, 4, 11, 11, SKIN)
-    rect(im, 4, 11, 11, 11, SKIN_D)           # jaw shadow
+    rect(im, 4, 4 + dy, 11, 11 + dy, SKIN)
+    rect(im, 4, 11 + dy, 11, 11 + dy, SKIN_D)    # jaw shadow
 
     # ---- long hair falls behind the head, so it goes down before the fringe
     if pal["long_hair"]:
-        rect(im, 3, 5, 3, 15, hair)
-        rect(im, 12, 5, 12, 15, hair)
-        px(im, 3, 15, hair_d); px(im, 12, 15, hair_d)
+        rect(im, 3, 5 + dy, 3, 15 + dy, hair)
+        rect(im, 12, 5 + dy, 12, 15 + dy, hair)
+        px(im, 3, 15 + dy, hair_d); px(im, 12, 15 + dy, hair_d)
 
     # ---- hair, which is what actually sells the facing ----
-    if direction == 3:                        # away: all hair, no face
-        rect(im, 4, 3, 11, 10, hair)
-        rect(im, 4, 10, 11, 10, hair_d)
+    if direction == 3:                           # away: all hair, no face
+        rect(im, 4, 3 + dy, 11, 10 + dy, hair)
+        rect(im, 4, 10 + dy, 11, 10 + dy, hair_d)
         if pal["long_hair"]:
-            rect(im, 4, 10, 11, 15, hair)     # full fall of hair down the back
-            rect(im, 4, 15, 11, 15, hair_d)
-    elif direction == 0:                      # toward camera: fringe + eyes
-        rect(im, 4, 3, 11, 6, hair)
-        rect(im, 4, 6, 5, 7, hair)
-        rect(im, 10, 6, 11, 7, hair)
-        px(im, 6, 8, EYE); px(im, 9, 8, EYE)
-        px(im, 6, 9, SKIN_D); px(im, 9, 9, SKIN_D)
-    elif direction == 1:                      # left profile
-        rect(im, 4, 3, 11, 6, hair)
-        rect(im, 9, 3, 11, 9, hair)
-        px(im, 5, 8, EYE)
-    else:                                     # right profile
-        rect(im, 4, 3, 11, 6, hair)
-        rect(im, 4, 3, 6, 9, hair)
-        px(im, 10, 8, EYE)
+            rect(im, 4, 10 + dy, 11, 15 + dy, hair)   # full fall down the back
+            rect(im, 4, 15 + dy, 11, 15 + dy, hair_d)
+    elif direction == 0:                         # toward camera: fringe + eyes
+        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
+        rect(im, 4, 6 + dy, 5, 7 + dy, hair)
+        rect(im, 10, 6 + dy, 11, 7 + dy, hair)
+        px(im, 6, 8 + dy, EYE); px(im, 9, 8 + dy, EYE)
+        px(im, 6, 9 + dy, SKIN_D); px(im, 9, 9 + dy, SKIN_D)
+    elif direction == 1:                         # left profile
+        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
+        rect(im, 9, 3 + dy, 11, 9 + dy, hair)
+        px(im, 5, 8 + dy, EYE)
+    else:                                        # right profile
+        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
+        rect(im, 4, 3 + dy, 6, 9 + dy, hair)
+        px(im, 10, 8 + dy, EYE)
 
     return outline(im)
 
