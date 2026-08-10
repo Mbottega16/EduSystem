@@ -11,6 +11,14 @@ extends RefCounted
 ## Homework lifecycle. NONE until a lesson assigns it.
 enum HW { NONE, ASSIGNED, DONE, NOT_DONE, COLLECTED, MARKED }
 
+## In-lesson classwork: you assign it at the podium, they work on it, it
+## lands on their desk, you walk round and collect it, you carry it to your
+## own desk. Separate from HW, which is the overnight cycle.
+enum Work { NONE, WORKING, DONE, COLLECTED }
+
+## How long a student takes to finish a piece of assigned work.
+const WORK_SECONDS := 5.0
+
 # --- identity ---------------------------------------------------------
 var id: int = 0
 var display_name: String = ""
@@ -25,6 +33,44 @@ var diligence: float = 0.5         ## 0..1 — will they actually do the homewor
 var understanding: float = 0.0     ## 0..1, accrues while a lesson runs
 var confusion: float = 0.0         ## 0..1, rises on a snag and gates the above
 var attention_credit: float = 0.0  ## 0..ATTENTION_CAP, earned only by being helped
+
+# --- assigned classwork ----------------------------------------------
+var work_state: int = Work.NONE
+var work_timer: float = 0.0        ## seconds left until they finish
+
+
+## Assign a fresh piece of work. Only a seated student can be given any —
+## you can't hand a sheet to someone still walking to their chair.
+func assign_work() -> bool:
+	if work_state != Work.NONE:
+		return false
+	work_state = Work.WORKING
+	work_timer = WORK_SECONDS
+	return true
+
+
+## Returns true on the frame the work is finished, so the caller can react
+## once rather than every frame afterwards.
+func tick_work(delta: float) -> bool:
+	if work_state != Work.WORKING:
+		return false
+	work_timer -= delta
+	if work_timer <= 0.0:
+		work_timer = 0.0
+		work_state = Work.DONE
+		return true
+	return false
+
+
+func has_work_to_collect() -> bool:
+	return work_state == Work.DONE
+
+
+func collect_work() -> bool:
+	if work_state != Work.DONE:
+		return false
+	work_state = Work.COLLECTED
+	return true
 
 # --- homework, persists across days -----------------------------------
 var hw_state: int = HW.NONE
@@ -54,6 +100,8 @@ func reset_lesson() -> void:
 	understanding = 0.0
 	confusion = 0.0
 	attention_credit = 0.0
+	work_state = Work.NONE
+	work_timer = 0.0
 
 
 func to_dict() -> Dictionary:

@@ -100,6 +100,10 @@ METAL_D = (88, 92, 102)
 TILE = 16
 ROOM_W, ROOM_H = 20, 11  # in tiles -> 320 x 176 px
 TOP_WALL = 2             # top wall is 2 tiles tall (see make_room)
+# Two tiles tall. A one-tile doorway is only 16px, and a character whose
+# feet-box bottom edge lands exactly on the wall segment below it collides
+# with that shared edge and cannot pass. Must match Layout.DOOR_TILES.
+DOOR_TILES = [(0, 7), (0, 8)]
 
 FLOOR_A = (196, 166, 130)
 FLOOR_B = (186, 156, 120)
@@ -282,7 +286,47 @@ def draw_desk():
     return outline(im)
 
 
-FURNITURE = {"chair": draw_chair, "table": draw_table, "desk": draw_desk}
+def draw_teacher_desk():
+    """Two tiles wide — the front of the room, where marked work is handed in."""
+    im = Image.new("RGBA", (32, 22), (0, 0, 0, 0))
+    rect(im, 1, 2, 30, 12, WOOD)          # top
+    rect(im, 1, 2, 30, 4, WOOD_L)         # lit near edge
+    rect(im, 1, 12, 30, 13, WOOD_D)
+    rect(im, 3, 14, 14, 19, WOOD)         # drawer bank
+    rect(im, 3, 14, 14, 14, WOOD_L)
+    rect(im, 5, 16, 12, 16, WOOD_D)       # drawer pull
+    rect(im, 2, 20, 4, 21, WOOD_D)        # legs
+    rect(im, 27, 14, 29, 21, WOOD_D)
+    return outline(im)
+
+
+def draw_podium():
+    """Front of the room. Starting a lesson happens here."""
+    im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    rect(im, 2, 1, 13, 7, WOOD)           # slanted reading surface
+    rect(im, 2, 1, 13, 2, WOOD_L)
+    rect(im, 2, 7, 13, 8, WOOD_D)
+    rect(im, 5, 9, 10, 17, WOOD)          # column
+    rect(im, 5, 9, 6, 17, WOOD_L)
+    rect(im, 3, 18, 12, 21, WOOD_D)       # base
+    return outline(im)
+
+
+def draw_paper():
+    """A finished sheet of work. Sits on a desk, and stacks in your arms."""
+    im = Image.new("RGBA", (10, 9), (0, 0, 0, 0))
+    rect(im, 1, 1, 8, 7, (246, 244, 236))
+    rect(im, 1, 1, 8, 1, (255, 255, 255))
+    for y in (3, 5):                      # lines of writing
+        rect(im, 3, y, 6, y, (150, 152, 160))
+    px(im, 3, 7, (150, 152, 160)); px(im, 4, 7, (150, 152, 160))
+    return outline(im)
+
+
+FURNITURE = {
+    "chair": draw_chair, "table": draw_table, "desk": draw_desk,
+    "teacher_desk": draw_teacher_desk, "podium": draw_podium, "paper": draw_paper,
+}
 
 
 # ====================================================================
@@ -318,13 +362,31 @@ def wall_tile(is_bottom_row, cap=True):
     return t
 
 
+def door_tile(top):
+    """One tile of the two-tile doorway. Students come in through here."""
+    t = Image.new("RGBA", (TILE, TILE))
+    rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
+    rect(t, 1, 0, TILE - 2, TILE - 1, (46, 34, 54))   # the dark beyond
+    for y in range(TILE):                             # jambs
+        px(t, 1, y, WOOD_D)
+        px(t, TILE - 2, y, WOOD_D)
+    if top:
+        rect(t, 0, 0, TILE - 1, 0, WALL_TOP)
+        rect(t, 1, 1, TILE - 2, 2, WOOD_D)            # lintel
+    else:
+        rect(t, 1, TILE - 2, TILE - 2, TILE - 1, (70, 52, 82))   # threshold
+    return t
+
+
 def make_room():
     im = Image.new("RGBA", (ROOM_W * TILE, ROOM_H * TILE))
     for ty in range(ROOM_H):
         for tx in range(ROOM_W):
             edge = (tx == 0 or tx == ROOM_W - 1
                     or ty < TOP_WALL or ty == ROOM_H - 1)
-            if edge:
+            if (tx, ty) in DOOR_TILES:
+                tile = door_tile(ty == DOOR_TILES[0][1])
+            elif edge:
                 # only the very top course gets the lit cap, so the two-tile
                 # top wall reads as one wall rather than two stacked ones
                 tile = wall_tile(ty == ROOM_H - 1, cap=(ty != 1))

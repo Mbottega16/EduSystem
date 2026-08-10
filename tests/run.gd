@@ -57,12 +57,30 @@ func hold(action: String, frames: int) -> void:
 	await step(1)
 
 
+## A single press. Held for two frames so the player's
+## is_action_just_pressed() check is guaranteed to see it.
+func tap(action: String) -> void:
+	Input.action_press(action)
+	await step(2)
+	Input.action_release(action)
+	await step(2)
+
+
+## Stand the teacher on `tile` facing `dir`, ready to interact.
+func place_player(tile: Vector2i, dir: int) -> void:
+	world.player.global_position = Grid.tile_to_world(tile)
+	world.player.facing = dir
+	await step(2)
+
+
 func _main() -> void:
 	test_grid()
 	test_game()
 	test_layout()
 	await test_scene()
 	await test_movement()
+	await test_arrival()
+	await test_work_loop()
 	await test_seating()
 
 	print("")
@@ -340,17 +358,152 @@ func test_movement() -> void:
 	chk("walking diagonally is not faster than walking straight",
 		travelled <= 31.0, "travelled %.1f in 30 frames" % travelled)
 
-	# walls
-	p.global_position = Grid.tile_to_world(Vector2i(2, 3))
+	# --- walls ---
+	# Column 6 is clear all the way to the top wall. Column 2 is NOT: the
+	# teacher's desk sits at tiles (2,2)-(3,2), and an earlier version of
+	# this test walked up that column, correctly stopped against the desk,
+	# and read as a wall-collision bug. Assert the column first so furniture
+	# moving into it fails loudly instead of weakening the assertion.
+	chk("the test column is clear up to the top wall",
+		world.grid.is_free(Vector2i(6, 2)) and world.grid.is_free(Vector2i(6, 3)))
+	p.global_position = Grid.tile_to_world(Vector2i(6, 3))
 	await step(1)
 	await hold("move_up", 60)
 	chk("the top wall stops the player and they stay inside the room",
 		p.global_position.y > 32.0 and p.global_position.y < 48.0,
 		"y=%.1f" % p.global_position.y)
-	await hold("move_left", 60)
+
+	# Row 9 runs clear to the left wall, below the door and under the desks.
+	p.global_position = Grid.tile_to_world(Vector2i(6, 9))
+	await step(1)
+	await hold("move_left", 90)
 	chk("the left wall stops the player with no tunnelling",
 		p.global_position.x > 16.0 and p.global_position.x < 28.0,
 		"x=%.1f" % p.global_position.x)
+
+	# The doorway is a genuine hole, so you can stand in it.
+	p.global_position = Grid.tile_to_world(Vector2i(1, 8))
+	await step(1)
+	await hold("move_left", 30)
+	chk("you can walk into the doorway itself",
+		p.global_position.x < 16.0, "x=%.1f" % p.global_position.x)
+
+
+func test_arrival() -> void:
+	section("ARRIVAL")
+	# The class walks in from the doorway. Budget generously — the far seats
+	# are a long way from the door at 1px per frame — but FAIL on timeout
+	# rather than waiting forever.
+	var frames := 0
+	while frames < 2000 and not world.everyone_seated():
+		await step(20)
+		frames += 20
+	chk("every student walks in and takes a seat",
+		world.everyone_seated(), "gave up after %d frames" % frames)
+
+	var on_seat := true
+	var report: Array = []
+	for s: StudentData in Game.roster:
+		var node: Actor = world.student_node(s.seat_index)
+		var want := Grid.tile_to_world(Layout.SEATS[s.seat_index])
+		if node == null or not node.global_position.is_equal_approx(want):
+			on_seat = false
+			report.append("seat %d" % s.seat_index)
+	chk("each one ends up exactly on their own seat tile", on_seat, report)
+	chk("nobody is left walking", (func() -> bool:
+		for n: Actor in world.students:
+			if n.is_walking():
+				return false
+		return true).call())
+
+
+func test_work_loop() -> void:
+	section("WORK LOOP")
+	var p: Actor = world.player
+	p.drop_all_work()
+
+	# --- assigning ---
+	var assigned: int = world.assign_work_to_class()
+	chk("assigning work reaches every seated student",
+		assigned == Game.roster.size(), assigned)
+	var all_working := true
+	for s: StudentData in Game.roster:
+		if s.work_state != StudentData.Work.WORKING:
+			all_working = false
+	chk("they are all now working", all_working)
+	chk("assigning again is refused while they're still working",
+		world.assign_work_to_class() == 0)
+
+	# --- the five seconds ---
+	# The tick is on the fixed physics step, so this is exact: 5s = 300
+	# frames. One frame short must NOT be finished.
+	await step(299)
+	var any_done := false
+	for s: StudentData in Game.roster:
+		if s.has_work_to_collect():
+			any_done = true
+	chk("nobody is finished one frame before the five seconds are up", not any_done)
+
+	await step(3)
+	var all_done := true
+	for s: StudentData in Game.roster:
+		if not s.has_work_to_collect():
+			all_done = false
+	chk("after five seconds every sheet is finished", all_done)
+
+	var st0: Interactable = world.station(0)
+	chk("a finished sheet appears on the desk", st0.paper.visible)
+	chk("a desk with finished work offers to be collected", st0.can_interact())
+	chk("its prompt names the student",
+		st0.prompt_text().begins_with("Collect"), st0.prompt_text())
+
+	# --- collecting ---
+	# Stand below seat 0's desk, facing it.
+	await place_player(Layout.desk_tile(0) + Vector2i(0, 1), Actor.DIR_UP)
+	chk("standing at a desk selects THAT desk", p.target == st0, p.target)
+	await tap("interact")
+	chk("collecting picks the sheet up", p.carrying == 1, p.carrying)
+	chk("the sheet is gone from the desk", not st0.paper.visible)
+	chk("that student's work is marked collected",
+		Game.student_in_seat(0).work_state == StudentData.Work.COLLECTED)
+	chk("an already-collected desk stops offering", not st0.can_interact())
+
+	# collect the rest of the class
+	for i in range(1, Game.roster.size()):
+		await place_player(Layout.desk_tile(i) + Vector2i(0, 1), Actor.DIR_UP)
+		await tap("interact")
+	chk("the whole class's work can be collected",
+		p.carrying == Game.roster.size(), p.carrying)
+
+	# --- handing in ---
+	chk("your own desk offers to take them", world.teacher_desk.can_interact())
+	chk("its prompt counts what you're carrying",
+		world.teacher_desk.prompt_text().contains(str(p.carrying)),
+		world.teacher_desk.prompt_text())
+	await place_player(Vector2i(3, 3), Actor.DIR_UP)
+	chk("standing at your own desk selects it", p.target == world.teacher_desk, p.target)
+	var carried: int = p.carrying
+	await tap("interact")
+	chk("handing in empties your arms", p.carrying == 0, p.carrying)
+	chk("the desk counted what was handed in",
+		world.teacher_desk.handed_in == carried, world.teacher_desk.handed_in)
+	chk("an empty-handed teacher gets no hand-in prompt",
+		not world.teacher_desk.can_interact())
+
+	# --- the picker ---
+	# Between two desks, facing one of them, it must choose the one faced.
+	var s1: Interactable = world.station(1)
+	Game.student_in_seat(1).work_state = StudentData.Work.DONE
+	Game.student_in_seat(0).work_state = StudentData.Work.DONE
+	await place_player(Layout.desk_tile(0) + Vector2i(0, 1), Actor.DIR_UP)
+	chk("facing a desk picks it, not a nearby one", p.target == st0, p.target)
+	chk("a desk with nothing to give is never picked", (func() -> bool:
+		Game.student_in_seat(0).work_state = StudentData.Work.COLLECTED
+		return not st0.can_interact()).call())
+	# tidy up for whatever runs next
+	Game.student_in_seat(1).work_state = StudentData.Work.COLLECTED
+	s1.show_paper(false)
+	st0.show_paper(false)
 
 
 func test_seating() -> void:

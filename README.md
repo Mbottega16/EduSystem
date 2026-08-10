@@ -10,7 +10,17 @@ walking is the game.
 ## Play
 
 Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
-the Desktop. **Arrow keys** or **WASD** to walk.
+the Desktop.
+
+- **Arrow keys / WASD** — walk
+- **E / Space** — interact with whatever the prompt at the bottom names
+
+The loop: walk to the **podium** and assign work → the class works for five
+seconds → a sheet appears on each finished desk → walk to a desk to **collect**
+it → carry the pile to **your own desk** and hand it in.
+
+You pick up what you are facing, so approaching a desk from the aisle selects
+that desk and not its neighbour.
 
 The launcher just starts Godot on this folder. If Godot moves, edit the
 `GODOT=` line at the top of the .bat. Godot 4.7.x (standard, not .NET) —
@@ -24,7 +34,7 @@ Double-click **`Run Tests.bat`**, or:
 godot --headless --path . res://tests/run.tscn
 ```
 
-58 assertions. Exits 0/1 so it can gate a commit.
+85 assertions. Exits 0/1 so it can gate a commit.
 
 **Never use `create_timer()` in a test.** `Engine.max_physics_steps_per_frame`
 (default 8) clamps catch-up, so any main-thread stall desyncs simulation time
