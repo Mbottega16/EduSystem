@@ -100,16 +100,37 @@ func close() -> void:
 func show_lesson_report(results: Array) -> void:
 	_open(Mode.REPORT)
 	title.text = "END OF LESSON - %s" % Game.subject.to_upper()
+	# Plain English, not the raw floats this used to print. A player should
+	# be able to see WHY a grade happened and what to do differently.
 	var lines: Array[String] = []
 	for r: Dictionary in results:
 		var s: StudentData = r["student"]
-		lines.append("%-14s  %s   room %.2f  you %.2f" % [
-			s.display_name, String(r["letter"]),
-			Game.room_score(s.seat_index), s.attention_credit])
+		lines.append("%-11s %s   %s" % [
+			s.display_name.split(" ")[0], String(r["letter"]), _why(s)])
 	lines.append("")
 	lines.append("Class average: %s" % Game.grade_letter(Game.class_average()))
 	body.text = "\n".join(lines)
-	hint.text = "E — close.   Ring the bell to end the day."
+	hint.text = "E - close.   Ring the bell to end the day."
+
+
+## A one-line explanation of a grade, in words.
+func _why(s: StudentData) -> String:
+	var bits: Array[String] = []
+	var done := int(round(s.work_fraction() * 100.0))
+	if s.work_state == StudentData.Work.COLLECTED:
+		bits.append("%d%% done, collected" % done)
+	elif done >= 100:
+		bits.append("finished but not collected")
+	else:
+		bits.append("only %d%% done" % done)
+	if s.helps_received > 0:
+		bits.append("helped %dx" % s.helps_received)
+	if s.hw_state == StudentData.HW.MARKED:
+		bits.append("hw marked")
+	var room := Game.room_score(s.seat_index)
+	if room <= Balance.room_base + 0.001:
+		bits.append("bare desk")
+	return ", ".join(bits)
 
 
 func show_day_report(report: Dictionary) -> void:
@@ -136,7 +157,7 @@ func open_catalogue() -> void:
 ## contents when selling.
 func _shop_rows() -> Array:
 	if _shop == Shop.BUY:
-		return Items.ORDER.duplicate()
+		return Items.order().duplicate()
 	return Game.room_items.duplicate()
 
 

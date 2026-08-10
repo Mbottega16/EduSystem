@@ -1,0 +1,203 @@
+extends Node
+
+## Headless term simulator.
+##
+##   godot --headless --path . res://tools/sim.tscn -- [days] [policy]
+##
+## Plays whole terms with a scripted player policy and prints the curves.
+## Drives the DATA MODEL directly — no rendering, no window, as fast as the
+## machine manages.
+##
+## Run as a SCENE, not with --script: autoloads (Game) do not exist under a
+## custom MainLoop.
+##
+## WHY THIS EXISTS. 218 unit tests passed while the grade model was broken in
+## four separate ways: attention could never reach its own cap, collecting
+## work fed into nothing, a homework verdict was never read, and the economy
+## paid 16 coins a day against a 60-coin item so the class could not grow
+## until roughly day 25. None of that is visible in a unit test, because each
+## piece was individually consistent. All of it is obvious the moment you
+## look at a hundred days of play in a table.
+##
+## Policies model a player, not an optimum:
+##   ideal    — reaches every stuck student instantly, collects everything
+##   good     — a realistic attentive player: a few seconds to walk over
+##   lazy     — starts the lesson and wanders off
+##   nobody   — never helps, never collects (the floor of the game)
+
+const POLICIES := ["ideal", "good", "lazy", "nobody"]
+
+## How long the player takes to notice and walk to a stuck student.
+const REACTION := {"ideal": 0.5, "good": 4.0, "lazy": 15.0, "nobody": 999.0}
+## Whether they bother picking the finished work up.
+const COLLECTS := {"ideal": true, "good": true, "lazy": false, "nobody": false}
+## Coins they will spend on furniture at the end of a day.
+const BUYS := {"ideal": true, "good": true, "lazy": true, "nobody": false}
+
+const DT := 1.0 / 60.0
+
+
+func _ready() -> void:
+	Balance.ensure_loaded()
+	var args := OS.get_cmdline_user_args()
+	var days := int(args[0]) if args.size() > 0 else 40
+	var only := String(args[1]) if args.size() > 1 else ""
+
+	print("\nPixelRoom term simulator - %d days" % days)
+	print("work %.0fs  lesson %.0fs  stall %.2f/s  room %.2f-%.2f  lesson_cap %.2f"
+		% [Balance.work_seconds, Balance.lesson_seconds,
+		   Balance.stall_chance_per_second, Balance.room_base, Balance.room_cap,
+		   Balance.lesson_cap])
+
+	for policy: String in POLICIES:
+		if only != "" and policy != only:
+			continue
+		_run(policy, days)
+
+	print("\nCONTRACT CHECK (simulated, not hand-set)")
+	_contract()
+	get_tree().quit()
+
+
+func _run(policy: String, days: int) -> void:
+	Game.new_run(12345)
+	print("\n--- %s ---" % policy.to_upper())
+	print(" day  avg  letter   coins  items  class   stuck-left  hw")
+
+	var first_enrol := -1
+	var first_buy := -1
+	for day in days:
+		var stats := _play_day(policy)
+		if BUYS[policy]:
+			var bought := _shop()
+			if bought and first_buy < 0:
+				first_buy = Game.day
+		var before := Game.roster.size()
+		var report := Game.advance_day()
+		if Game.roster.size() > before and first_enrol < 0:
+			first_enrol = Game.day
+
+		if day < 6 or day % 5 == 0 or day == days - 1:
+			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d" % [
+				report["day"], report["average"],
+				Game.grade_letter(float(report["average"])),
+				Game.coins, Game.room_items.size(), before,
+				stats["still_stuck"], report["homework_done"], before])
+
+	print("  first purchase: day %s     first new student: day %s" % [
+		"never" if first_buy < 0 else str(first_buy),
+		"never" if first_enrol < 0 else str(first_enrol)])
+	print("  final: %d coins, %d items, %d students, avg %s" % [
+		Game.coins, Game.room_items.size(), Game.roster.size(),
+		Game.grade_letter(Game.class_average())])
+
+
+## One lesson, ticked at the real physics rate so the numbers match play.
+func _play_day(policy: String) -> Dictionary:
+	var reaction: float = REACTION[policy]
+	var stuck_since := {}
+	for s: StudentData in Game.roster:
+		s.assign_work()
+
+	var t := 0.0
+	while t < Balance.lesson_seconds:
+		t += DT
+		for s: StudentData in Game.roster:
+			s.tick_work(DT, Game.rng)
+			if s.is_struggling():
+				if not stuck_since.has(s.id):
+					stuck_since[s.id] = t
+				elif t - float(stuck_since[s.id]) >= reaction:
+					s.help()
+					stuck_since.erase(s.id)
+			else:
+				stuck_since.erase(s.id)
+
+	var still := 0
+	for s: StudentData in Game.roster:
+		if s.is_struggling():
+			still += 1
+		if COLLECTS[policy]:
+			s.collect_work()
+		# mark whatever homework came in; assume the player judges well
+		if s.hw_state == StudentData.HW.DONE:
+			s.hw_state = StudentData.HW.MARKED
+			s.hw_player_verdict = 1 if Questions.sheet_is_good(s.hw_sheet) else 0
+
+	Game.grade_class()
+	Game.assign_homework()
+	return {"still_stuck": still}
+
+
+## Buy the item with the best bonus-per-coin that we can afford and that
+## actually reaches a seat. A real player would do something like this.
+func _shop() -> bool:
+	var best := ""
+	var best_value := 0.0
+	for id: String in Items.order():
+		var d := Items.get_def(id)
+		if not Game.can_afford(int(d["cost"])):
+			continue
+		var value := float(d["bonus"]) / float(d["cost"])
+		if value > best_value:
+			best_value = value
+			best = id
+	if best == "":
+		return false
+	# put it where it reaches the most students who are not yet capped
+	var best_spot := Vector2i(-1, -1)
+	var best_reach := 0
+	for ty in range(2, 10):
+		for tx in range(1, 19):
+			var spot := Vector2i(tx, ty)
+			if not Game.item_at(spot).is_empty():
+				continue
+			var reach := 0
+			for i: int in Items.seats_in_range(best, spot):
+				if Game.student_in_seat(i) != null 						and Game.room_score(i) < Balance.room_cap - 0.001:
+					reach += 1
+			if reach > best_reach:
+				best_reach = reach
+				best_spot = spot
+	if best_reach == 0:
+		return false
+	return Game.place_item(best, best_spot)
+
+
+## The three rows of the balance contract, measured from simulated play
+## rather than from hand-assigned state.
+func _contract() -> void:
+	var bare_perfect := _one_lesson(false, true)
+	var rich_absent := _one_lesson(true, false)
+	var rich_perfect := _one_lesson(true, true)
+	_row("bare room, perfect teaching", bare_perfect, "C")
+	_row("full room, never helped   ", rich_absent, "C")
+	_row("full room, perfect teaching", rich_perfect, "A")
+
+
+func _one_lesson(furnish: bool, teach: bool) -> float:
+	Game.new_run(999)
+	if furnish:
+		# enough furniture in range of seat 0 to cap the room score
+		var n := 0
+		while Game.room_score(0) < Balance.room_cap - 0.001 and n < 40:
+			var id: String = Items.order()[n % Items.order().size()]
+			Game.room_items.append({"id": id, "tile": Layout.SEATS[0] + Vector2i(0, 1)})
+			n += 1
+	var s: StudentData = Game.student_in_seat(0)
+	s.assign_work()
+	var t := 0.0
+	while t < Balance.lesson_seconds:
+		t += DT
+		s.tick_work(DT, Game.rng)
+		if teach and s.is_struggling():
+			s.help()
+	if teach:
+		s.collect_work()
+	return Game.grade_for(s)
+
+
+func _row(label: String, value: float, want: String) -> void:
+	var got := Game.grade_letter(value)
+	print("  %s  %.2f  %s   %s" % [
+		label, value, got, "ok" if got == want else "WANT " + want])

@@ -16,14 +16,7 @@ enum Phase {
 	AFTERNOON,  ## lesson over, day not yet ended
 }
 
-const CLASS_START := 4     ## how many students enrol on day one
-const CLASS_CAP := 8       ## the room has 8 desks; the roster grows into them
 const SAVE_PATH := "user://pixelroom_save.json"
-
-## A new student turns up once you've proved you can teach — every this many
-## days, provided the class average is holding up.
-const ENROL_EVERY_DAYS := 3
-const ENROL_MIN_AVERAGE := 0.62
 
 signal phase_changed(phase: int)
 signal day_changed(day: int)
@@ -68,7 +61,9 @@ func new_run(seed_value: int = 0) -> void:
 	homework_out = false
 	subject = pick_subject()
 	_next_id = 1
-	for i in CLASS_START:
+	Balance.ensure_loaded()
+	coins = Balance.start_coins
+	for i in Balance.class_start:
 		enrol()
 	roster_changed.emit()
 	room_changed.emit()
@@ -77,7 +72,8 @@ func new_run(seed_value: int = 0) -> void:
 ## Adds one student and seats them in the lowest free desk. Returns null when
 ## the room is full.
 func enrol() -> StudentData:
-	if roster.size() >= CLASS_CAP:
+	Balance.ensure_loaded()
+	if roster.size() >= Balance.class_cap:
 		return null
 	var s := StudentData.new()
 	s.id = _next_id
@@ -96,7 +92,7 @@ func _lowest_free_seat() -> int:
 	var taken := {}
 	for s: StudentData in roster:
 		taken[s.seat_index] = true
-	for i in CLASS_CAP:
+	for i in Balance.class_cap:
 		if not taken.has(i):
 			return i
 	return -1
@@ -175,8 +171,9 @@ func can_afford(amount: int) -> bool:
 ## Pay out, roll overnight homework, and move to tomorrow.
 ## Returns a small report for the end-of-day screen.
 func advance_day() -> Dictionary:
+	Balance.ensure_loaded()
 	var avg := class_average()
-	var earned := int(round(avg * 10.0 * roster.size()))
+	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()))
 	add_coins(earned)
 
 	var did := 0
@@ -190,7 +187,12 @@ func advance_day() -> Dictionary:
 				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, rng)
 				did += 1
 			else:
-				s.hw_state = StudentData.HW.NOT_DONE
+				# NOT_DONE used to be terminal: assign_homework only ever
+				# re-issued to NONE or MARKED, so one failed roll on day 1
+				# locked a student out of homework for the entire run,
+				# silently. They get asked again tomorrow.
+				s.hw_state = (StudentData.HW.NONE if Balance.not_done_forgiveness
+					else StudentData.HW.NOT_DONE)
 		s.reset_lesson()
 
 	homework_out = false
@@ -200,7 +202,7 @@ func advance_day() -> Dictionary:
 	# the job — otherwise the class stops growing, which is feedback in
 	# itself rather than a punishment screen.
 	var joined := ""
-	if day % ENROL_EVERY_DAYS == 1 and avg >= ENROL_MIN_AVERAGE:
+	if day % Balance.enrol_every_days == 1 and avg >= Balance.enrol_min_average:
 		var s := enrol()
 		if s != null:
 			joined = s.display_name
@@ -237,13 +239,10 @@ func assign_homework() -> int:
 ##   both                           ->  0.95   an A
 ##
 ## Neither input alone can reach the top band. That is the whole idea.
-## 0.32, not 0.30. With a 0.30 attention cap, a base of 0.30 puts "bare room,
-## perfect attention" on 0.60 — which is a D, not the C the contract calls
-## for. 0.32 lands it exactly on the C threshold, so both extremes really do
-## read the same to a player.
-const ROOM_BASE := 0.32            ## an empty room still teaches a bit
-const ROOM_CAP := 0.65             ## the very best furniture, alone
-const HW_CAP := 0.15
+## The numbers themselves live in data/balance.json now, and the contract
+## is asserted against SIMULATED play rather than hand-set state — the old
+## test wrote attention_credit directly and so validated a condition the
+## game could not actually produce.
 
 ## Letter thresholds carried over from EduSystems, which are already tuned —
 ## and note E is a real letter there, between D and F.
@@ -259,10 +258,11 @@ static func grade_letter(v: float) -> String:
 ## What the room alone is worth to whoever sits in `seat_index`.
 ## Range-based from each item's tile, so where you put things matters.
 func room_score(seat_index: int) -> float:
+	Balance.ensure_loaded()
 	if seat_index < 0 or seat_index >= Layout.seat_count():
-		return ROOM_BASE
+		return Balance.room_base
 	var seat: Vector2i = Layout.SEATS[seat_index]
-	var total := ROOM_BASE
+	var total := Balance.room_base
 	for placed: Dictionary in room_items:
 		var def := Items.get_def(String(placed.get("id", "")))
 		if def.is_empty():
@@ -274,15 +274,33 @@ func room_score(seat_index: int) -> float:
 			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))
 		if best <= int(def.get("range", 0)):
 			total += float(def.get("bonus", 0.0))
-	return minf(ROOM_CAP, total)
+	return minf(Balance.room_cap, total)
 
 
-## The grade a student has earned this lesson.
+## The grade a student has earned this lesson: the room they sat in, how
+## much of their work they actually got through, and their homework.
+##
+## There is no separate "attention" term any more. Your attention shows up
+## as work_fraction — a stuck student's timer is frozen, so reaching them is
+## literally the only way that number rises. One mechanism, visible on the
+## bar above their head, instead of an invisible counter that could never
+## reach its own cap.
 func grade_for(s: StudentData) -> float:
+	Balance.ensure_loaded()
+
+	var lesson := s.work_fraction() * Balance.lesson_cap
+	if s.work_state != StudentData.Work.COLLECTED:
+		# work you never picked up counts for less, which is what makes the
+		# walk round the desks worth doing at all
+		lesson *= Balance.uncollected_penalty
+
 	var hw := 0.0
 	if s.hw_state == StudentData.HW.MARKED:
-		hw = HW_CAP * s.hw_true_accuracy
-	return clampf(room_score(s.seat_index) + s.attention_credit + hw, 0.0, 1.0)
+		hw = Balance.homework_cap * s.hw_true_accuracy
+		if not s.verdict_was_right():
+			hw *= Balance.verdict_weight
+
+	return clampf(room_score(s.seat_index) + lesson + hw, 0.0, 1.0)
 
 
 ## Close the lesson: everyone is graded, and it is recorded.
@@ -316,12 +334,6 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 			if t in want:
 				return false
 	return true
-
-
-## What you get back for selling. Half, rounded down — enough that a
-## mistake is recoverable, little enough that shuffling the room for profit
-## is not a strategy.
-const SELL_FRACTION := 0.5
 
 
 func place_item(id: String, tile: Vector2i) -> bool:
@@ -358,7 +370,8 @@ func remove_item(tile: Vector2i) -> String:
 
 
 func sell_value(id: String) -> int:
-	return int(floor(Items.cost(id) * SELL_FRACTION))
+	Balance.ensure_loaded()
+	return int(floor(Items.cost(id) * Balance.sell_fraction))
 
 
 func sell_item(tile: Vector2i) -> int:

@@ -13,12 +13,8 @@ const STUDENT_SCENE := preload("res://scenes/actors/student.tscn")
 ## Where the teacher starts the day: front of the room, beside the podium.
 const TEACHER_START := Vector2i(9, 3)
 
-## Students file in rather than surging through the door as one block.
-const ENTRY_STAGGER := 0.35
-
-## How likely a student is to get stuck partway through a piece of work.
-## This is the dial that decides whether a lesson is a stroll or a scramble.
-const STALL_CHANCE := 0.7
+signal lesson_tick(seconds_left: float)
+signal lesson_timed_out()
 
 signal work_finished(seat_index: int)
 signal day_started(day: int)
@@ -33,6 +29,7 @@ var teacher_desk: Interactable = null
 var bell: Interactable = null
 var noticeboard: Interactable = null
 
+var lesson_left: float = 0.0
 var _purchased: Array = []
 ## Tiles the bought furniture is currently occupying, so they can be handed
 ## back when it moves or the room is cleared.
@@ -87,7 +84,7 @@ func _spawn_students() -> void:
 			push_warning("seat %d unreachable from the door — seating directly" % s.seat_index)
 			node.seat_at(Grid.tile_to_world(seat))
 		else:
-			node.walk_to_seat(path, n * ENTRY_STAGGER)
+			node.walk_to_seat(path, n * Balance.entry_stagger)
 		students.append(node)
 		n += 1
 
@@ -97,19 +94,34 @@ func _spawn_students() -> void:
 ## assert on it. On the idle tick it would be however many variable-length
 ## frames the machine happened to render, which is not assertable at all.
 func _physics_process(delta: float) -> void:
-	for s: StudentData in Game.roster:
-		if s.tick_work(delta):
-			_on_work_done(s)
+	if Game.phase == Game.Phase.LESSON:
+		# The clock is what makes this a game rather than a chore list.
+		# Without it nothing ended the lesson but the player, so you could
+		# always reach every student and there was no triage to do.
+		lesson_left = maxf(0.0, lesson_left - delta)
+		lesson_tick.emit(lesson_left)
+		for s: StudentData in Game.roster:
+			if s.tick_work(delta, Game.rng):
+				_on_work_done(s)
+		if lesson_left <= 0.0:
+			lesson_timed_out.emit()
 	_refresh_bubbles()
 
 
-## A "?" over a stuck student's head. At 320x176 this single sprite carries
-## more information than any HUD element could — it is the thing you scan
-## the room for.
+## The "?" over a stuck student and the finished sheet on their desk, both
+## driven from STATE every frame rather than from a one-off event.
+##
+## The paper used to be shown only by _on_work_done(), which meant the
+## display was correct only if this node happened to be the thing that
+## advanced the work. Reading state instead makes the room always agree with
+## the data, whoever moved it.
 func _refresh_bubbles() -> void:
 	for n: Actor in students:
 		if n.data != null:
 			n.set_bubble(n.seated and n.data.is_struggling())
+	for st: Interactable in stations:
+		var s := Game.student_in_seat(st.seat_index)
+		st.show_paper(s != null and s.has_work_to_collect())
 
 
 func _on_work_done(s: StudentData) -> void:
@@ -146,11 +158,13 @@ func everyone_seated() -> bool:
 
 ## Podium, in the morning. Sets the whole class working.
 func start_lesson() -> int:
+	Balance.ensure_loaded()
 	Game.set_phase(Game.Phase.LESSON)
+	lesson_left = Balance.lesson_seconds
 	var n := 0
 	for s: StudentData in Game.roster:
 		var node := student_node(s.seat_index)
-		if node != null and node.seated and s.assign_work(Game.rng, STALL_CHANCE):
+		if node != null and node.seated and s.assign_work():
 			n += 1
 	return n
 
@@ -158,11 +172,12 @@ func start_lesson() -> int:
 ## Podium, during a lesson. Grades everyone on what actually happened, then
 ## sets tonight's homework.
 func end_lesson() -> Array:
+	lesson_left = 0.0
 	var results := Game.grade_class()
 	Game.assign_homework()
 	Game.set_phase(Game.Phase.AFTERNOON)
 	for s: StudentData in Game.roster:
-		s.set_confused(false)
+		s.confusion = 0.0
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
@@ -239,6 +254,6 @@ func assign_work_to_class() -> int:
 	var n := 0
 	for s: StudentData in Game.roster:
 		var node := student_node(s.seat_index)
-		if node != null and node.seated and s.assign_work(Game.rng, 0.0):
+		if node != null and node.seated and s.assign_work():
 			n += 1
 	return n

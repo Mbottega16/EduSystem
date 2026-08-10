@@ -76,8 +76,7 @@ const BAR_STUCK := Color(0.86, 0.42, 0.36)
 func _draw() -> void:
 	if data == null or data.work_state != StudentData.Work.WORKING:
 		return
-	var frac: float = clampf(
-		1.0 - data.work_timer / StudentData.WORK_SECONDS, 0.0, 1.0)
+	var frac: float = data.work_fraction()
 	var x := -BAR_W / 2.0
 	var y := -30.0
 	draw_rect(Rect2(x - 1.0, y - 1.0, BAR_W + 2.0, 5.0), BAR_BG)

@@ -26,8 +26,8 @@ var world: Node2D = null
 
 func _ready() -> void:
 	# Never let a broken run hang a terminal.
-	get_tree().create_timer(120.0).timeout.connect(func() -> void:
-		push_error("watchdog: suite exceeded 120s")
+	get_tree().create_timer(420.0).timeout.connect(func() -> void:
+		push_error("watchdog: suite exceeded 420s")
 		get_tree().quit(1))
 	_main()
 
@@ -166,8 +166,9 @@ func test_game() -> void:
 	section("GAME STATE")
 	Game.new_run(SEED)
 	chk("a new run enrols the starting class",
-		Game.roster.size() == Game.CLASS_START, Game.roster.size())
-	chk("day starts at 1 and coins at 0", Game.day == 1 and Game.coins == 0)
+		Game.roster.size() == Balance.class_start, Game.roster.size())
+	chk("day starts at 1 with the starting purse",
+		Game.day == 1 and Game.coins == Balance.start_coins, Game.coins)
 
 	var seats: Array = []
 	for s: StudentData in Game.roster:
@@ -177,14 +178,14 @@ func test_game() -> void:
 		seats == [0, 1, 2, 3], seats)
 
 	# growth into the fixed eight-desk room
-	while Game.roster.size() < Game.CLASS_CAP:
+	while Game.roster.size() < Balance.class_cap:
 		Game.enrol()
-	chk("the roster grows to the class cap", Game.roster.size() == Game.CLASS_CAP)
+	chk("the roster grows to the class cap", Game.roster.size() == Balance.class_cap)
 	chk("enrolling past the cap is refused", Game.enrol() == null)
 	var all_seats := {}
 	for s: StudentData in Game.roster:
 		all_seats[s.seat_index] = true
-	chk("every student has a distinct seat", all_seats.size() == Game.CLASS_CAP)
+	chk("every student has a distinct seat", all_seats.size() == Balance.class_cap)
 
 	# determinism — the whole grading/homework test story depends on this
 	Game.new_run(SEED)
@@ -220,13 +221,13 @@ func test_game() -> void:
 	chk("a confused student reads as struggling", s0.is_struggling())
 	s0.reset_lesson()
 	chk("resetting the lesson clears confusion and attention",
-		not s0.is_struggling() and s0.attention_credit == 0.0)
+		not s0.is_struggling() and s0.work_state == StudentData.Work.NONE)
 
 
 func test_layout() -> void:
 	section("LAYOUT")
 	chk("there are eight desks for the class cap",
-		Layout.seat_count() == Game.CLASS_CAP, Layout.seat_count())
+		Layout.seat_count() == Balance.class_cap, Layout.seat_count())
 
 	var uniq := {}
 	for s: Vector2i in Layout.SEATS:
@@ -444,22 +445,31 @@ func test_work_loop() -> void:
 	chk("assigning again is refused while they're still working",
 		world.assign_work_to_class() == 0)
 
-	# --- the five seconds ---
-	# The tick is on the fixed physics step, so this is exact: 5s = 300
-	# frames. One frame short must NOT be finished.
-	await step(299)
-	var any_done := false
+	# --- working through it ---
+	# Work takes Balance.work_seconds of UNSTUCK time, and they now stall
+	# repeatedly, so getting the class finished means actually unsticking
+	# them — which is the point.
+	var short_of_it := int(Balance.work_seconds * 60.0) - 5
+	for i in short_of_it:
+		for s: StudentData in Game.roster:
+			s.tick_work(1.0 / 60.0, null)
+	var early := false
 	for s: StudentData in Game.roster:
 		if s.has_work_to_collect():
-			any_done = true
-	chk("nobody is finished one frame before the five seconds are up", not any_done)
+			early = true
+	chk("nobody can finish sooner than the work actually takes", not early)
 
-	await step(3)
+	for i in 600:
+		for s: StudentData in Game.roster:
+			if s.is_struggling():
+				s.help()
+			s.tick_work(1.0 / 60.0, Game.rng)
+	await step(2)
 	var all_done := true
 	for s: StudentData in Game.roster:
 		if not s.has_work_to_collect():
 			all_done = false
-	chk("after five seconds every sheet is finished", all_done)
+	chk("helping them through gets the whole class finished", all_done)
 
 	var st0: Interactable = world.station(0)
 	chk("a finished sheet appears on the desk", st0.paper.visible)
@@ -578,58 +588,99 @@ func _body_near(p: Vector2) -> StaticBody2D:
 
 func test_balance() -> void:
 	section("BALANCE CONTRACT")
-	# These three assertions ARE the design pillar: "the room sets the floor,
-	# the teacher sets the ceiling". If a tuning pass breaks any of them the
-	# game has quietly stopped being the game it was designed to be.
+	# These three rows ARE the design pillar. They are now measured by
+	# actually SIMULATING a lesson — ticking the real work model at the real
+	# physics rate — rather than by assigning the inputs by hand.
+	#
+	# The previous version set `attention_credit` directly and asserted on
+	# that. It passed for weeks while the game could never produce more than
+	# a third of the value it was asserting, because no gameplay path could
+	# reach the state under test. A contract you can only satisfy by cheating
+	# is worse than no contract: it manufactures confidence.
+	Balance.ensure_loaded()
+
+	var bare_taught := _simulate_lesson(false, true)
+	var rich_ignored := _simulate_lesson(true, false)
+	var rich_taught := _simulate_lesson(true, true)
+
+	chk("a bare room with a perfect teacher earns a C",
+		Game.grade_letter(bare_taught) == "C", "%.2f" % bare_taught)
+	chk("a perfect room with an absent teacher ALSO earns a C",
+		Game.grade_letter(rich_ignored) == "C", "%.2f" % rich_ignored)
+	chk("room AND teaching together earn an A",
+		Game.grade_letter(rich_taught) == "A", "%.2f" % rich_taught)
+	chk("neither input alone gets near the top",
+		bare_taught < 0.75 and rich_ignored < 0.75)
+
+	var bare_ignored := _simulate_lesson(false, false)
+	chk("doing neither is well below a pass",
+		bare_ignored < 0.50, "%.2f  %s" % [bare_ignored, Game.grade_letter(bare_ignored)])
+
+	# helping is the ONLY way a stuck student progresses
 	Game.new_run(SEED)
-	var s: StudentData = Game.roster[0]
-
-	Game.room_items.clear()
-	s.attention_credit = 0.0
-	chk("a bare room with no attention is a failing grade",
-		Game.grade_letter(Game.grade_for(s)) == "F",
-		"%.2f %s" % [Game.grade_for(s), Game.grade_letter(Game.grade_for(s))])
-
-	# perfect room, zero attention -> a C
-	for id: String in Items.ORDER:
-		Game.room_items.append({"id": id, "tile": Layout.SEATS[0]})
-	chk("a perfect room ALONE tops out at a C",
-		Game.grade_letter(Game.grade_for(s)) == "C",
-		"%.2f" % Game.grade_for(s))
-	chk("room score is capped, so furniture alone can never reach an A",
-		is_equal_approx(Game.room_score(0), Game.ROOM_CAP))
-
-	# bare room, perfect attention -> also a C
-	Game.room_items.clear()
-	s.attention_credit = StudentData.ATTENTION_CAP
-	chk("perfect attention in a bare room ALSO tops out at a C",
-		Game.grade_letter(Game.grade_for(s)) == "C",
-		"%.2f" % Game.grade_for(s))
-
-	# both -> an A
-	for id: String in Items.ORDER:
-		Game.room_items.append({"id": id, "tile": Layout.SEATS[0]})
-	chk("room AND attention together earn an A",
-		Game.grade_letter(Game.grade_for(s)) == "A", "%.2f" % Game.grade_for(s))
-
-	chk("attention credit cannot be farmed past its cap", (func() -> bool:
-		s.set_confused(true)
-		for i in 20:
-			s.set_confused(true)
-			s.help()
-		return is_equal_approx(s.attention_credit, StudentData.ATTENTION_CAP)).call())
+	var st: StudentData = Game.roster[0]
+	st.assign_work()
+	st.confusion = 1.0
+	var frozen: float = st.work_timer
+	for i in 600:
+		st.tick_work(1.0 / 60.0, Game.rng)
+	chk("an unreached student never progresses at all",
+		is_equal_approx(st.work_timer, frozen))
 	chk("helping a student who is fine does nothing", (func() -> bool:
-		s.set_confused(false)
-		var before := s.attention_credit
-		return not s.help() and is_equal_approx(s.attention_credit, before)).call())
-	Game.room_items.clear()
+		st.confusion = 0.0
+		return not st.help()).call())
+	# The old model rolled ONE stall moment per lesson and cleared it when it
+	# fired, so the teacher could only ever matter once. Averaged over runs
+	# so this doesn't hinge on a single unlucky seed.
+	var total_stalls := 0
+	for i in 20:
+		total_stalls += _count_stalls(0.3)
+	chk("a student gets stuck several times across a lesson",
+		total_stalls >= 30, "%d stalls over 20 lessons" % total_stalls)
+
+
+## Run real lessons through the actual work model and return the MEAN grade.
+## `furnish` caps the room; `teach` unsticks them the moment they stall.
+##
+## Averaged over many students on purpose. A single lesson is dominated by
+## one student's stall luck — an early version of this asserted on one
+## student and swung between a C and a B depending only on the seed, which
+## would have made the contract flaky rather than meaningful.
+func _simulate_lesson(furnish: bool, teach: bool) -> float:
+	var total := 0.0
+	var runs := 0
+	for seed_offset in 6:
+		Game.new_run(SEED + seed_offset)
+		if furnish:
+			var guard := 0
+			while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
+				Game.room_items.append({
+					"id": Items.order()[guard % Items.order().size()],
+					"tile": Layout.SEATS[0] + Vector2i(0, 1)})
+				guard += 1
+		for s: StudentData in Game.roster:
+			s.seat_index = 0 if furnish else s.seat_index
+			s.assign_work()
+		var t := 0.0
+		while t < Balance.lesson_seconds:
+			t += 1.0 / 60.0
+			for s: StudentData in Game.roster:
+				s.tick_work(1.0 / 60.0, Game.rng)
+				if teach and s.is_struggling():
+					s.help()
+		for s: StudentData in Game.roster:
+			if teach:
+				s.collect_work()
+			total += Game.grade_for(s)
+			runs += 1
+	return total / float(runs)
 
 
 func test_items() -> void:
 	section("ITEMS")
 	Game.new_run(SEED)
 	chk("every catalogue entry has art, a cost and an effect", (func() -> bool:
-		for id: String in Items.ORDER:
+		for id: String in Items.order():
 			var d := Items.get_def(id)
 			if d.is_empty() or int(d["cost"]) <= 0 or float(d["bonus"]) <= 0.0:
 				return false
@@ -638,7 +689,7 @@ func test_items() -> void:
 		return true).call())
 	chk("the catalogue is ordered cheapest first", (func() -> bool:
 		var last := -1
-		for id: String in Items.ORDER:
+		for id: String in Items.order():
 			var c := Items.cost(id)
 			if c < last:
 				return false
@@ -650,18 +701,18 @@ func test_items() -> void:
 	var far := Layout.SEATS[0] + Vector2i(9, 0)
 	Game.room_items.append({"id": "bookshelf", "tile": far})
 	chk("an item out of range helps nobody",
-		is_equal_approx(Game.room_score(0), Game.ROOM_BASE),
+		is_equal_approx(Game.room_score(0), Balance.room_base),
 		Game.room_score(0))
 	Game.room_items[0]["tile"] = Layout.SEATS[0] + Vector2i(2, 0)
 	chk("the same item in range does help",
-		Game.room_score(0) > Game.ROOM_BASE, Game.room_score(0))
+		Game.room_score(0) > Balance.room_base, Game.room_score(0))
 
 	# a 2-tile item should reach from either end, not just its anchor
 	Game.room_items.clear()
 	Game.room_items.append({"id": "lab_bench",
 		"tile": Layout.SEATS[0] + Vector2i(-4, 0)})
 	chk("a wide item measures from its NEAREST tile, not its anchor",
-		Game.room_score(0) > Game.ROOM_BASE, Game.room_score(0))
+		Game.room_score(0) > Balance.room_base, Game.room_score(0))
 
 	# buying
 	Game.room_items.clear()
@@ -691,14 +742,27 @@ func test_homework() -> void:
 		s.last_grade = 0.7
 	var report := Game.advance_day()
 	var done := 0
-	var not_done := 0
+	var still_out := 0
 	for s: StudentData in Game.roster:
 		if s.hw_state == StudentData.HW.DONE:
 			done += 1
-		elif s.hw_state == StudentData.HW.NOT_DONE:
-			not_done += 1
-	chk("overnight, every set piece of homework resolves one way or the other",
-		done + not_done == Game.roster.size(), "%d done, %d not" % [done, not_done])
+		elif s.hw_state == StudentData.HW.ASSIGNED:
+			still_out += 1
+	chk("overnight, no homework is left hanging as still-assigned",
+		still_out == 0, still_out)
+	# NOT_DONE used to be terminal: a student who missed one night was never
+	# asked again for the rest of the run, silently. With forgiveness on they
+	# land back on NONE and get asked tomorrow.
+	chk("a student who missed it is asked again rather than locked out",
+		(func() -> bool:
+			if not Balance.not_done_forgiveness:
+				return true
+			for st: StudentData in Game.roster:
+				if st.hw_state == StudentData.HW.NOT_DONE:
+					return false
+			return true).call())
+	chk("and they can be set homework again immediately",
+		Game.assign_homework() > 0)
 	chk("the day report counts who actually did it",
 		int(report["homework_done"]) == done)
 	chk("a student who did it has a real sheet to mark", (func() -> bool:
@@ -781,7 +845,20 @@ func test_day_cycle() -> void:
 	chk("the bell still refuses mid-lesson", not world.bell.can_interact())
 
 	# give one student credit so the grades are not all identical
-	Game.roster[0].attention_credit = StudentData.ATTENTION_CAP
+	# Teach the first student properly and ignore the second, so the grades
+	# genuinely differ for the reason the game says they should.
+	for i in Game.roster.size():
+		var st: StudentData = Game.roster[i]
+		if st.work_state == StudentData.Work.NONE:
+			st.assign_work()
+		var guard := 0
+		while not st.has_work_to_collect() and guard < 20000 and i == 0:
+			st.tick_work(1.0 / 60.0, Game.rng)
+			if st.is_struggling():
+				st.help()
+			guard += 1
+		if i == 0:
+			st.collect_work()
 	var results: Array = world.end_lesson()
 	chk("ending the lesson grades everybody",
 		results.size() == Game.roster.size(), results.size())
@@ -810,11 +887,13 @@ func test_day_cycle() -> void:
 	chk("the class files back in rather than starting seated",
 		not world.everyone_seated())
 
-	var frames := 0
-	while frames < 2000 and not world.everyone_seated():
-		await step(20)
-		frames += 20
-	chk("the new day's class takes its seats", world.everyone_seated())
+	# Arrival itself is covered by the ARRIVAL section; walking it out again
+	# costs ~30 real seconds, so seat them directly here.
+	for n: Actor in world.students:
+		if n.data != null:
+			n.seat_at(Grid.tile_to_world(Layout.SEATS[n.data.seat_index]))
+	await step(2)
+	chk("the new day's class is seated and ready", world.everyone_seated())
 
 	# homework came back overnight and can be collected from the desks
 	var seat := -1
@@ -838,57 +917,81 @@ func test_day_cycle() -> void:
 
 func test_confusion() -> void:
 	section("GETTING STUCK")
+	Balance.ensure_loaded()
 	Game.new_run(SEED)
 	var s := StudentData.new()
-	s.seat_index = 0
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
+	s.aptitude = 0.5
 
-	# force a stall, then prove the work timer really is frozen by it
-	s.assign_work(rng, 1.0)
-	chk("work starts un-stuck", not s.is_struggling())
+	s.assign_work()
+	chk("work starts un-stuck and empty",
+		not s.is_struggling() and is_equal_approx(s.work_fraction(), 0.0))
+
+	# tick until they stall, which now happens by continuous roll rather
+	# than at a single moment scheduled up front
 	var guard := 0
-	while not s.is_struggling() and guard < 600:
-		s.tick_work(1.0 / 60.0)
+	while not s.is_struggling() and guard < 6000:
+		s.tick_work(1.0 / 60.0, Game.rng)
 		guard += 1
-	chk("a student can get stuck partway through", s.is_struggling(), guard)
+	chk("a student gets stuck eventually", s.is_struggling(), guard)
+	chk("they never stall in the first moment of the work",
+		guard > int(Balance.stall_grace_seconds * 60.0), guard)
 
 	var frozen: float = s.work_timer
-	for i in 300:
-		s.tick_work(1.0 / 60.0)
-	chk("a stuck student's work does not progress at all",
-		is_equal_approx(s.work_timer, frozen), "%.3f -> %.3f" % [frozen, s.work_timer])
+	var frac: float = s.work_fraction()
+	for i in 600:
+		s.tick_work(1.0 / 60.0, Game.rng)
+	chk("a stuck student's work is completely frozen",
+		is_equal_approx(s.work_timer, frozen))
+	chk("so their work fraction stops rising too",
+		is_equal_approx(s.work_fraction(), frac))
 	chk("and they never finish on their own", not s.has_work_to_collect())
 
-	chk("helping them clears it and earns you credit", (func() -> bool:
-		var before := s.attention_credit
-		return s.help() and not s.is_struggling() and s.attention_credit > before).call())
+	chk("helping unfreezes them and is counted", (func() -> bool:
+		var before := s.helps_received
+		return s.help() and not s.is_struggling() and s.helps_received == before + 1).call())
 
-	for i in 400:
-		s.tick_work(1.0 / 60.0)
-	chk("once helped, they finish", s.has_work_to_collect())
+	# see it through to the end, helping whenever needed
+	guard = 0
+	while not s.has_work_to_collect() and guard < 20000:
+		s.tick_work(1.0 / 60.0, Game.rng)
+		if s.is_struggling():
+			s.help()
+		guard += 1
+	chk("with help they do finish", s.has_work_to_collect())
+	chk("a finished student is at 100%", is_equal_approx(s.work_fraction(), 1.0))
 
-	# never stalls at the very start or the very end, both of which read as
-	# a glitch rather than as the student getting stuck
-	var edge_ok := true
-	for i in 200:
-		var t := StudentData.new()
-		t.assign_work(rng, 1.0)
-		if t._confuse_at < StudentData.WORK_SECONDS * 0.15:
-			edge_ok = false
-		if t._confuse_at > StudentData.WORK_SECONDS * 0.85:
-			edge_ok = false
-	chk("a stall never lands on the first or last moment of the work", edge_ok)
+	# aptitude has to matter, or the students really are interchangeable
+	var dim_stalls := 0
+	var bright_stalls := 0
+	for i in 40:
+		dim_stalls += _count_stalls(0.1)
+		bright_stalls += _count_stalls(0.9)
+	chk("a weaker student gets stuck more often than a stronger one",
+		dim_stalls > bright_stalls, "%d vs %d over 40 lessons" % [dim_stalls, bright_stalls])
 
-	chk("with stall chance zero nobody ever gets stuck", (func() -> bool:
-		for i in 100:
-			var t := StudentData.new()
-			t.assign_work(rng, 0.0)
-			for j in 400:
-				t.tick_work(1.0 / 60.0)
-			if not t.has_work_to_collect():
-				return false
-		return true).call())
+	# and a sheet you wrongly waved through leaves them secretly behind
+	var honest := 0
+	var misjudged := 0
+	for i in 40:
+		honest += _count_stalls(0.5, false)
+		misjudged += _count_stalls(0.5, true)
+	chk("a student whose homework you misjudged struggles more",
+		misjudged > honest, "%d vs %d" % [misjudged, honest])
+
+
+func _count_stalls(aptitude: float, misjudged: bool = false) -> int:
+	var t := StudentData.new()
+	t.aptitude = aptitude
+	t.misjudged = misjudged
+	t.assign_work()
+	var stalls := 0
+	for i in 20000:
+		if t.tick_work(1.0 / 60.0, Game.rng):
+			break
+		if t.is_struggling():
+			stalls += 1
+			t.help()
+	return stalls
 
 
 func test_placement() -> void:
@@ -943,7 +1046,7 @@ func test_placement() -> void:
 		not world.grid.is_free(Vector2i(9, 6)))
 	chk("and it now helps whoever is in range", (func() -> bool:
 		for i in Layout.seat_count():
-			if Game.room_score(i) > Game.ROOM_BASE:
+			if Game.room_score(i) > Balance.room_base:
 				return true
 		return false).call())
 
@@ -1047,7 +1150,7 @@ func test_overlays() -> void:
 
 	# order something, and place it
 	await tap("interact")
-	var chosen: String = Items.ORDER[hud._sel]
+	var chosen: String = Items.order()[hud._sel]
 	var coins_before: int = Game.coins
 	var items_before: int = Game.room_items.size()
 	await tap("interact")
@@ -1135,7 +1238,6 @@ func test_marking() -> void:
 
 	# marked homework feeds the grade
 	var s0: StudentData = Game.roster[0]
-	s0.attention_credit = 0.0
 	Game.room_items.clear()
 	var with_hw := Game.grade_for(s0)
 	s0.hw_state = StudentData.HW.COLLECTED
@@ -1186,8 +1288,8 @@ func test_shop() -> void:
 		Game.room_items.size() == 1 and Game.coins == coins_before + refund,
 		"%d items, %d coins (+%d expected)" % [Game.room_items.size(), Game.coins, refund])
 	chk("you get back half, not the full price",
-		refund == int(floor(Items.cost("bookshelf") * Game.SELL_FRACTION))
-		or refund == int(floor(Items.cost("plant") * Game.SELL_FRACTION)), refund)
+		refund == int(floor(Items.cost("bookshelf") * Balance.sell_fraction))
+		or refund == int(floor(Items.cost("plant") * Balance.sell_fraction)), refund)
 	chk("the sold item's tile is free to build on again",
 		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
 
@@ -1260,6 +1362,7 @@ func test_shop() -> void:
 
 func test_progress_bar() -> void:
 	section("PROGRESS BAR")
+	Balance.ensure_loaded()
 	Game.new_run(SEED)
 	await step(2)
 	var frames := 0
@@ -1269,37 +1372,42 @@ func test_progress_bar() -> void:
 
 	var node: Actor = world.student_node(0)
 	var s := Game.student_in_seat(0)
+	s.reset_lesson()
 	chk("nothing is drawn before work is set",
-		s.work_state == StudentData.Work.NONE)
+		s.work_state == StudentData.Work.NONE
+		and is_equal_approx(s.work_fraction(), 0.0))
 
-	s.assign_work(Game.rng, 0.0)
-	await step(2)
+	s.assign_work()
 	chk("the bar has something to show once work starts",
 		s.work_state == StudentData.Work.WORKING)
 
-	# the bar reads straight off the work timer, so assert on that
-	var at_start: float = 1.0 - s.work_timer / StudentData.WORK_SECONDS
-	await step(120)
-	var later: float = 1.0 - s.work_timer / StudentData.WORK_SECONDS
+	# tick the model directly so a stall can't make this flaky
+	var at_start: float = s.work_fraction()
+	for i in 120:
+		s.tick_work(1.0 / 60.0, null)          # null rng = never stalls
+	var later: float = s.work_fraction()
 	chk("it fills as they work", later > at_start,
 		"%.2f -> %.2f" % [at_start, later])
-	chk("two seconds in, it is roughly two fifths full",
-		absf(later - 0.4) < 0.06, "%.2f" % later)
+	chk("two seconds in it is about 2s worth of the work",
+		absf(later - 2.0 / Balance.work_seconds) < 0.05, "%.2f" % later)
 
-	s.set_confused(true)
-	var frozen: float = s.work_timer
-	await step(120)
+	s.confusion = 1.0
+	var frozen: float = s.work_fraction()
+	for i in 600:
+		s.tick_work(1.0 / 60.0, null)
 	chk("it stops dead while they are stuck",
-		is_equal_approx(s.work_timer, frozen), s.work_timer)
+		is_equal_approx(s.work_fraction(), frozen), s.work_fraction())
 	chk("and the student reads as struggling, so the bar turns red",
 		s.is_struggling())
 
 	s.help()
-	await step(200)
-	chk("it fills again once you have helped",
-		s.work_timer < frozen, "%.2f -> %.2f" % [frozen, s.work_timer])
+	for i in 200:
+		s.tick_work(1.0 / 60.0, null)
+	chk("it fills again once you have helped", s.work_fraction() > frozen,
+		"%.2f -> %.2f" % [frozen, s.work_fraction()])
 
-	await step(220)
+	for i in int(Balance.work_seconds * 60.0):
+		s.tick_work(1.0 / 60.0, null)
 	chk("at 100% the work is done and the bar is dropped",
 		s.work_state == StudentData.Work.DONE)
 	chk("the node is still alive to draw it", is_instance_valid(node))

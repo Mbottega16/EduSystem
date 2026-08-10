@@ -4,144 +4,49 @@ extends RefCounted
 ## One student's record.
 ##
 ## Deliberately a RefCounted and NOT a Node. Keeping the record off the scene
-## tree is what lets grading and homework be tested headlessly with no scene
-## at all — the student node reads from this, it never becomes the place a
-## fact lives.
+## tree is what lets grading, homework and a whole simulated term be tested
+## headlessly with no scene at all.
 
 ## Homework lifecycle. NONE until a lesson assigns it.
 enum HW { NONE, ASSIGNED, DONE, NOT_DONE, COLLECTED, MARKED }
 
-## In-lesson classwork: you assign it at the podium, they work on it, it
-## lands on their desk, you walk round and collect it, you carry it to your
-## own desk. Separate from HW, which is the overnight cycle.
+## In-lesson classwork: assigned at the podium, worked on, collected from the
+## desk, handed in at yours.
 enum Work { NONE, WORKING, DONE, COLLECTED }
-
-## How long a student takes to finish a piece of assigned work.
-const WORK_SECONDS := 5.0
 
 # --- identity ---------------------------------------------------------
 var id: int = 0
 var display_name: String = ""
-var art: String = "student_a"      ## which generated sheet in art/
-var seat_index: int = -1           ## -1 = not enrolled in a seat
+var art: String = "student_a"
+var seat_index: int = -1
 
 # --- ability. Two numbers on purpose; resist growing this to four. ----
-var aptitude: float = 0.5          ## 0..1 — how fast understanding accrues
-var diligence: float = 0.5         ## 0..1 — will they actually do the homework
+var aptitude: float = 0.5          ## 0..1 — resistance to getting stuck
+var diligence: float = 0.5         ## 0..1 — will they do the homework
 
 # --- per-lesson, reset by reset_lesson() ------------------------------
-var understanding: float = 0.0     ## 0..1, accrues while a lesson runs
-var confusion: float = 0.0         ## 0..1, rises on a snag and gates the above
-var attention_credit: float = 0.0  ## 0..ATTENTION_CAP, earned only by being helped
-
-# --- assigned classwork ----------------------------------------------
 var work_state: int = Work.NONE
-var work_timer: float = 0.0        ## seconds left until they finish
-
-
-## Assign a fresh piece of work. Only a seated student can be given any —
-## you can't hand a sheet to someone still walking to their chair.
-##
-## `stall_chance` is how likely they are to get stuck partway through and
-## need you. Rolled once, up front, so the whole lesson is deterministic
-## from the seed.
-func assign_work(rng: RandomNumberGenerator = null, stall_chance: float = 0.0) -> bool:
-	if work_state != Work.NONE:
-		return false
-	work_state = Work.WORKING
-	work_timer = WORK_SECONDS
-	_elapsed = 0.0
-	_confuse_at = -1.0
-	set_confused(false)
-	if rng != null and rng.randf() < stall_chance:
-		# never on the very first or last moment — both read as a glitch
-		_confuse_at = rng.randf_range(WORK_SECONDS * 0.2, WORK_SECONDS * 0.8)
-	return true
-
-
-## Returns true on the frame the work is finished, so the caller can react
-## once rather than every frame afterwards.
-##
-## A confused student's timer is FROZEN — that is the entire pressure of the
-## lesson. Reach them and they finish; don't and they never do.
-func tick_work(delta: float) -> bool:
-	if work_state != Work.WORKING:
-		return false
-	if is_struggling():
-		return false
-	_elapsed += delta
-	if _confuse_at >= 0.0 and _elapsed >= _confuse_at:
-		_confuse_at = -1.0
-		set_confused(true)
-		return false
-	work_timer -= delta
-	if work_timer <= 0.0:
-		work_timer = 0.0
-		work_state = Work.DONE
-		return true
-	return false
-
-
-func has_work_to_collect() -> bool:
-	return work_state == Work.DONE
-
-
-func collect_work() -> bool:
-	if work_state != Work.DONE:
-		return false
-	work_state = Work.COLLECTED
-	return true
-
-
-# --- getting stuck, and being helped ----------------------------------
-# Confusion FREEZES the work timer. That is the whole pressure of a lesson:
-# an unhelped student never finishes, so there is nothing on their desk to
-# collect, so they contribute nothing. The thing you can see (a sheet
-# appearing) and the thing you're managing (attention) are the same thing.
-
-const ATTENTION_PER_HELP := 0.10
-const ATTENTION_CAP := 0.30
-
-var _elapsed: float = 0.0
-var _confuse_at: float = -1.0
-
-
-func set_confused(v: bool) -> void:
-	confusion = 1.0 if v else 0.0
-
-
-## Returns true if this actually helped — so a player mashing E at a student
-## who is fine can't farm attention credit.
-func help() -> bool:
-	if not is_struggling():
-		return false
-	set_confused(false)
-	attention_credit = minf(ATTENTION_CAP, attention_credit + ATTENTION_PER_HELP)
-	return true
-
-
-# --- homework ---------------------------------------------------------
-var hw_sheet: Dictionary = {}
-
-
-func homework_pending() -> bool:
-	return hw_state == HW.DONE or hw_state == HW.NOT_DONE
-
-
-func homework_ready_to_mark() -> bool:
-	return hw_state == HW.COLLECTED
+var work_timer: float = 0.0        ## seconds of UNSTUCK work still needed
+var confusion: float = 0.0
+var helps_received: int = 0        ## for the report; not a grade input
 
 # --- homework, persists across days -----------------------------------
 var hw_state: int = HW.NONE
 var hw_true_accuracy: float = 0.0  ## hidden from the player
 var hw_player_verdict: int = -1    ## -1 unset, 0 "not yet", 1 "got it"
+var hw_sheet: Dictionary = {}
+## Set when you passed a sheet that did not deserve it. That student is
+## secretly behind, so they stall more next lesson — which is exactly what
+## the marking screen has always claimed happens.
+var misjudged: bool = false
 
 # --- history ----------------------------------------------------------
 var grades: Array[float] = []
 var last_grade: float = -1.0
 
+var _since_stall: float = 0.0
 
-## Derived, never stored — a stored copy would drift the moment confusion moves.
+
 func is_struggling() -> bool:
 	return confusion > 0.5
 
@@ -156,11 +61,112 @@ func average_grade() -> float:
 
 
 func reset_lesson() -> void:
-	understanding = 0.0
-	confusion = 0.0
-	attention_credit = 0.0
 	work_state = Work.NONE
 	work_timer = 0.0
+	confusion = 0.0
+	helps_received = 0
+	_since_stall = 0.0
+
+
+# ---------------------------------------------------------------- work
+
+## Hand them a piece of work. Only a seated student can be given any.
+func assign_work() -> bool:
+	Balance.ensure_loaded()
+	if work_state != Work.NONE:
+		return false
+	work_state = Work.WORKING
+	work_timer = Balance.work_seconds
+	_since_stall = 0.0
+	confusion = 0.0
+	return true
+
+
+## How much of it they have actually done, 0..1. This is the number the
+## grade is built on, which is why helping matters: a stuck student's timer
+## is frozen, so their fraction stops rising until you reach them.
+func work_fraction() -> float:
+	Balance.ensure_loaded()
+	if work_state == Work.NONE:
+		return 0.0
+	if work_state != Work.WORKING:
+		return 1.0
+	return clampf(1.0 - work_timer / Balance.work_seconds, 0.0, 1.0)
+
+
+## Advance their work by `delta`. Returns true on the single frame they
+## finish, so the caller can react once.
+##
+## The stall is rolled CONTINUOUSLY rather than scheduled once up front.
+## The old version rolled a single stall moment in assign_work and cleared
+## it when it fired, so a student could get stuck at most once per lesson —
+## which quietly made the teacher's whole contribution a one-shot.
+func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
+	Balance.ensure_loaded()
+	if work_state != Work.WORKING:
+		return false
+	if is_struggling():
+		return false                      # frozen until someone helps
+
+	work_timer -= delta
+	if work_timer <= 0.0:
+		work_timer = 0.0
+		work_state = Work.DONE
+		return true
+
+	# a short grace after starting or being helped, so they never stall
+	# again the instant you walk away — that reads as the game cheating
+	_since_stall += delta
+	if rng != null and _since_stall >= Balance.stall_grace_seconds:
+		if rng.randf() < stall_chance() * delta:
+			confusion = 1.0
+			_since_stall = 0.0
+	return false
+
+
+## Per-second chance of getting stuck. Brighter students stall less, and a
+## student whose homework you waved through is secretly behind.
+func stall_chance() -> float:
+	Balance.ensure_loaded()
+	var c := Balance.stall_chance_per_second * (1.4 - 0.8 * aptitude)
+	if misjudged:
+		c *= 1.6
+	return c
+
+
+func has_work_to_collect() -> bool:
+	return work_state == Work.DONE
+
+
+func collect_work() -> bool:
+	if work_state != Work.DONE:
+		return false
+	work_state = Work.COLLECTED
+	return true
+
+
+## Unstick them. Returns false if they were fine, so mashing E at a happy
+## student does nothing.
+func help() -> bool:
+	if not is_struggling():
+		return false
+	confusion = 0.0
+	_since_stall = 0.0
+	helps_received += 1
+	return true
+
+
+# ------------------------------------------------------------ homework
+
+func homework_ready_to_mark() -> bool:
+	return hw_state == HW.COLLECTED
+
+
+## Did the player judge this sheet the way it deserved?
+func verdict_was_right() -> bool:
+	if hw_player_verdict < 0 or hw_sheet.is_empty():
+		return false
+	return (hw_player_verdict == 1) == Questions.sheet_is_good(hw_sheet)
 
 
 func to_dict() -> Dictionary:
@@ -168,7 +174,7 @@ func to_dict() -> Dictionary:
 		"id": id, "display_name": display_name, "art": art,
 		"seat_index": seat_index, "aptitude": aptitude, "diligence": diligence,
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
-		"hw_player_verdict": hw_player_verdict,
+		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"grades": grades, "last_grade": last_grade,
 	}
 
@@ -184,6 +190,7 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.hw_state = int(d.get("hw_state", HW.NONE))
 	s.hw_true_accuracy = float(d.get("hw_true_accuracy", 0.0))
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
+	s.misjudged = bool(d.get("misjudged", false))
 	s.last_grade = float(d.get("last_grade", -1.0))
 	s.grades.assign(d.get("grades", []))
 	return s

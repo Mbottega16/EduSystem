@@ -1,0 +1,97 @@
+{
+  "_note": "Every gameplay number lives here. Nothing tunable should be a const in a .gd file any more. tools/sim.gd plays hundreds of days against this file and prints the curves, so a change here can be checked without playing.",
+  "_contract": [
+    "THE BALANCE CONTRACT. tools/sim.gd measures these from SIMULATED play, and tests/run.gd asserts them. The previous version asserted hand-set state, which is how a grade model broken in four places passed 218 tests.",
+    "bare room, perfect teaching  -> ~0.62  a C",
+    "full room, never helped      -> ~0.63  a C",
+    "full room, perfect teaching  -> ~0.97  an A",
+    "Homework is a bonus on top, so a good term survives one bad lesson."
+  ],
+  "grade": {
+    "room_base": 0.28,
+    "room_cap": 0.62,
+    "lesson_cap": 0.35,
+    "homework_cap": 0.12,
+    "uncollected_penalty": 0.5
+  },
+  "lesson": {
+    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes \u2014 that is the whole pressure.",
+    "work_seconds": 20.0,
+    "lesson_seconds": 45.0,
+    "stall_chance_per_second": 0.14,
+    "stall_grace_seconds": 1.5,
+    "attention_per_help": 0.06,
+    "entry_stagger": 0.35
+  },
+  "economy": {
+    "_note": "payout = round(average_grade * coins_per_grade_point * class_size)",
+    "coins_per_grade_point": 14.0,
+    "sell_fraction": 0.5,
+    "start_coins": 80
+  },
+  "class": {
+    "start_size": 4,
+    "cap": 8,
+    "enrol_every_days": 3,
+    "enrol_min_average": 0.62
+  },
+  "homework": {
+    "_note": "not_done_forgiveness: a student who misses homework is asked again the next night rather than being locked out forever.",
+    "not_done_forgiveness": true,
+    "verdict_weight": 0.5
+  },
+  "items": {
+    "plant": {
+      "name": "Potted Plant",
+      "cost": 70,
+      "art": "plant",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.05,
+      "blurb": "Cheap, cheerful, a little bit of calm."
+    },
+    "bookshelf": {
+      "name": "Bookshelf",
+      "cost": 140,
+      "art": "bookshelf",
+      "w": 1,
+      "range": 4,
+      "bonus": 0.09,
+      "blurb": "Helps anyone sitting within 4 tiles."
+    },
+    "art_easel": {
+      "name": "Art Easel",
+      "cost": 190,
+      "art": "art_easel",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.11,
+      "blurb": "Inspiring to sit near, if you sit near it."
+    },
+    "rug": {
+      "name": "Reading Rug",
+      "cost": 240,
+      "art": "rug",
+      "w": 2,
+      "range": 6,
+      "bonus": 0.07,
+      "blurb": "Weak up close, but it reaches the whole room."
+    },
+    "lab_bench": {
+      "name": "Lab Bench",
+      "cost": 320,
+      "art": "lab_bench",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.15,
+      "blurb": "The strongest boost there is, but only close by."
+    }
+  },
+  "item_order": [
+    "plant",
+    "bookshelf",
+    "art_easel",
+    "rug",
+    "lab_bench"
+  ]
+}
