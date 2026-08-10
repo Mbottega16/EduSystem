@@ -4,13 +4,17 @@ A pixel character you can walk around a room. That's the whole thing.
 
 ## Play
 
-Needs Godot 4.7.x (standard, not .NET) — <https://godotengine.org/download>.
+Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
+the Desktop.
 
-```
-godot --path .
-```
+**Arrow keys** or **WASD** to walk. Close the window to quit.
 
-**Arrow keys** or **WASD** to walk.
+The launcher just starts Godot on this folder. If Godot moves, edit the
+`GODOT=` line at the top of the .bat. Godot 4.7.x (standard, not .NET) —
+<https://godotengine.org/download>.
+
+Note: the .bat must keep CRLF line endings or `cmd` mangles it; that is what
+`.gitattributes` pins.
 
 ## Redraw the art
 
@@ -31,5 +35,6 @@ scenes/main.tscn       entry point
 scripts/main.gd        builds the room, its walls, and the player
 scripts/player.gd      movement + walk animation
 tools/make_art.py      draws both images
+Play PixelRoom.bat     double-click launcher
 art/                   the two images
 ```
