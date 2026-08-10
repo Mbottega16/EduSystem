@@ -26,6 +26,7 @@ var _seat_world := Vector2.ZERO
 
 func bind(d: StudentData) -> void:
 	data = d
+	idle_phase = float(d.id) * 0.9      # so they don't breathe in unison
 	var tex: Texture2D = load("res://art/%s.png" % d.art)
 	if tex != null:
 		sprite.texture = tex
@@ -58,8 +59,17 @@ func is_walking() -> bool:
 
 
 func set_bubble(on: bool) -> void:
-	if bubble != null:
-		bubble.visible = on
+	if bubble == null or bubble.visible == on:
+		return
+	bubble.visible = on
+	if on:
+		# a small pop, and a sound, because a boolean toggle thirty tiles
+		# away in a static frame is genuinely easy to miss
+		Sfx.play_varied("stuck")
+		bubble.scale = Vector2(0.4, 0.4)
+		var tw := create_tween()
+		tw.tween_property(bubble, "scale", Vector2.ONE, 0.18) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Colours for the little bar over their head.
@@ -86,6 +96,7 @@ func _draw() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	idle_bob(delta)
 	if data != null and data.work_state == StudentData.Work.WORKING:
 		queue_redraw()
 	if _path.is_empty():

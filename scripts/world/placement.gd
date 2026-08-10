@@ -112,6 +112,7 @@ func _process(delta: float) -> void:
 		_repeat = 0.0
 	elif _repeat <= 0.0:
 		move_by(d)
+		Sfx.play("blip")
 		_repeat = 0.14
 
 
@@ -123,5 +124,8 @@ func _handle_input() -> void:
 		cancelled.emit()
 	elif Game.claim_interact():
 		if is_valid():
+			Sfx.play("confirm")
 			placed.emit(item_id, tile)
 			finish()
+		else:
+			Sfx.play("deny")

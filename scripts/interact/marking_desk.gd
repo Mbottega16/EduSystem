@@ -37,6 +37,7 @@ func interact(by: Node) -> void:
 		return
 	if c.carrying > 0:
 		handed_in += c.carrying
+		Sfx.play("paper")
 		c.drop_all_work()
 		work_handed_in.emit(handed_in)
 	elif c.carrying_hw > 0:

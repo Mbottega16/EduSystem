@@ -38,6 +38,7 @@ func interact(by: Node) -> void:
 	if room == null:
 		return
 	if Game.phase == Game.Phase.MORNING:
+		Sfx.play("start")
 		lesson_started.emit(room.start_lesson())
 	elif Game.phase == Game.Phase.LESSON:
 		lesson_ended.emit(room.end_lesson())

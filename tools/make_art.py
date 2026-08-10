@@ -6,6 +6,7 @@ tweak a colour or a proportion and re-run rather than repaint by hand.
 
     python tools/make_art.py
 """
+import io
 import os
 import random
 
@@ -146,6 +147,26 @@ def rect(img, x0, y0, x1, y1, c):
             px(img, x, y, c)
 
 
+SHADOW = (0, 0, 0, 60)
+
+
+def shadow(img, cx, cy, rx, ry, colour=SHADOW):
+    """A soft contact ellipse. Without one, every sprite looks pasted onto
+    the floor rather than standing on it — it is the cheapest thing in this
+    whole file that changes how the game looks."""
+    for y in range(cy - ry, cy + ry + 1):
+        for x in range(cx - rx, cx + rx + 1):
+            if rx == 0 or ry == 0:
+                continue
+            dx = (x - cx) / float(rx)
+            dy = (y - cy) / float(ry)
+            if dx * dx + dy * dy <= 1.0:
+                if 0 <= x < img.width and 0 <= y < img.height:
+                    r, g, b, a = img.getpixel((x, y))
+                    if a == 0:
+                        img.putpixel((x, y), colour)
+
+
 def outline(img, colour=LINE):
     """Put a 1px border on every transparent pixel touching solid art."""
     src = img.copy()
@@ -183,6 +204,9 @@ def draw_char(direction, frame, pal):
 
     seated = (frame == SIT_FRAME)
     dy = 3 if seated else 0        # how far the figure sinks into the chair
+
+    # contact shadow, drawn before anything else so the figure sits on it
+    shadow(im, CW // 2, CH - 2, 6, 2)
 
     # walk cycle: frames 1 and 3 lift opposite feet, 0 and 2 stand
     step = 0
@@ -275,6 +299,7 @@ def make_character(name, pal):
 
 def draw_chair():
     im = Image.new("RGBA", (16, 18), (0, 0, 0, 0))
+    shadow(im, 8, im.height - 2, 6, 2)
     rect(im, 3, 1, 12, 6, WOOD)          # back rest
     rect(im, 3, 1, 12, 2, WOOD_L)
     rect(im, 5, 3, 10, 5, WOOD_D)        # gap in the back rest
@@ -287,6 +312,7 @@ def draw_chair():
 
 def draw_table():
     im = Image.new("RGBA", (32, 20), (0, 0, 0, 0))
+    shadow(im, 16, im.height - 2, 13, 2)
     rect(im, 1, 2, 30, 11, WOOD)         # top
     rect(im, 1, 2, 30, 4, WOOD_L)        # lit near edge of the surface
     rect(im, 1, 11, 30, 12, WOOD_D)      # underside lip
@@ -297,6 +323,7 @@ def draw_table():
 
 def draw_desk():
     im = Image.new("RGBA", (16, 20), (0, 0, 0, 0))
+    shadow(im, 8, im.height - 2, 6, 2)
     rect(im, 1, 2, 14, 9, WOOD)          # writing surface
     rect(im, 1, 2, 14, 4, WOOD_L)
     rect(im, 1, 9, 14, 10, WOOD_D)
@@ -416,6 +443,7 @@ def draw_bookshelf():
 
 def draw_lab_bench():
     im = Image.new("RGBA", (32, 20), (0, 0, 0, 0))
+    shadow(im, 16, im.height - 2, 13, 2)
     rect(im, 1, 4, 30, 12, (132, 138, 148))   # steel top
     rect(im, 1, 4, 30, 5, (170, 176, 186))
     rect(im, 1, 12, 30, 13, (92, 96, 106))
@@ -429,6 +457,7 @@ def draw_lab_bench():
 
 def draw_art_easel():
     im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    shadow(im, 8, im.height - 2, 6, 2)
     rect(im, 2, 1, 13, 12, (246, 244, 236))   # canvas
     rect(im, 4, 3, 8, 7, (206, 96, 88))       # a painting in progress
     rect(im, 8, 6, 11, 10, (104, 160, 206))
@@ -450,6 +479,7 @@ def draw_rug():
 
 def draw_plant():
     im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    shadow(im, 8, im.height - 2, 5, 2)
     rect(im, 5, 14, 10, 20, (176, 106, 78))   # pot
     rect(im, 4, 13, 11, 15, (196, 126, 96))
     for pts in (((7, 2), (8, 12)), ((3, 6), (7, 11)), ((12, 5), (8, 11))):
@@ -589,6 +619,107 @@ def make_room():
     return im.size
 
 
+# ====================================================================
+# text-grid sprites
+# ====================================================================
+# Anything in tools/sprites/*.txt becomes a PNG, so art can be added by
+# drawing a picture in a text file rather than by plotting coordinates in
+# Python. See tools/sprites/README.md.
+
+SPRITE_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sprites")
+
+
+def parse_grid_sprite(path):
+    """-> (PIL image, name) from a text-grid file."""
+    name = os.path.splitext(os.path.basename(path))[0]
+    palette = {".": None, " ": None}
+    do_outline = None
+    do_shadow = False
+    rows = []
+
+    for raw in io.open(path, encoding="utf-8").read().splitlines():
+        line = raw.rstrip("\n")
+        if line.startswith("#"):
+            body = line[1:].strip()
+            key, _, val = body.partition(":")
+            key = key.strip().lower()
+            val = val.strip()
+            if key == "name" and val:
+                name = val
+            elif key == "palette":
+                # Entries are comma-separated, so colours are HEX rather than
+                # "r,g,b" -- otherwise the entry split chops the triples up.
+                for entry in val.split(","):
+                    ch, _, col = entry.partition("=")
+                    ch = ch.strip()
+                    col = col.strip().lstrip("#")
+                    if not ch:
+                        continue
+                    if col.lower() in ("none", "transparent", ""):
+                        palette[ch] = None
+                    elif len(col) == 6:
+                        palette[ch] = tuple(
+                            int(col[i:i + 2], 16) for i in (0, 2, 4))
+                    else:
+                        print("  note: %s has a bad colour %r" % (name, col))
+            elif key == "outline":
+                v = val.strip().lstrip("#")
+                do_outline = (tuple(int(v[i:i + 2], 16) for i in (0, 2, 4))
+                              if len(v) == 6 else LINE)
+            elif key == "shadow":
+                do_shadow = val.lower() in ("yes", "true", "1")
+            continue
+        if line.strip() == "" and not rows:
+            continue
+        rows.append(line)
+
+    while rows and rows[-1].strip() == "":
+        rows.pop()
+    if not rows:
+        return None, name
+
+    w = max(len(r) for r in rows)
+    ragged = [i for i, r in enumerate(rows) if len(r) != w]
+    if ragged:
+        print("  note: %s has %d short row(s), padded" % (name, len(ragged)))
+
+    im = Image.new("RGBA", (w, len(rows)), (0, 0, 0, 0))
+    unknown = set()
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch not in palette:
+                unknown.add(ch)
+                continue
+            c = palette[ch]
+            if c is not None:
+                px(im, x, y, c)
+    if unknown:
+        print("  note: %s uses undeclared characters %s (left transparent)"
+              % (name, "".join(sorted(unknown))))
+
+    if do_shadow:
+        shadow(im, im.width // 2, im.height - 2, max(2, im.width // 3), 2)
+    if do_outline is not None:
+        outline(im, do_outline)
+    return im, name
+
+
+def make_grid_sprites():
+    made = 0
+    if not os.path.isdir(SPRITE_SRC):
+        return 0
+    for f in sorted(os.listdir(SPRITE_SRC)):
+        if not f.endswith(".txt"):
+            continue
+        im, name = parse_grid_sprite(os.path.join(SPRITE_SRC, f))
+        if im is None:
+            continue
+        im.save(os.path.join(OUT, "%s.png" % name))
+        print("art/%-18s %3dx%-3d (from sprites/%s)" % (name + ".png", im.width, im.height, f))
+        made += 1
+    return made
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, pal in CHARACTERS.items():
@@ -599,6 +730,7 @@ if __name__ == "__main__":
         img = fn()
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+    make_grid_sprites()
     r = make_room()
     print("art/%-18s %3dx%-3d (%d x %d tiles of %d)"
           % ("room.png", r[0], r[1], ROOM_W, ROOM_H, TILE))

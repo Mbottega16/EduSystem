@@ -151,6 +151,8 @@ func set_phase(p: int) -> void:
 
 func add_coins(amount: int) -> void:
 	coins = maxi(0, coins + amount)
+	if amount > 0 and is_inside_tree():
+		Sfx.play("coins")
 	coins_changed.emit(coins)
 
 

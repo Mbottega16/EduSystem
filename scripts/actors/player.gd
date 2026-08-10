@@ -84,6 +84,11 @@ func _pick_target() -> Interactable:
 	return best
 
 
+## Only the teacher's footsteps are audible.
+func on_step() -> void:
+	Sfx.play_varied("step", 0.12)
+
+
 func carry_work(n: int) -> void:
 	carrying += n
 	_refresh_carry_icon()

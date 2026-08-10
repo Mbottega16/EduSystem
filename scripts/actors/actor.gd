@@ -30,6 +30,9 @@ var seated := false
 
 var _cycle_pos := 0
 var _frame_timer := 0.0
+## Phase offset so a room full of seated people does not breathe in unison.
+var idle_phase := 0.0
+var _step_side := false
 
 
 ## Move in `dir` (unnormalised is fine) and animate accordingly.
@@ -61,6 +64,10 @@ func walk(dir: Vector2, delta: float) -> void:
 	if _frame_timer >= FRAME_TIME:
 		_frame_timer -= FRAME_TIME
 		_cycle_pos = (_cycle_pos + 1) % WALK_CYCLE.size()
+		# a footfall on each of the two stepping frames
+		if WALK_CYCLE[_cycle_pos] % 2 == 1:
+			_step_side = not _step_side
+			on_step()
 	_set_frame(WALK_CYCLE[_cycle_pos])
 
 
@@ -98,6 +105,23 @@ func facing_vector() -> Vector2:
 		DIR_RIGHT: return Vector2.RIGHT
 		DIR_UP: return Vector2.UP
 	return Vector2.DOWN
+
+
+## Overridden by the player so only the teacher's own footsteps are heard —
+## eight students walking in at once would be a stampede.
+func on_step() -> void:
+	pass
+
+
+## A slow breath while seated. Eight identical frozen poses was the dominant
+## image of the game and read as a room of mannequins; this is two lines and
+## fixes most of that.
+func idle_bob(delta: float) -> void:
+	if not seated or sprite == null:
+		return
+	idle_phase += delta
+	var lift := -12.0 + sin(idle_phase * 1.9) * 0.6
+	sprite.position.y = lift
 
 
 func _set_frame(f: int) -> void:

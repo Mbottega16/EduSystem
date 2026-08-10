@@ -58,15 +58,18 @@ func interact(by: Node) -> void:
 	match action():
 		Action.HELP:
 			if s.help():
+				Sfx.play("help")
 				used.emit(by)
 		Action.COLLECT_WORK:
 			if s.collect_work():
+				Sfx.play_varied("paper")
 				show_paper(false)
 				if by != null and by.has_method("carry_work"):
 					by.carry_work(1)
 				used.emit(by)
 		Action.COLLECT_HW:
 			s.hw_state = StudentData.HW.COLLECTED
+			Sfx.play_varied("paper")
 			if by != null and by.has_method("carry_homework"):
 				by.carry_homework(1)
 			used.emit(by)

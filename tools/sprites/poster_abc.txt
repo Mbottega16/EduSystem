@@ -1,0 +1,12 @@
+# name: poster_abc
+# palette: o = #5C4636, w = #FAF6EC, r = #D05C54, b = #6096CE, g = #6CAA6E
+# outline: #241A12
+ooooooooooo
+owwwwwwwwwo
+owrrwwbbwwo
+owrrwwbbwwo
+owwwwwwwwwo
+owwggwwrrwo
+owwggwwrrwo
+owwwwwwwwwo
+ooooooooooo

@@ -134,6 +134,7 @@ func _why(s: StudentData) -> String:
 
 
 func show_day_report(report: Dictionary) -> void:
+	Sfx.play("grade")
 	_open(Mode.REPORT)
 	title.text = "DAY %d DONE" % int(report.get("day", 0))
 	body.text = "\n".join([
@@ -280,18 +281,24 @@ func _handle_input() -> void:
 			_render_catalogue()
 		elif Input.is_action_just_pressed("move_up") and not rows.is_empty():
 			_sel = (_sel - 1 + rows.size()) % rows.size()
+			Sfx.play("blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("move_down") and not rows.is_empty():
 			_sel = (_sel + 1) % rows.size()
+			Sfx.play("blip")
 			_render_catalogue()
 		elif Game.claim_interact() and not rows.is_empty():
 			if _shop == Shop.BUY:
 				var id: String = rows[_sel]
 				if Game.can_afford(Items.cost(id)):
+					Sfx.play("confirm")
 					close()
 					item_chosen.emit(id)
+				else:
+					Sfx.play("deny")
 			else:
 				Game.sell_item(rows[_sel]["tile"])
+				Sfx.play("coins")
 				_render_catalogue()
 		return
 

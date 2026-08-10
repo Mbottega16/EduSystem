@@ -27,5 +27,6 @@ func interact(by: Node) -> void:
 	var room := _classroom()
 	if room == null:
 		return
+	Sfx.play("bell")
 	day_ended.emit(room.end_day())
 	used.emit(by)
