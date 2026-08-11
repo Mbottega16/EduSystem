@@ -8,6 +8,10 @@ extends Interactable
 ## the room.
 
 signal lesson_started(assigned: int)
+
+func _init() -> void:
+	super()
+	uses_key = Key.MANAGE
 signal lesson_ended(results: Array)
 
 
@@ -18,7 +22,14 @@ func _classroom() -> Node:
 	return n
 
 
+## Starting a lesson is free to undo, so it is a tap. Ending one early
+## throws away whatever the class had not finished, so it is a hold.
+func _update_hold() -> void:
+	hold_time = 0.55 if Game.phase == Game.Phase.LESSON else 0.0
+
+
 func can_interact() -> bool:
+	_update_hold()
 	if Game.phase == Game.Phase.MORNING:
 		var room := _classroom()
 		return room != null and room.everyone_seated() and not Game.roster.is_empty()
@@ -27,9 +38,9 @@ func can_interact() -> bool:
 
 func prompt_text() -> String:
 	if Game.phase == Game.Phase.MORNING:
-		return "Start the lesson - %s" % Game.subject
+		return "Teach %s" % String(Game.lesson.get("name", Game.subject))
 	if Game.phase == Game.Phase.LESSON:
-		return "End the lesson"
+		return "End the lesson early"
 	return ""
 
 

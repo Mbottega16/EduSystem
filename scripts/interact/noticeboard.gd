@@ -6,6 +6,10 @@ extends Interactable
 
 signal catalogue_opened()
 
+func _init() -> void:
+	super()
+	uses_key = Key.MANAGE
+
 
 func can_interact() -> bool:
 	return Game.phase != Game.Phase.LESSON

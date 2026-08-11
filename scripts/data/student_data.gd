@@ -134,7 +134,7 @@ func stall_chance() -> float:
 	var c := Balance.stall_chance_per_second * (1.4 - 0.8 * aptitude)
 	if misjudged:
 		c *= 1.6
-	if favourite != "" and favourite == Game.subject:
+	if favourite != "" and favourite == Game.lesson_strand():
 		c *= (1.0 - Balance.affinity_bonus)      # on a good day for them
 	c *= Game.event_stall_multiplier()
 	return c

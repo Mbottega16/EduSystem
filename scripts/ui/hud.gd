@@ -55,7 +55,7 @@ func _physics_process(_delta: float) -> void:
 func _update_status() -> void:
 	var left: int = maxi(0, Balance.term_days - Game.day + 1)
 	var line := "Day %d/%d  %s    %d coins" % [
-		Game.day, Balance.term_days, Game.subject, Game.coins]
+		Game.day, Balance.term_days, Curriculum.short_name(Game.lesson), Game.coins]
 	if Game.phase == Game.Phase.LESSON:
 		var room := get_tree().get_first_node_in_group("classroom")
 		if room != null:
@@ -101,7 +101,19 @@ func _update_prompt() -> void:
 	prompt.visible = showing
 	prompt_box.visible = showing
 	if showing:
-		prompt.text = "E  —  %s" % target.prompt_text()
+		# name the key this thing actually listens for -- there are two now,
+		# and anything irreversible has to be held rather than tapped
+		var hint_key: String = target.key_hint()
+		if target.hold_time > 0.0:
+			var held: float = 0.0
+			if _player != null and is_instance_valid(_player):
+				held = _player.hold_progress
+			var filled := int(round(held * 8.0))
+			prompt.text = "hold %s [%s%s]  %s" % [
+				hint_key, "#".repeat(filled), ".".repeat(8 - filled),
+				target.prompt_text()]
+		else:
+			prompt.text = "%s  —  %s" % [hint_key, target.prompt_text()]
 
 
 # ---------------------------------------------------------------- overlays
@@ -225,7 +237,16 @@ var _hint_until: float = 0.0
 func show_class_list() -> void:
 	_open(Mode.CLASS_LIST)
 	title.text = "YOUR CLASS"
+	# eight students plus a three-line lesson header does not fit at the
+	# default size; the panel is 128px and this needs about 13 rows
+	body.add_theme_font_size_override("font_size", 8)
+	body.add_theme_constant_override("line_spacing", 0)
 	var lines: Array[String] = []
+	# The objective is the source document's own wording, so a player can
+	# see what the lesson is genuinely for rather than just a subject word.
+	lines.append("Today: %s  [%s]" % [
+		String(Game.lesson.get("name", "")), String(Game.lesson.get("standard", ""))])
+	lines.append(_wrap(String(Game.lesson.get("objective", "")), 60, 2))
 	lines.append("%-11s %-9s %-6s %s" % ["name", "best at", "avg", "notes"])
 	for s: StudentData in Game.roster:
 		var notes: Array[String] = []
@@ -240,7 +261,7 @@ func show_class_list() -> void:
 		if s.misjudged:
 			notes.append("secretly behind")
 		lines.append("%-11s %-9s %-6s %s" % [
-			s.display_name.split(" ")[0], s.favourite,
+			s.display_name.split(" ")[0], Curriculum.strand_label(s.favourite),
 			"-" if s.grades.is_empty() else Game.grade_letter(s.average_grade()),
 			", ".join(notes)])
 	body.text = "\n".join(lines)
@@ -268,7 +289,9 @@ func show_exam(result: Dictionary) -> void:
 
 func show_lesson_report(results: Array) -> void:
 	_open(Mode.REPORT)
-	title.text = "END OF LESSON - %s" % Game.subject.to_upper()
+	title.text = "%s  (%s)" % [
+		String(Game.lesson.get("name", Game.subject)).to_upper(),
+		String(Game.lesson.get("standard", ""))]
 	# Plain English, not the raw floats this used to print. A player should
 	# be able to see WHY a grade happened and what to do differently.
 	var lines: Array[String] = []
@@ -283,6 +306,26 @@ func show_lesson_report(results: Array) -> void:
 
 
 ## A one-line explanation of a grade, in words.
+## Wrap text to `width`, keeping at most `max_lines` of it. The panels are
+## fixed-height, so an un-wrapped standards objective would run off them.
+func _wrap(text: String, width: int, max_lines: int) -> String:
+	var out: Array[String] = []
+	var line := ""
+	for word: String in text.split(" ", false):
+		if line.length() + word.length() + 1 > width:
+			out.append(line)
+			line = word
+			if out.size() >= max_lines:
+				break
+		else:
+			line = word if line == "" else line + " " + word
+	if out.size() < max_lines and line != "":
+		out.append(line)
+	if out.size() >= max_lines and text.length() > width * max_lines:
+		out[max_lines - 1] = out[max_lines - 1].substr(0, width - 3) + "..."
+	return "\n".join(out)
+
+
 func _why(s: StudentData) -> String:
 	var bits: Array[String] = []
 	var done := int(round(s.work_fraction() * 100.0))

@@ -4,6 +4,11 @@ extends Interactable
 ## time is a walk rather than a reflex.
 
 signal day_ended(report: Dictionary)
+
+func _init() -> void:
+	super()
+	uses_key = Key.MANAGE
+	hold_time = 0.55      # ending the day is irreversible
 signal term_ended(result: Dictionary)
 
 

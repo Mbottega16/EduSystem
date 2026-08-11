@@ -57,6 +57,15 @@ func hold(action: String, frames: int) -> void:
 	await step(1)
 
 
+## Hold a button long enough to satisfy a hold-to-confirm interactable.
+## The podium and the bell deliberately cannot be triggered by a tap.
+func hold_confirm(action: String = "manage", seconds: float = 0.8) -> void:
+	Input.action_press(action)
+	await step(int(seconds * 60.0) + 4)
+	Input.action_release(action)
+	await step(2)
+
+
 ## A single press. Held for two frames so the player's
 ## is_action_just_pressed() check is guaranteed to see it.
 func tap(action: String) -> void:
@@ -94,6 +103,8 @@ func _main() -> void:
 	test_settings()
 	await test_title()
 	await test_sprint()
+	await test_buttons()
+	test_curriculum()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -838,16 +849,17 @@ func test_day_cycle() -> void:
 	chk("the day starts in the morning", Game.phase == Game.Phase.MORNING)
 	chk("the bell refuses to end a day that has not had a lesson",
 		not world.bell.can_interact())
-	chk("the podium offers to start the lesson once everyone is seated",
+	chk("the podium offers to teach today's real lesson by name",
 		world.podium.can_interact()
-		and world.podium.prompt_text().begins_with("Start the lesson"),
+		and world.podium.prompt_text() == "Teach %s" % String(Game.lesson["name"]),
 		world.podium.prompt_text())
 
 	var assigned: int = world.start_lesson()
 	chk("starting the lesson sets the whole class working",
 		assigned == Game.roster.size() and Game.phase == Game.Phase.LESSON, assigned)
 	chk("the podium now offers to END the lesson",
-		world.podium.prompt_text() == "End the lesson")
+		world.podium.prompt_text().begins_with("End the lesson"),
+		world.podium.prompt_text())
 	chk("the bell still refuses mid-lesson", not world.bell.can_interact())
 
 	# give one student credit so the grades are not all identical
@@ -1122,13 +1134,21 @@ func test_overlays() -> void:
 	Game.set_phase(Game.Phase.AFTERNOON)
 	await step(2)
 
-	# open the catalogue by walking up to the noticeboard and pressing E
+	# The noticeboard is a MANAGE interactable, so it answers to F and NOT
+	# to E. That separation is the point: E is mashed all lesson long and
+	# must never reach anything session-level.
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
 	chk("standing at the noticeboard offers the catalogue",
 		p.target != null and p.target.prompt_text().begins_with("Furniture"),
 		"" if p.target == null else p.target.prompt_text())
+	chk("the noticeboard listens for the manage button, not the use button",
+		p.target.action_name() == "manage", p.target.action_name())
 	await tap("interact")
-	chk("pressing E opens the catalogue", hud.mode == hud.Mode.CATALOGUE, hud.mode)
+	chk("pressing the USE button does NOT open the shop",
+		hud.mode == hud.Mode.NONE, hud.mode)
+	await tap("manage")
+	chk("pressing the MANAGE button opens the catalogue",
+		hud.mode == hud.Mode.CATALOGUE, hud.mode)
 	chk("the player is frozen while it is open", p.input_locked)
 
 	var first: int = hud._sel
@@ -1146,7 +1166,7 @@ func test_overlays() -> void:
 	await tap("cancel")
 	chk("Esc closes the catalogue", hud.mode == hud.Mode.NONE)
 	chk("and hands control back", not p.input_locked)
-	await tap("interact")
+	await tap("manage")
 	var opened_once: bool = hud.mode == hud.Mode.CATALOGUE
 	await tap("cancel")
 	await step(2)
@@ -1154,8 +1174,9 @@ func test_overlays() -> void:
 		hud.mode == hud.Mode.NONE, hud.mode)
 	chk("(and the press that opened it genuinely did open it)", opened_once)
 
-	# order something, and place it
-	await tap("interact")
+	# order something, and place it. Opening the board is a MANAGE action;
+	# confirming a row inside the overlay is still the ordinary use button.
+	await tap("manage")
 	var chosen: String = Items.order()[hud._sel]
 	var coins_before: int = Game.coins
 	var items_before: int = Game.room_items.size()
@@ -1188,7 +1209,7 @@ func test_overlays() -> void:
 
 	# cancelling placement must refund nothing and unlock
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
-	await tap("interact")
+	await tap("manage")
 	await tap("interact")
 	await step(3)
 	var mid_coins: int = Game.coins
@@ -1268,7 +1289,11 @@ func test_shop() -> void:
 	await step(2)
 
 	chk("the day has a named subject", Game.subject != "", Game.subject)
-	chk("and it is one of the generic ones", Game.subject in Game.SUBJECTS)
+	chk("and it is a real lesson from the curriculum", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			if String(l["name"]) == Game.subject:
+				return true
+		return false).call(), Game.subject)
 
 	# --- selling ---
 	Game.add_item("bookshelf", Vector2i(6, 6))
@@ -1277,7 +1302,7 @@ func test_shop() -> void:
 	chk("two items are in the room", Game.room_items.size() == 2)
 
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
-	await tap("interact")
+	await tap("manage")
 	chk("the shop opens on the BUY list",
 		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.BUY)
 	await tap("menu")
@@ -1461,16 +1486,21 @@ func test_events() -> void:
 		short < Balance.lesson_seconds and long > Balance.lesson_seconds,
 		"%.0f / %.0f / %.0f" % [short, Balance.lesson_seconds, long])
 
-	# a student's favourite subject should genuinely help them
+	# A student's favourite should genuinely help them. Note it is a STRAND
+	# (math / ela / science / social), not a subject word: lessons are real
+	# curriculum entries now, and stall_chance reads Game.lesson_strand().
+	# Setting Game.subject alone does nothing, which is what this used to do.
 	var s := StudentData.new()
 	s.aptitude = 0.5
-	s.favourite = "Maths"
-	Game.subject = "Maths"
+	s.favourite = "math"
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
 	var good_day := s.stall_chance()
-	Game.subject = "History"
+	Game.lesson = Curriculum.by_id("reading_fluency")
 	var normal_day := s.stall_chance()
-	chk("a student stalls less on their own favourite subject",
-		good_day < normal_day, "%.4f vs %.4f" % [good_day, normal_day])
+	chk("a student stalls less on a lesson in their own strand",
+		good_day < normal_day, "%.4f (%s) vs %.4f (%s)" % [
+			good_day, Game.lesson_strand(), normal_day,
+			String(Curriculum.by_id("reading_fluency").get("strand", "?"))])
 
 	s.misjudged = true
 	chk("and more if you waved their homework through",
@@ -1759,3 +1789,185 @@ func test_sprint() -> void:
 	chk("and it is the multiplier the code says it is",
 		absf(sprinted / maxf(1.0, walked) - Actor.SPRINT) < 0.25,
 		"%.2fx" % (sprinted / maxf(1.0, walked)))
+
+
+# ============================================ two buttons, and real lessons
+
+func test_buttons() -> void:
+	section("TWO BUTTONS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var frames := 0
+	while frames < 2500 and not world.everyone_seated():
+		await step(20)
+		frames += 20
+
+	chk("manage is a real, separately bound action",
+		InputMap.has_action("manage")
+		and not InputMap.action_get_events("manage").is_empty())
+	chk("it is not the same key as interact", (func() -> bool:
+		var use := {}
+		for ev in InputMap.action_get_events("interact"):
+			if ev is InputEventKey:
+				use[(ev as InputEventKey).physical_keycode] = true
+		for ev in InputMap.action_get_events("manage"):
+			if ev is InputEventKey and use.has((ev as InputEventKey).physical_keycode):
+				return false
+		return true).call())
+
+	# the important split: session-level things are NOT on the use button
+	chk("the podium is a manage thing", world.podium.action_name() == "manage")
+	chk("the bell is a manage thing", world.bell.action_name() == "manage")
+	chk("the noticeboard is a manage thing", world.noticeboard.action_name() == "manage")
+	chk("a student's desk is on the ordinary use button",
+		world.station(0).action_name() == "interact")
+	chk("and so is your own desk", world.teacher_desk.action_name() == "interact")
+
+	# THE BUG THIS FIXES.
+	# Standing at the podium and pressing the button you mash all lesson
+	# long used to end the lesson.
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	await step(2)
+	chk("the lesson is running", Game.phase == Game.Phase.LESSON)
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	chk("the podium is what you are standing at", world.player.target == world.podium)
+	for i in 4:
+		await tap("interact")
+	chk("mashing the USE button at the podium cannot end the lesson",
+		Game.phase == Game.Phase.LESSON, Game.phase)
+
+	# nor can a TAP of manage, because ending a lesson is held
+	chk("ending a lesson requires a hold, not a tap", world.podium.hold_time > 0.0)
+	await tap("manage")
+	chk("a quick tap of manage does not end it either",
+		Game.phase == Game.Phase.LESSON, Game.phase)
+
+	await hold_confirm("manage", 0.9)
+	chk("holding manage DOES end the lesson",
+		Game.phase == Game.Phase.AFTERNOON, Game.phase)
+
+	# same protection on the bell
+	chk("ending the day is a hold too", world.bell.hold_time > 0.0)
+	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	var day_before: int = Game.day
+	for i in 3:
+		await tap("interact")
+	await tap("manage")
+	chk("neither mashing use nor tapping manage ends the day",
+		Game.day == day_before, Game.day)
+
+	# ...but starting a lesson is instant, because it costs nothing to undo
+	Game.set_phase(Game.Phase.MORNING)
+	for s: StudentData in Game.roster:
+		s.reset_lesson()
+	await step(2)
+	chk("the prompt names the key you actually press",
+		world.podium.key_hint() == Settings.binding_text("manage").split(",")[0].strip_edges(),
+		world.podium.key_hint())
+
+
+func test_curriculum() -> void:
+	section("CURRICULUM")
+	Curriculum.ensure_loaded()
+	chk("the curriculum loads", Curriculum.count() > 0, Curriculum.count())
+	chk("it cites its source documents", Curriculum.sources.size() >= 3)
+
+	var seen_std := {}
+	var ok := true
+	var bad: Array = []
+	for l: Dictionary in Curriculum.lessons:
+		for key: String in ["id", "name", "short", "strand", "standard", "source", "objective"]:
+			if String(l.get(key, "")).strip_edges() == "":
+				ok = false
+				bad.append("%s missing %s" % [l.get("name", "?"), key])
+		# a fabricated citation is worse than none, so every lesson must
+		# carry a real code AND say which document it came from
+		if not String(l.get("source", "")).findn("maryland") >= 0 \
+				and not String(l.get("source", "")).findn("ngss") >= 0:
+			pass
+		seen_std[String(l.get("standard", ""))] = true
+	chk("every lesson has a name, a standard, a source and an objective", ok, bad)
+	chk("no two lessons share a standard code",
+		seen_std.size() == Curriculum.count(), seen_std.size())
+
+	chk("every source names a real document", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			var src := String(l.get("source", "")).to_lower()
+			if src.find("maryland") < 0:
+				return false
+		return true).call())
+
+	chk("objectives are real sentences, not placeholders", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			if String(l["objective"]).length() < 40:
+				return false
+		return true).call())
+
+	# strands, which are what tie a lesson to its homework
+	var strands := Curriculum.strands()
+	chk("there are several subject strands", strands.size() >= 3, strands)
+	chk("every strand has a readable label", (func() -> bool:
+		for st: String in strands:
+			if Curriculum.strand_label(st) == "":
+				return false
+		return true).call())
+
+	# the game actually teaches them
+	Game.new_run(SEED)
+	chk("a run starts with a real lesson from the curriculum",
+		Game.lesson.has("standard") and Game.subject == String(Game.lesson["name"]),
+		Game.subject)
+	var picked := {}
+	for i in 200:
+		picked[Game.pick_subject()] = true
+	chk("over a term you teach the whole curriculum",
+		picked.size() == Curriculum.count(), picked.size())
+
+	# homework must come from the lesson's own strand
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var math_sheet := Questions.make_sheet(1.0, rng, "math")
+	var ela_sheet := Questions.make_sheet(1.0, rng, "ela")
+	chk("a maths lesson sets maths homework",
+		String(math_sheet["items"][0]["q"]).findn("x") >= 0
+		or String(math_sheet["items"][0]["q"]).findn("+") >= 0,
+		math_sheet["items"][0]["q"])
+	chk("an English lesson does NOT set arithmetic", (func() -> bool:
+		for it: Dictionary in ela_sheet["items"]:
+			var q := String(it["q"])
+			if q.findn(" x ") >= 0 or q.findn(" + ") >= 0:
+				return false
+		return true).call())
+	chk("every strand has its own bank of questions", (func() -> bool:
+		var seen := {}
+		for st: String in strands:
+			var b: Array = Questions.bank_for(st)
+			if b.size() < 4:
+				return false
+			seen[str(b[0])] = true
+		return seen.size() >= 3).call())
+
+	# a student's favourite is a strand, and it still helps them
+	Game.new_run(SEED)
+	var s := StudentData.new()
+	s.aptitude = 0.5
+	s.favourite = "math"
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	var good := s.stall_chance()
+	Game.lesson = Curriculum.by_id("reading_fluency")
+	var other := s.stall_chance()
+	chk("a student does better on a lesson in their own strand",
+		good < other, "%.4f(%s) vs %.4f(%s) fav=%s bonus=%.2f" % [
+			good, String(Curriculum.by_id("basic_arithmetic").get("strand", "?")),
+			other, String(Curriculum.by_id("reading_fluency").get("strand", "?")),
+			s.favourite, Balance.affinity_bonus])
+
+	# and the lesson survives a save
+	Game.new_run(SEED)
+	var was := String(Game.lesson.get("id", ""))
+	var snap := Game.to_dict()
+	Game.from_dict(snap)
+	chk("the lesson survives a save/load", String(Game.lesson.get("id", "")) == was,
+		Game.lesson.get("id", ""))

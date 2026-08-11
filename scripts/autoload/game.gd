@@ -30,7 +30,8 @@ var phase: int = Phase.MORNING
 var roster: Array[StudentData] = []
 var room_items: Array = []      ## [{id: String, tile: Vector2i}]
 var homework_out: bool = false  ## is there homework due back tomorrow?
-var subject: String = ""        ## what today's lesson is about
+var subject: String = ""        ## today's lesson NAME, for display
+var lesson: Dictionary = {}     ## the full curriculum entry behind it
 var event: Dictionary = {}      ## what makes today different from yesterday
 var term_over: bool = false
 var exam_result: Dictionary = {}
@@ -88,7 +89,9 @@ func enrol() -> StudentData:
 	s.art = Names.ART[(s.id - 1) % Names.ART.size()]
 	s.aptitude = rng.randf_range(0.25, 0.85)
 	s.diligence = rng.randf_range(0.25, 0.85)
-	s.favourite = SUBJECTS[rng.randi_range(0, SUBJECTS.size() - 1)]
+	var strands := Curriculum.strands()
+	s.favourite = strands[rng.randi_range(0, strands.size() - 1)] \
+		if not strands.is_empty() else "math"
 	s.seat_index = _lowest_free_seat()
 	roster.append(s)
 	roster_changed.emit()
@@ -130,23 +133,37 @@ func student_in_seat(seat: int) -> StudentData:
 var _interact_claim: int = -1
 
 func claim_interact() -> bool:
-	if not Input.is_action_just_pressed("interact"):
+	return claim_action("interact")
+
+
+## Keyed by ACTION as well as frame, because there are two buttons now: a
+## press of "manage" must not be swallowed because something already claimed
+## "interact" on the same tick.
+var _claims := {}
+
+func claim_action(action: String) -> bool:
+	if not Input.is_action_just_pressed(action):
 		return false
 	var f := Engine.get_physics_frames()
-	if _interact_claim == f:
+	if int(_claims.get(action, -1)) == f:
 		return false
-	_interact_claim = f
+	_claims[action] = f
 	return true
 
 
-## Today's subject. Deliberately generic for now — it names the lesson so
-## the day has an identity, without pretending to a curriculum the game does
-## not yet model.
-const SUBJECTS := ["Maths", "Reading", "Science", "History",
-	"Geography", "Art", "Music", "Spelling"]
-
+## Today's lesson, drawn from the REAL Maryland standards in
+## data/curriculum.json rather than from a list of subject words.
+## `subject` stays as the display name because a lot of UI reads it.
 func pick_subject() -> String:
-	return SUBJECTS[rng.randi_range(0, SUBJECTS.size() - 1)]
+	lesson = Curriculum.pick(rng)
+	return String(lesson.get("name", "Lesson"))
+
+
+## Which strand today's lesson belongs to (math / ela / science /
+## social). This also decides which bank tonight's homework comes from,
+## so the subject on the board genuinely changes what the sheets ask.
+func lesson_strand() -> String:
+	return String(lesson.get("strand", "math"))
 
 
 ## How much more (or less) likely a stall is today.
@@ -238,7 +255,8 @@ func advance_day() -> Dictionary:
 				s.hw_state = StudentData.HW.DONE
 				s.hw_true_accuracy = clampf(
 					s.aptitude + rng.randf_range(-0.2, 0.2), 0.0, 1.0)
-				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, rng)
+				s.hw_sheet = Questions.make_sheet(
+					s.hw_true_accuracy, rng, lesson_strand())
 				did += 1
 			else:
 				# NOT_DONE used to be terminal: assign_homework only ever
@@ -456,6 +474,7 @@ func to_dict() -> Dictionary:
 		"next_id": _next_id, "roster": out,
 		"homework_out": homework_out,
 		"event_id": event.get("id", "none"),
+		"lesson_id": lesson.get("id", ""),
 		"term_over": term_over,
 		"subject": subject,
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
@@ -470,7 +489,8 @@ func from_dict(d: Dictionary) -> void:
 	coins = int(d.get("coins", 0))
 	_next_id = int(d.get("next_id", 1))
 	homework_out = bool(d.get("homework_out", false))
-	subject = String(d.get("subject", "Maths"))
+	lesson = Curriculum.by_id(String(d.get("lesson_id", "")))
+	subject = String(d.get("subject", lesson.get("name", "Lesson")))
 	event = DayEvent.by_id(String(d.get("event_id", "none")))
 	term_over = bool(d.get("term_over", false))
 	room_items.clear()

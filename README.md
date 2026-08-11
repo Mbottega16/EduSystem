@@ -13,12 +13,21 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | key | | rebindable |
 |---|---|---|
 | Arrows / WASD | walk | yes |
-| E / Space | do whatever the prompt says | yes |
+| **E** / Space | **help a student, collect work, hand it in** | yes |
+| **F** | **start or end a lesson, ring the bell, open the shop** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and swaps buy/sell in the shop | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
 | F1 / F2 | live tuning panel | dev only |
+
+**E and F are deliberately separate.** E is the button you mash all lesson
+long — helping, collecting, handing in — and it can never do anything
+session-level. Everything that changes the state of the day is on F, and the
+two that cannot be undone (ending a lesson early, ending the day) must be
+**held**, with a bar in the prompt showing the hold. Before this, one key did
+all of it, and reaching to help a student who happened to be near the podium
+ended the whole lesson.
 
 **Settings** covers master and sound volume, window size, fullscreen and
 whether hints appear. **Controls** rebinds any key — taking a key from
@@ -56,6 +65,36 @@ Deliberately, **neither the room nor the teaching alone reaches the top**:
 a perfect room with an absent teacher is a C, a bare room with perfect
 teaching is a C, and both together is an A. Those three rows are asserted by
 the test suite against *simulated play*.
+
+## The lessons are real
+
+The subject on the board is not decoration. `data/curriculum.json` holds ten
+lessons taken from the actual Maryland state standards — each with a genuine
+standard code and the source document's own wording for the objective:
+
+| lesson | standard | from |
+|---|---|---|
+| Reading Fluency | RF4 | MD CCR Standards for ELA (2025) |
+| Basic Arithmetic | 3.OA.C.7 | MD CCR Standards for Mathematics (2025) |
+| Handwriting & Grammar | L.3.1 | MD CCR Standards for ELA (2025) |
+| Science Basics | 5-PS1-3 | Maryland Science Standards (NGSS) |
+| Map & Geography | Standard 3.0 | MD Social Studies Framework (June 2025) |
+| Pre-Algebra | 7.EE.B.4 | MD CCR Standards for Mathematics (2025) |
+| Essay Writing | W.7.1 | MD CCR Standards for ELA (2025) |
+| Earth & Life Science | MS-LS1-1 | Maryland Science Standards (NGSS) |
+| World History | Standard 2.0 | MD Social Studies Framework (June 2025) |
+| Speaking & Listening | SL.8.4 | MD CCR Standards for ELA (2025) |
+
+Each lesson belongs to a **strand** (maths / English / science / humanities),
+and that strand decides which bank tonight's homework comes from — a Reading
+Fluency lesson no longer sets `7 x 8`. Each student has a favourite strand
+and stalls 25% less on a lesson in it.
+
+**Do not invent standard codes.** If you add a lesson and cannot cite it, say
+so — an uncited lesson is honest, a fabricated citation is not. The codes and
+objectives here were fetched and parsed from the source PDFs in the
+EduSystems project (`docs/reference/`), and carried across rather than
+re-scraped so the citations stay the verified ones.
 
 ## Running things
 

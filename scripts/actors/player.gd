@@ -53,12 +53,8 @@ func _physics_process(delta: float) -> void:
 		target = found
 		target_changed.emit(target)
 
-	if not input_locked and target != null and Game.claim_interact():
-		target.interact(self)
-		# What you just did usually changes what is offered — re-pick now so
-		# the prompt doesn't advertise a stale action for a frame.
-		target = _pick_target()
-		target_changed.emit(target)
+	if not input_locked:
+		_tick_hold(delta)
 
 
 ## Nearest interactable, but strongly preferring whatever you are facing.
@@ -82,6 +78,58 @@ func _pick_target() -> Interactable:
 			best_score = score
 			best = it
 	return best
+
+
+## How far through a hold-to-confirm we are, 0..1. The HUD draws this.
+var hold_progress: float = 0.0
+var _held: float = 0.0
+
+
+## Route the press to the right BUTTON, and make anything irreversible
+## require a HOLD.
+##
+## Before this, one key did everything: help, collect, hand in, start the
+## lesson, end the lesson, ring the bell. Reaching to help a student who
+## happened to be standing near the podium ended the whole lesson, which is
+## about the worst possible thing a stray keypress can do in this game.
+##
+##   interact (E) - help, collect, hand in. Mashable, never destructive.
+##   manage   (F) - lesson, bell, shop. Separate finger, separate intent.
+##
+## and on top of that, the two that cannot be undone need the key held.
+func _tick_hold(delta: float) -> void:
+	if target == null or not is_instance_valid(target):
+		_held = 0.0
+		hold_progress = 0.0
+		return
+
+	var action: String = target.action_name()
+	var need: float = target.hold_time
+
+	if need <= 0.0:
+		hold_progress = 0.0
+		if Game.claim_action(action):
+			target.interact(self)
+			# what you just did usually changes what is on offer
+			target = _pick_target()
+			target_changed.emit(target)
+		return
+
+	if Input.is_action_pressed(action):
+		_held += delta
+		hold_progress = clampf(_held / need, 0.0, 1.0)
+		if _held >= need:
+			_held = -999.0            # fire once per hold, not once per frame
+			hold_progress = 0.0
+			target.interact(self)
+			target = _pick_target()
+			target_changed.emit(target)
+	else:
+		if _held > -1.0:
+			_held = 0.0
+		if not Input.is_action_pressed(action):
+			_held = 0.0
+		hold_progress = 0.0
 
 
 func speed_scale() -> float:

@@ -1,0 +1,112 @@
+{
+  "_note": "Real lessons from the Maryland state standards, not invented ones. Every `objective` is the source document's own wording and every `standard` is a genuine code from that document -- do not edit either to make a lesson sound better, and do not invent codes for new lessons. The source PDFs are listed below.",
+  "_sources": [
+    "Maryland College and Career Ready Standards in English Language Arts, State Board attachment 2025/0729",
+    "Maryland College and Career Ready Standards for Mathematics, State Board attachment 2025/0729 (PreK-8)",
+    "Next Generation Science Standards, adopted 2013 as the Maryland Science Standards",
+    "Maryland Social Studies Framework, June 2025"
+  ],
+  "_provenance": "Fetched, parsed and cited in the EduSystems project (Aug 2026); the PDFs live in that repo under docs/reference/. Carried across rather than re-scraped so the citations stay the verified ones.",
+  "lessons": [
+    {
+      "id": "reading_fluency",
+      "name": "Reading Fluency",
+      "short": "Reading",
+      "icon": "📖",
+      "strand": "ela",
+      "standard": "RF4",
+      "source": "Maryland CCR Standards for ELA (2025), p23",
+      "objective": "Read (decode) with sufficient accuracy and fluency to support comprehension."
+    },
+    {
+      "id": "basic_arithmetic",
+      "name": "Basic Arithmetic",
+      "short": "Arithmetic",
+      "icon": "➕",
+      "strand": "math",
+      "standard": "3.OA.C.7",
+      "source": "Maryland CCR Standards for Mathematics (2025), p47",
+      "objective": "Fluently multiply and divide within 100, using strategies such as the relationship between multiplication and division."
+    },
+    {
+      "id": "handwriting_grammar",
+      "name": "Handwriting & Grammar",
+      "short": "Grammar",
+      "icon": "✍️",
+      "strand": "ela",
+      "standard": "L.3.1",
+      "source": "Maryland CCR Standards for ELA (2025), p80",
+      "objective": "Demonstrate command of the conventions of standard English grammar and usage when writing or speaking."
+    },
+    {
+      "id": "science_basics",
+      "name": "Science Basics",
+      "short": "Science",
+      "icon": "🌱",
+      "strand": "science",
+      "standard": "5-PS1-3",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Make observations and measurements to identify materials based on their properties."
+    },
+    {
+      "id": "map_geography",
+      "name": "Map & Geography",
+      "short": "Geography",
+      "icon": "🗺️",
+      "strand": "social",
+      "standard": "Standard 3.0",
+      "source": "Maryland Social Studies Framework (June 2025)",
+      "objective": "Inquire about the role of culture, technology, and the environment in the location, distribution, and impact of human activities using geographic tools and spatial thinking."
+    },
+    {
+      "id": "pre-algebra",
+      "name": "Pre-Algebra",
+      "short": "Pre-Algebra",
+      "icon": "📐",
+      "strand": "math",
+      "standard": "7.EE.B.4",
+      "source": "Maryland CCR Standards for Mathematics (2025), p105",
+      "objective": "Use variables to represent quantities in a real-world or mathematical problem, and construct simple equations and inequalities to solve problems by reasoning about the quantities."
+    },
+    {
+      "id": "essay_writing",
+      "name": "Essay Writing",
+      "short": "Essay Writing",
+      "icon": "📝",
+      "strand": "ela",
+      "standard": "W.7.1",
+      "source": "Maryland CCR Standards for ELA (2025), p1106",
+      "objective": "Write arguments to support claims with clear reasons and relevant evidence."
+    },
+    {
+      "id": "earth_life_science",
+      "name": "Earth & Life Science",
+      "short": "Life Science",
+      "icon": "🌍",
+      "strand": "science",
+      "standard": "MS-LS1-1",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Conduct an investigation to provide evidence that living things are made of cells; either one cell or many different numbers and types of cells."
+    },
+    {
+      "id": "world_history",
+      "name": "World History",
+      "short": "History",
+      "icon": "🏛️",
+      "strand": "social",
+      "standard": "Standard 2.0",
+      "source": "Maryland Social Studies Framework (June 2025)",
+      "objective": "Inquire about the people of the United States and the world using a historically grounded, multidisciplinary approach in order to recognize multiple narratives."
+    },
+    {
+      "id": "speaking_listening",
+      "name": "Speaking & Listening",
+      "short": "Speaking",
+      "icon": "⏰",
+      "strand": "ela",
+      "standard": "SL.8.4",
+      "source": "Maryland CCR Standards for ELA (2025), p885",
+      "objective": "Present claims and findings, emphasizing salient points in a focused, coherent manner with relevant evidence, sound valid reasoning, and well-chosen details."
+    }
+  ]
+}

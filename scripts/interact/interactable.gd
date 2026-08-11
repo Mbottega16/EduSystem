@@ -13,6 +13,19 @@ extends Area2D
 
 const PICK_RADIUS := 20.0
 
+## Which button works this thing.
+##   USE    - the constant, safe, repeated verbs: help, collect, hand in.
+##   MANAGE - the deliberate, session-level ones: start or end a lesson,
+##            ring the bell, open the shop.
+## Splitting these is the whole point: you mash USE all lesson long, and it
+## must never be able to end the lesson.
+enum Key { USE, MANAGE }
+
+## Seconds the button must be HELD. Zero is instant. Anything irreversible
+## gets a hold, so a stray press cannot cost you a lesson.
+var hold_time: float = 0.0
+var uses_key: int = Key.USE
+
 @warning_ignore("unused_signal")
 signal used(by: Node)
 
@@ -40,3 +53,13 @@ func can_interact() -> bool:
 
 func interact(_by: Node) -> void:
 	pass
+
+
+## The action name this interactable listens for.
+func action_name() -> String:
+	return "manage" if uses_key == Key.MANAGE else "interact"
+
+
+## What the prompt should tell the player to press.
+func key_hint() -> String:
+	return Settings.binding_text(action_name()).split(",")[0].strip_edges()
