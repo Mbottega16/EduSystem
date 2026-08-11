@@ -18,6 +18,30 @@ static func order() -> Array:
 	return Balance.item_order
 
 
+## The shop's category tabs, in the order they are shown.
+static func categories() -> Array:
+	Balance.ensure_loaded()
+	return Balance.item_categories
+
+
+static func category_label(cat: String) -> String:
+	return cat.capitalize()
+
+
+## Every item in one category, cheapest first (item_order is already sorted
+## by category then cost, so this preserves that).
+static func in_category(cat: String) -> Array:
+	var out: Array = []
+	for id: String in order():
+		if String(get_def(id).get("cat", "")) == cat:
+			out.append(id)
+	return out
+
+
+static func category_of(id: String) -> String:
+	return String(get_def(id).get("cat", ""))
+
+
 static func get_def(id: String) -> Dictionary:
 	return catalogue().get(id, {})
 

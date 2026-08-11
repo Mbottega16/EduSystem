@@ -48,12 +48,53 @@ static var term_days: int = 20
 static var exam_pass: float = 0.62
 static var upkeep_per_item: int = 3
 static var affinity_bonus: float = 0.25
+# --- teacher ------------------------------------------------------------
+static var teacher_speed: float = 60.0
+static var teacher_pick_radius: float = 20.0
+static var teacher_xp_per_day: int = 12
+static var teacher_xp_per_grade_point: int = 25
+static var teacher_xp_per_graduation: int = 45
+static var teacher_xp_per_level: int = 100
+static var teacher_max_level: int = 12
+
+# --- students -----------------------------------------------------------
+static var stu_xp_per_lesson: int = 18
+static var stu_xp_per_work_done: int = 12
+static var stu_xp_per_homework: int = 14
+static var stu_xp_per_help: int = 4
+static var stu_xp_per_level: int = 60
+static var stu_max_level: int = 10
+static var stu_aptitude_step: float = 0.025
+static var stu_diligence_step: float = 0.02
+static var stu_ready_level: int = 5
+static var stu_hold_grace: int = 2
+
+# --- graduation & coaching ----------------------------------------------
+static var grad_base_coins: int = 90
+static var grad_coins_per_level: int = 45
+static var grad_teacher_xp: int = 45
+static var coach_tuition_cost: int = 90
+static var coach_tuition_step: float = 0.07
+static var coach_parents_cost: int = 70
+static var coach_parents_step: float = 0.07
+static var coach_cost_growth: float = 1.7
+static var coach_max_per_student: int = 4
+
+# --- perks --------------------------------------------------------------
+static var perks: Dictionary = {}
+static var perk_brisk_walk_speed: float = 15.0
+static var perk_long_reach_radius: float = 8.0
+static var perk_calm_presence_radius: float = 40.0
+static var perk_calm_presence_mult: float = 0.7
+static var perk_practised_marker_sheets: int = 2
+
 static var not_done_forgiveness: bool = true
 static var verdict_weight: float = 0.5
 
 # --- items -------------------------------------------------------------
 static var items: Dictionary = {}
 static var item_order: Array = []
+static var item_categories: Array = []
 
 
 static func ensure_loaded() -> void:
@@ -110,6 +151,49 @@ static func apply(d: Dictionary) -> void:
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))
 
+	var tc: Dictionary = d.get("teacher", {})
+	teacher_speed = float(tc.get("speed", teacher_speed))
+	teacher_pick_radius = float(tc.get("pick_radius", teacher_pick_radius))
+	teacher_xp_per_day = int(tc.get("xp_per_day", teacher_xp_per_day))
+	teacher_xp_per_grade_point = int(tc.get("xp_per_grade_point", teacher_xp_per_grade_point))
+	teacher_xp_per_graduation = int(tc.get("xp_per_graduation", teacher_xp_per_graduation))
+	teacher_xp_per_level = int(tc.get("xp_per_level", teacher_xp_per_level))
+	teacher_max_level = int(tc.get("max_level", teacher_max_level))
+
+	var st: Dictionary = d.get("student", {})
+	stu_xp_per_lesson = int(st.get("xp_per_lesson", stu_xp_per_lesson))
+	stu_xp_per_work_done = int(st.get("xp_per_work_done", stu_xp_per_work_done))
+	stu_xp_per_homework = int(st.get("xp_per_homework", stu_xp_per_homework))
+	stu_xp_per_help = int(st.get("xp_per_help", stu_xp_per_help))
+	stu_xp_per_level = int(st.get("xp_per_level", stu_xp_per_level))
+	stu_max_level = int(st.get("max_level", stu_max_level))
+	stu_aptitude_step = float(st.get("level_aptitude_step", stu_aptitude_step))
+	stu_diligence_step = float(st.get("level_diligence_step", stu_diligence_step))
+	stu_ready_level = int(st.get("ready_level", stu_ready_level))
+	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
+
+	var gr: Dictionary = d.get("graduation", {})
+	grad_base_coins = int(gr.get("base_coins", grad_base_coins))
+	grad_coins_per_level = int(gr.get("coins_per_extra_level", grad_coins_per_level))
+	grad_teacher_xp = int(gr.get("teacher_xp", grad_teacher_xp))
+
+	var co: Dictionary = d.get("coaching", {})
+	coach_tuition_cost = int(co.get("tuition_cost", coach_tuition_cost))
+	coach_tuition_step = float(co.get("tuition_step", coach_tuition_step))
+	coach_parents_cost = int(co.get("parents_cost", coach_parents_cost))
+	coach_parents_step = float(co.get("parents_step", coach_parents_step))
+	coach_cost_growth = float(co.get("cost_growth", coach_cost_growth))
+	coach_max_per_student = int(co.get("max_per_student", coach_max_per_student))
+
+	if d.has("perks"):
+		perks = d["perks"]
+	var pe: Dictionary = d.get("perk_effects", {})
+	perk_brisk_walk_speed = float(pe.get("brisk_walk_speed", perk_brisk_walk_speed))
+	perk_long_reach_radius = float(pe.get("long_reach_radius", perk_long_reach_radius))
+	perk_calm_presence_radius = float(pe.get("calm_presence_radius", perk_calm_presence_radius))
+	perk_calm_presence_mult = float(pe.get("calm_presence_mult", perk_calm_presence_mult))
+	perk_practised_marker_sheets = int(pe.get("practised_marker_sheets", perk_practised_marker_sheets))
+
 	var h: Dictionary = d.get("homework", {})
 	not_done_forgiveness = bool(h.get("not_done_forgiveness", not_done_forgiveness))
 	verdict_weight = float(h.get("verdict_weight", verdict_weight))
@@ -118,6 +202,8 @@ static func apply(d: Dictionary) -> void:
 		items = d["items"]
 	if d.has("item_order"):
 		item_order = d["item_order"]
+	if d.has("item_categories"):
+		item_categories = d["item_categories"]
 
 
 ## Named access for the live debug panel. Object.get()/set() cannot be

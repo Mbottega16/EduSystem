@@ -43,6 +43,15 @@ var hw_sheet: Dictionary = {}
 ## the marking screen has always claimed happens.
 var misjudged: bool = false
 
+# --- progression --------------------------------------------------
+## Students get better simply by being taught. XP STOPS accruing once they
+## are well past ready (ready_level + hold_grace): a child kept long after
+## they were ready has learned what you can teach them. That is a soft cost
+## for holding them back -- they stagnate -- rather than a punishment.
+var xp: int = 0
+var level: int = 1
+var coached: int = 0          ## how many times you have paid for extra help
+
 # --- lifetime, NEVER reset ---------------------------------------
 ## Kept apart from the per-lesson counters above on purpose:
 ## reset_lesson() wipes helps_received every single lesson, so it can
@@ -161,6 +170,62 @@ func stall_chance() -> float:
 	return c
 
 
+## Award XP and apply any levels it earns. Returns levels gained.
+func add_xp(amount: int) -> int:
+	Balance.ensure_loaded()
+	if amount <= 0 or is_capped():
+		return 0
+	xp += amount
+	var gained := 0
+	while level < Balance.stu_max_level and xp >= xp_for_next_level():
+		level += 1
+		gained += 1
+		# a level is a nudge, not a transformation
+		aptitude = clampf(aptitude + Balance.stu_aptitude_step, 0.0, 1.0)
+		diligence = clampf(diligence + Balance.stu_diligence_step, 0.0, 1.0)
+	return gained
+
+
+func xp_for_next_level() -> int:
+	Balance.ensure_loaded()
+	return level * Balance.stu_xp_per_level
+
+
+## They have stopped getting anything out of your class.
+func is_capped() -> bool:
+	Balance.ensure_loaded()
+	return level >= mini(Balance.stu_max_level,
+		Balance.stu_ready_level + Balance.stu_hold_grace)
+
+
+## Ready to be sent up. YOUR call when -- this only says they could be.
+func is_ready_to_graduate() -> bool:
+	Balance.ensure_loaded()
+	return level >= Balance.stu_ready_level
+
+
+## How well prepared they would leave, 0..1. Feeds the payout, so seeing a
+## child all the way through is worth more than sending them the moment they
+## qualify.
+func readiness() -> float:
+	Balance.ensure_loaded()
+	var span := maxi(1, Balance.stu_max_level - Balance.stu_ready_level)
+	return clampf(float(level - Balance.stu_ready_level) / float(span), 0.0, 1.0)
+
+
+## What the next coaching session costs this particular child. Rises per
+## purchase, so the decision is WHO to invest in rather than levelling
+## everyone flat.
+func coaching_cost(base: int) -> int:
+	Balance.ensure_loaded()
+	return int(round(float(base) * pow(Balance.coach_cost_growth, float(coached))))
+
+
+func can_be_coached() -> bool:
+	Balance.ensure_loaded()
+	return coached < Balance.coach_max_per_student
+
+
 func has_work_to_collect() -> bool:
 	return work_state == Work.DONE
 
@@ -181,6 +246,7 @@ func help() -> bool:
 	_since_stall = 0.0
 	helps_received += 1
 	helps_total += 1
+	add_xp(Balance.stu_xp_per_help)
 	return true
 
 
@@ -205,6 +271,7 @@ func to_dict() -> Dictionary:
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite,
 		"joined_day": joined_day, "helps_total": helps_total,
+		"xp": xp, "level": level, "coached": coached,
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
 		"grades": grades, "last_grade": last_grade,
 	}
@@ -224,6 +291,9 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.misjudged = bool(d.get("misjudged", false))
 	s.favourite = String(d.get("favourite", ""))
 	s.joined_day = int(d.get("joined_day", 1))
+	s.xp = int(d.get("xp", 0))
+	s.level = int(d.get("level", 1))
+	s.coached = int(d.get("coached", 0))
 	s.helps_total = int(d.get("helps_total", 0))
 	s.hw_set_total = int(d.get("hw_set_total", 0))
 	s.hw_done_total = int(d.get("hw_done_total", 0))

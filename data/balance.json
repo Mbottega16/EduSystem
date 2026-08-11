@@ -42,6 +42,246 @@
     "verdict_weight": 0.5
   },
   "items": {
+    "stool": {
+      "name": "Wooden Stool",
+      "cat": "seating",
+      "cost": 45,
+      "art": "stool",
+      "w": 1,
+      "range": 2,
+      "bonus": 0.03,
+      "blurb": "Somewhere else to perch."
+    },
+    "floor_cushion": {
+      "name": "Floor Cushion",
+      "cat": "seating",
+      "cost": 40,
+      "art": "floor_cushion",
+      "w": 1,
+      "range": 2,
+      "bonus": 0.03,
+      "blurb": "For sitting on the floor properly."
+    },
+    "beanbag": {
+      "name": "Beanbag",
+      "cat": "seating",
+      "cost": 95,
+      "art": "beanbag",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.05,
+      "blurb": "Nobody sits up straight in one, and that is fine."
+    },
+    "bench": {
+      "name": "Long Bench",
+      "cat": "seating",
+      "cost": 150,
+      "art": "bench",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.06,
+      "blurb": "Two can share it, so it reaches further."
+    },
+    "crate": {
+      "name": "Storage Crate",
+      "cat": "surfaces",
+      "cost": 50,
+      "art": "crate",
+      "w": 1,
+      "range": 2,
+      "bonus": 0.03,
+      "blurb": "Everything ends up in here eventually."
+    },
+    "side_table": {
+      "name": "Side Table",
+      "cat": "surfaces",
+      "cost": 80,
+      "art": "side_table",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.05,
+      "blurb": "Somewhere to put the thing you are holding."
+    },
+    "cabinet": {
+      "name": "Supply Cabinet",
+      "cat": "surfaces",
+      "cost": 170,
+      "art": "cabinet",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.07,
+      "blurb": "Everything has a place, in theory."
+    },
+    "supply_shelf": {
+      "name": "Supply Shelf",
+      "cat": "surfaces",
+      "cost": 210,
+      "art": "supply_shelf",
+      "w": 2,
+      "range": 4,
+      "bonus": 0.08,
+      "blurb": "Wide, and always within reach."
+    },
+    "maths_tiles": {
+      "name": "Number Tiles",
+      "cat": "learning",
+      "cost": 110,
+      "art": "maths_tiles",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.07,
+      "blurb": "Counting you can pick up and move."
+    },
+    "abacus": {
+      "name": "Abacus",
+      "cat": "learning",
+      "cost": 130,
+      "art": "abacus",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.08,
+      "blurb": "Old, and still the clearest way to see a number."
+    },
+    "globe": {
+      "name": "World Globe",
+      "cat": "learning",
+      "cost": 160,
+      "art": "globe",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.09,
+      "blurb": "Somewhere to point at when they ask where."
+    },
+    "music_corner": {
+      "name": "Music Corner",
+      "cat": "learning",
+      "cost": 190,
+      "art": "music_corner",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.1,
+      "blurb": "Loud, but they remember it."
+    },
+    "microscope": {
+      "name": "Microscope",
+      "cat": "learning",
+      "cost": 280,
+      "art": "microscope",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.13,
+      "blurb": "The first time a child sees a cell is worth the price."
+    },
+    "reading_nook": {
+      "name": "Reading Nook",
+      "cat": "learning",
+      "cost": 260,
+      "art": "reading_nook",
+      "w": 2,
+      "range": 4,
+      "bonus": 0.11,
+      "blurb": "Somewhere to disappear into a book."
+    },
+    "whiteboard": {
+      "name": "Whiteboard",
+      "cat": "learning",
+      "cost": 300,
+      "art": "whiteboard",
+      "w": 2,
+      "range": 5,
+      "bonus": 0.12,
+      "blurb": "Everyone can see it, which is the whole point."
+    },
+    "lamp": {
+      "name": "Reading Lamp",
+      "cat": "comfort",
+      "cost": 65,
+      "art": "lamp",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.04,
+      "blurb": "A pool of warm light in the corner."
+    },
+    "coat_hooks": {
+      "name": "Coat Hooks",
+      "cat": "comfort",
+      "cost": 70,
+      "art": "coat_hooks",
+      "w": 2,
+      "range": 4,
+      "bonus": 0.04,
+      "blurb": "Small thing. Fewer arguments."
+    },
+    "water_cooler": {
+      "name": "Water Cooler",
+      "cat": "comfort",
+      "cost": 140,
+      "art": "water_cooler",
+      "w": 1,
+      "range": 4,
+      "bonus": 0.06,
+      "blurb": "They will use any excuse to visit it."
+    },
+    "radiator": {
+      "name": "Radiator",
+      "cat": "comfort",
+      "cost": 180,
+      "art": "radiator",
+      "w": 2,
+      "range": 5,
+      "bonus": 0.07,
+      "blurb": "A cold classroom teaches nobody anything."
+    },
+    "pot_of_pens": {
+      "name": "Pot of Pens",
+      "cat": "decor",
+      "cost": 30,
+      "art": "pot_of_pens",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.02,
+      "blurb": "Half of them work."
+    },
+    "wall_clock": {
+      "name": "Wall Clock",
+      "cat": "decor",
+      "cost": 55,
+      "art": "wall_clock",
+      "w": 1,
+      "range": 5,
+      "bonus": 0.03,
+      "blurb": "They will watch it. Everyone does."
+    },
+    "class_banner": {
+      "name": "Class Banner",
+      "cat": "decor",
+      "cost": 90,
+      "art": "class_banner",
+      "w": 2,
+      "range": 5,
+      "bonus": 0.04,
+      "blurb": "This is OUR classroom."
+    },
+    "alphabet_frieze": {
+      "name": "Alphabet Frieze",
+      "cat": "decor",
+      "cost": 100,
+      "art": "alphabet_frieze",
+      "w": 2,
+      "range": 6,
+      "bonus": 0.04,
+      "blurb": "Round the top of the wall, where it belongs."
+    },
+    "fish_tank": {
+      "name": "Fish Tank",
+      "cat": "decor",
+      "cost": 240,
+      "art": "fish_tank",
+      "w": 2,
+      "range": 6,
+      "bonus": 0.07,
+      "blurb": "Somewhere for a wandering mind to land."
+    },
     "plant": {
       "name": "Potted Plant",
       "cost": 70,
@@ -49,7 +289,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.05,
-      "blurb": "Cheap, cheerful, a little bit of calm."
+      "blurb": "Cheap, cheerful, a little bit of calm.",
+      "cat": "comfort"
     },
     "bookshelf": {
       "name": "Bookshelf",
@@ -58,7 +299,8 @@
       "w": 1,
       "range": 4,
       "bonus": 0.09,
-      "blurb": "Helps anyone sitting within 4 tiles."
+      "blurb": "Helps anyone sitting within 4 tiles.",
+      "cat": "learning"
     },
     "art_easel": {
       "name": "Art Easel",
@@ -67,7 +309,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.11,
-      "blurb": "Inspiring to sit near, if you sit near it."
+      "blurb": "Inspiring to sit near, if you sit near it.",
+      "cat": "learning"
     },
     "rug": {
       "name": "Reading Rug",
@@ -76,7 +319,8 @@
       "w": 2,
       "range": 6,
       "bonus": 0.07,
-      "blurb": "Weak up close, but it reaches the whole room."
+      "blurb": "Weak up close, but it reaches the whole room.",
+      "cat": "comfort"
     },
     "lab_bench": {
       "name": "Lab Bench",
@@ -85,15 +329,40 @@
       "w": 2,
       "range": 3,
       "bonus": 0.15,
-      "blurb": "The strongest boost there is, but only close by."
+      "blurb": "The strongest boost there is, but only close by.",
+      "cat": "learning"
     }
   },
   "item_order": [
-    "plant",
+    "floor_cushion",
+    "stool",
+    "beanbag",
+    "bench",
+    "crate",
+    "side_table",
+    "cabinet",
+    "supply_shelf",
+    "maths_tiles",
+    "abacus",
     "bookshelf",
+    "globe",
+    "music_corner",
     "art_easel",
+    "reading_nook",
+    "microscope",
+    "whiteboard",
+    "lab_bench",
+    "lamp",
+    "coat_hooks",
+    "plant",
+    "water_cooler",
+    "radiator",
     "rug",
-    "lab_bench"
+    "pot_of_pens",
+    "wall_clock",
+    "class_banner",
+    "alphabet_frieze",
+    "fish_tank"
   ],
   "term": {
     "_note": "A run is a term. On the last day the class sits an exam scored on everything you built up, and that is the score you are playing for.",
@@ -103,5 +372,85 @@
   "upkeep": {
     "_note": "Furniture needs replacing. A per-item daily cost means coins never just pile up, and a huge room you cannot afford is a real decision.",
     "per_item_per_day": 3
-  }
+  },
+  "teacher": {
+    "_note": "The teacher's own numbers. speed and pick_radius used to be consts in actor.gd/interactable.gd -- they were missed when everything else moved here, because they read as physics rather than balance. They live here now so perks can raise them and tools/sim.tscn can model a levelled teacher.",
+    "speed": 60.0,
+    "pick_radius": 20.0,
+    "xp_per_day": 12,
+    "xp_per_grade_point": 25,
+    "xp_per_graduation": 45,
+    "xp_per_level": 100,
+    "max_level": 12
+  },
+  "student": {
+    "_note": "Students improve just by being taught. A level nudges aptitude and diligence a little; ready_level is when they can be sent up. XP STOPS at ready_level+hold_grace: a child kept long past readiness has learned what you can teach them, which is a soft cost for holding them back rather than a punishment.",
+    "xp_per_lesson": 18,
+    "xp_per_work_done": 12,
+    "xp_per_homework": 14,
+    "xp_per_help": 4,
+    "xp_per_level": 60,
+    "max_level": 10,
+    "level_aptitude_step": 0.025,
+    "level_diligence_step": 0.02,
+    "ready_level": 5,
+    "hold_grace_levels": 2
+  },
+  "graduation": {
+    "_note": "What sending a child up is worth. Scaled by readiness, so graduating someone the moment they qualify pays less than seeing them through.",
+    "base_coins": 90,
+    "coins_per_extra_level": 45,
+    "teacher_xp": 45
+  },
+  "coaching": {
+    "_note": "Bought from a student's own file. Cost multiplies per purchase FOR THAT CHILD, so the decision is who to invest in rather than levelling everyone flat.",
+    "tuition_cost": 90,
+    "tuition_step": 0.07,
+    "parents_cost": 70,
+    "parents_step": 0.07,
+    "cost_growth": 1.7,
+    "max_per_student": 4
+  },
+  "perks": {
+    "brisk_walk": {
+      "name": "Brisk Walk",
+      "ranks": 3,
+      "blurb": "You get around the room faster."
+    },
+    "long_reach": {
+      "name": "Long Reach",
+      "ranks": 2,
+      "blurb": "Help from a little further away."
+    },
+    "steady_hands": {
+      "name": "Steady Hands",
+      "ranks": 1,
+      "blurb": "Carry any amount of work at once."
+    },
+    "calm_presence": {
+      "name": "Calm Presence",
+      "ranks": 2,
+      "blurb": "Students near you get stuck less often."
+    },
+    "practised_marker": {
+      "name": "Practised Marker",
+      "ranks": 2,
+      "blurb": "Judge fewer sheets a night; the rest go at your usual standard."
+    }
+  },
+  "perk_effects": {
+    "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile.",
+    "brisk_walk_speed": 15.0,
+    "long_reach_radius": 8.0,
+    "calm_presence_radius": 40.0,
+    "calm_presence_mult": 0.7,
+    "practised_marker_sheets": 2
+  },
+  "item_categories": [
+    "seating",
+    "surfaces",
+    "learning",
+    "comfort",
+    "decor"
+  ]
 }

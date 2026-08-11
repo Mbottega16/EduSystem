@@ -11,9 +11,14 @@ extends Control
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT }
-enum Shop { BUY, SELL }
+enum Shop { BUY, SELL, STAFF }
+## Actions offered on a student's own file.
+enum Act { TUITION, PARENTS, GRADUATE, COUNT }
 
 signal item_chosen(id: String)
+## Long Reach changes the size of the player's pick zone, so it has to
+## be rebuilt when a perk is bought.
+signal perk_bought()
 
 @onready var status: Label = $Status
 @onready var prompt: Label = $Prompt
@@ -28,6 +33,21 @@ var mode: int = Mode.NONE
 var _player: Node = null
 var _sel: int = 0
 var _shop: int = Shop.BUY
+## Which category tab the buy list is showing. 29 items in one flat
+## list is more than fits the panel, let alone more than you can scan.
+var _cat: int = 0
+
+## How many list rows fit the overlay body at font 8 alongside a tab strip,
+## a blurb and the scroll markers.
+const LIST_ROWS := 5
+
+
+## First visible row so that _sel stays on screen, scrolling only when the
+## selection would leave the window.
+func _window_start(total: int, shown: int) -> int:
+	if total <= shown:
+		return 0
+	return clampi(_sel - shown / 2, 0, total - shown)
 
 # marking state
 var _marking: Array = []       ## StudentData still to be judged
@@ -36,6 +56,7 @@ var _shown_hints := {}
 ## Whose file is open. One field rather than a mode stack: there is
 ## exactly one transition to remember (class list -> bio -> back).
 var _bio: StudentData = null
+var _bio_sel: int = 0
 
 
 ## Display only. Every INPUT read lives on the physics tick below.
@@ -335,11 +356,41 @@ func show_student(s: StudentData) -> void:
 	lines.append(_ability_line(s))
 	lines.append("Best at %s." % Curriculum.strand_label(s.favourite))
 	lines.append(_grades_line(s))
-	lines.append("")
 	lines.append(_homework_line(s))
 	lines.append(_help_line(s))
+	lines.append("")
+	lines.append_array(_bio_actions(s))
 	body.text = "\n".join(lines)
-	hint.text = "E or Esc - back to the class list"
+	hint.text = "Up/Down choose    E do it    Esc back"
+
+
+## What you can DO for this child. The file was read-only; spending on one
+## student, and choosing when to send them up, are the two decisions that
+## make it worth opening.
+func _bio_actions(s: StudentData) -> Array[String]:
+	Balance.ensure_loaded()
+	var out: Array[String] = []
+	var tuition := s.coaching_cost(Balance.coach_tuition_cost)
+	var parents := s.coaching_cost(Balance.coach_parents_cost)
+
+	var t_label := "Extra tuition            %d" % tuition
+	var p_label := "A word with their parents %d" % parents
+	if not s.can_be_coached():
+		t_label = "Extra tuition            (had enough)"
+		p_label = "A word with their parents (had enough)"
+
+	var g_label := "Send them up             not ready yet"
+	if s.is_ready_to_graduate():
+		var extra := maxi(0, s.level - Balance.stu_ready_level)
+		g_label = "Send them up             +%d coins" % [
+			Balance.grad_base_coins + Balance.grad_coins_per_level * extra]
+
+	var labels := [t_label, p_label, g_label]
+	for i in labels.size():
+		out.append("%s %s" % [">" if i == _bio_sel else " ", labels[i]])
+	if s.is_capped():
+		out.append("They have learned all they can from this class.")
+	return out
 
 
 func _ability_line(s: StudentData) -> String:
@@ -410,6 +461,8 @@ func show_exam(result: Dictionary) -> void:
 			s.first_name(), String(r["letter"]),
 			"passed" if bool(r["passed"]) else "did not pass"])
 	lines.append("")
+	if Game.cheated:
+		lines.append("  (cheats were used this term)")
 	lines.append("  %d of %d passed.   Class grade: %s" % [
 		int(result.get("passed", 0)), int(result.get("total", 0)),
 		String(result.get("letter", "F"))])
@@ -509,31 +562,70 @@ func open_catalogue() -> void:
 ## contents when selling.
 func _shop_rows() -> Array:
 	if _shop == Shop.BUY:
-		return Items.order().duplicate()
+		var cats := Items.categories()
+		if cats.is_empty():
+			return Items.order().duplicate()
+		_cat = clampi(_cat, 0, cats.size() - 1)
+		return Items.in_category(String(cats[_cat]))
+	if _shop == Shop.STAFF:
+		return Progress.perk_order()
 	return Game.room_items.duplicate()
 
 
 func _render_catalogue() -> void:
+	# The shop grew a blurb line and the staff room lists five perks, so the
+	# default font 10 (about 6 lines in a 128px body) ran under the hint bar.
+	body.add_theme_font_size_override("font_size", 8)
+	body.add_theme_constant_override("line_spacing", 1)
 	var rows := _shop_rows()
 	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
 
-	title.text = "%s  -  %d coins" % [
-		"BUY FURNITURE" if _shop == Shop.BUY else "SELL FURNITURE", Game.coins]
+	var tabs := ""
+	if _shop == Shop.BUY:
+		var cats := Items.categories()
+		for i in cats.size():
+			tabs += ("[%s]" if i == _cat else " %s ") % Items.category_label(String(cats[i]))
+	var heading := "BUY FURNITURE"
+	if _shop == Shop.SELL:
+		heading = "SELL FURNITURE"
+	elif _shop == Shop.STAFF:
+		heading = "STAFF ROOM"
+	title.text = "%s  -  %d coins" % [heading, Game.coins]
+
+	# Show the thing you are buying. You used to be choosing furniture you
+	# had never seen, described by a decimal.
+	portrait.visible = false
+	if _shop == Shop.BUY and not rows.is_empty():
+		var art := String(Items.get_def(String(rows[_sel])).get("art", ""))
+		if art != "" and ResourceLoader.exists("res://art/%s.png" % art):
+			portrait.texture = load("res://art/%s.png" % art)
+			portrait.visible = true
 
 	var lines: Array[String] = []
-	if rows.is_empty():
+	if _shop == Shop.BUY and tabs != "":
+		lines.append(tabs)
+	if _shop == Shop.STAFF:
+		lines = _render_staff()
+	elif rows.is_empty():
 		lines.append("   Nothing to sell - the room is bare.")
 	elif _shop == Shop.BUY:
-		for i in rows.size():
+		# A window, not the whole list. The Learning category alone has ten
+		# items and the body is about eleven lines -- printing them all ran
+		# straight under the hint bar.
+		var lo := _window_start(rows.size(), LIST_ROWS)
+		if lo > 0:
+			lines.append("   ...")
+		for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
 			var id: String = rows[i]
 			var d := Items.get_def(id)
-			lines.append("%s %-13s %4d   +%.2f within %d%s" % [
+			lines.append("%s %-13s %4d  %-16s%s" % [
 				">" if i == _sel else " ", String(d["name"]), int(d["cost"]),
-				float(d["bonus"]), int(d["range"]),
-				"" if Game.can_afford(int(d["cost"])) else "   too dear"])
+				_reach_words(int(d["range"]), float(d["bonus"])),
+				"" if Game.can_afford(int(d["cost"])) else "  too dear"])
+		if lo + LIST_ROWS < rows.size():
+			lines.append("   ...")
 		lines.append("")
 		lines.append(String(Items.get_def(rows[_sel]).get("blurb", "")))
-		lines.append("Place it well and the green desks are the ones it helps.")
 	else:
 		for i in rows.size():
 			var placed: Dictionary = rows[i]
@@ -546,9 +638,99 @@ func _render_catalogue() -> void:
 		lines.append("Selling gives back half.")
 		lines.append("To MOVE something, walk up to it instead.")
 	body.text = "\n".join(lines)
-	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [
-		"order" if _shop == Shop.BUY else "sell",
-		"sell list" if _shop == Shop.BUY else "buy list"]
+	var verb := "order"
+	var next_tab := "sell list"
+	if _shop == Shop.BUY:
+		hint.text = "Up/Down pick   Left/Right category   E order   Tab sell   Esc close"
+		body.text = "
+".join(lines)
+		return
+	if _shop == Shop.SELL:
+		verb = "sell"
+		next_tab = "staff room"
+	elif _shop == Shop.STAFF:
+		verb = "learn"
+		next_tab = "buy list"
+	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [verb, next_tab]
+
+
+## How an item's effect reads in words. The exact number is already
+## visible where it matters -- the green desks at placement time.
+func _reach_words(reach: int, bonus: float) -> String:
+	var strength := "a little"
+	if bonus >= 0.13:
+		strength = "a great deal"
+	elif bonus >= 0.08:
+		strength = "well"
+	var span := "close by"
+	if reach >= 6:
+		span = "room-wide"
+	elif reach >= 4:
+		span = "nearby"
+	return "helps %s, %s" % [strength, span]
+
+
+## The staff-room board: what you have learned to do better.
+func _render_staff() -> Array[String]:
+	var lines: Array[String] = []
+	lines.append("Level %d    %d point%s to spend" % [
+		Game.teacher_level, Game.perk_points_free(),
+		"" if Game.perk_points_free() == 1 else "s"])
+	lines.append("")
+	var order := Progress.perk_order()
+	for i in order.size():
+		var id: String = order[i]
+		var d := Progress.perk_def(id)
+		var have := Game.perk_rank(id)
+		var cap := Progress.max_rank(id)
+		lines.append("%s %-17s %s" % [
+			">" if i == _sel else " ", String(d.get("name", id)),
+			"#".repeat(have) + ".".repeat(cap - have)])
+	lines.append("")
+	if not order.is_empty():
+		lines.append(String(Progress.perk_def(order[_sel]).get("blurb", "")))
+	return lines
+
+
+## Act on the open file: pay for extra help, or send them up.
+func _do_bio_action() -> void:
+	if _bio == null:
+		return
+	match _bio_sel:
+		Act.TUITION:
+			var e := Game.coach(_bio, "tuition")
+			Sfx.play("deny" if e != "" else "confirm")
+			show_student(_bio)
+		Act.PARENTS:
+			var e2 := Game.coach(_bio, "parents")
+			Sfx.play("deny" if e2 != "" else "confirm")
+			show_student(_bio)
+		Act.GRADUATE:
+			if not _bio.is_ready_to_graduate():
+				Sfx.play("deny")
+				return
+			var rec := Game.graduate(_bio)
+			Sfx.play("grade")
+			_bio = null
+			_show_graduation(rec)
+
+
+## A small send-off. It is the one moment in the game where somebody leaves,
+## so it gets its own screen rather than a line in the corner.
+func _show_graduation(rec: Dictionary) -> void:
+	_open(Mode.REPORT)
+	title.text = "MOVING UP"
+	var lines: Array[String] = [
+		"", "   %s has moved up to the next class." % String(rec.get("name", "")),
+		"",
+		"   You have sent up %d so far." % Game.graduated.size(),
+		"   %d coins, and something learned for you too." % int(rec.get("coins", 0)),
+	]
+	if String(rec.get("replaced_by", "")) != "":
+		lines.append("")
+		lines.append("   %s has taken the empty desk." % String(rec["replaced_by"]))
+	body.text = "\n".join(lines)
+	hint.text = "E - close"
 
 
 ## The homework marking game. One verdict per sheet, not per question —
@@ -650,19 +832,43 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.STUDENT:
-		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+		# The file is a menu now, so E acts on the highlighted row instead of
+		# backing out. Esc is the way out -- E used to be both, which is the
+		# overloaded-button problem all over again.
+		if Input.is_action_just_pressed("cancel"):
 			Sfx.play("blip")
 			_bio = null
 			show_class_list(true)      # back to the list, on the same student
+		elif Input.is_action_just_pressed("move_down"):
+			_bio_sel = (_bio_sel + 1) % Act.COUNT
+			Sfx.play("blip")
+			show_student(_bio)
+		elif Input.is_action_just_pressed("move_up"):
+			_bio_sel = (_bio_sel - 1 + Act.COUNT) % Act.COUNT
+			Sfx.play("blip")
+			show_student(_bio)
+		elif Game.claim_interact():
+			_do_bio_action()
 		return
 
 	if mode == Mode.CATALOGUE:
 		var rows := _shop_rows()
 		if Input.is_action_just_pressed("cancel"):
 			close()
-		elif Input.is_action_just_pressed("menu"):
-			_shop = Shop.SELL if _shop == Shop.BUY else Shop.BUY
+		elif _shop == Shop.BUY and Input.is_action_just_pressed("move_right"):
+			_cat = (_cat + 1) % maxi(1, Items.categories().size())
 			_sel = 0
+			Sfx.play("blip")
+			_render_catalogue()
+		elif _shop == Shop.BUY and Input.is_action_just_pressed("move_left"):
+			_cat = (_cat - 1 + Items.categories().size()) % maxi(1, Items.categories().size())
+			_sel = 0
+			Sfx.play("blip")
+			_render_catalogue()
+		elif Input.is_action_just_pressed("menu"):
+			_shop = (_shop + 1) % 3      # buy -> sell -> staff room
+			_sel = 0
+			Sfx.play("blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("move_up") and not rows.is_empty():
 			_sel = (_sel - 1 + rows.size()) % rows.size()
@@ -673,7 +879,13 @@ func _handle_input() -> void:
 			Sfx.play("blip")
 			_render_catalogue()
 		elif Game.claim_interact() and not rows.is_empty():
-			if _shop == Shop.BUY:
+			if _shop == Shop.STAFF:
+				var err := Game.buy_perk(String(rows[_sel]))
+				Sfx.play("deny" if err != "" else "confirm")
+				if err == "":
+					perk_bought.emit()
+				_render_catalogue()
+			elif _shop == Shop.BUY:
 				var id: String = rows[_sel]
 				if Game.can_afford(Items.cost(id)):
 					Sfx.play("confirm")

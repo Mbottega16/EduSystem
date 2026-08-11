@@ -24,6 +24,7 @@ func _ready() -> void:
 	world.teacher_desk.marking_requested.connect(hud.open_marking)
 
 	hud.item_chosen.connect(_start_placing)
+	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
 	world.add_to_group("classroom")
 	placement.set_process(true)
 	world.item_move_requested.connect(_start_moving)

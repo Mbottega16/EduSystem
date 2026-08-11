@@ -108,6 +108,15 @@ func _main() -> void:
 	test_names()
 	test_lifetime_counters()
 	await test_bio()
+	test_student_levels()
+	test_teacher_levels()
+	test_graduation()
+	test_coaching()
+	await test_shop_and_staff()
+	await test_bio_actions()
+	test_catalogue()
+	test_curator()
+	test_cheats()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -707,14 +716,35 @@ func test_items() -> void:
 			if not ResourceLoader.exists("res://art/%s.png" % String(d["art"])):
 				return false
 		return true).call())
-	chk("the catalogue is ordered cheapest first", (func() -> bool:
+	# Cheapest first WITHIN each category, which is the list you actually
+	# scan -- the shop shows one tab at a time now, so a global ordering
+	# would only mean the categories had to be priced in bands.
+	chk("each category is ordered cheapest first", (func() -> bool:
 		var last := -1
+		var cat := ""
 		for id: String in Items.order():
 			var c := Items.cost(id)
+			var this_cat := Items.category_of(id)
+			if this_cat != cat:
+				cat = this_cat
+				last = -1
 			if c < last:
 				return false
 			last = c
 		return true).call())
+	chk("and the list is grouped, so a category is never split up",
+		(func() -> bool:
+			var seen: Array[String] = []
+			var cat := ""
+			for id: String in Items.order():
+				var this_cat := Items.category_of(id)
+				if this_cat == cat:
+					continue
+				if seen.has(this_cat):
+					return false       # we already left this one and came back
+				seen.append(this_cat)
+				cat = this_cat
+			return seen.size() == Items.categories().size()).call())
 
 	# range is the whole point of item placement
 	Game.room_items.clear()
@@ -1327,8 +1357,11 @@ func test_shop() -> void:
 	chk("the sold item's tile is free to build on again",
 		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
 
+	# Tab is a three-stop cycle now: buy -> sell -> staff room -> buy
 	await tap("menu")
-	chk("Tab switches back to buying", hud._shop == hud.Shop.BUY)
+	chk("Tab goes on to the staff room", hud._shop == hud.Shop.STAFF)
+	await tap("menu")
+	chk("and round again to buying", hud._shop == hud.Shop.BUY)
 	await tap("cancel")
 	chk("Esc closes the shop", hud.mode == hud.Mode.NONE and not p.input_locked)
 
@@ -2085,8 +2118,11 @@ func test_bio() -> void:
 		hud.body.text.contains("Seat %d" % (who.seat_index + 1))
 		and hud.body.text.contains("day %d" % who.joined_day), hud.body.text)
 
-	await tap("interact")
-	chk("E again goes BACK to the class list rather than out to the game",
+	# Esc is the way back out of the file. E is no longer -- it acts on the
+	# highlighted row now (tuition / parents / send them up), so a player
+	# leafing through the class cannot buy something by mashing to exit.
+	await tap("cancel")
+	chk("Esc goes BACK to the class list rather than out to the game",
 		hud.mode == hud.Mode.CLASS_LIST, hud.mode)
 	chk("and it comes back on the same student", hud._sel == row, hud._sel)
 
@@ -2136,11 +2172,15 @@ func test_bio() -> void:
 	hud.show_student(s0)
 	chk("and neither does their file", not hud.body.text.contains("secretly"))
 
-	# the regression guard for _open() resetting the portrait
+	# The regression guard for _open() resetting the portrait. The shop DOES
+	# show a picture now, so "not visible" is no longer the invariant -- what
+	# must not happen is the child's face still hanging there over the
+	# furniture, which is the actual leak this guard was written for.
+	var face: Texture2D = hud.portrait.texture
 	hud.close()
 	Game.add_coins(500)
 	hud.open_catalogue()
-	chk("the portrait does not leak into another screen", not hud.portrait.visible)
+	chk("a child's face does not leak into the shop", hud.portrait.texture != face)
 	hud.close()
 	await step(2)
 
@@ -2202,3 +2242,444 @@ func test_lifetime_counters() -> void:
 		"%d/%d/%d/%d" % [back.joined_day, back.helps_total,
 			back.hw_set_total, back.hw_done_total])
 	Game.delete_save()
+
+
+# ==================================================== levels & graduation
+
+func test_student_levels() -> void:
+	section("STUDENT LEVELS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	chk("a new student starts at level one with no experience",
+		s.level == 1 and s.xp == 0)
+	chk("and is not ready to be sent up", not s.is_ready_to_graduate())
+
+	var apt := s.aptitude
+	var gained := s.add_xp(s.xp_for_next_level())
+	chk("enough experience levels them up", gained == 1 and s.level == 2, s.level)
+	chk("a level makes them a little better at the work", s.aptitude > apt)
+	chk("but only a little, not a transformation",
+		s.aptitude - apt < 0.1, s.aptitude - apt)
+
+	# readiness is a threshold, not the top of the scale
+	# one xp at a time, so we stop ON the threshold instead of sailing past it
+	# -- see the note in test_graduation about xp being cumulative
+	while s.level < Balance.stu_ready_level:
+		s.add_xp(1)
+	chk("they become ready at the ready level", s.is_ready_to_graduate(), s.level)
+	chk("a child who has just qualified is barely prepared",
+		s.readiness() < 0.2, s.readiness())
+
+	# THE SOFT COST OF HOLDING THEM BACK: they stop learning from you.
+	while not s.is_capped() and s.level < Balance.stu_max_level:
+		s.add_xp(s.xp_for_next_level())
+	var frozen_level := s.level
+	var frozen_apt := s.aptitude
+	for i in 20:
+		s.add_xp(1000)
+	chk("a child kept long past ready stops gaining anything",
+		s.level == frozen_level and is_equal_approx(s.aptitude, frozen_apt),
+		"%d -> %d" % [frozen_level, s.level])
+	chk("which is a stagnation, not a punishment - nothing got worse",
+		s.aptitude >= frozen_apt)
+
+	# helping earns them experience too
+	Game.new_run(SEED)
+	var t: StudentData = Game.roster[1]
+	var before := t.xp
+	t.assign_work()
+	t.confusion = 1.0
+	t.help()
+	chk("being helped is worth something to them", t.xp > before, t.xp)
+
+	# and so is a lesson
+	Game.new_run(SEED)
+	var u: StudentData = Game.roster[0]
+	var xp0 := u.xp
+	Game.grade_class()
+	chk("finishing a lesson earns experience", u.xp > xp0, u.xp)
+
+	# save
+	u.xp = 137
+	u.level = 4
+	u.coached = 2
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("levels and coaching survive a save",
+		Game.roster[0].xp == 137 and Game.roster[0].level == 4
+		and Game.roster[0].coached == 2)
+	Game.delete_save()
+
+
+func test_teacher_levels() -> void:
+	section("TEACHER LEVELS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("you start at level one with nothing spent",
+		Game.teacher_level == 1 and Game.perk_points_spent() == 0)
+	chk("and with no points to spend yet", Game.perk_points_free() == 0)
+	chk("so a perk cannot be bought", Game.buy_perk("brisk_walk") != "")
+
+	Game.add_teacher_xp(Balance.teacher_xp_per_level)
+	chk("experience levels you up", Game.teacher_level == 2, Game.teacher_level)
+	chk("and a level is a point to spend", Game.perk_points_free() == 1)
+
+	chk("a point buys a perk", Game.buy_perk("brisk_walk") == "")
+	chk("which spends it", Game.perk_points_free() == 0
+		and Game.perk_rank("brisk_walk") == 1)
+	chk("and you cannot spend what you do not have",
+		Game.buy_perk("long_reach") != "")
+
+	# every perk must actually reach the number it claims to change
+	var none := {}
+	chk("Brisk Walk really does make you faster",
+		Progress.speed({"brisk_walk": 2}) > Progress.speed(none))
+	chk("Long Reach really does widen your reach",
+		Progress.pick_radius({"long_reach": 1}) > Progress.pick_radius(none))
+	chk("Steady Hands really does let you carry everything",
+		Progress.carries_unlimited({"steady_hands": 1})
+		and not Progress.carries_unlimited(none))
+	chk("Calm Presence really does settle them",
+		Progress.calm_multiplier({"calm_presence": 1}) < 1.0
+		and is_equal_approx(Progress.calm_multiplier(none), 1.0))
+	chk("Practised Marker really does cut the pile",
+		Progress.sheets_skipped({"practised_marker": 2}) > 0
+		and Progress.sheets_skipped(none) == 0)
+
+	chk("a perk cannot be bought past its top rank", (func() -> bool:
+		var id := "steady_hands"
+		Game.add_teacher_xp(Balance.teacher_xp_per_level * 6)
+		Game.buy_perk(id)
+		return Game.buy_perk(id) != "").call())
+	chk("nonsense is refused", Game.buy_perk("fly") != "")
+
+	# teaching a day earns you something
+	Game.new_run(SEED)
+	var xp0: int = Game.teacher_xp
+	for s: StudentData in Game.roster:
+		s.last_grade = 0.8
+		s.grades.append(0.8)
+	Game.advance_day()
+	chk("a day taught is experience for you too", Game.teacher_xp > xp0)
+
+	# save
+	Game.perk_ranks = {"brisk_walk": 2}
+	Game.teacher_xp = 350
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("your level and perks survive a save",
+		Game.teacher_xp == 350 and Game.perk_rank("brisk_walk") == 2
+		and Game.teacher_level == Progress.level_for_xp(350))
+	Game.delete_save()
+
+
+func test_graduation() -> void:
+	section("GRADUATION")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+	var who := s.display_name
+
+	chk("a child who is not ready cannot be sent up", Game.graduate(s).is_empty())
+	chk("and nothing happened to the class", Game.roster.has(s))
+
+	while not s.is_ready_to_graduate():
+		s.add_xp(s.xp_for_next_level())
+	var size_before := Game.roster.size()
+	var coins_before: int = Game.coins
+	var xp_before: int = Game.teacher_xp
+	var rec := Game.graduate(s)
+
+	chk("a ready child can be sent up", not rec.is_empty())
+	chk("they leave the class", not Game.roster.has(s))
+	chk("and it is recorded", Game.graduated.size() == 1
+		and String(Game.graduated[0]["name"]) == who)
+	chk("their desk is filled by someone new",
+		Game.roster.size() == size_before, Game.roster.size())
+	chk("the new arrival is a different child",
+		Game.roster[Game.roster.size() - 1].display_name != who)
+
+	# THE TRAP THIS AVOIDS. If sending a strong student up were a pure loss,
+	# the best play would be to never graduate anyone -- which is not a
+	# decision at all. It pays immediately, in coins and in your own
+	# experience, so it trades against a thinner class at exam time.
+	chk("sending them up pays", Game.coins > coins_before,
+		"%d -> %d" % [coins_before, Game.coins])
+	chk("and teaches you something", Game.teacher_xp > xp_before)
+
+	# seeing a child all the way through is worth more than the minimum
+	Game.new_run(SEED)
+	var a: StudentData = Game.roster[0]
+	# A single xp at a time, so this stops the INSTANT they qualify. xp is
+	# cumulative while the bar is only level*per_level, so handing over a whole
+	# xp_for_next_level() cascades several levels at once and sails past ready
+	# to the cap -- which made "sent up the moment they qualify" and "seen all
+	# the way through" the same child, and the comparison below vacuous.
+	while not a.is_ready_to_graduate():
+		a.add_xp(1)
+	var min_pay := Balance.grad_base_coins
+	var b: StudentData = Game.roster[1]
+	# As far as a child is ALLOWED to go, which is is_capped() -- not
+	# stu_max_level. add_xp() refuses once capped, so looping on the raw max
+	# never terminates. That hang silently truncated every suite run for a
+	# whole session, taking the summary line with it.
+	while not b.is_capped():
+		b.add_xp(b.xp_for_next_level())
+	Game.coins = 0
+	Game.graduate(a)
+	var paid_early: int = Game.coins
+	Game.coins = 0
+	Game.graduate(b)
+	chk("a child seen further through is worth more than one sent the moment they qualify",
+		Game.coins > paid_early, "%d vs %d" % [Game.coins, paid_early])
+	chk("and the minimum is what the table says", paid_early == min_pay, paid_early)
+
+	chk("graduations survive a save", (func() -> bool:
+		Game.save_game()
+		var n := Game.graduated.size()
+		Game.new_run(1)
+		Game.load_game()
+		return Game.graduated.size() == n).call())
+	Game.delete_save()
+
+
+func test_coaching() -> void:
+	section("COACHING")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+	Game.coins = 100000
+
+	var apt := s.aptitude
+	chk("extra tuition can be bought", Game.coach(s, "tuition") == "")
+	chk("and it makes them better at the work", s.aptitude > apt)
+
+	var dil := s.diligence
+	chk("a word with the parents can be bought", Game.coach(s, "parents") == "")
+	chk("and it makes them more reliable", s.diligence > dil)
+
+	# rising cost is what makes it a decision about WHO rather than a tax
+	var first := s.coaching_cost(Balance.coach_tuition_cost)
+	Game.coach(s, "tuition")
+	chk("each session for the same child costs more than the last",
+		s.coaching_cost(Balance.coach_tuition_cost) > first,
+		"%d then %d" % [first, s.coaching_cost(Balance.coach_tuition_cost)])
+	chk("a child you have not spent on is still cheap",
+		Game.roster[1].coaching_cost(Balance.coach_tuition_cost) < first + 1)
+
+	while s.can_be_coached():
+		Game.coach(s, "tuition")
+	chk("there is a limit to how much extra one child can be given",
+		Game.coach(s, "tuition") != "")
+
+	Game.coins = 0
+	chk("and you cannot coach on an empty purse",
+		Game.coach(Game.roster[2], "tuition") != "")
+
+
+func test_shop_and_staff() -> void:
+	section("SHOP & STAFF ROOM")
+	var hud := _hud()
+	Game.new_run(SEED)
+	Game.add_coins(3000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	hud.open_catalogue()
+	chk("the shop opens on the buy list", hud._shop == hud.Shop.BUY)
+	chk("you can SEE what you are buying", hud.portrait.visible)
+	chk("the picture is the item you have selected", (func() -> bool:
+		var want := String(Items.get_def(Items.order()[hud._sel]).get("art", ""))
+		return hud.portrait.texture != null \
+			and hud.portrait.texture.resource_path.ends_with(want + ".png")).call())
+	chk("effects read as words, not decimals",
+		hud.body.text.contains("helps") and not hud.body.text.contains("+0."),
+		hud.body.text)
+
+	await tap("menu")
+	chk("Tab moves to the sell list", hud._shop == hud.Shop.SELL)
+	await tap("menu")
+	chk("Tab again reaches the staff room", hud._shop == hud.Shop.STAFF)
+	chk("which shows your level", hud.body.text.contains("Level"), hud.body.text)
+	chk("and no picture, because there is nothing to look at",
+		not hud.portrait.visible)
+	await tap("menu")
+	chk("and Tab cycles back round to buying", hud._shop == hud.Shop.BUY)
+
+	# spending a point through the real screen
+	Game.add_teacher_xp(Balance.teacher_xp_per_level * 3)
+	await tap("menu")
+	await tap("menu")
+	var spent_before: int = Game.perk_points_spent()
+	await tap("interact")
+	chk("E in the staff room spends a point",
+		Game.perk_points_spent() == spent_before + 1,
+		Game.perk_points_spent())
+	await tap("cancel")
+	await step(2)
+
+
+func test_bio_actions() -> void:
+	section("ACTING ON A FILE")
+	var hud := _hud()
+	Game.new_run(SEED)
+	Game.add_coins(5000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	var s: StudentData = Game.roster[0]
+	hud.show_student(s)
+	chk("the file offers what you can do for them",
+		hud.body.text.contains("Extra tuition")
+		and hud.body.text.contains("Send them up"), hud.body.text)
+	chk("and says plainly when they are not ready",
+		hud.body.text.contains("not ready yet"), hud.body.text)
+
+	var apt := s.aptitude
+	hud._bio_sel = hud.Act.TUITION
+	await tap("interact")
+	chk("buying tuition from the file works", s.aptitude > apt, s.aptitude)
+	chk("the file is still open afterwards", hud.mode == hud.Mode.STUDENT)
+
+	await tap("move_down")
+	chk("Down moves between the actions", hud._bio_sel == hud.Act.PARENTS)
+
+	# graduating through the real screen
+	while not s.is_ready_to_graduate():
+		s.add_xp(s.xp_for_next_level())
+	hud.show_student(s)
+	chk("once ready, the file offers the payout rather than a refusal",
+		not hud.body.text.contains("not ready yet"), hud.body.text)
+	hud._bio_sel = hud.Act.GRADUATE
+	await tap("interact")
+	chk("sending them up leaves the file and says goodbye properly",
+		hud.mode == hud.Mode.REPORT and hud.title.text.contains("MOVING UP"),
+		hud.title.text)
+	chk("and they really have gone", not Game.roster.has(s))
+
+	await tap("interact")
+	await step(2)
+	hud.close()
+
+	# the design rule still holds on the file
+	var t: StudentData = Game.roster[0]
+	t.aptitude = 0.7321
+	hud.show_student(t)
+	chk("a file with actions on it still shows no raw ability number",
+		not hud.body.text.contains("0."), hud.body.text)
+	hud.close()
+	await step(2)
+
+
+# ============================================ catalogue, curator, cheats
+
+func test_catalogue() -> void:
+	section("CATALOGUE")
+	Balance.ensure_loaded()
+
+	chk("the shop has grown well past a handful",
+		Items.order().size() >= 24, Items.order().size())
+	chk("there are several categories", Items.categories().size() >= 4,
+		Items.categories())
+
+	var bad: Array = []
+	for id: String in Items.order():
+		var d := Items.get_def(id)
+		for key: String in ["name", "cat", "cost", "art", "range", "bonus", "blurb"]:
+			if not d.has(key):
+				bad.append("%s missing %s" % [id, key])
+		if not Items.categories().has(String(d.get("cat", ""))):
+			bad.append("%s has an unknown category" % id)
+	chk("every item is complete and in a real category", bad.is_empty(), bad)
+
+	# THE CHECK THE ART BROWSER EXISTS FOR: a missing PNG is a runtime crash
+	var missing: Array = []
+	for id: String in Items.order():
+		var art := String(Items.get_def(id).get("art", ""))
+		if not ResourceLoader.exists("res://art/%s.png" % art):
+			missing.append("%s -> %s.png" % [id, art])
+	chk("every item's picture actually exists", missing.is_empty(), missing)
+
+	chk("every category has something in it", (func() -> bool:
+		for c: String in Items.categories():
+			if Items.in_category(c).is_empty():
+				return false
+		return true).call())
+	chk("the categories partition the catalogue with nothing left over",
+		(func() -> bool:
+			var n := 0
+			for c: String in Items.categories():
+				n += Items.in_category(c).size()
+			return n == Items.order().size()).call())
+
+	# prices should broadly rise with what an item does, or the choice is fake
+	var cheap_bonus := 0.0
+	var dear_bonus := 0.0
+	for id: String in Items.order():
+		var d := Items.get_def(id)
+		if int(d["cost"]) <= 90:
+			cheap_bonus = maxf(cheap_bonus, float(d["bonus"]))
+		if int(d["cost"]) >= 240:
+			dear_bonus = maxf(dear_bonus, float(d["bonus"]))
+	chk("expensive furniture does more than cheap furniture",
+		dear_bonus > cheap_bonus, "%.2f vs %.2f" % [dear_bonus, cheap_bonus])
+
+	chk("no two items share a name", (func() -> bool:
+		var seen := {}
+		for id: String in Items.order():
+			var n := String(Items.get_def(id)["name"])
+			if seen.has(n):
+				return false
+			seen[n] = true
+		return true).call())
+
+
+func test_curator() -> void:
+	section("ART BROWSER")
+	var c: Control = load("res://tools/curator.tscn").instantiate()
+	add_child(c)
+	c._scan_references()
+	c._scan_files()
+
+	chk("it finds the art", c._files.size() >= 40, c._files.size())
+	chk("it finds where art is used", c._referenced.size() > 10, c._referenced.size())
+	# This is the assertion that matters: art named in code or data but not
+	# on disk would fail at runtime, and nothing else in the project checks.
+	chk("nothing the game asks for is missing from disk",
+		c._missing.is_empty(), c._missing)
+	chk("it knows which script uses the player sprite",
+		c._referenced.get("player", []).size() > 0)
+	c.queue_free()
+
+
+func test_cheats() -> void:
+	section("CHEATS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("a fresh run is not marked as cheated", not Game.cheated)
+	chk("and coins are finite", not Game.unlimited_coins)
+	Game.coins = 10
+	chk("so you cannot buy what you cannot afford", not Game.spend(500))
+
+	Game.unlimited_coins = true
+	Game.cheated = true
+	chk("unlimited coins buys anything", Game.spend(999999))
+	chk("and everything reads as affordable", Game.can_afford(123456))
+
+	# the flag has to survive, or a cheated save launders itself clean
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run clears the flag", not Game.cheated)
+	Game.load_game()
+	chk("but a cheated save is still marked when reloaded", Game.cheated)
+	Game.delete_save()
+
+	Game.new_run(SEED)
+	Game.cheated = false
+	Game.unlimited_coins = false

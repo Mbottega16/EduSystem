@@ -54,6 +54,14 @@ func _ready() -> void:
 			continue
 		_run(policy, days)
 
+	if Game.cheated:
+		# A balance reading taken after a cheat is worse than no
+		# reading: it looks authoritative and is not.
+		print("")
+		print("REFUSING TO REPORT - cheats were used on this run.")
+		get_tree().quit(1)
+		return
+
 	print("\nCONTRACT CHECK (simulated, not hand-set)")
 	_contract()
 	get_tree().quit()

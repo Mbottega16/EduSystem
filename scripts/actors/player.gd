@@ -22,6 +22,7 @@ var input_locked: bool = false
 
 
 func _ready() -> void:
+	_apply_reach()
 	# teacher_desk.gd finds the carrier through this group rather than
 	# needing a wired reference, so its prompt is answerable before anyone
 	# has interacted with anything.
@@ -132,13 +133,25 @@ func _tick_hold(delta: float) -> void:
 		hold_progress = 0.0
 
 
+## Perks raise the teacher's base speed, so this is expressed as a ratio
+## against the Actor constant rather than as a flat multiplier.
 func speed_scale() -> float:
-	return SPRINT if Input.is_action_pressed("sprint") else 1.0
+	var base: float = Progress.speed(Game.perk_ranks) / SPEED
+	return base * (SPRINT if Input.is_action_pressed("sprint") else 1.0)
 
 
 ## Only the teacher's footsteps are audible.
 func on_step() -> void:
 	Sfx.play_varied("step", 0.12 if speed_scale() <= 1.0 else 0.2)
+
+
+## Long Reach widens the pick zone. Re-applied when a perk is bought.
+func _apply_reach() -> void:
+	if zone == null:
+		return
+	for c in zone.get_children():
+		if c is CollisionShape2D and (c as CollisionShape2D).shape is CircleShape2D:
+			((c as CollisionShape2D).shape as CircleShape2D).radius = 				Progress.pick_radius(Game.perk_ranks)
 
 
 func carry_work(n: int) -> void:

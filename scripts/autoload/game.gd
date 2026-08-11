@@ -36,6 +36,20 @@ var event: Dictionary = {}      ## what makes today different from yesterday
 var term_over: bool = false
 var exam_result: Dictionary = {}
 
+# --- the teacher's own progression ---------------------------------
+var teacher_xp: int = 0
+var teacher_level: int = 1
+var perk_ranks: Dictionary = {}      ## perk id -> ranks bought
+var graduated: Array = []            ## [{name, level, readiness, day}]
+
+## Set the moment any cheat is used, and never cleared. Saved, shown on the
+## end-of-term screen, and checked by the term simulator, which refuses to
+## run on a cheated save -- a balance reading taken after a cheat is a lie.
+var cheated: bool = false
+var unlimited_coins: bool = false
+
+signal teacher_levelled(level: int)
+
 var rng := RandomNumberGenerator.new()
 var _next_id: int = 1
 
@@ -67,6 +81,12 @@ func new_run(seed_value: int = 0) -> void:
 	event = DayEvent.by_id("none")
 	term_over = false
 	exam_result = {}
+	cheated = false
+	unlimited_coins = false
+	teacher_xp = 0
+	teacher_level = 1
+	perk_ranks.clear()
+	graduated.clear()
 	_next_id = 1
 	Balance.ensure_loaded()
 	coins = Balance.start_coins
@@ -216,6 +236,98 @@ func sit_exam() -> Dictionary:
 	return exam_result
 
 
+## Award the teacher experience. Returns levels gained, so the caller can
+## say something about it.
+func add_teacher_xp(amount: int) -> int:
+	Balance.ensure_loaded()
+	if amount <= 0:
+		return 0
+	teacher_xp += amount
+	var was := teacher_level
+	teacher_level = Progress.level_for_xp(teacher_xp)
+	if teacher_level > was:
+		teacher_levelled.emit(teacher_level)
+	return teacher_level - was
+
+
+func perk_points_spent() -> int:
+	var n := 0
+	for id: String in perk_ranks:
+		n += int(perk_ranks[id])
+	return n
+
+
+func perk_points_free() -> int:
+	return Progress.points_for_level(teacher_level) - perk_points_spent()
+
+
+func perk_rank(id: String) -> int:
+	return int(perk_ranks.get(id, 0))
+
+
+## Spend a point. Returns "" on success or why it was refused.
+func buy_perk(id: String) -> String:
+	if Progress.perk_def(id).is_empty():
+		return "No such thing."
+	if perk_rank(id) >= Progress.max_rank(id):
+		return "Already at the top of that."
+	if perk_points_free() <= 0:
+		return "No points to spend. Keep teaching."
+	perk_ranks[id] = perk_rank(id) + 1
+	return ""
+
+
+# --- graduation ------------------------------------------------------
+
+## Send a child up. YOUR decision -- is_ready_to_graduate() only says they
+## could be, and readiness() says how well prepared they would leave.
+##
+## It pays immediately, in coins and teacher XP, so sending a strong student
+## on trades against a thinner class at exam time rather than being a pure
+## loss. Without that trade the optimal play would be to never graduate
+## anyone, which is not a decision at all.
+func graduate(s: StudentData) -> Dictionary:
+	Balance.ensure_loaded()
+	if s == null or not s.is_ready_to_graduate():
+		return {}
+	var extra := maxi(0, s.level - Balance.stu_ready_level)
+	var coins_won := Balance.grad_base_coins + Balance.grad_coins_per_level * extra
+	var record := {
+		"name": s.display_name, "level": s.level,
+		"readiness": s.readiness(), "day": day,
+	}
+	graduated.append(record)
+	add_coins(coins_won)
+	add_teacher_xp(Balance.grad_teacher_xp)
+	roster.erase(s)
+	roster_changed.emit()
+	# their desk frees up, so someone new can have it
+	var joined := enrol()
+	record["coins"] = coins_won
+	record["replaced_by"] = joined.display_name if joined != null else ""
+	return record
+
+
+## Pay for extra help for one child. `kind` is "tuition" or "parents".
+func coach(s: StudentData, kind: String) -> String:
+	Balance.ensure_loaded()
+	if s == null:
+		return "Nobody selected."
+	if not s.can_be_coached():
+		return "There is only so much extra you can give one child."
+	var base: int = Balance.coach_tuition_cost if kind == "tuition" \
+		else Balance.coach_parents_cost
+	var cost := s.coaching_cost(base)
+	if not spend(cost):
+		return "You cannot afford that."
+	if kind == "tuition":
+		s.aptitude = clampf(s.aptitude + Balance.coach_tuition_step, 0.0, 1.0)
+	else:
+		s.diligence = clampf(s.diligence + Balance.coach_parents_step, 0.0, 1.0)
+	s.coached += 1
+	return ""
+
+
 func set_phase(p: int) -> void:
 	if p == phase:
 		return
@@ -233,6 +345,8 @@ func add_coins(amount: int) -> void:
 ## Returns false and changes nothing if you can't afford it, so callers can
 ## use it as the affordability check as well as the deduction.
 func spend(amount: int) -> bool:
+	if unlimited_coins:
+		return true
 	if amount > coins:
 		return false
 	coins -= amount
@@ -241,7 +355,7 @@ func spend(amount: int) -> bool:
 
 
 func can_afford(amount: int) -> bool:
-	return amount <= coins
+	return unlimited_coins or amount <= coins
 
 
 ## Pay out, roll overnight homework, and move to tomorrow.
@@ -285,6 +399,10 @@ func advance_day() -> Dictionary:
 	# Word gets round. A new student arrives only if you're actually doing
 	# the job — otherwise the class stops growing, which is feedback in
 	# itself rather than a punishment screen.
+	# the teacher learns from the day too
+	add_teacher_xp(Balance.teacher_xp_per_day
+		+ int(round(avg * Balance.teacher_xp_per_grade_point)))
+
 	var joined := ""
 	if day % Balance.enrol_every_days == 1 and avg >= Balance.enrol_min_average:
 		var s := enrol()
@@ -304,6 +422,9 @@ func advance_day() -> Dictionary:
 			"upkeep": upkeep, "homework_done": did, "joined": joined,
 			"event": event.get("name", ""), "event_blurb": event.get("blurb", ""),
 			"term_over": term_over,
+		"teacher_xp": teacher_xp, "perk_ranks": perk_ranks,
+		"cheated": cheated,
+		"graduated": graduated,
 			"days_left": maxi(0, Balance.term_days - day + 1)}
 
 
@@ -399,11 +520,21 @@ func grade_for(s: StudentData) -> float:
 ## Close the lesson: everyone is graded, and it is recorded.
 func grade_class() -> Array:
 	var out: Array = []
+	Balance.ensure_loaded()
 	for s: StudentData in roster:
 		var g := grade_for(s)
 		s.last_grade = g
 		s.grades.append(g)
-		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
+		# they get better simply by being taught -- attending is worth
+		# something, finishing the work is worth more
+		var earned := Balance.stu_xp_per_lesson
+		if s.work_state == StudentData.Work.COLLECTED:
+			earned += Balance.stu_xp_per_work_done
+		if s.hw_state == StudentData.HW.MARKED:
+			earned += Balance.stu_xp_per_homework
+		var levels := s.add_xp(earned)
+		out.append({"student": s, "grade": g, "letter": grade_letter(g),
+			"levels": levels})
 	return out
 
 
@@ -490,6 +621,13 @@ func to_dict() -> Dictionary:
 		"lesson_id": lesson.get("id", ""),
 		"term_over": term_over,
 		"subject": subject,
+		# from_dict() has always READ these four. Nothing wrote them, so your
+		# own level, your perks, everyone you ever sent up, and the cheat mark
+		# were quietly thrown away by every save.
+		"teacher_xp": teacher_xp,
+		"perk_ranks": perk_ranks,
+		"graduated": graduated,
+		"cheated": cheated,
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
 	}
@@ -506,6 +644,11 @@ func from_dict(d: Dictionary) -> void:
 	subject = String(d.get("subject", lesson.get("name", "Lesson")))
 	event = DayEvent.by_id(String(d.get("event_id", "none")))
 	term_over = bool(d.get("term_over", false))
+	teacher_xp = int(d.get("teacher_xp", 0))
+	cheated = bool(d.get("cheated", false))
+	teacher_level = Progress.level_for_xp(teacher_xp)
+	perk_ranks = d.get("perk_ranks", {}).duplicate()
+	graduated = d.get("graduated", []).duplicate()
 	room_items.clear()
 	for p: Dictionary in d.get("room_items", []):
 		room_items.append({"id": String(p.get("id", "")),
