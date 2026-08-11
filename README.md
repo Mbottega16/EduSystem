@@ -66,6 +66,24 @@ a perfect room with an absent teacher is a C, a bare room with perfect
 teaching is a C, and both together is an A. Those three rows are asserted by
 the test suite against *simulated play*.
 
+## Your class
+
+**Tab** opens the class list. Arrow to a student and press **E** to read
+their file: portrait, full name, which seat they took and the day they
+joined, what they are best at, how their grades are trending, their homework
+record, and how often you have gone over to help them.
+
+Everything on it is something the game actually tracked — there is no
+invented backstory — and every number is turned into a letter, a count of
+days, or a word. Never a float, never a percentage: you should come to know a
+child by teaching them, not by reading a statistic off a screen. A test
+enforces that by forcing an odd ability value and asserting no `0.` or `%`
+reaches the text.
+
+First names are guaranteed unique within a class. They used not to be, and
+with eight students there was a ~71% chance of two you could not tell apart,
+because every screen shows the first name only.
+
 ## The lessons are real
 
 The subject on the board is not decoration. `data/curriculum.json` holds ten

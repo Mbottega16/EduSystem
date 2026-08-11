@@ -43,7 +43,7 @@ func prompt_text() -> String:
 	var s := student()
 	if s == null:
 		return ""
-	var who: String = s.display_name.split(" ")[0]
+	var who: String = s.first_name()
 	match action():
 		Action.HELP: return "Help %s" % who
 		Action.COLLECT_WORK: return "Collect %s's work" % who

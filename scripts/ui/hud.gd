@@ -10,7 +10,7 @@ extends Control
 ## adequate, it is more legible than real controls would be, and it keeps
 ## the whole UI layer to one script.
 
-enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE }
+enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT }
 enum Shop { BUY, SELL }
 
 signal item_chosen(id: String)
@@ -22,6 +22,7 @@ signal item_chosen(id: String)
 @onready var title: Label = $Overlay/Title
 @onready var body: Label = $Overlay/Body
 @onready var hint: Label = $Overlay/Hint
+@onready var portrait: TextureRect = $Overlay/Portrait
 
 var mode: int = Mode.NONE
 var _player: Node = null
@@ -32,24 +33,39 @@ var _shop: int = Shop.BUY
 var _marking: Array = []       ## StudentData still to be judged
 var _marked_right: int = 0
 var _shown_hints := {}
+## Whose file is open. One field rather than a mode stack: there is
+## exactly one transition to remember (class list -> bio -> back).
+var _bio: StudentData = null
 
 
+## Display only. Every INPUT read lives on the physics tick below.
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("carrier")
-	if mode == Mode.NONE and Input.is_action_just_pressed("menu"):
-		show_class_list()
-	elif mode == Mode.NONE and Input.is_action_just_pressed("pause"):
-		show_pause()
-	elif mode == Mode.PAUSE:
-		_pause_input()
 	_update_status()
 	_update_prompt()
 
 
+## ALL input, on ONE clock.
+##
+## Opening the class list and the pause menu used to be read here in
+## _process (the idle tick) while everything else was read in
+## _physics_process. Two clocks meant Input.is_action_just_pressed() was
+## being asked about two different frames, so a press could be seen by one
+## and missed by the other — which is exactly what happened: Tab opened the
+## class list in play but never in a test, because the test drives the
+## physics tick.
 func _physics_process(_delta: float) -> void:
-	if mode != Mode.NONE:
-		_handle_input()
+	if mode == Mode.NONE:
+		if Input.is_action_just_pressed("menu"):
+			show_class_list()
+		elif Input.is_action_just_pressed("pause"):
+			show_pause()
+		return
+	if mode == Mode.PAUSE:
+		_pause_input()
+		return
+	_handle_input()
 
 
 func _update_status() -> void:
@@ -122,6 +138,9 @@ func _open(m: int) -> void:
 	mode = m
 	body.add_theme_font_size_override("font_size", 10)
 	body.add_theme_constant_override("line_spacing", 4)
+	# every mode that wants a portrait turns it back on; this is the
+	# single line that stops one screen leaking into the next
+	portrait.visible = false
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -134,8 +153,6 @@ func close() -> void:
 		_player.input_locked = false
 
 
-## The first thing anyone sees. The game used to boot straight into play
-## with no explanation of anything at all.
 ## The first thing anyone sees. The game used to boot straight into play
 ## with no explanation of anything at all.
 ##
@@ -234,8 +251,18 @@ var _hint_until: float = 0.0
 ## Everyone in the room, what they are good at, and how they have been doing.
 ## Eight names and eight sprites do not make eight people if the player can
 ## never see anything that distinguishes them.
-func show_class_list() -> void:
+func show_class_list(keep_sel: bool = false) -> void:
 	_open(Mode.CLASS_LIST)
+	if not keep_sel:
+		_sel = 0
+	_sel = clampi(_sel, 0, maxi(0, Game.roster.size() - 1))
+	_render_class_list()
+
+
+## Split out from show_class_list so moving the selection can redraw without
+## re-running _open(), which would re-lock the player and reset the font on
+## every single keypress.
+func _render_class_list() -> void:
 	title.text = "YOUR CLASS"
 	# eight students plus a three-line lesson header does not fit at the
 	# default size; the panel is 128px and this needs about 13 rows
@@ -246,9 +273,10 @@ func show_class_list() -> void:
 	# see what the lesson is genuinely for rather than just a subject word.
 	lines.append("Today: %s  [%s]" % [
 		String(Game.lesson.get("name", "")), String(Game.lesson.get("standard", ""))])
-	lines.append(_wrap(String(Game.lesson.get("objective", "")), 60, 2))
-	lines.append("%-11s %-9s %-6s %s" % ["name", "best at", "avg", "notes"])
-	for s: StudentData in Game.roster:
+	lines.append(_wrap(String(Game.lesson.get("objective", "")), 62, 1))
+	lines.append("  %-10s %-9s %-5s %s" % ["name", "best at", "avg", "notes"])
+	for i in Game.roster.size():
+		var s: StudentData = Game.roster[i]
 		var notes: Array[String] = []
 		if s.aptitude >= 0.65:
 			notes.append("quick")
@@ -258,14 +286,116 @@ func show_class_list() -> void:
 			notes.append("reliable")
 		elif s.diligence <= 0.4:
 			notes.append("forgets hw")
-		if s.misjudged:
-			notes.append("secretly behind")
-		lines.append("%-11s %-9s %-6s %s" % [
-			s.display_name.split(" ")[0], Curriculum.strand_label(s.favourite),
+		# `misjudged` is deliberately NOT shown. It is derived from
+		# hw_true_accuracy, which is hidden on purpose, so printing it would
+		# hand the player the answer to the marking game for free and make
+		# careful marking pointless.
+		lines.append("%s %-10s %-9s %-5s %s" % [
+			">" if i == _sel else " ",
+			s.first_name(), Curriculum.strand_label(s.favourite),
 			"-" if s.grades.is_empty() else Game.grade_letter(s.average_grade()),
 			", ".join(notes)])
 	body.text = "\n".join(lines)
-	hint.text = "E or Esc - close"
+	hint.text = "Up/Down choose    E their file    Esc close"
+
+
+## One student's file.
+##
+## Everything here is something the game actually tracked — no invented
+## backstory — and every number is turned into a letter, a count of days, or
+## a word. Never a float, never a percentage: you should come to know a child
+## by teaching them, not by reading a statistic off a screen.
+func show_student(s: StudentData) -> void:
+	if s == null:
+		return
+	_bio = s
+	_open(Mode.STUDENT)
+	body.add_theme_font_size_override("font_size", 8)
+	body.add_theme_constant_override("line_spacing", 1)
+
+	title.text = s.display_name
+	if title.text.length() > 22:
+		title.text = "%s %s." % [s.first_name(), s.surname().substr(0, 1)]
+
+	# One 16x24 frame of the 5x4 sheet: standing, facing the camera.
+	# TextureRect + AtlasTexture rather than a Sprite2D, which would centre
+	# itself inside a Control and ignore the layout entirely.
+	var at := AtlasTexture.new()
+	at.atlas = load("res://art/%s.png" % s.art)
+	at.region = Rect2(0, 0, 16, 24)
+	portrait.texture = at
+	portrait.visible = true
+
+	# The portrait sits top-RIGHT and the text runs full width beneath it.
+	# An earlier version put the portrait on the left and indented the text
+	# with spaces to clear it -- but a space is about 2px at font 8, not the
+	# 5 that assumed, so the portrait was drawn straight over the words.
+	var lines: Array[String] = []
+	lines.append("Seat %d, joined on day %d." % [s.seat_index + 1, s.joined_day])
+	lines.append(_ability_line(s))
+	lines.append("Best at %s." % Curriculum.strand_label(s.favourite))
+	lines.append(_grades_line(s))
+	lines.append("")
+	lines.append(_homework_line(s))
+	lines.append(_help_line(s))
+	body.text = "\n".join(lines)
+	hint.text = "E or Esc - back to the class list"
+
+
+func _ability_line(s: StudentData) -> String:
+	if s.aptitude >= 0.65:
+		return "Picks things up quickly."
+	if s.aptitude <= 0.40:
+		return "Needs a bit longer than most."
+	return "Works at a steady pace."
+
+
+func _grades_line(s: StudentData) -> String:
+	if s.grades.is_empty():
+		return "Not been graded yet."
+	var line := "Averaging a %s over %d lesson%s" % [
+		Game.grade_letter(s.average_grade()), s.grades.size(),
+		"" if s.grades.size() == 1 else "s"]
+	# trend: their latest grade against everything before it
+	if s.grades.size() >= 3:
+		var earlier := 0.0
+		for i in s.grades.size() - 1:
+			earlier += s.grades[i]
+		earlier /= float(s.grades.size() - 1)
+		var d: float = s.grades[s.grades.size() - 1] - earlier
+		if d > 0.05:
+			return line + ", and improving."
+		if d < -0.05:
+			return line + ", and slipping."
+	return line + "."
+
+
+func _homework_line(s: StudentData) -> String:
+	if s.hw_set_total <= 0:
+		# nothing to go on yet, so fall back to their disposition
+		return ("Usually remembers homework." if s.diligence >= 0.55
+			else "Forgets homework more often than not.")
+	var ratio := float(s.hw_done_total) / float(s.hw_set_total)
+	var how := "none"
+	if ratio >= 0.95:
+		how = "all"
+	elif ratio >= 0.7:
+		how = "most"
+	elif ratio >= 0.4:
+		how = "about half"
+	elif ratio > 0.0:
+		how = "hardly any"
+	return "Has handed in %s of the homework set." % how
+
+
+func _help_line(s: StudentData) -> String:
+	if s.helps_total <= 0:
+		return "You have never gone over to help them."
+	if s.helps_total == 1:
+		return "You have gone over to help them once."
+	if s.helps_total <= 4:
+		return "You have gone over to help them a few times."
+	return "You have gone over to help them often."
 
 
 ## End of term. The whole run, scored.
@@ -277,7 +407,7 @@ func show_exam(result: Dictionary) -> void:
 	for r: Dictionary in result.get("rows", []):
 		var s: StudentData = r["student"]
 		lines.append("  %-12s %s    %s" % [
-			s.display_name.split(" ")[0], String(r["letter"]),
+			s.first_name(), String(r["letter"]),
 			"passed" if bool(r["passed"]) else "did not pass"])
 	lines.append("")
 	lines.append("  %d of %d passed.   Class grade: %s" % [
@@ -298,7 +428,7 @@ func show_lesson_report(results: Array) -> void:
 	for r: Dictionary in results:
 		var s: StudentData = r["student"]
 		lines.append("%-11s %s   %s" % [
-			s.display_name.split(" ")[0], String(r["letter"]), _why(s)])
+			s.first_name(), String(r["letter"]), _why(s)])
 	lines.append("")
 	lines.append("Class average: %s" % Game.grade_letter(Game.class_average()))
 	body.text = "\n".join(lines)
@@ -490,10 +620,40 @@ func _verdict(pass_it: bool) -> void:
 func _handle_input() -> void:
 	if mode == Mode.PAUSE:
 		return
-	if mode == Mode.REPORT or mode == Mode.TITLE or mode == Mode.CLASS_LIST:
+	if mode == Mode.REPORT or mode == Mode.TITLE:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("confirm")
 			close()
+		return
+
+	# The class list is no longer "any key closes": E now opens the selected
+	# student's file, and Esc or Tab close. That is the one thing a player
+	# has to learn, which is why the hint line says it outright.
+	if mode == Mode.CLASS_LIST:
+		if Input.is_action_just_pressed("cancel") \
+				or Input.is_action_just_pressed("menu"):
+			Sfx.play("confirm")
+			close()
+		elif Game.roster.is_empty():
+			pass
+		elif Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % Game.roster.size()
+			Sfx.play("blip")
+			_render_class_list()
+		elif Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + Game.roster.size()) % Game.roster.size()
+			Sfx.play("blip")
+			_render_class_list()
+		elif Game.claim_interact():
+			Sfx.play("confirm")
+			show_student(Game.roster[_sel])
+		return
+
+	if mode == Mode.STUDENT:
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			_bio = null
+			show_class_list(true)      # back to the list, on the same student
 		return
 
 	if mode == Mode.CATALOGUE:

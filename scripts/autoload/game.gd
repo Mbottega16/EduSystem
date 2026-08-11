@@ -85,7 +85,8 @@ func enrol() -> StudentData:
 	var s := StudentData.new()
 	s.id = _next_id
 	_next_id += 1
-	s.display_name = Names.random_name(rng)
+	s.display_name = Names.unique_name(rng, _taken_names())
+	s.joined_day = day
 	s.art = Names.ART[(s.id - 1) % Names.ART.size()]
 	s.aptitude = rng.randf_range(0.25, 0.85)
 	s.diligence = rng.randf_range(0.25, 0.85)
@@ -96,6 +97,16 @@ func enrol() -> StudentData:
 	roster.append(s)
 	roster_changed.emit()
 	return s
+
+
+## Names already in the class, so a new student cannot be handed a first
+## name someone is already using. Read from the LIVE roster, so a
+## departed student's name frees itself again with no bookkeeping.
+func _taken_names() -> Array:
+	var out: Array = []
+	for s: StudentData in roster:
+		out.append(s.display_name)
+	return out
 
 
 func _lowest_free_seat() -> int:
@@ -253,6 +264,7 @@ func advance_day() -> Dictionary:
 		if homework_out and s.hw_state == StudentData.HW.ASSIGNED:
 			if bool(event.get("homework_sure", false)) or rng.randf() < s.diligence:
 				s.hw_state = StudentData.HW.DONE
+				s.hw_done_total += 1
 				s.hw_true_accuracy = clampf(
 					s.aptitude + rng.randf_range(-0.2, 0.2), 0.0, 1.0)
 				s.hw_sheet = Questions.make_sheet(
@@ -303,6 +315,7 @@ func assign_homework() -> int:
 	for s: StudentData in roster:
 		if s.hw_state == StudentData.HW.NONE or s.hw_state == StudentData.HW.MARKED:
 			s.hw_state = StudentData.HW.ASSIGNED
+			s.hw_set_total += 1
 			n += 1
 	homework_out = n > 0
 	return n

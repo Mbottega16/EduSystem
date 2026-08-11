@@ -43,11 +43,32 @@ var hw_sheet: Dictionary = {}
 ## the marking screen has always claimed happens.
 var misjudged: bool = false
 
+# --- lifetime, NEVER reset ---------------------------------------
+## Kept apart from the per-lesson counters above on purpose:
+## reset_lesson() wipes helps_received every single lesson, so it can
+## never answer "how often have I helped this child".
+var joined_day: int = 1
+var helps_total: int = 0
+var hw_set_total: int = 0
+var hw_done_total: int = 0
+
 # --- history ----------------------------------------------------------
 var grades: Array[float] = []
 var last_grade: float = -1.0
 
 var _since_stall: float = 0.0
+
+
+## Every screen shows the first name, and this used to be
+## display_name.split(" ")[0] repeated in five places.
+func first_name() -> String:
+	var parts := display_name.split(" ", false)
+	return parts[0] if parts.size() > 0 else display_name
+
+
+func surname() -> String:
+	var parts := display_name.split(" ", false)
+	return parts[1] if parts.size() > 1 else ""
 
 
 func is_struggling() -> bool:
@@ -159,6 +180,7 @@ func help() -> bool:
 	confusion = 0.0
 	_since_stall = 0.0
 	helps_received += 1
+	helps_total += 1
 	return true
 
 
@@ -182,6 +204,8 @@ func to_dict() -> Dictionary:
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite,
+		"joined_day": joined_day, "helps_total": helps_total,
+		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
 		"grades": grades, "last_grade": last_grade,
 	}
 
@@ -199,6 +223,10 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
 	s.misjudged = bool(d.get("misjudged", false))
 	s.favourite = String(d.get("favourite", ""))
+	s.joined_day = int(d.get("joined_day", 1))
+	s.helps_total = int(d.get("helps_total", 0))
+	s.hw_set_total = int(d.get("hw_set_total", 0))
+	s.hw_done_total = int(d.get("hw_done_total", 0))
 	s.last_grade = float(d.get("last_grade", -1.0))
 	s.grades.assign(d.get("grades", []))
 	return s

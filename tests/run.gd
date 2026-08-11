@@ -105,6 +105,9 @@ func _main() -> void:
 	await test_sprint()
 	await test_buttons()
 	test_curriculum()
+	test_names()
+	test_lifetime_counters()
+	await test_bio()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1971,3 +1974,231 @@ func test_curriculum() -> void:
 	Game.from_dict(snap)
 	chk("the lesson survives a save/load", String(Game.lesson.get("id", "")) == was,
 		Game.lesson.get("id", ""))
+
+
+# =============================================== names, and a file per child
+
+func test_names() -> void:
+	section("NAMES")
+	Balance.ensure_loaded()
+
+	chk("the first-name pool comfortably outnumbers the class",
+		Names.FIRST.size() > Balance.class_cap * 2,
+		"%d names, cap %d" % [Names.FIRST.size(), Balance.class_cap])
+	chk("no name appears twice in the pool itself", (func() -> bool:
+		var seen := {}
+		for n: String in Names.FIRST:
+			if seen.has(n):
+				return false
+			seen[n] = true
+		var seen2 := {}
+		for n: String in Names.LAST:
+			if seen2.has(n):
+				return false
+			seen2[n] = true
+		return true).call())
+
+	# THE BUG THIS FIXES. The old generator drew independently with no memory
+	# of the roster, so at a class of eight there was a ~71% chance two
+	# students had the same first name -- and every screen in the game shows
+	# the first name only.
+	var clashes: Array = []
+	for i in 40:
+		Game.new_run(SEED + i)
+		while Game.enrol() != null:
+			pass
+		var seen := {}
+		for s: StudentData in Game.roster:
+			if seen.has(s.first_name()):
+				clashes.append("seed %d: two %s" % [SEED + i, s.first_name()])
+			seen[s.first_name()] = true
+	chk("no class ever has two students with the same first name",
+		clashes.is_empty(), clashes)
+
+	chk("every student has a surname too", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.surname() == "":
+				return false
+		return true).call())
+	chk("first_name and surname split the display name",
+		Game.roster[0].display_name
+			== "%s %s" % [Game.roster[0].first_name(), Game.roster[0].surname()])
+
+	# the fallback, which cannot be reached in play but must not return ""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	chk("an exhausted pool still yields a name",
+		Names.unique_name(rng, Names.FIRST.duplicate()) != "")
+
+	# determinism, which the whole suite leans on
+	Game.new_run(SEED)
+	var first: Array = []
+	for s: StudentData in Game.roster:
+		first.append(s.display_name)
+	Game.new_run(SEED)
+	var second: Array = []
+	for s: StudentData in Game.roster:
+		second.append(s.display_name)
+	chk("the same seed still produces the same class", first == second, first)
+
+
+func test_bio() -> void:
+	section("STUDENT FILE")
+	var hud := _hud()
+	var p: Actor = world.player
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	await tap("menu")
+	chk("Tab opens the class list", hud.mode == hud.Mode.CLASS_LIST, hud.mode)
+	chk("it opens on the first student", hud._sel == 0, hud._sel)
+	chk("the selection marker is drawn", hud.body.text.contains(">"))
+
+	await tap("move_down")
+	chk("Down moves the selection", hud._sel == 1, hud._sel)
+	await tap("move_up")
+	await tap("move_up")
+	chk("Up from the top wraps to the last student",
+		hud._sel == Game.roster.size() - 1, hud._sel)
+	await tap("move_down")
+	chk("and Down from the bottom wraps back to the first", hud._sel == 0)
+
+	# open a student who is NOT first, so "returns to the same row" means
+	# something
+	await tap("move_down")
+	var who: StudentData = Game.roster[hud._sel]
+	var row: int = hud._sel
+	await tap("interact")
+	chk("E opens their file", hud.mode == hud.Mode.STUDENT, hud.mode)
+	chk("the file is headed with their FULL name, surname and all",
+		hud.title.text.contains(who.surname()), hud.title.text)
+	chk("the portrait is showing", hud.portrait.visible)
+	chk("it is their own sprite sheet", (func() -> bool:
+		var at := hud.portrait.texture as AtlasTexture
+		return at != null and at.atlas.resource_path.ends_with(who.art + ".png")).call(),
+		hud.portrait.texture)
+	chk("and it is one standing frame, not the whole sheet", (func() -> bool:
+		var at := hud.portrait.texture as AtlasTexture
+		return at != null and at.region == Rect2(0, 0, 16, 24)).call())
+	chk("the file says which seat and when they joined",
+		hud.body.text.contains("Seat %d" % (who.seat_index + 1))
+		and hud.body.text.contains("day %d" % who.joined_day), hud.body.text)
+
+	await tap("interact")
+	chk("E again goes BACK to the class list rather than out to the game",
+		hud.mode == hud.Mode.CLASS_LIST, hud.mode)
+	chk("and it comes back on the same student", hud._sel == row, hud._sel)
+
+	await tap("cancel")
+	chk("Esc closes the class list", hud.mode == hud.Mode.NONE)
+	chk("and hands control back", not p.input_locked)
+
+	# THE DESIGN RULE, enforced rather than trusted: prose, never numbers.
+	var s0: StudentData = Game.roster[0]
+	s0.aptitude = 0.7321
+	s0.diligence = 0.2917
+	s0.grades.assign([0.71, 0.83, 0.9])
+	s0.hw_set_total = 7
+	s0.hw_done_total = 5
+	s0.helps_total = 3
+	hud.show_student(s0)
+	chk("a student's file never shows a raw ability number",
+		not hud.body.text.contains("0."), hud.body.text)
+	chk("nor a percentage", not hud.body.text.contains("%"), hud.body.text)
+	chk("it describes their ability in words",
+		hud.body.text.contains("quickly") or hud.body.text.contains("steady")
+		or hud.body.text.contains("longer"), hud.body.text)
+	chk("it reports homework as a word, not a fraction",
+		hud.body.text.contains("most") or hud.body.text.contains("about half")
+		or hud.body.text.contains("all"), hud.body.text)
+	chk("it says how often you helped them",
+		hud.body.text.contains("help"), hud.body.text)
+	chk("grades are letters, with a count of lessons",
+		hud.body.text.contains("Averaging a") and hud.body.text.contains("3 lesson"),
+		hud.body.text)
+
+	# a brand-new student's file must still read as a sentence
+	var fresh := StudentData.new()
+	fresh.display_name = "Tess Vega"
+	fresh.art = "student_a"
+	fresh.favourite = "math"
+	hud.show_student(fresh)
+	chk("an ungraded student's file says so rather than showing a blank",
+		hud.body.text.contains("Not been graded"), hud.body.text)
+	chk("and it still names them in full", hud.title.text.contains("Vega"))
+
+	# the leak
+	s0.misjudged = true
+	hud.show_class_list()
+	chk("the class list does NOT reveal a sheet you misjudged",
+		not hud.body.text.contains("secretly"), hud.body.text)
+	hud.show_student(s0)
+	chk("and neither does their file", not hud.body.text.contains("secretly"))
+
+	# the regression guard for _open() resetting the portrait
+	hud.close()
+	Game.add_coins(500)
+	hud.open_catalogue()
+	chk("the portrait does not leak into another screen", not hud.portrait.visible)
+	hud.close()
+	await step(2)
+
+
+func test_lifetime_counters() -> void:
+	section("LIFETIME COUNTERS")
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	chk("a starting student joined on day one", s.joined_day == 1, s.joined_day)
+	Game.day = 7
+	var late := Game.enrol()
+	chk("a student who joins mid-term records the day they arrived",
+		late != null and late.joined_day == 7, late.joined_day if late else -1)
+	Game.day = 1
+
+	# helping is remembered past the end of the lesson -- helps_received is
+	# wiped by reset_lesson(), which is exactly why a second counter exists
+	s.assign_work()
+	s.confusion = 1.0
+	chk("helping counts", s.help() and s.helps_total == 1 and s.helps_received == 1)
+	s.reset_lesson()
+	chk("resetting the lesson clears the per-lesson count but NOT the total",
+		s.helps_received == 0 and s.helps_total == 1,
+		"%d / %d" % [s.helps_received, s.helps_total])
+
+	# homework set and handed in
+	Game.new_run(SEED)
+	var n := Game.assign_homework()
+	chk("setting homework is counted against every student", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if st.hw_set_total != 1:
+				return false
+		return true).call(), n)
+	for st: StudentData in Game.roster:
+		st.last_grade = 0.7
+		st.grades.append(0.7)
+	var report := Game.advance_day()
+	var done := 0
+	for st: StudentData in Game.roster:
+		done += st.hw_done_total
+	chk("handing homework in is counted, and agrees with the day report",
+		done == int(report["homework_done"]),
+		"%d counted vs %d reported" % [done, int(report["homework_done"])])
+
+	# and all four survive a save
+	var t: StudentData = Game.roster[0]
+	t.joined_day = 4
+	t.helps_total = 11
+	t.hw_set_total = 9
+	t.hw_done_total = 6
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	var back: StudentData = Game.roster[0]
+	chk("the lifetime counters survive a save and reload",
+		back.joined_day == 4 and back.helps_total == 11
+		and back.hw_set_total == 9 and back.hw_done_total == 6,
+		"%d/%d/%d/%d" % [back.joined_day, back.helps_total,
+			back.hw_set_total, back.hw_done_total])
+	Game.delete_save()
