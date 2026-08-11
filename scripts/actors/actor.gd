@@ -9,6 +9,9 @@ extends CharacterBody2D
 ## that makes it exactly 1px per physics frame, so movement assertions in
 ## the tests are integer arithmetic instead of float tolerance.
 const SPEED := 60.0
+## Held-sprint multiplier. The lesson clock makes crossing the room a real
+## cost, so there has to be a way to spend effort to cross it faster.
+const SPRINT := 1.7
 const FRAME_TIME := 0.14
 
 # Rows in the sprite sheets, in the order tools/make_art.py writes them.
@@ -42,7 +45,7 @@ func walk(dir: Vector2, delta: float) -> void:
 		return
 
 	# Normalised so walking diagonally isn't faster than walking straight.
-	velocity = dir.normalized() * SPEED
+	velocity = dir.normalized() * SPEED * speed_scale()
 	move_and_slide()
 
 	if dir == Vector2.ZERO:
@@ -97,6 +100,11 @@ func face_towards(point: Vector2) -> void:
 	else:
 		facing = DIR_DOWN if d.y > 0.0 else DIR_UP
 	_set_frame(SIT_FRAME if seated else 0)
+
+
+## 1.0 normally. The player overrides this to sprint; students never do.
+func speed_scale() -> float:
+	return 1.0
 
 
 func facing_vector() -> Vector2:

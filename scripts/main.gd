@@ -25,8 +25,6 @@ func _ready() -> void:
 
 	hud.item_chosen.connect(_start_placing)
 	world.add_to_group("classroom")
-	if Game.day == 1 and Game.phase == Game.Phase.MORNING:
-		hud.show_title()
 	placement.set_process(true)
 	world.item_move_requested.connect(_start_moving)
 	placement.placed.connect(_finish_placing)

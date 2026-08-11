@@ -10,7 +10,7 @@ extends Control
 ## adequate, it is more legible than real controls would be, and it keeps
 ## the whole UI layer to one script.
 
-enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST }
+enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE }
 enum Shop { BUY, SELL }
 
 signal item_chosen(id: String)
@@ -39,6 +39,10 @@ func _process(_delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("carrier")
 	if mode == Mode.NONE and Input.is_action_just_pressed("menu"):
 		show_class_list()
+	elif mode == Mode.NONE and Input.is_action_just_pressed("pause"):
+		show_pause()
+	elif mode == Mode.PAUSE:
+		_pause_input()
 	_update_status()
 	_update_prompt()
 
@@ -143,9 +147,67 @@ func show_title() -> void:
 	hint.text = "E - begin"
 
 
+## The pause menu. Deliberately short: the full settings live on the title
+## screen, and a pause menu that tries to be a second settings app is a
+## great deal of duplicated UI for very little.
+var _pause_sel: int = 0
+
+func show_pause() -> void:
+	_open(Mode.PAUSE)
+	_pause_sel = 0
+	Sfx.play("blip")
+	_render_pause()
+
+
+func _render_pause() -> void:
+	title.text = "PAUSED"
+	var rows := ["Resume", "Sound  %s" % _vol_bar(), "Quit to title"]
+	var lines: Array[String] = ["", ""]
+	for i in rows.size():
+		lines.append("      %s %s" % [">" if i == _pause_sel else " ", rows[i]])
+	lines.append("")
+	lines.append("      Day %d of %d, %s" % [Game.day, Balance.term_days, Game.subject])
+	body.text = "\n".join(lines)
+	hint.text = "Left/Right changes volume.  E picks."
+
+
+func _vol_bar() -> String:
+	var n := int(round(Settings.sfx_volume * 10.0))
+	return "[%s%s]" % ["#".repeat(n), ".".repeat(10 - n)]
+
+
+func _pause_input() -> void:
+	if Input.is_action_just_pressed("move_down"):
+		_pause_sel = (_pause_sel + 1) % 3
+		Sfx.play("blip")
+	elif Input.is_action_just_pressed("move_up"):
+		_pause_sel = (_pause_sel + 2) % 3
+		Sfx.play("blip")
+	elif Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
+		if _pause_sel == 1:
+			var d := 0.1 if Input.is_action_just_pressed("move_right") else -0.1
+			Settings.sfx_volume = clampf(Settings.sfx_volume + d, 0.0, 1.0)
+			Settings.apply_audio()
+			Settings.save_settings()
+			Sfx.play("blip")
+	elif Input.is_action_just_pressed("cancel"):
+		close()
+		return
+	elif Game.claim_interact():
+		if _pause_sel == 0:
+			close()
+			return
+		elif _pause_sel == 2:
+			Game.save_game()
+			close()
+			get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
+			return
+	_render_pause()
+
+
 ## A one-off nudge, shown once per run. Silence is the worst teacher.
 func hint_once(id: String, text: String) -> void:
-	if _shown_hints.has(id) or mode != Mode.NONE:
+	if _shown_hints.has(id) or mode != Mode.NONE or not Settings.show_hints:
 		return
 	_shown_hints[id] = true
 	prompt.visible = true
@@ -383,6 +445,8 @@ func _verdict(pass_it: bool) -> void:
 ## automated playthrough until it was found. Everything in this project that
 ## reads input polls, for exactly that reason.
 func _handle_input() -> void:
+	if mode == Mode.PAUSE:
+		return
 	if mode == Mode.REPORT or mode == Mode.TITLE or mode == Mode.CLASS_LIST:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("confirm")

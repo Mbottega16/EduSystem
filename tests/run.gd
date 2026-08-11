@@ -91,6 +91,9 @@ func _main() -> void:
 	test_events()
 	test_economy()
 	test_term()
+	test_settings()
+	await test_title()
+	await test_sprint()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1555,3 +1558,204 @@ func test_term() -> void:
 	chk("playing past the last day ends the term", Game.term_over, guard)
 	chk("and it ends at about the right time",
 		guard <= Balance.term_days + 2, guard)
+
+
+# ====================================================== settings & title
+
+func test_settings() -> void:
+	section("SETTINGS")
+	Settings.reset_all()
+
+	chk("every rebindable action has a default binding", (func() -> bool:
+		for entry: Dictionary in Settings.ACTIONS:
+			var a := String(entry["action"])
+			if not Settings.DEFAULTS.has(a) or (Settings.DEFAULTS[a] as Array).is_empty():
+				return false
+		return true).call())
+	chk("every action reaches the real InputMap", (func() -> bool:
+		for entry: Dictionary in Settings.ACTIONS:
+			var a := String(entry["action"])
+			if not InputMap.has_action(a) or InputMap.action_get_events(a).is_empty():
+				return false
+		return true).call())
+	chk("every action has a label a player can read", (func() -> bool:
+		for entry: Dictionary in Settings.ACTIONS:
+			if String(entry.get("label", "")) == "":
+				return false
+		return true).call())
+
+	# rebinding
+	chk("rebinding takes effect immediately", (func() -> bool:
+		var err := Settings.rebind("interact", KEY_J)
+		if err != "":
+			return false
+		for ev in InputMap.action_get_events("interact"):
+			if ev is InputEventKey and (ev as InputEventKey).physical_keycode == KEY_J:
+				return true
+		return false).call())
+	chk("the controls screen shows the new key",
+		Settings.binding_text("interact").findn("J") >= 0,
+		Settings.binding_text("interact"))
+
+	# THE thing a controls screen must not do: leave one key on two actions
+	Settings.reset_bindings()
+	Settings.rebind("sprint", KEY_E)      # E is interact's default
+	var clash := 0
+	for entry: Dictionary in Settings.ACTIONS:
+		for code: int in Settings.bindings.get(String(entry["action"]), []):
+			if code == KEY_E:
+				clash += 1
+	chk("a key taken from another action is not left bound to both",
+		clash == 1, "%d actions still hold E" % clash)
+	chk("and the action it was taken from is not left unusable",
+		not (Settings.bindings["interact"] as Array).is_empty())
+
+	chk("Escape cannot be stolen from Back",
+		Settings.rebind("interact", KEY_ESCAPE) != "")
+
+	Settings.reset_bindings()
+	chk("resetting restores the defaults",
+		Settings.bindings["interact"] == Settings.DEFAULTS["interact"])
+
+	# volumes
+	Settings.master_volume = 0.5
+	Settings.sfx_volume = 0.25
+	Settings.apply_audio()
+	chk("sfx volume reaches the sound system", Sfx.enabled and Sfx.volume_db < 0.0)
+	Settings.sfx_volume = 0.0
+	Settings.apply_audio()
+	chk("zero volume actually silences it", not Sfx.enabled)
+	Settings.sfx_volume = 0.9
+	Settings.apply_audio()
+
+	# persistence, and it must be separate from the save file
+	Settings.window_scale = 5
+	Settings.show_hints = false
+	Settings.rebind("menu", KEY_C)
+	Settings.save_settings()
+	var snapshot := Settings.to_dict()
+	Settings.from_dict({})
+	chk("wiping settings in memory really does reset them",
+		Settings.window_scale != 5 or Settings.show_hints)
+	Settings.load_settings()
+	chk("settings survive a reload", Settings.to_dict() == snapshot)
+	chk("...including the rebound key",
+		Settings.binding_text("menu").findn("C") >= 0)
+
+	Game.delete_save()
+	chk("erasing the SAVE does not erase your settings",
+		Settings.window_scale == 5 and not Settings.show_hints)
+
+	chk("a corrupt settings file falls back to defaults rather than crashing",
+		(func() -> bool:
+			var f := FileAccess.open(Settings.PATH, FileAccess.WRITE)
+			f.store_string("{ not json at all")
+			f.close()
+			Settings.load_settings()
+			return not Settings.bindings.is_empty()).call())
+	Settings.reset_all()
+
+
+func test_title() -> void:
+	section("TITLE SCREEN")
+	var scene: PackedScene = load("res://scenes/ui/title.tscn")
+	chk("the title scene loads", scene != null)
+	chk("it is the project's main scene",
+		String(ProjectSettings.get_setting("application/run/main_scene"))
+			== "res://scenes/ui/title.tscn")
+
+	var t: Node2D = scene.instantiate()
+	add_child(t)
+	await step(3)
+
+	Game.delete_save()
+	t._go(t.Page.MAIN)
+	chk("with no save there is no Continue option",
+		not t._rows().has("continue"), t._rows())
+	chk("but you can always start a new term", t._rows().has("new"))
+
+	Game.new_run(SEED)
+	Game.day = 7
+	Game.save_game()
+	t._go(t.Page.MAIN)
+	chk("with a save, Continue appears", t._rows().has("continue"))
+	chk("and it can say which day you were on", Game.saved_day() == 7, Game.saved_day())
+	chk("erasing is only offered when there is something to erase",
+		t._rows().has("wipe"))
+
+	# every page must be reachable and non-empty
+	var pages := [t.Page.MAIN, t.Page.SETTINGS, t.Page.CONTROLS,
+		t.Page.HOWTO, t.Page.CREDITS, t.Page.CONFIRM_WIPE]
+	var all_ok := true
+	for p: int in pages:
+		t._go(p)
+		if t.menu.text.strip_edges() == "" and p != t.Page.MAIN:
+			all_ok = false
+	chk("every page renders something", all_ok)
+
+	t._go(t.Page.SETTINGS)
+	chk("the settings page lists a volume row", t._rows().has("master"))
+	var before: float = Settings.sfx_volume
+	t.sel = t._rows().find("sfx")
+	t._adjust(-1)
+	chk("Left really does turn the volume down", Settings.sfx_volume < before)
+	t._adjust(1)
+
+	t._go(t.Page.CONTROLS)
+	chk("the controls page lists every rebindable action", (func() -> bool:
+		for entry: Dictionary in Settings.ACTIONS:
+			if not t._rows().has(String(entry["action"])):
+				return false
+		return true).call())
+
+	t._go(t.Page.CONFIRM_WIPE)
+	chk("erasing asks first, and No comes before Yes",
+		t._rows() == ["no", "yes"], t._rows())
+
+	# selecting No must keep the save
+	Game.new_run(SEED)
+	Game.save_game()
+	t._go(t.Page.CONFIRM_WIPE)
+	t.sel = 0
+	t._activate()
+	chk("answering No keeps your save", Game.has_save())
+
+	t._go(t.Page.CONFIRM_WIPE)
+	t.sel = 1
+	t._activate()
+	chk("answering Yes erases it", not Game.has_save())
+
+	t.queue_free()
+	await step(2)
+	Game.delete_save()
+
+
+func test_sprint() -> void:
+	section("SPRINT")
+	chk("sprint is a real, bound action",
+		InputMap.has_action("sprint")
+		and not InputMap.action_get_events("sprint").is_empty())
+
+	Game.delete_save()
+	Game.new_run(SEED)
+	# row 6 is the clear aisle between the front desks (row 5) and the back
+	# seats (row 7). Row 5 has desks in it, so both runs used to stop dead
+	# against the same one and "sprint" looked like it did nothing.
+	var start := Grid.tile_to_world(Vector2i(3, 6))
+	world.player.global_position = start
+	await step(2)
+	await hold("move_right", 30)
+	var walked: float = world.player.global_position.x - start.x
+
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("sprint")
+	await hold("move_right", 30)
+	Input.action_release("sprint")
+	var sprinted: float = world.player.global_position.x - start.x
+
+	chk("holding sprint covers more ground in the same time",
+		sprinted > walked, "%.0f vs %.0f px in 30 frames" % [sprinted, walked])
+	chk("and it is the multiplier the code says it is",
+		absf(sprinted / maxf(1.0, walked) - Actor.SPRINT) < 0.25,
+		"%.2fx" % (sprinted / maxf(1.0, walked)))

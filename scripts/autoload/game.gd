@@ -512,6 +512,21 @@ func load_game() -> bool:
 	return true
 
 
+## What day the save file is on, without loading it — so the title screen
+## can say "Continue (day 7)" without disturbing the current run.
+func saved_day() -> int:
+	if not has_save():
+		return 0
+	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if f == null:
+		return 0
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if parsed is Dictionary:
+		return int((parsed as Dictionary).get("day", 0))
+	return 0
+
+
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
 

@@ -720,13 +720,126 @@ def make_grid_sprites():
     return made
 
 
+
+# ====================================================================
+# title screen
+# ====================================================================
+
+# A 5x7 pixel font, only the letters the wordmark needs. Kept deliberately
+# small: a full A-Z atlas is a lot of data to carry for one word, and the
+# rest of the UI uses Godot's font.
+GLYPHS = {
+    "P": ["1111.", "1...1", "1...1", "1111.", "1....", "1....", "1...."],
+    "I": ["11111", "..1..", "..1..", "..1..", "..1..", "..1..", "11111"],
+    "X": ["1...1", "1...1", ".1.1.", "..1..", ".1.1.", "1...1", "1...1"],
+    "E": ["11111", "1....", "1....", "1111.", "1....", "1....", "11111"],
+    "L": ["1....", "1....", "1....", "1....", "1....", "1....", "11111"],
+    "R": ["1111.", "1...1", "1...1", "1111.", "1..1.", "1...1", "1...1"],
+    "O": [".111.", "1...1", "1...1", "1...1", "1...1", "1...1", ".111."],
+    "M": ["1...1", "11.11", "1.1.1", "1...1", "1...1", "1...1", "1...1"],
+}
+
+CHALK = (238, 240, 232)
+CHALK_D = (188, 196, 190)
+BOARD = (44, 62, 52)
+BOARD_L = (56, 76, 64)
+FRAME_W = (128, 88, 52)
+FRAME_D = (92, 60, 34)
+
+
+def draw_logo(scale=3, gap=2):
+    """The wordmark, drawn big and chalky."""
+    word = "PIXELROOM"
+    gw, gh = 5, 7
+    w = len(word) * (gw * scale + gap) - gap
+    h = gh * scale
+    im = Image.new("RGBA", (w + 2, h + 2), (0, 0, 0, 0))
+    x0 = 1
+    for ch in word:
+        rows = GLYPHS[ch]
+        for gy in range(gh):
+            for gx in range(gw):
+                if rows[gy][gx] != "1":
+                    continue
+                for sy in range(scale):
+                    for sx in range(scale):
+                        # a little grain so it reads as chalk rather than vinyl
+                        c = CHALK if (sx + sy + gx + gy) % 5 else CHALK_D
+                        px(im, x0 + gx * scale + sx, 1 + gy * scale + sy, c)
+        x0 += gw * scale + gap
+    return im
+
+
+def draw_title_bg():
+    """A blackboard in a wooden frame, with a chalk tray and some ghost
+    writing left over from the last lesson."""
+    W, H = 320, 176
+    im = Image.new("RGBA", (W, H), BOARD)
+
+    # uneven wiped-over patches, so the board is not flat colour
+    rnd = random.Random(11)
+    for _ in range(90):
+        cx = rnd.randrange(0, W)
+        cy = rnd.randrange(0, H)
+        rw = rnd.randrange(10, 46)
+        rh = rnd.randrange(3, 10)
+        for y in range(cy, min(H, cy + rh)):
+            for x in range(cx, min(W, cx + rw)):
+                if rnd.random() < 0.35:
+                    px(im, x, y, BOARD_L)
+
+    # faint sums in the corner, half rubbed out
+    for i, line in enumerate(("7 x 8 =", "12 + 5 =", "3 x 9 =")):
+        gy = 132 + i * 10
+        gx = 250
+        for ch in line:
+            if ch != " ":
+                for dy in range(4):
+                    for dx in range(3):
+                        if rnd.random() < 0.30:
+                            px(im, gx + dx, gy + dy, CHALK_D)
+            gx += 5
+
+    # wooden frame
+    rect(im, 0, 0, W - 1, 5, FRAME_W)
+    rect(im, 0, 0, W - 1, 1, (156, 112, 70))
+    rect(im, 0, H - 12, W - 1, H - 1, FRAME_W)
+    rect(im, 0, H - 12, W - 1, H - 11, (156, 112, 70))
+    rect(im, 0, H - 4, W - 1, H - 1, FRAME_D)
+    rect(im, 0, 0, 5, H - 1, FRAME_W)
+    rect(im, W - 6, 0, W - 1, H - 1, FRAME_W)
+    rect(im, 0, 0, 1, H - 1, FRAME_D)
+    rect(im, W - 2, 0, W - 1, H - 1, FRAME_D)
+
+    # chalk tray: a stub of chalk and a board rubber
+    rect(im, 24, H - 10, 40, H - 8, CHALK)
+    rect(im, 24, H - 10, 40, H - 10, (255, 255, 255))
+    rect(im, 54, H - 11, 74, H - 7, (86, 62, 40))
+    rect(im, 54, H - 11, 74, H - 10, (120, 92, 62))
+    rect(im, 56, H - 8, 72, H - 7, (200, 200, 196))
+    return im
+
+
+def draw_dust():
+    """One chalk mote. Drifts across the title screen."""
+    im = Image.new("RGBA", (2, 2), (0, 0, 0, 0))
+    px(im, 0, 0, CHALK)
+    px(im, 1, 0, CHALK_D)
+    px(im, 0, 1, CHALK_D)
+    return im
+
+
+TITLE_ART = {"logo": draw_logo, "title_bg": draw_title_bg, "dust": draw_dust}
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, pal in CHARACTERS.items():
         size = make_character(name, pal)
         print("art/%-18s %3dx%-3d (%d facings x %d frames of %dx%d)"
               % (name + ".png", size[0], size[1], DIRS, FRAMES, CW, CH))
-    for name, fn in list(FURNITURE.items()) + list(ITEM_ART.items()):
+    for name, fn in (list(FURNITURE.items()) + list(ITEM_ART.items())
+                     + list(TITLE_ART.items())):
         img = fn()
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))

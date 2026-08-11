@@ -1,0 +1,54 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/title.gd" id="1_title"]
+[ext_resource type="Texture2D" path="res://art/title_bg.png" id="2_bg"]
+[ext_resource type="Texture2D" path="res://art/logo.png" id="3_logo"]
+[ext_resource type="Texture2D" path="res://art/student_c.png" id="4_walk"]
+
+[node name="Title" type="Node2D"]
+script = ExtResource("1_title")
+
+[node name="Bg" type="Sprite2D" parent="."]
+centered = false
+texture = ExtResource("2_bg")
+
+[node name="Logo" type="Sprite2D" parent="."]
+position = Vector2(160, 30)
+texture = ExtResource("3_logo")
+
+[node name="Walker" type="Sprite2D" parent="."]
+position = Vector2(-20, 156)
+texture = ExtResource("4_walk")
+hframes = 5
+vframes = 4
+frame = 10
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Heading" type="Label" parent="UI"]
+offset_top = 14.0
+offset_right = 320.0
+offset_bottom = 28.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+
+[node name="Menu" type="Label" parent="UI"]
+offset_left = 92.0
+offset_top = 34.0
+offset_right = 316.0
+offset_bottom = 150.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.93, 0.95, 0.91, 1)
+theme_override_font_sizes/font_size = 8
+theme_override_constants/line_spacing = 0
+
+[node name="Footer" type="Label" parent="UI"]
+offset_top = 152.0
+offset_right = 320.0
+offset_bottom = 166.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.72, 0.78, 0.72, 1)
+theme_override_font_sizes/font_size = 8
+horizontal_alignment = 1

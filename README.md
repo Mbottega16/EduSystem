@@ -7,13 +7,23 @@ You are the teacher. Walking the room *is* the game.
 Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
 the Desktop.
 
-| key | |
-|---|---|
-| Arrows / WASD | walk |
-| E | do whatever the prompt at the bottom says |
-| Tab | your class list (and swaps buy/sell in the shop) |
-| Esc | back out |
-| F1 / F2 | open / close the live tuning panel |
+It opens on a title screen: **Continue**, **New term**, **How to play**,
+**Settings**, **Controls**, **Credits** and **Erase save**.
+
+| key | | rebindable |
+|---|---|---|
+| Arrows / WASD | walk | yes |
+| E / Space | do whatever the prompt says | yes |
+| Shift | hurry (1.7x) | yes |
+| Tab | class list, and swaps buy/sell in the shop | yes |
+| P | pause | yes |
+| Esc | back out | no, always Escape |
+| F1 / F2 | live tuning panel | dev only |
+
+**Settings** covers master and sound volume, window size, fullscreen and
+whether hints appear. **Controls** rebinds any key — taking a key from
+another action removes it there rather than leaving it bound twice.
+Settings live in their own file, so erasing your save keeps them.
 
 ## The loop
 

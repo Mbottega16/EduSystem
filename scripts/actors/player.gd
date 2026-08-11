@@ -84,9 +84,13 @@ func _pick_target() -> Interactable:
 	return best
 
 
+func speed_scale() -> float:
+	return SPRINT if Input.is_action_pressed("sprint") else 1.0
+
+
 ## Only the teacher's footsteps are audible.
 func on_step() -> void:
-	Sfx.play_varied("step", 0.12)
+	Sfx.play_varied("step", 0.12 if speed_scale() <= 1.0 else 0.2)
 
 
 func carry_work(n: int) -> void:
