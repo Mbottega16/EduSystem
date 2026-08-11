@@ -19,10 +19,15 @@ func _ready() -> void:
 
 	world.podium.lesson_ended.connect(hud.show_lesson_report)
 	world.bell.day_ended.connect(hud.show_day_report)
+	world.bell.term_ended.connect(hud.show_exam)
 	world.noticeboard.catalogue_opened.connect(hud.open_catalogue)
 	world.teacher_desk.marking_requested.connect(hud.open_marking)
 
 	hud.item_chosen.connect(_start_placing)
+	world.add_to_group("classroom")
+	if Game.day == 1 and Game.phase == Game.Phase.MORNING:
+		hud.show_title()
+	placement.set_process(true)
 	world.item_move_requested.connect(_start_moving)
 	placement.placed.connect(_finish_placing)
 	placement.cancelled.connect(_unlock)

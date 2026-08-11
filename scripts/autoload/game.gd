@@ -31,6 +31,9 @@ var roster: Array[StudentData] = []
 var room_items: Array = []      ## [{id: String, tile: Vector2i}]
 var homework_out: bool = false  ## is there homework due back tomorrow?
 var subject: String = ""        ## what today's lesson is about
+var event: Dictionary = {}      ## what makes today different from yesterday
+var term_over: bool = false
+var exam_result: Dictionary = {}
 
 var rng := RandomNumberGenerator.new()
 var _next_id: int = 1
@@ -60,6 +63,9 @@ func new_run(seed_value: int = 0) -> void:
 	room_items.clear()
 	homework_out = false
 	subject = pick_subject()
+	event = DayEvent.by_id("none")
+	term_over = false
+	exam_result = {}
 	_next_id = 1
 	Balance.ensure_loaded()
 	coins = Balance.start_coins
@@ -82,6 +88,7 @@ func enrol() -> StudentData:
 	s.art = Names.ART[(s.id - 1) % Names.ART.size()]
 	s.aptitude = rng.randf_range(0.25, 0.85)
 	s.diligence = rng.randf_range(0.25, 0.85)
+	s.favourite = SUBJECTS[rng.randi_range(0, SUBJECTS.size() - 1)]
 	s.seat_index = _lowest_free_seat()
 	roster.append(s)
 	roster_changed.emit()
@@ -142,6 +149,45 @@ func pick_subject() -> String:
 	return SUBJECTS[rng.randi_range(0, SUBJECTS.size() - 1)]
 
 
+## How much more (or less) likely a stall is today.
+func event_stall_multiplier() -> float:
+	return DayEvent.multiplier(event, "stall_mult")
+
+
+## Today's lesson length, after the day's event has had its say.
+func lesson_length() -> float:
+	Balance.ensure_loaded()
+	return Balance.lesson_seconds * DayEvent.multiplier(event, "lesson_mult")
+
+
+## THE END OF TERM. Everything you built up gets scored in one sitting: each
+## student's own record across the term, plus the room you sat them in. This
+## is what a run is FOR — without it the days just keep coming and nothing
+## ever resolves.
+func sit_exam() -> Dictionary:
+	Balance.ensure_loaded()
+	var rows: Array = []
+	var total := 0.0
+	for s: StudentData in roster:
+		var score := clampf(
+			s.average_grade() * 0.75 + room_score(s.seat_index) * 0.35, 0.0, 1.0)
+		total += score
+		rows.append({
+			"student": s, "score": score, "letter": grade_letter(score),
+			"passed": score >= Balance.exam_pass,
+		})
+	var avg := total / maxf(1.0, float(roster.size()))
+	var passed := 0
+	for r: Dictionary in rows:
+		if bool(r["passed"]):
+			passed += 1
+	exam_result = {
+		"rows": rows, "average": avg, "letter": grade_letter(avg),
+		"passed": passed, "total": roster.size(),
+	}
+	return exam_result
+
+
 func set_phase(p: int) -> void:
 	if p == phase:
 		return
@@ -175,14 +221,20 @@ func can_afford(amount: int) -> bool:
 func advance_day() -> Dictionary:
 	Balance.ensure_loaded()
 	var avg := class_average()
-	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()))
+	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
+		* DayEvent.multiplier(event, "coin_mult")))
 	add_coins(earned)
+	# Furniture wears out. Without an ongoing cost, coins simply piled up
+	# with nothing to spend them on once the room was capped.
+	var upkeep := room_items.size() * Balance.upkeep_per_item
+	coins = maxi(0, coins - upkeep)
+	coins_changed.emit(coins)
 
 	var did := 0
 	for s: StudentData in roster:
 		# who actually did the homework you set
 		if homework_out and s.hw_state == StudentData.HW.ASSIGNED:
-			if rng.randf() < s.diligence:
+			if bool(event.get("homework_sure", false)) or rng.randf() < s.diligence:
 				s.hw_state = StudentData.HW.DONE
 				s.hw_true_accuracy = clampf(
 					s.aptitude + rng.randf_range(-0.2, 0.2), 0.0, 1.0)
@@ -210,11 +262,19 @@ func advance_day() -> Dictionary:
 			joined = s.display_name
 
 	subject = pick_subject()
+	event = DayEvent.roll(rng)
+	if event.has("bonus_coins"):
+		add_coins(int(event["bonus_coins"]))
+	if day > Balance.term_days:
+		term_over = true
 	set_phase(Phase.MORNING)
 	day_changed.emit(day)
 	save_game()
 	return {"day": day - 1, "average": avg, "coins": earned,
-			"homework_done": did, "joined": joined}
+			"upkeep": upkeep, "homework_done": did, "joined": joined,
+			"event": event.get("name", ""), "event_blurb": event.get("blurb", ""),
+			"term_over": term_over,
+			"days_left": maxi(0, Balance.term_days - day + 1)}
 
 
 ## Set tonight's homework. Only meaningful once per day.
@@ -395,6 +455,8 @@ func to_dict() -> Dictionary:
 		"version": 1, "day": day, "coins": coins,
 		"next_id": _next_id, "roster": out,
 		"homework_out": homework_out,
+		"event_id": event.get("id", "none"),
+		"term_over": term_over,
 		"subject": subject,
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
@@ -409,6 +471,8 @@ func from_dict(d: Dictionary) -> void:
 	_next_id = int(d.get("next_id", 1))
 	homework_out = bool(d.get("homework_out", false))
 	subject = String(d.get("subject", "Maths"))
+	event = DayEvent.by_id(String(d.get("event_id", "none")))
+	term_over = bool(d.get("term_over", false))
 	room_items.clear()
 	for p: Dictionary in d.get("room_items", []):
 		room_items.append({"id": String(p.get("id", "")),

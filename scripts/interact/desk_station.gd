@@ -59,10 +59,12 @@ func interact(by: Node) -> void:
 		Action.HELP:
 			if s.help():
 				Sfx.play("help")
+				_pop("got it!", Color(0.55, 1.0, 0.6))
 				used.emit(by)
 		Action.COLLECT_WORK:
 			if s.collect_work():
 				Sfx.play_varied("paper")
+				_pop("+work", Color(1, 0.92, 0.6))
 				show_paper(false)
 				if by != null and by.has_method("carry_work"):
 					by.carry_work(1)
@@ -73,6 +75,14 @@ func interact(by: Node) -> void:
 			if by != null and by.has_method("carry_homework"):
 				by.carry_homework(1)
 			used.emit(by)
+
+
+func _pop(text: String, colour: Color) -> void:
+	var world := get_parent()
+	while world != null and not world.has_method("student_node"):
+		world = world.get_parent()
+	if world != null:
+		Floater.pop(world, global_position + Vector2(0, -18), text, colour)
 
 
 func show_paper(on: bool) -> void:

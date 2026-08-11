@@ -175,26 +175,37 @@ func _contract() -> void:
 	_row("full room, perfect teaching", rich_perfect, "A")
 
 
+## Averaged over many students. A single lesson is dominated by one
+## student's stall luck -- sampling one swung this between a C and a B on
+## seed alone, which would make the contract meaningless.
 func _one_lesson(furnish: bool, teach: bool) -> float:
-	Game.new_run(999)
-	if furnish:
-		# enough furniture in range of seat 0 to cap the room score
-		var n := 0
-		while Game.room_score(0) < Balance.room_cap - 0.001 and n < 40:
-			var id: String = Items.order()[n % Items.order().size()]
-			Game.room_items.append({"id": id, "tile": Layout.SEATS[0] + Vector2i(0, 1)})
+	var total := 0.0
+	var n := 0
+	for offset in 6:
+		Game.new_run(900 + offset)
+		if furnish:
+			var guard := 0
+			while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
+				Game.room_items.append({
+					"id": Items.order()[guard % Items.order().size()],
+					"tile": Layout.SEATS[0] + Vector2i(0, 1)})
+				guard += 1
+		for s: StudentData in Game.roster:
+			s.seat_index = 0 if furnish else s.seat_index
+			s.assign_work()
+		var t := 0.0
+		while t < Balance.lesson_seconds:
+			t += DT
+			for s: StudentData in Game.roster:
+				s.tick_work(DT, Game.rng)
+				if teach and s.is_struggling():
+					s.help()
+		for s: StudentData in Game.roster:
+			if teach:
+				s.collect_work()
+			total += Game.grade_for(s)
 			n += 1
-	var s: StudentData = Game.student_in_seat(0)
-	s.assign_work()
-	var t := 0.0
-	while t < Balance.lesson_seconds:
-		t += DT
-		s.tick_work(DT, Game.rng)
-		if teach and s.is_struggling():
-			s.help()
-	if teach:
-		s.collect_work()
-	return Game.grade_for(s)
+	return total / float(n)
 
 
 func _row(label: String, value: float, want: String) -> void:

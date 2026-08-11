@@ -1,133 +1,94 @@
 # PixelRoom
 
-An embodied classroom. **You are the teacher** — you walk the room, and the
-walking is the game.
-
-> **Status: complete and playable.** Every phase of the plan is in: the class
-> files in and sits, you run a lesson, students get stuck and need reaching,
-> grades come out of it, you set and mark homework, and you spend the coins on
-> furniture that actually changes results.
+You are the teacher. Walking the room *is* the game.
 
 ## Play
 
 Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
 the Desktop.
 
-- **Arrow keys / WASD** — walk
-- **E / Space** — do whatever the prompt at the bottom names
-- **Esc** — back out of a menu
-
-### A day
-
-Each day has a **subject** (Maths, Reading, Science, …) shown on the status
-strip and on the podium prompt.
-
-1. The class files in through the door and takes its seats.
-2. **Podium** — start the lesson. Everyone begins a piece of work.
-3. A **progress bar** over each head fills as they work. They get stuck: a
-   **"?"** appears, the bar turns red and *stops dead* until you walk over
-   and help. This is the game — you cannot reach everyone, so you choose.
-4. A finished sheet appears on each desk. **Collect** them, carry the pile to
-   **your own desk**, hand it in.
-5. **Podium** — end the lesson. Everyone is graded, and tonight's homework is
-   set.
-6. **Noticeboard** — the furniture shop. **Tab** swaps between the buy list
-   and the sell list (selling gives back half). Ordering something drops you
-   into a ghost cursor: arrows move it, **E** puts it down. It refuses any
-   spot that would wall the class off from the door.
-   To **move** something you already own, walk up to it and press E — same
-   cursor, and it costs nothing.
-7. **Bell** — end the day. You get paid, and homework comes back overnight to
-   be collected and marked.
-
-You interact with whatever you are **facing**, so approaching a desk from the
-aisle picks that desk, not its neighbour.
-
-### How grades work
-
-**The room sets the floor, you set the ceiling.**
-
-| | |
+| key | |
 |---|---|
-| Perfect furniture, never helped anyone | a **C** |
-| Bare room, gave one student everything | a **C** |
-| Both | an **A** |
+| Arrows / WASD | walk |
+| E | do whatever the prompt at the bottom says |
+| Tab | your class list (and swaps buy/sell in the shop) |
+| Esc | back out |
+| F1 / F2 | open / close the live tuning panel |
 
-Neither alone gets near the top. Furniture effects are **range-based from the
-item's tile**, so *where* you put a bookshelf matters as much as owning one.
-Those three rows are asserted in the test suite so tuning can't quietly break
-the design.
+## The loop
 
-The launcher just starts Godot on this folder. If Godot moves, edit the
-`GODOT=` line at the top of the .bat. Godot 4.7.x (standard, not .NET) —
-<https://godotengine.org/download>.
+1. The class files in through the door and sits down.
+2. Start the lesson at the **podium**. Everyone begins their work, and a
+   clock starts.
+3. Students get **stuck** — a `?` appears and **their work stops dead**.
+   Walk over and press E. That is the only way they make progress, and it
+   is the reason you cannot stand still.
+4. Collect finished work from each desk, hand it in at **your** desk. Work
+   you never picked up is worth half.
+5. Set homework, and next day collect and **mark** it. The answer key is
+   hidden — you are judging whether a sheet looks right. Wave a bad one
+   through and that student is secretly behind, and stalls more tomorrow.
+6. Ring the **bell**. Grades pay coins; furniture costs upkeep.
+7. Buy furniture at the **noticeboard**. Range matters — while placing, the
+   desks it would actually help light up green.
+8. After 20 days the class sits an exam. That is the run.
 
-## Test
-
-Double-click **`Run Tests.bat`**, or:
-
-```
-godot --headless --path . res://tests/run.tscn
-```
-
-218 assertions. Exits 0/1 so it can gate a commit.
-
-**Never use `create_timer()` in a test.** `Engine.max_physics_steps_per_frame`
-(default 8) clamps catch-up, so any main-thread stall desyncs simulation time
-from wall-clock time and every timer-based assertion silently lies. Step
-physics frames instead — `SPEED = 60` at 60Hz is exactly 1px per frame, so
-movement assertions are integer arithmetic.
-
-## Redraw the art
-
-All art is drawn in code. Edit a colour or a shape and re-run:
+## How a grade is built
 
 ```
-python tools/make_art.py
+room   0.28 .. 0.62   the furniture in range of that desk
+lesson 0.00 .. 0.35   how much of their work they got through
+                      (halved if you never collected it)
+hw     0.00 .. 0.12   homework, reduced if you misjudged it
 ```
 
-Characters — each an 80x96 sheet: 4 facings (down, left, right, up) x 5 frames
-of 16x24. Frames 0–3 are the walk cycle, **frame 4 is the seated pose**. All
-nine come out of one drawing routine with different palettes; `long_hair` and
-`skirt` flags separate them.
+Deliberately, **neither the room nor the teaching alone reaches the top**:
+a perfect room with an absent teacher is a C, a bare room with perfect
+teaching is a C, and both together is an A. Those three rows are asserted by
+the test suite against *simulated play*.
 
-- `art/player.png` — the teacher
-- `art/student_a.png` … `art/student_h.png` — eight students
-
-Furniture is drawn in the room's 3/4 view. **The bottom row of pixels is where
-the piece meets the floor** — that is the point the whole game positions and
-depth-sorts by, and every sprite obeys it, including the seated pose.
-
-- `art/chair.png` (16x18), `art/desk.png` (16x20), `art/table.png` (32x20)
-- `art/room.png` — 320x176: 20x11 tiles of 16px, 2-tile-tall top wall
-
-## Layout
+## Running things
 
 ```
-project.godot              window, input actions, physics layers, Game autoload
-scenes/main.tscn           Main > World (y-sorted) + UI (CanvasLayer)
-scenes/actors/*.tscn       player and student, packed so $Sprite2D always resolves
-
-scripts/autoload/game.gd   the run: day, coins, phase, roster, SEEDED rng
-scripts/data/              StudentData (a RefCounted, not a Node), name pool
-scripts/actors/actor.gd    shared walk + facing + seated pose
-scripts/world/grid.gd      tile maths, occupancy, AStarGrid2D — the spatial authority
-scripts/world/layout.gd    where the desks, podium, bell and door are
-scripts/world/room_builder.gd  layout + state -> nodes
-scripts/world/classroom.gd     the World root; builds and spawns
-
-tools/make_art.py          draws every image
-tests/run.gd               the suite
+Run Tests.bat            246 assertions
+Simulate a Term.bat      plays whole terms and prints the curves
+Open in Godot Editor.bat
+python tools/make_art.py     redraw every image
+python tools/make_audio.py   resynthesise every sound
 ```
 
-### Two rules worth knowing before editing
+All art and all audio are generated by those two scripts — nothing is
+sourced. To add art without touching code, drop a text file in
+`tools/sprites/` (see the README there) and re-run `make_art.py`.
 
-**Everything is positioned by where it meets the floor.** Not its centre. That
-one convention is what makes y-sorting work with no special cases — a chair at
-`seat_y - 1`, the student at `seat_y`, the desk at `seat_y + 16`, so the desk
-occludes the student's lap. The 1px chair offset is deliberate: exact y ties in
-Godot fall back to tree order, which is silently order-dependent.
+Every gameplay number lives in `data/balance.json`. Nothing tunable is a
+constant in a script.
 
-**All randomness goes through `Game.rng`, which is seeded.** Never call the
-global `randi()`/`randf()`. Without this the grading and homework tests can't
-exist at all.
+## Why the simulator exists
+
+An earlier version passed 218 tests while four of its loops were wired to
+nothing: collecting work fed no number, the homework verdict was never read,
+the teacher could only ever matter once per lesson, and the economy could
+not afford its own cheapest item. Each piece was individually consistent, so
+unit tests could not see it — and the balance test set its inputs by hand,
+so it validated a state the game could not reach.
+
+`tools/sim.tscn` plays whole terms under four player policies and prints the
+curves. Everything above is obvious in one table.
+
+## Files
+
+```
+project.godot            window, input actions, autoloads
+data/balance.json        every tunable number
+scenes/                  main, actors, ui
+scripts/
+  autoload/  game.gd, sfx.gd
+  world/     layout, grid, room_builder, classroom, placement
+  actors/    actor, player, student
+  interact/  podium, bell, desk_station, marking_desk, noticeboard, placed_item
+  data/      balance, items, questions, events, names, student_data
+  ui/        hud, floater, debug_panel
+tools/       make_art.py, make_audio.py, sim.gd, sprites/
+tests/run.gd
+```

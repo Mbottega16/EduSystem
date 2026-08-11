@@ -10,7 +10,7 @@ extends Control
 ## adequate, it is more legible than real controls would be, and it keeps
 ## the whole UI layer to one script.
 
-enum Mode { NONE, REPORT, CATALOGUE, MARKING }
+enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST }
 enum Shop { BUY, SELL }
 
 signal item_chosen(id: String)
@@ -31,11 +31,14 @@ var _shop: int = Shop.BUY
 # marking state
 var _marking: Array = []       ## StudentData still to be judged
 var _marked_right: int = 0
+var _shown_hints := {}
 
 
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("carrier")
+	if mode == Mode.NONE and Input.is_action_just_pressed("menu"):
+		show_class_list()
 	_update_status()
 	_update_prompt()
 
@@ -46,7 +49,15 @@ func _physics_process(_delta: float) -> void:
 
 
 func _update_status() -> void:
-	var line := "Day %d  %s    %d coins" % [Game.day, Game.subject, Game.coins]
+	var left: int = maxi(0, Balance.term_days - Game.day + 1)
+	var line := "Day %d/%d  %s    %d coins" % [
+		Game.day, Balance.term_days, Game.subject, Game.coins]
+	if Game.phase == Game.Phase.LESSON:
+		var room := get_tree().get_first_node_in_group("classroom")
+		if room != null:
+			line += "    %ds left" % int(ceil(room.lesson_left))
+	elif left <= 3:
+		line += "    LAST %d DAYS" % left
 	if _player != null and is_instance_valid(_player):
 		if _player.carrying > 0:
 			line += "    carrying %d" % _player.carrying
@@ -59,6 +70,11 @@ func _update_status() -> void:
 			stuck += 1
 		if s.has_work_to_collect():
 			waiting += 1
+	# via a group, not current_scene -- current_scene is not Main when the
+	# game is instantiated inside a test or a screenshot harness
+	var place := get_tree().get_first_node_in_group("placement")
+	if place != null and place.active:
+		line += "    this spot helps %d" % place.reach_count()
 	if stuck > 0:
 		line += "    %d stuck" % stuck
 	if waiting > 0:
@@ -74,6 +90,9 @@ func _update_prompt() -> void:
 	var target: Interactable = null
 	if _player != null and is_instance_valid(_player) 			and is_instance_valid(_player.target):
 		target = _player.target
+	# a timed hint owns the prompt bar while it is up
+	if _hint_until > Time.get_ticks_msec() / 1000.0:
+		return
 	var showing := target != null and target.can_interact()
 	prompt.visible = showing
 	prompt_box.visible = showing
@@ -85,6 +104,8 @@ func _update_prompt() -> void:
 
 func _open(m: int) -> void:
 	mode = m
+	body.add_theme_font_size_override("font_size", 10)
+	body.add_theme_constant_override("line_spacing", 4)
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -95,6 +116,92 @@ func close() -> void:
 	overlay.visible = false
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = false
+
+
+## The first thing anyone sees. The game used to boot straight into play
+## with no explanation of anything at all.
+## The first thing anyone sees. The game used to boot straight into play
+## with no explanation of anything at all.
+##
+## Sized to the panel deliberately: the body is 128px, and at font size 8
+## a line is about 20px, so SEVEN lines is the honest limit. Earlier drafts
+## ran off the bottom and overlapped the hint bar.
+func show_title() -> void:
+	_open(Mode.TITLE)
+	body.add_theme_font_size_override("font_size", 8)
+	body.add_theme_constant_override("line_spacing", 1)
+	title.text = "P I X E L R O O M"
+	body.text = "\n".join([
+		"You are the teacher. Arrows/WASD walk, E does the",
+		"prompt at the bottom, Tab shows your class.",
+		"Start the lesson at the PODIUM, then walk the room.",
+		"A student with a ? is STUCK and their work has",
+		"stopped - press E at their desk to get them going.",
+		"Collect the work, hand it in at YOUR desk, ring the",
+		"BELL. After %d days the class sits an exam." % Balance.term_days,
+	])
+	hint.text = "E - begin"
+
+
+## A one-off nudge, shown once per run. Silence is the worst teacher.
+func hint_once(id: String, text: String) -> void:
+	if _shown_hints.has(id) or mode != Mode.NONE:
+		return
+	_shown_hints[id] = true
+	prompt.visible = true
+	prompt_box.visible = true
+	prompt.text = text
+	_hint_until = Time.get_ticks_msec() / 1000.0 + 4.0
+
+
+var _hint_until: float = 0.0
+
+
+## Everyone in the room, what they are good at, and how they have been doing.
+## Eight names and eight sprites do not make eight people if the player can
+## never see anything that distinguishes them.
+func show_class_list() -> void:
+	_open(Mode.CLASS_LIST)
+	title.text = "YOUR CLASS"
+	var lines: Array[String] = []
+	lines.append("%-11s %-9s %-6s %s" % ["name", "best at", "avg", "notes"])
+	for s: StudentData in Game.roster:
+		var notes: Array[String] = []
+		if s.aptitude >= 0.65:
+			notes.append("quick")
+		elif s.aptitude <= 0.4:
+			notes.append("needs time")
+		if s.diligence >= 0.65:
+			notes.append("reliable")
+		elif s.diligence <= 0.4:
+			notes.append("forgets hw")
+		if s.misjudged:
+			notes.append("secretly behind")
+		lines.append("%-11s %-9s %-6s %s" % [
+			s.display_name.split(" ")[0], s.favourite,
+			"-" if s.grades.is_empty() else Game.grade_letter(s.average_grade()),
+			", ".join(notes)])
+	body.text = "\n".join(lines)
+	hint.text = "E or Esc - close"
+
+
+## End of term. The whole run, scored.
+func show_exam(result: Dictionary) -> void:
+	_open(Mode.REPORT)
+	Sfx.play("grade")
+	title.text = "END OF TERM EXAM"
+	var lines: Array[String] = []
+	for r: Dictionary in result.get("rows", []):
+		var s: StudentData = r["student"]
+		lines.append("  %-12s %s    %s" % [
+			s.display_name.split(" ")[0], String(r["letter"]),
+			"passed" if bool(r["passed"]) else "did not pass"])
+	lines.append("")
+	lines.append("  %d of %d passed.   Class grade: %s" % [
+		int(result.get("passed", 0)), int(result.get("total", 0)),
+		String(result.get("letter", "F"))])
+	body.text = "\n".join(lines)
+	hint.text = "E - close.   That is the term."
 
 
 func show_lesson_report(results: Array) -> void:
@@ -137,13 +244,22 @@ func show_day_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	_open(Mode.REPORT)
 	title.text = "DAY %d DONE" % int(report.get("day", 0))
-	body.text = "\n".join([
+	var lines: Array[String] = [
 		"Class average    %s" % Game.grade_letter(float(report.get("average", 0.0))),
 		"Coins earned     %d" % int(report.get("coins", 0)),
+		"Upkeep           -%d" % int(report.get("upkeep", 0)),
 		"Homework done    %d of %d" % [int(report.get("homework_done", 0)), Game.roster.size()],
-		"",
-		"Tomorrow the class files back in.",
-	])
+	]
+	if String(report.get("joined", "")) != "":
+		lines.append("")
+		lines.append("%s has joined the class." % String(report["joined"]))
+	lines.append("")
+	if String(report.get("event", "")) != "":
+		lines.append("Tomorrow: %s" % String(report["event"]))
+		lines.append("  %s" % String(report.get("event_blurb", "")))
+	lines.append("")
+	lines.append("%d days left in the term." % int(report.get("days_left", 0)))
+	body.text = "\n".join(lines)
 	hint.text = "E — close"
 
 
@@ -182,6 +298,7 @@ func _render_catalogue() -> void:
 				"" if Game.can_afford(int(d["cost"])) else "   too dear"])
 		lines.append("")
 		lines.append(String(Items.get_def(rows[_sel]).get("blurb", "")))
+		lines.append("Place it well and the green desks are the ones it helps.")
 	else:
 		for i in rows.size():
 			var placed: Dictionary = rows[i]
@@ -266,8 +383,9 @@ func _verdict(pass_it: bool) -> void:
 ## automated playthrough until it was found. Everything in this project that
 ## reads input polls, for exactly that reason.
 func _handle_input() -> void:
-	if mode == Mode.REPORT:
+	if mode == Mode.REPORT or mode == Mode.TITLE or mode == Mode.CLASS_LIST:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("confirm")
 			close()
 		return
 

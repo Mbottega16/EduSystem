@@ -88,6 +88,9 @@ func _main() -> void:
 	await test_day_cycle()
 	await test_confusion()
 	await test_placement()
+	test_events()
+	test_economy()
+	test_term()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1411,3 +1414,144 @@ func test_progress_bar() -> void:
 	chk("at 100% the work is done and the bar is dropped",
 		s.work_state == StudentData.Work.DONE)
 	chk("the node is still alive to draw it", is_instance_valid(node))
+
+
+# ================================================ term, events, economy
+
+func test_events() -> void:
+	section("DAY EVENTS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("a fresh run starts on an ordinary day",
+		String(Game.event.get("id", "")) == "none", Game.event)
+
+	var seen := {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	for i in 600:
+		seen[String(DayEvent.roll(rng)["id"])] = true
+	chk("every event in the table can actually come up",
+		seen.size() == DayEvent.TABLE.size(),
+		"%d of %d" % [seen.size(), DayEvent.TABLE.size()])
+
+	chk("every event has a name and a blurb the player can read", (func() -> bool:
+		for e: Dictionary in DayEvent.TABLE:
+			if String(e.get("name", "")) == "" or String(e.get("blurb", "")) == "":
+				return false
+		return true).call())
+
+	# the multipliers must actually reach the systems they claim to
+	Game.event = DayEvent.by_id("restless")
+	var restless := Game.event_stall_multiplier()
+	Game.event = DayEvent.by_id("focused")
+	var focused := Game.event_stall_multiplier()
+	chk("a restless day really does make stalls more likely",
+		restless > 1.0 and focused < 1.0, "%.2f vs %.2f" % [restless, focused])
+
+	Game.event = DayEvent.by_id("short_day")
+	var short := Game.lesson_length()
+	Game.event = DayEvent.by_id("long_day")
+	var long := Game.lesson_length()
+	Game.event = DayEvent.by_id("none")
+	chk("assembly shortens the lesson and a double period lengthens it",
+		short < Balance.lesson_seconds and long > Balance.lesson_seconds,
+		"%.0f / %.0f / %.0f" % [short, Balance.lesson_seconds, long])
+
+	# a student's favourite subject should genuinely help them
+	var s := StudentData.new()
+	s.aptitude = 0.5
+	s.favourite = "Maths"
+	Game.subject = "Maths"
+	var good_day := s.stall_chance()
+	Game.subject = "History"
+	var normal_day := s.stall_chance()
+	chk("a student stalls less on their own favourite subject",
+		good_day < normal_day, "%.4f vs %.4f" % [good_day, normal_day])
+
+	s.misjudged = true
+	chk("and more if you waved their homework through",
+		s.stall_chance() > normal_day)
+
+
+func test_economy() -> void:
+	section("ECONOMY")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	chk("you start with something to spend", Game.coins > 0)
+	chk("the cheapest item is affordable on day one", (func() -> bool:
+		for id: String in Items.order():
+			if Game.can_afford(Items.cost(id)):
+				return true
+		return false).call())
+
+	# upkeep: coins must not simply pile up once the room is capped
+	Game.new_run(SEED)
+	Game.add_coins(5000)
+	for i in 6:
+		Game.room_items.append({"id": "plant", "tile": Vector2i(2 + i, 8)})
+	var before: int = Game.coins
+	for s: StudentData in Game.roster:
+		s.last_grade = 0.0
+		s.grades.append(0.0)
+	Game.advance_day()
+	chk("furniture costs something to keep",
+		Game.coins < before, "%d -> %d" % [before, Game.coins])
+
+	chk("selling gives back half, rounded down",
+		Game.sell_value("bookshelf") == int(floor(Items.cost("bookshelf") * Balance.sell_fraction)))
+	chk("upkeep cannot push you into debt", (func() -> bool:
+		Game.coins = 0
+		Game.advance_day()
+		return Game.coins >= 0).call())
+
+
+func test_term() -> void:
+	section("END OF TERM")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	chk("a run does not start finished", not Game.term_over)
+	chk("a term is a fixed number of days", Balance.term_days > 0)
+
+	# a class that did well should pass; one that did badly should not
+	for s: StudentData in Game.roster:
+		s.grades.assign([0.9, 0.92, 0.88])
+	var good := Game.sit_exam()
+	chk("a class you taught well passes its exam",
+		int(good["passed"]) == int(good["total"]), good)
+	chk("the exam reports a letter for the class",
+		String(good["letter"]) == "A" or String(good["letter"]) == "B", good["letter"])
+
+	for s: StudentData in Game.roster:
+		s.grades.assign([0.2, 0.25, 0.18])
+	var bad := Game.sit_exam()
+	chk("a class you neglected does not", int(bad["passed"]) == 0, bad)
+	chk("every student gets a row in the result",
+		bad["rows"].size() == Game.roster.size())
+	chk("a better term really does produce a better exam",
+		float(good["average"]) > float(bad["average"]))
+
+	# the room they sat in counts toward the exam too
+	for s: StudentData in Game.roster:
+		s.grades.assign([0.5])
+	var bare := float(Game.sit_exam()["average"])
+	# beside the seats the students actually occupy -- placed anywhere else
+	# they are out of range and correctly count for nothing
+	for s2: StudentData in Game.roster:
+		Game.room_items.append({
+			"id": "lab_bench",
+			"tile": Layout.SEATS[s2.seat_index] + Vector2i(1, 0)})
+	var furnished := float(Game.sit_exam()["average"])
+	chk("the room you built them counts toward the exam",
+		furnished > bare, "%.3f vs %.3f" % [furnished, bare])
+	Game.room_items.clear()
+
+	# rolling past the last day ends the term
+	Game.new_run(SEED)
+	var guard := 0
+	while not Game.term_over and guard < 200:
+		Game.advance_day()
+		guard += 1
+	chk("playing past the last day ends the term", Game.term_over, guard)
+	chk("and it ends at about the right time",
+		guard <= Balance.term_days + 2, guard)

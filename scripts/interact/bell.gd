@@ -4,6 +4,7 @@ extends Interactable
 ## time is a walk rather than a reflex.
 
 signal day_ended(report: Dictionary)
+signal term_ended(result: Dictionary)
 
 
 func _classroom() -> Node:
@@ -20,6 +21,8 @@ func can_interact() -> bool:
 func prompt_text() -> String:
 	if Game.phase == Game.Phase.LESSON:
 		return ""
+	if Game.day >= Balance.term_days:
+		return "Ring the bell — LAST DAY OF TERM"
 	return "Ring the bell — end day %d" % Game.day
 
 
@@ -28,5 +31,10 @@ func interact(by: Node) -> void:
 	if room == null:
 		return
 	Sfx.play("bell")
-	day_ended.emit(room.end_day())
+	var last := Game.day >= Balance.term_days
+	var report: Dictionary = room.end_day()
+	if last:
+		term_ended.emit(Game.sit_exam())
+	else:
+		day_ended.emit(report)
 	used.emit(by)

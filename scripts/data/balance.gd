@@ -44,6 +44,10 @@ static var enrol_every_days: int = 3
 static var enrol_min_average: float = 0.62
 
 # --- homework ----------------------------------------------------------
+static var term_days: int = 20
+static var exam_pass: float = 0.62
+static var upkeep_per_item: int = 3
+static var affinity_bonus: float = 0.25
 static var not_done_forgiveness: bool = true
 static var verdict_weight: float = 0.5
 
@@ -86,6 +90,7 @@ static func apply(d: Dictionary) -> void:
 	stall_grace_seconds = float(l.get("stall_grace_seconds", stall_grace_seconds))
 	attention_per_help = float(l.get("attention_per_help", attention_per_help))
 	entry_stagger = float(l.get("entry_stagger", entry_stagger))
+	affinity_bonus = float(l.get("affinity_bonus", affinity_bonus))
 
 	var e: Dictionary = d.get("economy", {})
 	coins_per_grade_point = float(e.get("coins_per_grade_point", coins_per_grade_point))
@@ -98,6 +103,13 @@ static func apply(d: Dictionary) -> void:
 	enrol_every_days = int(c.get("enrol_every_days", enrol_every_days))
 	enrol_min_average = float(c.get("enrol_min_average", enrol_min_average))
 
+	var tm: Dictionary = d.get("term", {})
+	term_days = int(tm.get("days", term_days))
+	exam_pass = float(tm.get("exam_pass", exam_pass))
+
+	var up: Dictionary = d.get("upkeep", {})
+	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))
+
 	var h: Dictionary = d.get("homework", {})
 	not_done_forgiveness = bool(h.get("not_done_forgiveness", not_done_forgiveness))
 	verdict_weight = float(h.get("verdict_weight", verdict_weight))
@@ -106,6 +118,38 @@ static func apply(d: Dictionary) -> void:
 		items = d["items"]
 	if d.has("item_order"):
 		item_order = d["item_order"]
+
+
+## Named access for the live debug panel. Object.get()/set() cannot be
+## called on a class directly, only on an instance, and these are statics.
+static func get_value(key: String) -> float:
+	ensure_loaded()
+	match key:
+		"work_seconds": return work_seconds
+		"lesson_seconds": return lesson_seconds
+		"stall_chance_per_second": return stall_chance_per_second
+		"room_base": return room_base
+		"room_cap": return room_cap
+		"lesson_cap": return lesson_cap
+		"coins_per_grade_point": return coins_per_grade_point
+		"upkeep_per_item": return float(upkeep_per_item)
+		"term_days": return float(term_days)
+	return 0.0
+
+
+static func set_value(key: String, v: float) -> void:
+	ensure_loaded()
+	v = maxf(0.0, v)
+	match key:
+		"work_seconds": work_seconds = v
+		"lesson_seconds": lesson_seconds = v
+		"stall_chance_per_second": stall_chance_per_second = v
+		"room_base": room_base = v
+		"room_cap": room_cap = v
+		"lesson_cap": lesson_cap = v
+		"coins_per_grade_point": coins_per_grade_point = v
+		"upkeep_per_item": upkeep_per_item = int(v)
+		"term_days": term_days = maxi(1, int(v))
 
 
 ## The theoretical best grade, so the contract can be asserted rather than

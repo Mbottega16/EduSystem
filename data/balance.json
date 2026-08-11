@@ -21,7 +21,8 @@
     "stall_chance_per_second": 0.14,
     "stall_grace_seconds": 1.5,
     "attention_per_help": 0.06,
-    "entry_stagger": 0.35
+    "entry_stagger": 0.35,
+    "affinity_bonus": 0.25
   },
   "economy": {
     "_note": "payout = round(average_grade * coins_per_grade_point * class_size)",
@@ -93,5 +94,14 @@
     "art_easel",
     "rug",
     "lab_bench"
-  ]
+  ],
+  "term": {
+    "_note": "A run is a term. On the last day the class sits an exam scored on everything you built up, and that is the score you are playing for.",
+    "days": 20,
+    "exam_pass": 0.62
+  },
+  "upkeep": {
+    "_note": "Furniture needs replacing. A per-item daily cost means coins never just pile up, and a huge room you cannot afford is a real decision.",
+    "per_item_per_day": 3
+  }
 }

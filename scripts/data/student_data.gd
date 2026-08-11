@@ -23,6 +23,9 @@ var seat_index: int = -1
 # --- ability. Two numbers on purpose; resist growing this to four. ----
 var aptitude: float = 0.5          ## 0..1 — resistance to getting stuck
 var diligence: float = 0.5         ## 0..1 — will they do the homework
+## The one subject this student is good at. Gives the day's subject a
+## reason to exist beyond being a label.
+var favourite: String = ""
 
 # --- per-lesson, reset by reset_lesson() ------------------------------
 var work_state: int = Work.NONE
@@ -131,6 +134,9 @@ func stall_chance() -> float:
 	var c := Balance.stall_chance_per_second * (1.4 - 0.8 * aptitude)
 	if misjudged:
 		c *= 1.6
+	if favourite != "" and favourite == Game.subject:
+		c *= (1.0 - Balance.affinity_bonus)      # on a good day for them
+	c *= Game.event_stall_multiplier()
 	return c
 
 
@@ -175,6 +181,7 @@ func to_dict() -> Dictionary:
 		"seat_index": seat_index, "aptitude": aptitude, "diligence": diligence,
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
+		"favourite": favourite,
 		"grades": grades, "last_grade": last_grade,
 	}
 
@@ -191,6 +198,7 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.hw_true_accuracy = float(d.get("hw_true_accuracy", 0.0))
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
 	s.misjudged = bool(d.get("misjudged", false))
+	s.favourite = String(d.get("favourite", ""))
 	s.last_grade = float(d.get("last_grade", -1.0))
 	s.grades.assign(d.get("grades", []))
 	return s

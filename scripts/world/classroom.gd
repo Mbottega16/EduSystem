@@ -160,7 +160,7 @@ func everyone_seated() -> bool:
 func start_lesson() -> int:
 	Balance.ensure_loaded()
 	Game.set_phase(Game.Phase.LESSON)
-	lesson_left = Balance.lesson_seconds
+	lesson_left = Game.lesson_length()
 	var n := 0
 	for s: StudentData in Game.roster:
 		var node := student_node(s.seat_index)
