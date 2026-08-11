@@ -28,7 +28,9 @@ func _ready() -> void:
 	world.add_to_group("classroom")
 	placement.set_process(true)
 	world.item_move_requested.connect(_start_moving)
+	world.desk_move_requested.connect(_start_moving_desk)
 	placement.placed.connect(_finish_placing)
+	placement.desk_placed.connect(_finish_moving_desk)
 	placement.cancelled.connect(_unlock)
 
 
@@ -60,6 +62,20 @@ func _start_moving(id: String, tile: Vector2i) -> void:
 	Game.remove_item(_moving_from)
 	world.player.input_locked = true
 	placement.begin(id, world.grid, _moving_from)
+
+
+## Carrying a desk. Unlike a bought item this is NOT lifted off the grid
+## first: a desk has a child sitting in it, and taking the seat away while
+## the ghost is in flight would strand them. Placement treats the desk's own
+## two tiles as free instead, so nudging it one square still works.
+func _start_moving_desk(seat_index: int) -> void:
+	world.player.input_locked = true
+	placement.begin_desk(seat_index, world.grid)
+
+
+func _finish_moving_desk(seat_index: int, tile: Vector2i) -> void:
+	world.move_desk(seat_index, tile)
+	_unlock()
 
 
 func _unlock() -> void:

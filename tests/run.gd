@@ -117,6 +117,7 @@ func _main() -> void:
 	test_catalogue()
 	test_curator()
 	test_cheats()
+	await test_moving_desks()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -259,23 +260,23 @@ func test_layout() -> void:
 		Layout.seat_count() == Balance.class_cap, Layout.seat_count())
 
 	var uniq := {}
-	for s: Vector2i in Layout.SEATS:
+	for s: Vector2i in Layout.seats():
 		uniq[s] = true
-	chk("no two seats share a tile", uniq.size() == Layout.SEATS.size())
+	chk("no two seats share a tile", uniq.size() == Layout.seat_count())
 
 	# every desk must sit one tile TOWARD the camera from its seat, or the
 	# desk won't depth-sort in front of the student and the whole "sitting
 	# at a desk" read collapses
 	var ok := true
 	for i in Layout.seat_count():
-		if Layout.desk_tile(i) != Layout.SEATS[i] + Vector2i(0, 1):
+		if Layout.desk_tile(i) != Layout.seat(i) + Vector2i(0, 1):
 			ok = false
 	chk("every desk is one tile in front of its seat", ok)
 
 	# nothing may be placed inside a wall
 	var inside := true
 	for i in Layout.seat_count():
-		for t: Vector2i in [Layout.SEATS[i], Layout.desk_tile(i)]:
+		for t: Vector2i in [Layout.seat(i), Layout.desk_tile(i)]:
 			if t.x < 1 or t.x > 18 or t.y < 2 or t.y > 9:
 				inside = false
 	chk("every seat and desk is inside the walls", inside)
@@ -306,7 +307,7 @@ func test_scene() -> void:
 	var seats_marked := true
 	var desks_marked := true
 	for i in Layout.seat_count():
-		if world.grid.get_cell(Layout.SEATS[i]) != Grid.Cell.SEAT:
+		if world.grid.get_cell(Layout.seat(i)) != Grid.Cell.SEAT:
 			seats_marked = false
 		if world.grid.get_cell(Layout.desk_tile(i)) != Grid.Cell.BLOCKED:
 			desks_marked = false
@@ -320,7 +321,7 @@ func test_scene() -> void:
 	var all_reachable := true
 	var unreachable: Array = []
 	for i in Layout.seat_count():
-		if not world.grid.reachable(start, Layout.SEATS[i]):
+		if not world.grid.reachable(start, Layout.seat(i)):
 			all_reachable = false
 			unreachable.append(i)
 	chk("every seat is reachable from where the teacher starts",
@@ -445,7 +446,7 @@ func test_arrival() -> void:
 	var report: Array = []
 	for s: StudentData in Game.roster:
 		var node: Actor = world.student_node(s.seat_index)
-		var want := Grid.tile_to_world(Layout.SEATS[s.seat_index])
+		var want := Grid.tile_to_world(Layout.seat(s.seat_index))
 		if node == null or not node.global_position.is_equal_approx(want):
 			on_seat = false
 			report.append("seat %d" % s.seat_index)
@@ -565,7 +566,7 @@ func test_seating() -> void:
 			seated_ok = false
 			report.append("seat %d has no node" % s.seat_index)
 			continue
-		var want := Grid.tile_to_world(Layout.SEATS[s.seat_index])
+		var want := Grid.tile_to_world(Layout.seat(s.seat_index))
 		if not node.global_position.is_equal_approx(want):
 			seated_ok = false
 			report.append("seat %d at %s want %s" % [s.seat_index, node.global_position, want])
@@ -589,9 +590,9 @@ func test_seating() -> void:
 
 	# Depth order is the whole reason for the floor-anchor convention:
 	# chair behind, student, desk in front occluding their lap.
-	var seat_y: float = Grid.tile_to_world(Layout.SEATS[0]).y
+	var seat_y: float = Grid.tile_to_world(Layout.seat(0)).y
 	var desk_y: float = Grid.tile_to_world(Layout.desk_tile(0)).y
-	var chair := _body_near(Vector2(Grid.tile_to_world(Layout.SEATS[0]).x, seat_y - 1.0))
+	var chair := _body_near(Vector2(Grid.tile_to_world(Layout.seat(0)).x, seat_y - 1.0))
 	var desk := _body_near(Vector2(Grid.tile_to_world(Layout.desk_tile(0)).x, desk_y))
 	chk("a chair sits 1px behind its seat so the y-sort tie is broken",
 		chair != null, "no StaticBody2D at seat anchor -1px")
@@ -685,7 +686,7 @@ func _simulate_lesson(furnish: bool, teach: bool) -> float:
 			while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
 				Game.room_items.append({
 					"id": Items.order()[guard % Items.order().size()],
-					"tile": Layout.SEATS[0] + Vector2i(0, 1)})
+					"tile": Layout.seat(0) + Vector2i(0, 1)})
 				guard += 1
 		for s: StudentData in Game.roster:
 			s.seat_index = 0 if furnish else s.seat_index
@@ -748,19 +749,19 @@ func test_items() -> void:
 
 	# range is the whole point of item placement
 	Game.room_items.clear()
-	var far := Layout.SEATS[0] + Vector2i(9, 0)
+	var far := Layout.seat(0) + Vector2i(9, 0)
 	Game.room_items.append({"id": "bookshelf", "tile": far})
 	chk("an item out of range helps nobody",
 		is_equal_approx(Game.room_score(0), Balance.room_base),
 		Game.room_score(0))
-	Game.room_items[0]["tile"] = Layout.SEATS[0] + Vector2i(2, 0)
+	Game.room_items[0]["tile"] = Layout.seat(0) + Vector2i(2, 0)
 	chk("the same item in range does help",
 		Game.room_score(0) > Balance.room_base, Game.room_score(0))
 
 	# a 2-tile item should reach from either end, not just its anchor
 	Game.room_items.clear()
 	Game.room_items.append({"id": "lab_bench",
-		"tile": Layout.SEATS[0] + Vector2i(-4, 0)})
+		"tile": Layout.seat(0) + Vector2i(-4, 0)})
 	chk("a wide item measures from its NEAREST tile, not its anchor",
 		Game.room_score(0) > Balance.room_base, Game.room_score(0))
 
@@ -942,7 +943,7 @@ func test_day_cycle() -> void:
 	# costs ~30 real seconds, so seat them directly here.
 	for n: Actor in world.students:
 		if n.data != null:
-			n.seat_at(Grid.tile_to_world(Layout.SEATS[n.data.seat_index]))
+			n.seat_at(Grid.tile_to_world(Layout.seat(n.data.seat_index)))
 	await step(2)
 	chk("the new day's class is seated and ready", world.everyone_seated())
 
@@ -1156,6 +1157,98 @@ func _same_within(a: Variant, b: Variant, tol: float) -> bool:
 
 func _hud() -> Control:
 	return world.get_parent().get_node("UI/HUD")
+
+
+func test_moving_desks() -> void:
+	section("MOVING DESKS")
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	chk("the room opens in its default arrangement",
+		Layout.seats() == Layout.DEFAULT_SEATS)
+	chk("and the class can only be as big as the desks it has",
+		Game.seat_capacity() == Layout.seat_count())
+
+	# --- what the ghost will and will not accept ---
+	var place := Placement.new()
+	world.add_child(place)
+	place.begin_desk(0, world.grid)
+	chk("a desk starts on its own seat", place.tile == Layout.seat(0))
+	chk("and where it already is counts as valid, so a cancel is safe",
+		place.is_valid())
+
+	place.tile = Vector2i(5, 3)
+	place._refresh()
+	chk("a clear tile with room for the desk below is fine", place.is_valid())
+
+	place.tile = Vector2i(7, 3)
+	place._refresh()
+	chk("but not if the DESK half would land on another desk's seat",
+		not place.is_valid(), place.tile)
+
+	place.tile = Layout.seat(1)
+	place._refresh()
+	chk("nor straight on top of another desk", not place.is_valid())
+
+	place.tile = Vector2i(0, 0)
+	place._refresh()
+	chk("nor inside a wall", not place.is_valid())
+
+	# The whole reason a desk's own tiles are treated as free: without it the
+	# desk blocks itself and the commonest move of all becomes illegal.
+	place.tile = Layout.seat(0) + Vector2i(1, 0)
+	place._refresh()
+	chk("and nudging a desk one tile sideways is allowed", place.is_valid())
+	place.finish()
+	place.queue_free()
+
+	# --- the move itself ---
+	var s: StudentData = Game.roster[0]
+	var from: Vector2i = Layout.seat(s.seat_index)
+	var to := Vector2i(5, 3)
+	chk("the desk moves", world.move_desk(s.seat_index, to))
+	chk("and the seating record went with it", Layout.seat(s.seat_index) == to)
+	chk("the desk is still one tile in front of the chair",
+		Layout.desk_tile(s.seat_index) == to + Layout.DESK_OFFSET)
+	chk("the tile it left is walkable again", world.grid.is_free(from),
+		world.grid.get_cell(from))
+	chk("the tile it left is not still a seat",
+		world.grid.get_cell(from) != Grid.Cell.SEAT)
+	chk("the new tile is a seat on the grid",
+		world.grid.get_cell(to) == Grid.Cell.SEAT, world.grid.get_cell(to))
+	chk("and the desk half of it blocks",
+		world.grid.get_cell(to + Layout.DESK_OFFSET) == Grid.Cell.BLOCKED)
+
+	await step(2)
+	var node: Actor = world.student_node(s.seat_index)
+	chk("the child went with their desk rather than being left behind",
+		node != null and node.global_position == Grid.tile_to_world(to),
+		node.global_position if node != null else "no node")
+	chk("nobody has been cut off from the door", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if not world.grid.reachable(Layout.DOOR, Layout.seat(st.seat_index)):
+				return false
+		return true).call())
+
+	# no two desks may ever share a tile, whatever the player tries
+	chk("a desk cannot be dropped onto another desk",
+		not world.move_desk(s.seat_index, Layout.seat(1)))
+
+	# --- it survives the night ---
+	Game.save_game()
+	var arrangement := Layout.seats().duplicate()
+	Game.new_run(1)
+	chk("a new run starts from the default arrangement again",
+		Layout.seats() == Layout.DEFAULT_SEATS)
+	Game.load_game()
+	chk("but a saved room remembers where you left the desks",
+		Layout.seats() == arrangement, Layout.seats())
+	Game.delete_save()
+
+	Game.new_run(SEED)
+	world.move_desk(0, Layout.DEFAULT_SEATS[0])   # leave the room as we found it
+	await step(2)
 
 
 func test_overlays() -> void:
@@ -1609,7 +1702,7 @@ func test_term() -> void:
 	for s2: StudentData in Game.roster:
 		Game.room_items.append({
 			"id": "lab_bench",
-			"tile": Layout.SEATS[s2.seat_index] + Vector2i(1, 0)})
+			"tile": Layout.seat(s2.seat_index) + Vector2i(1, 0)})
 	var furnished := float(Game.sit_exam()["average"])
 	chk("the room you built them counts toward the exam",
 		furnished > bare, "%.3f vs %.3f" % [furnished, bare])

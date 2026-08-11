@@ -196,7 +196,7 @@ func _one_lesson(furnish: bool, teach: bool) -> float:
 			while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
 				Game.room_items.append({
 					"id": Items.order()[guard % Items.order().size()],
-					"tile": Layout.SEATS[0] + Vector2i(0, 1)})
+					"tile": Layout.seat(0) + Vector2i(0, 1)})
 				guard += 1
 		for s: StudentData in Game.roster:
 			s.seat_index = 0 if furnish else s.seat_index

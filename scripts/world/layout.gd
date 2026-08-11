@@ -11,10 +11,57 @@ extends RefCounted
 ## Where a student SITS. The desk sits one tile below (toward the camera), so
 ## the desk depth-sorts in front of them and occludes their lap — which is
 ## what makes a seated figure read as being AT a desk rather than beside one.
-const SEATS: Array[Vector2i] = [
+##
+## The arrangement a new class starts in. Desks can be moved now, so this is
+## the OPENING layout rather than the layout — see seats() below.
+const DEFAULT_SEATS: Array[Vector2i] = [
 	Vector2i(3, 4), Vector2i(7, 4), Vector2i(11, 4), Vector2i(15, 4),
 	Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7), Vector2i(15, 7),
 ]
+
+## Where the desks ACTUALLY are in this run.
+##
+## A static var rather than an autoload, for the same reason Balance is one:
+## the headless tests and the term simulator have no SceneTree, and seating
+## has to be answerable without one. Game owns loading and saving it; this
+## class owns what the current arrangement is.
+static var _seats: Array[Vector2i] = []
+
+
+## The current arrangement, falling back to the opening one. The fallback
+## matters: plenty of code asks about seating before any run has started.
+static func seats() -> Array[Vector2i]:
+	return _seats if not _seats.is_empty() else DEFAULT_SEATS
+
+
+static func seat(seat_index: int) -> Vector2i:
+	var s := seats()
+	if seat_index < 0 or seat_index >= s.size():
+		return Vector2i(-1, -1)
+	return s[seat_index]
+
+
+static func set_seats(v: Array[Vector2i]) -> void:
+	_seats = v.duplicate()
+
+
+## Back to the opening arrangement, for a new run.
+static func reset_seats() -> void:
+	_seats = []
+
+
+## Move one desk (and therefore its chair, and whoever is sitting in it).
+## Returns false if the tile is already somebody else's seat.
+static func move_seat(seat_index: int, to: Vector2i) -> bool:
+	var s := seats().duplicate()
+	if seat_index < 0 or seat_index >= s.size():
+		return false
+	for i in s.size():
+		if i != seat_index and s[i] == to:
+			return false
+	s[seat_index] = to
+	_seats = s
+	return true
 
 const DESK_OFFSET := Vector2i(0, 1)
 
@@ -70,8 +117,18 @@ static func span_anchor(tiles: Array[Vector2i]) -> Vector2:
 
 
 static func desk_tile(seat_index: int) -> Vector2i:
-	return SEATS[seat_index] + DESK_OFFSET
+	return seat(seat_index) + DESK_OFFSET
 
 
 static func seat_count() -> int:
-	return SEATS.size()
+	return seats().size()
+
+
+## Which desk is at this tile, counting the desk itself as well as the seat,
+## so walking up to either half of the pair finds it. -1 for none.
+static func seat_at_tile(t: Vector2i) -> int:
+	var s := seats()
+	for i in s.size():
+		if s[i] == t or s[i] + DESK_OFFSET == t:
+			return i
+	return -1

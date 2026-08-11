@@ -71,7 +71,7 @@ static func seats_in_range(id: String, origin: Vector2i) -> Array[int]:
 		return out
 	var reach := int(d.get("range", 0))
 	for i in Layout.seat_count():
-		var seat: Vector2i = Layout.SEATS[i]
+		var seat: Vector2i = Layout.seat(i)
 		var best := 9999
 		for t: Vector2i in footprint(id, origin):
 			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))

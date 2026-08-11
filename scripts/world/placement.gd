@@ -8,6 +8,7 @@ extends Node2D
 ## makes the far corners of the room miserable to reach.
 
 signal placed(id: String, tile: Vector2i)
+signal desk_placed(seat_index: int, tile: Vector2i)
 signal cancelled()
 
 const OK_TINT := Color(0.55, 1.0, 0.6, 0.75)
@@ -16,6 +17,11 @@ const BAD_TINT := Color(1.0, 0.45, 0.4, 0.7)
 var active: bool = false
 var item_id: String = ""
 var tile: Vector2i = Vector2i(9, 5)
+
+## Which desk is being carried, or -1 when this is an ordinary item. A desk
+## is not a catalogue entry: it occupies a PAIR of tiles (the seat and the
+## desk below it) and it has an identity, because a child is sitting in it.
+var desk_index: int = -1
 
 ## Colours for the range overlay.
 const REACH_FILL := Color(0.45, 0.95, 0.55, 0.55)
@@ -38,7 +44,26 @@ func reach_count() -> int:
 	return n
 
 
+## Carry a desk. The ghost is the desk sprite and the cursor tracks the SEAT
+## tile, so the pair moves as one and the chair keeps its place behind it.
+func begin_desk(index: int, grid: Grid) -> void:
+	z_index = 100
+	add_to_group("placement")
+	item_id = ""
+	desk_index = index
+	_grid = grid
+	tile = Layout.seat(index)
+	active = true
+	visible = true
+	if _ghost == null:
+		_ghost = Sprite2D.new()
+		add_child(_ghost)
+	_ghost.texture = load("res://art/desk.png")
+	_refresh()
+
+
 func begin(id: String, grid: Grid, start: Vector2i) -> void:
+	desk_index = -1
 	# Draw above the room. This node lives in the y-sorted world at y=0, so
 	# without this the range highlights sort to the very back and every
 	# chair, desk and student is drawn over the top of them -- the overlay
@@ -61,6 +86,7 @@ func begin(id: String, grid: Grid, start: Vector2i) -> void:
 func finish() -> void:
 	active = false
 	visible = false
+	desk_index = -1
 	_reached.clear()
 	queue_redraw()
 
@@ -68,7 +94,11 @@ func finish() -> void:
 ## Valid means: on the floor, nothing already there, AND — the important one
 ## — placing it must not cut any seat off from the door.
 func is_valid() -> bool:
-	if _grid == null or item_id == "":
+	if _grid == null:
+		return false
+	if desk_index >= 0:
+		return _desk_is_valid()
+	if item_id == "":
 		return false
 	for t: Vector2i in Items.footprint(item_id, tile):
 		if not _grid.is_free(t):
@@ -76,6 +106,76 @@ func is_valid() -> bool:
 	if not Game.item_fits(item_id, tile):
 		return false
 	return not _would_trap_anyone()
+
+
+## A desk needs its own two tiles free, must not land on another desk, and —
+## the one that matters — must not cut anybody off from the door.
+##
+## Its CURRENT tiles are treated as free, because the desk is in the player's
+## hands: measuring against where it still happens to be would stop you
+## nudging a desk one tile sideways, which is the commonest move there is.
+func _desk_is_valid() -> bool:
+	var here := _desk_tiles()
+	var from: Array[Vector2i] = [Layout.seat(desk_index),
+		Layout.seat(desk_index) + Layout.DESK_OFFSET]
+	for t: Vector2i in here:
+		if not Grid.in_bounds(t):
+			return false
+		if from.has(t):
+			continue
+		if not _grid.is_free(t):
+			return false
+	if not Game.item_at(tile).is_empty():
+		return false
+	for i in Layout.seat_count():
+		if i == desk_index and here.has(Layout.seat(i)):
+			continue
+		if i != desk_index and (here.has(Layout.seat(i))
+				or here.has(Layout.seat(i) + Layout.DESK_OFFSET)):
+			return false
+	return not _desk_would_trap_anyone()
+
+
+## The pair of tiles a carried desk would occupy: the seat, and the desk one
+## tile below it.
+func _desk_tiles() -> Array[Vector2i]:
+	return [tile, tile + Layout.DESK_OFFSET]
+
+
+## Same simulate-then-restore trick as _would_trap_anyone(), but it has to
+## move the seat as well as block a tile: a seat nobody can walk to is just
+## as broken as a seat walled in.
+func _desk_would_trap_anyone() -> bool:
+	var old_seats := Layout.seats().duplicate()
+	var here := _desk_tiles()
+	var from: Array[Vector2i] = [old_seats[desk_index],
+		old_seats[desk_index] + Layout.DESK_OFFSET]
+
+	var before: Array[int] = []
+	for t: Vector2i in from:
+		before.append(_grid.get_cell(t))
+		_grid.set_cell(t, Grid.Cell.FREE)
+	var after: Array[int] = []
+	for t: Vector2i in here:
+		after.append(_grid.get_cell(t))
+	_grid.set_cell(here[0], Grid.Cell.SEAT)
+	_grid.set_cell(here[1], Grid.Cell.BLOCKED)
+	Layout.move_seat(desk_index, tile)
+
+	var trapped := false
+	for s: StudentData in Game.roster:
+		if s.seat_index < 0:
+			continue
+		if not _grid.reachable(Layout.DOOR, Layout.seat(s.seat_index)):
+			trapped = true
+			break
+
+	Layout.set_seats(old_seats)
+	for i in here.size():
+		_grid.set_cell(here[i], after[i])
+	for i in from.size():
+		_grid.set_cell(from[i], before[i])
+	return trapped
 
 
 ## Simulate the placement on the real grid, test every seat, then put it
@@ -93,7 +193,7 @@ func _would_trap_anyone() -> bool:
 	for s: StudentData in Game.roster:
 		if s.seat_index < 0:
 			continue
-		if not _grid.reachable(Layout.DOOR, Layout.SEATS[s.seat_index]):
+		if not _grid.reachable(Layout.DOOR, Layout.seat(s.seat_index)):
 			trapped = true
 			break
 
@@ -104,6 +204,14 @@ func _would_trap_anyone() -> bool:
 
 func _refresh() -> void:
 	if _ghost == null:
+		return
+	if desk_index >= 0:
+		# anchored on the DESK tile, so the ghost sits where the desk will
+		_ghost.position = Layout.span_anchor([tile + Layout.DESK_OFFSET]) \
+			- Vector2(0, _ghost.texture.get_height() / 2.0)
+		_ghost.modulate = OK_TINT if is_valid() else BAD_TINT
+		_reached.clear()
+		queue_redraw()
 		return
 	var tiles := Items.footprint(item_id, tile)
 	_ghost.position = Layout.span_anchor(tiles) - Vector2(0, _ghost.texture.get_height() / 2.0)
@@ -124,7 +232,7 @@ func _draw() -> void:
 	for i in Layout.seat_count():
 		var occupied := Game.student_in_seat(i) != null
 		var r := Rect2(
-			Vector2(Layout.SEATS[i]) * Grid.TILE + Vector2(1, 1),
+			Vector2(Layout.seat(i)) * Grid.TILE + Vector2(1, 1),
 			Vector2(Grid.TILE - 2, Grid.TILE - 2))
 		if i in _reached:
 			draw_rect(r, REACH_FILL if occupied else EMPTY_SEAT)
@@ -170,9 +278,12 @@ func _handle_input() -> void:
 		finish()
 		cancelled.emit()
 	elif Game.claim_interact():
-		if is_valid():
-			Sfx.play("confirm")
-			placed.emit(item_id, tile)
-			finish()
-		else:
+		if not is_valid():
 			Sfx.play("deny")
+			return
+		Sfx.play("confirm")
+		if desk_index >= 0:
+			desk_placed.emit(desk_index, tile)
+		else:
+			placed.emit(item_id, tile)
+		finish()

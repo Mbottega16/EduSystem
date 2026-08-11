@@ -18,6 +18,7 @@ const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
 
 const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
+const DESK_MOVER_SCRIPT := preload("res://scripts/interact/desk_mover.gd")
 const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
@@ -94,12 +95,17 @@ static func build_walls(parent: Node2D, grid: Grid) -> void:
 static func build_desks(parent: Node2D, grid: Grid) -> Array:
 	var stations: Array = []
 	for i in Layout.seat_count():
-		var seat: Vector2i = Layout.SEATS[i]
+		var seat: Vector2i = Layout.seat(i)
 		var desk: Vector2i = Layout.desk_tile(i)
 
 		# The chair is nudged 1px up so it always sorts BEHIND its occupant.
-		add_prop(parent, PROP_CHAIR, Grid.tile_to_world(seat), Vector2.ZERO, -1.0)
+		var chair := add_prop(parent, PROP_CHAIR, Grid.tile_to_world(seat), Vector2.ZERO, -1.0)
 		var body := add_prop(parent, PROP_DESK, Grid.tile_to_world(desk), Vector2(14, 8))
+		# Grouped so the room can tear the seating down and rebuild it when a
+		# desk moves. Without this the old chair and desk stay behind as
+		# scenery you can walk through.
+		chair.add_to_group("desk_part")
+		body.add_to_group("desk_part")
 
 		# The finished sheet, hidden until they're done with it.
 		var paper := Sprite2D.new()
@@ -114,6 +120,13 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		station.paper = paper
 		body.add_child(station)
 		stations.append(station)
+
+		# The same desk, on the other button: F picks the whole thing up.
+		var mover := Interactable.new()
+		mover.set_script(DESK_MOVER_SCRIPT)
+		mover.seat_index = i
+		mover.station = station      # it yields to whatever E offers
+		body.add_child(mover)
 
 		grid.set_cell(seat, Grid.Cell.SEAT)
 		grid.set_cell(desk, Grid.Cell.BLOCKED)

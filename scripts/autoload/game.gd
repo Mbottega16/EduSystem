@@ -88,6 +88,7 @@ func new_run(seed_value: int = 0) -> void:
 	perk_ranks.clear()
 	graduated.clear()
 	_next_id = 1
+	Layout.reset_seats()      # back to the opening arrangement
 	Balance.ensure_loaded()
 	coins = Balance.start_coins
 	for i in Balance.class_start:
@@ -100,7 +101,7 @@ func new_run(seed_value: int = 0) -> void:
 ## the room is full.
 func enrol() -> StudentData:
 	Balance.ensure_loaded()
-	if roster.size() >= Balance.class_cap:
+	if roster.size() >= seat_capacity():
 		return null
 	var s := StudentData.new()
 	s.id = _next_id
@@ -129,11 +130,19 @@ func _taken_names() -> Array:
 	return out
 
 
+## How many children the room can hold: the desks that exist, but never more
+## than the class cap. Desks can be moved (and later bought), so the cap is a
+## ceiling on enrolment rather than a fact about the room.
+func seat_capacity() -> int:
+	Balance.ensure_loaded()
+	return mini(Balance.class_cap, Layout.seat_count())
+
+
 func _lowest_free_seat() -> int:
 	var taken := {}
 	for s: StudentData in roster:
 		taken[s.seat_index] = true
-	for i in Balance.class_cap:
+	for i in seat_capacity():
 		if not taken.has(i):
 			return i
 	return -1
@@ -475,7 +484,7 @@ func room_score(seat_index: int) -> float:
 	Balance.ensure_loaded()
 	if seat_index < 0 or seat_index >= Layout.seat_count():
 		return Balance.room_base
-	var seat: Vector2i = Layout.SEATS[seat_index]
+	var seat: Vector2i = Layout.seat(seat_index)
 	var total := Balance.room_base
 	for placed: Dictionary in room_items:
 		var def := Items.get_def(String(placed.get("id", "")))
@@ -628,6 +637,8 @@ func to_dict() -> Dictionary:
 		"perk_ranks": perk_ranks,
 		"graduated": graduated,
 		"cheated": cheated,
+		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
+			return {"tx": t.x, "ty": t.y}),
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
 	}
@@ -649,6 +660,15 @@ func from_dict(d: Dictionary) -> void:
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	graduated = d.get("graduated", []).duplicate()
+	# where the desks were left. An older save has no "seats" key, so it
+	# simply keeps the opening arrangement.
+	var saved_seats: Array[Vector2i] = []
+	for st: Dictionary in d.get("seats", []):
+		saved_seats.append(Vector2i(int(st.get("tx", 0)), int(st.get("ty", 0))))
+	if saved_seats.is_empty():
+		Layout.reset_seats()
+	else:
+		Layout.set_seats(saved_seats)
 	room_items.clear()
 	for p: Dictionary in d.get("room_items", []):
 		room_items.append({"id": String(p.get("id", "")),

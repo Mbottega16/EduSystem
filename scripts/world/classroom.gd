@@ -19,6 +19,8 @@ signal lesson_timed_out()
 signal work_finished(seat_index: int)
 signal day_started(day: int)
 signal item_move_requested(id: String, tile: Vector2i)
+signal desk_move_requested(seat_index: int)
+signal desks_changed()
 
 var grid := Grid.new()
 var player: Actor = null
@@ -49,6 +51,7 @@ func build() -> void:
 	RoomBuilder.build_floor(self)
 	RoomBuilder.build_walls(self, grid)
 	stations = RoomBuilder.build_desks(self, grid)
+	_connect_desk_movers()
 	podium = RoomBuilder.build_podium(self, grid)
 	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
 	bell = RoomBuilder.build_bell(self, grid)
@@ -78,7 +81,7 @@ func _spawn_students() -> void:
 		node.bind(s)
 		node.position = Grid.tile_to_world(Layout.DOOR)
 
-		var seat: Vector2i = Layout.SEATS[s.seat_index]
+		var seat: Vector2i = Layout.seat(s.seat_index)
 		var path := grid.path(Layout.DOOR, seat)
 		if path.is_empty():
 			push_warning("seat %d unreachable from the door — seating directly" % s.seat_index)
@@ -234,6 +237,22 @@ func _rebuild_purchased() -> void:
 			_purchased_tiles.append(t)
 
 
+## The desks are rebuilt whenever one of them moves, so their movers are new
+## objects each time -- same reason _connect_placed() exists.
+func _connect_desk_movers() -> void:
+	for n in get_tree().get_nodes_in_group("desk_part"):
+		if not (n is Node) or n.get_parent() != self:
+			continue
+		for c in n.get_children():
+			if c is Interactable and c.has_signal("desk_move_requested"):
+				if not c.desk_move_requested.is_connected(_on_desk_move_requested):
+					c.desk_move_requested.connect(_on_desk_move_requested)
+
+
+func _on_desk_move_requested(seat_index: int) -> void:
+	desk_move_requested.emit(seat_index)
+
+
 ## Bought furniture is rebuilt from data, so its interactables are new
 ## objects each time and have to be reconnected.
 func _connect_placed() -> void:
@@ -246,6 +265,40 @@ func _connect_placed() -> void:
 
 func _on_move_requested(id: String, tile: Vector2i) -> void:
 	item_move_requested.emit(id, tile)
+
+
+## Put one desk somewhere else, and take its chair and its occupant with it.
+##
+## The seating is torn down and rebuilt wholesale rather than nudged in
+## place. There are eight desks: rebuilding is cheap, and it means the grid
+## cells, the collision boxes and the interactables can never drift out of
+## step with where the desks actually are — which they would, one edge case
+## at a time, if this tried to patch the difference.
+func move_desk(seat_index: int, to: Vector2i) -> bool:
+	var old_seats := Layout.seats().duplicate()
+	if not Layout.move_seat(seat_index, to):
+		return false
+
+	# free the tiles the old arrangement was holding
+	for t: Vector2i in old_seats:
+		grid.set_cell(t, Grid.Cell.FREE)
+		grid.set_cell(t + Layout.DESK_OFFSET, Grid.Cell.FREE)
+
+	for n in get_tree().get_nodes_in_group("desk_part"):
+		if n is Node2D and (n as Node2D).get_parent() == self:
+			remove_child(n)
+			n.queue_free()
+
+	stations = RoomBuilder.build_desks(self, grid)
+	_connect_desk_movers()
+
+	# whoever was sitting there is now sitting somewhere else
+	for s: StudentData in Game.roster:
+		var node := student_node(s.seat_index)
+		if node != null:
+			node.seat_at(Grid.tile_to_world(Layout.seat(s.seat_index)))
+	desks_changed.emit()
+	return true
 
 
 ## Assign work to every seated student. Exposed so tests and future systems
