@@ -76,3 +76,47 @@ static func strand_label(strand: String) -> String:
 		"science": return "Science"
 		"social": return "Humanities"
 	return strand
+
+
+## Every concept in the game, flattened, with its parent lesson attached.
+##
+## A concept is a COMPONENT of its lesson's standard and cites that same real
+## code -- it does not get an identifier of its own. Minting a plausible
+## looking sub-code would be exactly the fabricated citation the header of
+## this file forbids.
+static func concepts() -> Array:
+	ensure_loaded()
+	var out: Array = []
+	for l: Dictionary in lessons:
+		for c: Dictionary in l.get("concepts", []):
+			var row: Dictionary = (c as Dictionary).duplicate()
+			row["lesson"] = String(l.get("id", ""))
+			row["lesson_name"] = String(l.get("name", ""))
+			row["strand"] = String(l.get("strand", ""))
+			out.append(row)
+	return out
+
+
+static func concepts_of(lesson_id: String) -> Array:
+	ensure_loaded()
+	return by_id(lesson_id).get("concepts", [])
+
+
+static func concept(concept_id: String) -> Dictionary:
+	for c: Dictionary in concepts():
+		if String(c.get("id", "")) == concept_id:
+			return c
+	return {}
+
+
+static func concept_count() -> int:
+	return concepts().size()
+
+
+## Which concepts teaching `lesson_id` `times` times has put within reach.
+static func concepts_unlocked_at(lesson_id: String, times: int) -> Array[String]:
+	var out: Array[String] = []
+	for c: Dictionary in concepts_of(lesson_id):
+		if times >= int(c.get("at", 1)):
+			out.append(String(c.get("id", "")))
+	return out

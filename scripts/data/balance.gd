@@ -69,6 +69,10 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- knowing your material ----------------------------------------------
+static var concept_bonus: float = 0.012
+static var concept_bonus_cap: float = 0.12
+
 # --- the in-lesson quiz --------------------------------------------------
 static var quiz_questions: int = 4
 static var quiz_seconds_cost: float = 10.0
@@ -180,6 +184,10 @@ static func apply(d: Dictionary) -> void:
 	stu_diligence_step = float(st.get("level_diligence_step", stu_diligence_step))
 	stu_ready_level = int(st.get("ready_level", stu_ready_level))
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
+
+	var cn: Dictionary = d.get("concepts", {})
+	concept_bonus = float(cn.get("bonus", concept_bonus))
+	concept_bonus_cap = float(cn.get("bonus_cap", concept_bonus_cap))
 
 	var qz: Dictionary = d.get("quiz", {})
 	quiz_questions = int(qz.get("questions", quiz_questions))

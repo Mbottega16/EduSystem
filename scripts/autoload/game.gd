@@ -87,6 +87,9 @@ func new_run(seed_value: int = 0) -> void:
 	teacher_level = 1
 	perk_ranks.clear()
 	graduated.clear()
+	taught.clear()
+	concepts.clear()
+	quiz_done = false
 	_next_id = 1
 	Layout.reset_seats()      # back to the opening arrangement
 	Balance.ensure_loaded()
@@ -315,6 +318,72 @@ func graduate(s: StudentData) -> Dictionary:
 	record["coins"] = coins_won
 	record["replaced_by"] = joined.display_name if joined != null else ""
 	return record
+
+
+# --- what you have taught, and what it taught YOU -------------------
+## lesson id -> how many times you have taught it.
+var taught: Dictionary = {}
+## Concept ids you have unlocked, in the order you got them.
+var concepts: Array = []
+
+signal concepts_learned(ids: Array)
+
+
+## Record a lesson as taught and hand back whatever that just unlocked.
+##
+## THE LESSON FROM EDUSYSTEMS, recorded in its own notes: concepts there
+## unlocked a name on a list and changed nothing, which was "the single
+## clearest reason the learning system doesn't make sense". So a concept
+## here is worth something the moment you have it -- see concept_bonus().
+func record_taught(lesson_id: String) -> Array:
+	if lesson_id == "":
+		return []
+	taught[lesson_id] = int(taught.get(lesson_id, 0)) + 1
+	var fresh: Array = []
+	for cid: String in Curriculum.concepts_unlocked_at(
+			lesson_id, int(taught[lesson_id])):
+		if not concepts.has(cid):
+			concepts.append(cid)
+			fresh.append(cid)
+	# some furniture teaches a concept just by being in the room
+	for extra: String in _item_taught_concepts():
+		if not concepts.has(extra):
+			concepts.append(extra)
+			fresh.append(extra)
+	if not fresh.is_empty():
+		concepts_learned.emit(fresh)
+	return fresh
+
+
+## Concepts the room itself confers. This is what finally ties the furniture
+## you buy to the curriculum: a microscope is not just a grade bonus, it
+## puts Earth & Life Science within reach.
+func _item_taught_concepts() -> Array[String]:
+	var out: Array[String] = []
+	for placed: Dictionary in room_items:
+		var cid := String(Items.get_def(String(placed.get("id", ""))).get("teaches", ""))
+		if cid != "" and not out.has(cid):
+			out.append(cid)
+	return out
+
+
+func knows_concept(cid: String) -> bool:
+	return concepts.has(cid)
+
+
+func times_taught(lesson_id: String) -> int:
+	return int(taught.get(lesson_id, 0))
+
+
+## What everything you have learned to teach is worth, as a grade bonus.
+##
+## Capped, and small per concept: this is the difference between a teacher in
+## their first term and one in their fifth, not a replacement for the room or
+## for turning up.
+func concept_bonus() -> float:
+	Balance.ensure_loaded()
+	return minf(Balance.concept_bonus * float(concepts.size()),
+		Balance.concept_bonus_cap)
 
 
 ## Has today's lesson already been interrupted for a quiz? One per lesson:
@@ -559,17 +628,25 @@ func grade_for(s: StudentData) -> float:
 		if not s.verdict_was_right():
 			hw *= Balance.verdict_weight
 
-	return clampf(room_score(s.seat_index) + lesson + hw, 0.0, 1.0)
+	# Knowing your material. Zero on day one -- which is why the three-row
+	# balance contract, measured on a fresh run, is unmoved by it.
+	return clampf(room_score(s.seat_index) + lesson + hw + concept_bonus(),
+		0.0, 1.0)
 
 
 ## Close the lesson: everyone is graded, and it is recorded.
 func grade_class() -> Array:
 	var out: Array = []
 	Balance.ensure_loaded()
+	# Teaching it once more is what unlocks the next concept, so this has to
+	# happen before the grades that concept knowledge feeds into? No -- AFTER.
+	# Today's lesson is graded on what you knew while you were teaching it;
+	# the concept it just unlocked pays from tomorrow.
 	for s: StudentData in roster:
 		var g := grade_for(s)
 		s.last_grade = g
 		s.grades.append(g)
+		s.record_result(lesson, g, day)
 		# they get better simply by being taught -- attending is worth
 		# something, finishing the work is worth more
 		var earned := Balance.stu_xp_per_lesson
@@ -580,6 +657,7 @@ func grade_class() -> Array:
 		var levels := s.add_xp(earned)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g),
 			"levels": levels})
+	record_taught(String(lesson.get("id", "")))
 	return out
 
 
@@ -673,6 +751,8 @@ func to_dict() -> Dictionary:
 		"perk_ranks": perk_ranks,
 		"graduated": graduated,
 		"cheated": cheated,
+		"taught": taught,
+		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
 			return {"tx": t.x, "ty": t.y}),
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
@@ -696,6 +776,8 @@ func from_dict(d: Dictionary) -> void:
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	graduated = d.get("graduated", []).duplicate()
+	taught = d.get("taught", {}).duplicate()
+	concepts = d.get("concepts", []).duplicate()
 	# where the desks were left. An older save has no "seats" key, so it
 	# simply keeps the opening arrangement.
 	var saved_seats: Array[Vector2i] = []

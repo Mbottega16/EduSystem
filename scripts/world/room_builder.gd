@@ -24,6 +24,7 @@ const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
+const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 
 
@@ -178,6 +179,15 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(BOARD_SCRIPT)
 	body.add_child(it)
+
+	# Same board, other button: E is the shop, F is what you have learned to
+	# teach. Both are always live, which is fine -- the picker only has to
+	# choose between things that share an action.
+	var cur := Interactable.new()
+	cur.set_script(CURRICULUM_SCRIPT)
+	cur.add_to_group("curriculum_board")
+	body.add_child(cur)
+
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
 	return it
 

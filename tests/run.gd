@@ -119,6 +119,9 @@ func _main() -> void:
 	test_cheats()
 	await test_moving_desks()
 	await test_quiz()
+	test_concepts()
+	test_transcript()
+	test_unlockables()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1371,6 +1374,222 @@ func test_quiz() -> void:
 
 	world.end_lesson()
 	await step(2)
+
+
+func test_concepts() -> void:
+	section("CONCEPTS & STANDARDS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("there are concepts to learn", Curriculum.concept_count() > 0,
+		Curriculum.concept_count())
+	chk("every lesson has some", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			if Curriculum.concepts_of(String(l.get("id", ""))).is_empty():
+				return false
+		return true).call())
+
+	# THE HONESTY RULE. A concept is a component of its lesson's standard and
+	# cites that same real code. Inventing a plausible sub-code would be a
+	# fabricated citation, which is worse than none -- and no test would ever
+	# catch that by itself, because a made-up code looks exactly like a real
+	# one. What CAN be checked is that no new code was minted here.
+	chk("every concept carries a standard code", (func() -> bool:
+		for c: Dictionary in Curriculum.concepts():
+			if String(c.get("standard", "")) == "":
+				return false
+		return true).call())
+	chk("and it is its own lesson's code, never a newly minted one",
+		(func() -> bool:
+			for c: Dictionary in Curriculum.concepts():
+				var parent := Curriculum.by_id(String(c["lesson"]))
+				if String(c["standard"]) != String(parent.get("standard", "")):
+					return false
+			return true).call())
+	chk("every concept id is unique", (func() -> bool:
+		var seen := {}
+		for c: Dictionary in Curriculum.concepts():
+			var cid := String(c.get("id", ""))
+			if seen.has(cid):
+				return false
+			seen[cid] = true
+		return true).call())
+
+	# --- unlocking by teaching ---
+	chk("you start knowing nothing", Game.concepts.is_empty())
+	chk("and it is worth nothing", is_equal_approx(Game.concept_bonus(), 0.0))
+
+	var lid := String(Curriculum.lessons[0].get("id", ""))
+	var first := Game.record_taught(lid)
+	chk("teaching a lesson once teaches YOU something", not first.is_empty(), first)
+	chk("it is recorded against that lesson", Game.times_taught(lid) == 1)
+	chk("and it is now worth something to every grade",
+		Game.concept_bonus() > 0.0)
+
+	# EduSystems' own notes: concepts that unlocked a name on a list and
+	# changed nothing were "the single clearest reason the learning system
+	# doesn't make sense". So this has to show up in a real grade.
+	var s0: StudentData = Game.roster[0]
+	var without := Game.grade_for(s0)
+	for i in 30:
+		Game.record_taught(lid)
+	chk("knowing your material shows up in what the class scores",
+		Game.grade_for(s0) > without,
+		"%.3f -> %.3f" % [without, Game.grade_for(s0)])
+
+	# Teaching ONE lesson thirty times cannot make you a rounded teacher: it
+	# unlocks that lesson's concepts and then nothing, however long you keep
+	# at it. Breadth is the only route to the cap.
+	chk("hammering a single lesson only unlocks that lesson's concepts",
+		Game.concepts.size() == Curriculum.concepts_of(lid).size(),
+		Game.concepts.size())
+	chk("which is well short of the cap",
+		Game.concept_bonus() < Balance.concept_bonus_cap, Game.concept_bonus())
+
+	for l: Dictionary in Curriculum.lessons:
+		for i in 10:
+			Game.record_taught(String(l.get("id", "")))
+	chk("teaching broadly does get you there",
+		Game.concepts.size() == Curriculum.concept_count(), Game.concepts.size())
+	chk("but it is capped, so it never replaces the room or turning up",
+		is_equal_approx(Game.concept_bonus(), Balance.concept_bonus_cap),
+		Game.concept_bonus())
+	chk("and teaching forever cannot unlock more than exists",
+		Game.concepts.size() <= Curriculum.concept_count())
+	chk("nothing is ever learned twice", (func() -> bool:
+		var seen := {}
+		for cid: String in Game.concepts:
+			if seen.has(cid):
+				return false
+			seen[cid] = true
+		return true).call())
+
+	# --- the pillar it must NOT move ---
+	# The three-row contract is measured on a fresh run where nothing has
+	# been taught, so concept knowledge has to be worth exactly zero there.
+	Game.new_run(SEED)
+	chk("a fresh run knows nothing, which is why the contract is unmoved",
+		is_equal_approx(Game.concept_bonus(), 0.0))
+
+	# --- it survives the night ---
+	Game.record_taught(lid)
+	var known := Game.concepts.size()
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("what you learned to teach survives a save",
+		Game.concepts.size() == known and Game.times_taught(lid) == 1,
+		"%d concepts, taught %d" % [Game.concepts.size(), Game.times_taught(lid)])
+	Game.delete_save()
+
+
+func test_transcript() -> void:
+	section("A CHILD'S OWN RECORD")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	chk("a new child has no record yet", s.transcript.is_empty())
+
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	Game.grade_class()
+	chk("a graded lesson writes one line into it", s.transcript.size() == 1)
+	var row: Dictionary = s.transcript[0]
+	chk("the line names the lesson", String(row["name"]) == "Basic Arithmetic", row)
+	chk("and carries its real standard code",
+		String(row["standard"]) == "3.OA.C.7", row)
+	chk("and the day it happened", int(row["day"]) == Game.day)
+	chk("the record agrees with the grade they were actually given",
+		is_equal_approx(float(row["grade"]), s.last_grade))
+
+	Game.lesson = Curriculum.by_id("reading_fluency")
+	Game.grade_class()
+	chk("a second lesson appends rather than replacing", s.transcript.size() == 2)
+	chk("and the record spans both subjects", (func() -> bool:
+		var names := {}
+		for r: Dictionary in s.transcript:
+			names[String(r["name"])] = true
+		return names.size() == 2).call())
+
+	# Strongest BY RESULT, which is not always the favourite they were born
+	# with. That difference is most of the reason to keep a record at all.
+	s.transcript = [
+		{"lesson": "a", "name": "Maths", "standard": "x", "day": 1, "grade": 0.9},
+		{"lesson": "b", "name": "English", "standard": "y", "day": 2, "grade": 0.3},
+	]
+	chk("their strongest subject is the one they actually did best in",
+		s.best_subject() == "Maths", s.best_subject())
+
+	# it is THEIRS, so it goes with them
+	Game.new_run(SEED)
+	var t: StudentData = Game.roster[0]
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	Game.grade_class()
+	var n := t.transcript.size()
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("a record survives a save", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if st.display_name == t.display_name:
+				return st.transcript.size() == n
+		return false).call())
+	Game.delete_save()
+
+
+func test_unlockables() -> void:
+	section("UNLOCKABLES")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	var gated: Array = []
+	var teachers: Array = []
+	for id: String in Items.order():
+		if Items.requires(id) != "":
+			gated.append(id)
+		if Items.teaches(id) != "":
+			teachers.append(id)
+	chk("some furniture has to be earned rather than only afforded",
+		not gated.is_empty(), gated.size())
+	chk("and some of it teaches a concept outright",
+		not teachers.is_empty(), teachers.size())
+
+	chk("every gate names a concept that really exists", (func() -> bool:
+		for id: String in gated:
+			if Curriculum.concept(Items.requires(id)).is_empty():
+				return false
+		return true).call())
+	chk("and so does everything claiming to teach one", (func() -> bool:
+		for id: String in teachers:
+			if Curriculum.concept(Items.teaches(id)).is_empty():
+				return false
+		return true).call())
+
+	var locked: String = String(gated[0])
+	chk("a gated item is locked to begin with", not Items.is_unlocked(locked))
+	chk("and the shop does not list it",
+		not Items.available_in_category(Items.category_of(locked)).has(locked))
+
+	Game.concepts.append(Items.requires(locked))
+	chk("learning the concept puts it on sale", Items.is_unlocked(locked))
+	chk("and the shop lists it now",
+		Items.available_in_category(Items.category_of(locked)).has(locked))
+
+	# furniture that teaches: the room feeding back into the curriculum
+	Game.new_run(SEED)
+	var teacher_item: String = String(teachers[0])
+	var cid := Items.teaches(teacher_item)
+	chk("you do not know it yet", not Game.knows_concept(cid))
+	Game.room_items.append({"id": teacher_item, "tile": Vector2i(9, 6)})
+	Game.record_taught(String(Curriculum.lessons[0].get("id", "")))
+	chk("owning the item that teaches it is enough to learn it",
+		Game.knows_concept(cid), cid)
+
+	chk("ungated furniture is always on sale", (func() -> bool:
+		for id: String in Items.order():
+			if Items.requires(id) == "" and not Items.is_unlocked(id):
+				return false
+		return true).call())
 
 
 func test_overlays() -> void:

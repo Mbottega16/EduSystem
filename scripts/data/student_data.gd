@@ -73,6 +73,13 @@ var hw_done_total: int = 0
 var grades: Array[float] = []
 var last_grade: float = -1.0
 
+## This child's own record: what they were taught, when, and how they did.
+## Kept per-student rather than as a class log because it is THEIRS -- it
+## travels with them when they are sent up, and it is the thing that makes a
+## roster of eight into eight particular children rather than eight rows.
+## [{lesson, name, standard, day, grade}]
+var transcript: Array = []
+
 var _since_stall: float = 0.0
 
 
@@ -90,6 +97,36 @@ func surname() -> String:
 
 func is_struggling() -> bool:
 	return confusion > 0.5
+
+
+## One line in their record. Called once per graded lesson.
+func record_result(lesson: Dictionary, grade: float, day: int) -> void:
+	transcript.append({
+		"lesson": String(lesson.get("id", "")),
+		"name": String(lesson.get("name", "Lesson")),
+		"standard": String(lesson.get("standard", "")),
+		"day": day, "grade": grade,
+	})
+
+
+## Their best subject BY RESULT rather than by the favourite they were born
+## with -- what they turned out to be good at, which is not always the same
+## thing. Empty until they have actually sat something.
+func best_subject() -> String:
+	var totals := {}
+	var counts := {}
+	for row: Dictionary in transcript:
+		var n := String(row.get("name", ""))
+		totals[n] = float(totals.get(n, 0.0)) + float(row.get("grade", 0.0))
+		counts[n] = int(counts.get(n, 0)) + 1
+	var best := ""
+	var best_avg := -1.0
+	for n: String in totals.keys():
+		var avg: float = float(totals[n]) / float(counts[n])
+		if avg > best_avg:
+			best_avg = avg
+			best = n
+	return best
 
 
 func average_grade() -> float:
@@ -338,6 +375,7 @@ func to_dict() -> Dictionary:
 		"xp": xp, "level": level, "coached": coached,
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
 		"grades": grades, "last_grade": last_grade,
+		"transcript": transcript,
 	}
 
 
@@ -363,4 +401,5 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.hw_done_total = int(d.get("hw_done_total", 0))
 	s.last_grade = float(d.get("last_grade", -1.0))
 	s.grades.assign(d.get("grades", []))
+	s.transcript = d.get("transcript", []).duplicate()
 	return s

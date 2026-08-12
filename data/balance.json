@@ -15,7 +15,7 @@
     "uncollected_penalty": 0.5
   },
   "lesson": {
-    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes \u2014 that is the whole pressure.",
+    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes — that is the whole pressure.",
     "work_seconds": 20.0,
     "lesson_seconds": 45.0,
     "stall_chance_per_second": 0.14,
@@ -130,7 +130,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.07,
-      "blurb": "Counting you can pick up and move."
+      "blurb": "Counting you can pick up and move.",
+      "teaches": "pre-algebra.variables"
     },
     "abacus": {
       "name": "Abacus",
@@ -140,7 +141,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.08,
-      "blurb": "Old, and still the clearest way to see a number."
+      "blurb": "Old, and still the clearest way to see a number.",
+      "teaches": "basic_arithmetic.tables"
     },
     "globe": {
       "name": "World Globe",
@@ -150,7 +152,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.09,
-      "blurb": "Somewhere to point at when they ask where."
+      "blurb": "Somewhere to point at when they ask where.",
+      "teaches": "map_geography.reading_a_map"
     },
     "music_corner": {
       "name": "Music Corner",
@@ -160,7 +163,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.1,
-      "blurb": "Loud, but they remember it."
+      "blurb": "Loud, but they remember it.",
+      "teaches": "speaking_listening.presenting"
     },
     "microscope": {
       "name": "Microscope",
@@ -170,7 +174,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.13,
-      "blurb": "The first time a child sees a cell is worth the price."
+      "blurb": "The first time a child sees a cell is worth the price.",
+      "teaches": "earth_life_science.cells"
     },
     "reading_nook": {
       "name": "Reading Nook",
@@ -180,7 +185,8 @@
       "w": 2,
       "range": 4,
       "bonus": 0.11,
-      "blurb": "Somewhere to disappear into a book."
+      "blurb": "Somewhere to disappear into a book.",
+      "needs": "reading_fluency.decoding"
     },
     "whiteboard": {
       "name": "Whiteboard",
@@ -310,7 +316,8 @@
       "range": 3,
       "bonus": 0.11,
       "blurb": "Inspiring to sit near, if you sit near it.",
-      "cat": "learning"
+      "cat": "learning",
+      "needs": "essay_writing.claim"
     },
     "rug": {
       "name": "Reading Rug",
@@ -330,7 +337,8 @@
       "range": 3,
       "bonus": 0.15,
       "blurb": "The strongest boost there is, but only close by.",
-      "cat": "learning"
+      "cat": "learning",
+      "needs": "science_basics.observing"
     }
   },
   "item_order": [
@@ -395,6 +403,11 @@
     "level_diligence_step": 0.02,
     "ready_level": 5,
     "hold_grace_levels": 2
+  },
+  "concepts": {
+    "_note": "What knowing your material is worth. Small per concept and capped, because this is the difference between a teacher in their first term and one in their fifth -- not a substitute for the room or for turning up. It is a bonus that grows ACROSS runs of days, so the three-row contract (measured on day one, with nothing learned) is untouched by it.",
+    "bonus": 0.012,
+    "bonus_cap": 0.12
   },
   "quiz": {
     "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it.",
@@ -462,5 +475,6 @@
     "learning",
     "comfort",
     "decor"
-  ]
+  ],
+  "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn."
 }

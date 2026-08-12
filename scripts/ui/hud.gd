@@ -356,6 +356,7 @@ func show_student(s: StudentData) -> void:
 	lines.append(_ability_line(s))
 	lines.append("Best at %s." % Curriculum.strand_label(s.favourite))
 	lines.append(_grades_line(s))
+	lines.append(_transcript_line(s))
 	lines.append(_homework_line(s))
 	lines.append(_help_line(s))
 	lines.append("")
@@ -391,6 +392,26 @@ func _bio_actions(s: StudentData) -> Array[String]:
 	if s.is_capped():
 		out.append("They have learned all they can from this class.")
 	return out
+
+
+## What this child has actually been taught, in one line.
+##
+## Their record, not the class's. It is the difference between "a student"
+## and "this student", and it is what makes sending them up feel like
+## something happening to somebody.
+func _transcript_line(s: StudentData) -> String:
+	if s.transcript.is_empty():
+		return "No record yet -- they have not sat a lesson."
+	var subjects := {}
+	for row: Dictionary in s.transcript:
+		subjects[String(row.get("name", ""))] = true
+	var best := s.best_subject()
+	var line := "%d lesson%s on record, across %d subject%s." % [
+		s.transcript.size(), "" if s.transcript.size() == 1 else "s",
+		subjects.size(), "" if subjects.size() == 1 else "s"]
+	if best != "" and subjects.size() > 1:
+		line += "  Strongest in %s." % best
+	return line
 
 
 func _ability_line(s: StudentData) -> String:
@@ -468,6 +489,48 @@ func show_exam(result: Dictionary) -> void:
 		String(result.get("letter", "F"))])
 	body.text = "\n".join(lines)
 	hint.text = "E - close.   That is the term."
+
+
+## What you have learned to teach, and what is still ahead.
+##
+## Each row carries the REAL standard code its lesson cites. A concept is a
+## component of that standard and shares its code rather than getting a
+## made-up one of its own — see the note at the top of data/curriculum.json.
+func show_curriculum() -> void:
+	_open(Mode.REPORT)
+	var known: int = Game.concepts.size()
+	title.text = "CURRICULUM  %d/%d" % [known, Curriculum.concept_count()]
+
+	# Grouped by lesson, because that is how they unlock: teach a lesson
+	# again and the next one down its list opens.
+	var lines: Array[String] = []
+	for l: Dictionary in Curriculum.lessons:
+		var lid := String(l.get("id", ""))
+		var times := Game.times_taught(lid)
+		var got := 0
+		var next_at := -1
+		for c: Dictionary in Curriculum.concepts_of(lid):
+			if Game.knows_concept(String(c.get("id", ""))):
+				got += 1
+			elif next_at < 0:
+				next_at = int(c.get("at", 1))
+		var tail := "all learned"
+		if next_at >= 0:
+			tail = "next after %d more" % maxi(1, next_at - times)
+		lines.append("%-13s %s  %d/%d  %s" % [
+			Curriculum.short_name(l), String(l.get("standard", "")),
+			got, Curriculum.concepts_of(lid).size(), tail])
+
+	lines.append("")
+	if known == 0:
+		lines.append("Teach a lesson and you will start to learn it yourself.")
+	else:
+		lines.append("Worth +%.0f%% to every grade%s." % [
+			Game.concept_bonus() * 100.0,
+			" (at the cap)" if Game.concept_bonus()
+				>= Balance.concept_bonus_cap - 0.0001 else ""])
+	body.text = "\n".join(lines)
+	hint.text = "E - close"
 
 
 ## The quiz results, straight away, worst first.
@@ -591,7 +654,10 @@ func _shop_rows() -> Array:
 		if cats.is_empty():
 			return Items.order().duplicate()
 		_cat = clampi(_cat, 0, cats.size() - 1)
-		return Items.in_category(String(cats[_cat]))
+		# Locked items are HIDDEN rather than greyed out. A greyed row you
+		# cannot act on is still a row you have to read past every time you
+		# open the shop, and there is no useful action attached to it.
+		return Items.available_in_category(String(cats[_cat]))
 	if _shop == Shop.STAFF:
 		return Progress.perk_order()
 	return Game.room_items.duplicate()

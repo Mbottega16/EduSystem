@@ -22,6 +22,7 @@ signal item_move_requested(id: String, tile: Vector2i)
 signal desk_move_requested(seat_index: int)
 signal desks_changed()
 signal quiz_requested()
+signal curriculum_requested()
 
 ## The bubble over a child the quiz caught out — cooler than the amber
 ## "stuck" one, because it is a different kind of problem.
@@ -64,6 +65,9 @@ func build() -> void:
 	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
+	for c in get_tree().get_nodes_in_group("curriculum_board"):
+		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
+			c.curriculum_opened.connect(_on_curriculum_requested)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
 	_spawn_students()
@@ -286,6 +290,10 @@ func _on_desk_move_requested(seat_index: int) -> void:
 
 func _on_quiz_requested() -> void:
 	quiz_requested.emit()
+
+
+func _on_curriculum_requested() -> void:
+	curriculum_requested.emit()
 
 
 ## Bought furniture is rebuilt from data, so its interactables are new

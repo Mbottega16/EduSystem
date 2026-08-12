@@ -16,7 +16,30 @@
       "strand": "ela",
       "standard": "RF4",
       "source": "Maryland CCR Standards for ELA (2025), p23",
-      "objective": "Read (decode) with sufficient accuracy and fluency to support comprehension."
+      "objective": "Read (decode) with sufficient accuracy and fluency to support comprehension.",
+      "concepts": [
+        {
+          "id": "reading_fluency.decoding",
+          "name": "Decoding words",
+          "standard": "RF4",
+          "source": "Maryland CCR Standards for ELA (2025), p23",
+          "at": 1
+        },
+        {
+          "id": "reading_fluency.pace",
+          "name": "Reading at pace",
+          "standard": "RF4",
+          "source": "Maryland CCR Standards for ELA (2025), p23",
+          "at": 3
+        },
+        {
+          "id": "reading_fluency.expression",
+          "name": "Reading with expression",
+          "standard": "RF4",
+          "source": "Maryland CCR Standards for ELA (2025), p23",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "basic_arithmetic",
@@ -26,7 +49,30 @@
       "strand": "math",
       "standard": "3.OA.C.7",
       "source": "Maryland CCR Standards for Mathematics (2025), p47",
-      "objective": "Fluently multiply and divide within 100, using strategies such as the relationship between multiplication and division."
+      "objective": "Fluently multiply and divide within 100, using strategies such as the relationship between multiplication and division.",
+      "concepts": [
+        {
+          "id": "basic_arithmetic.tables",
+          "name": "Times tables to 100",
+          "standard": "3.OA.C.7",
+          "source": "Maryland CCR Standards for Mathematics (2025), p47",
+          "at": 1
+        },
+        {
+          "id": "basic_arithmetic.inverse",
+          "name": "Division as the inverse",
+          "standard": "3.OA.C.7",
+          "source": "Maryland CCR Standards for Mathematics (2025), p47",
+          "at": 3
+        },
+        {
+          "id": "basic_arithmetic.mental",
+          "name": "Mental strategies",
+          "standard": "3.OA.C.7",
+          "source": "Maryland CCR Standards for Mathematics (2025), p47",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "handwriting_grammar",
@@ -36,7 +82,30 @@
       "strand": "ela",
       "standard": "L.3.1",
       "source": "Maryland CCR Standards for ELA (2025), p80",
-      "objective": "Demonstrate command of the conventions of standard English grammar and usage when writing or speaking."
+      "objective": "Demonstrate command of the conventions of standard English grammar and usage when writing or speaking.",
+      "concepts": [
+        {
+          "id": "handwriting_grammar.parts_of_speech",
+          "name": "Parts of speech",
+          "standard": "L.3.1",
+          "source": "Maryland CCR Standards for ELA (2025), p80",
+          "at": 1
+        },
+        {
+          "id": "handwriting_grammar.agreement",
+          "name": "Sentence agreement",
+          "standard": "L.3.1",
+          "source": "Maryland CCR Standards for ELA (2025), p80",
+          "at": 3
+        },
+        {
+          "id": "handwriting_grammar.legible",
+          "name": "Legible handwriting",
+          "standard": "L.3.1",
+          "source": "Maryland CCR Standards for ELA (2025), p80",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "science_basics",
@@ -46,7 +115,30 @@
       "strand": "science",
       "standard": "5-PS1-3",
       "source": "Maryland Science Standards (NGSS)",
-      "objective": "Make observations and measurements to identify materials based on their properties."
+      "objective": "Make observations and measurements to identify materials based on their properties.",
+      "concepts": [
+        {
+          "id": "science_basics.observing",
+          "name": "Observing properties",
+          "standard": "5-PS1-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "science_basics.measuring",
+          "name": "Measuring accurately",
+          "standard": "5-PS1-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "science_basics.identifying",
+          "name": "Identifying materials",
+          "standard": "5-PS1-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "map_geography",
@@ -56,7 +148,30 @@
       "strand": "social",
       "standard": "Standard 3.0",
       "source": "Maryland Social Studies Framework (June 2025)",
-      "objective": "Inquire about the role of culture, technology, and the environment in the location, distribution, and impact of human activities using geographic tools and spatial thinking."
+      "objective": "Inquire about the role of culture, technology, and the environment in the location, distribution, and impact of human activities using geographic tools and spatial thinking.",
+      "concepts": [
+        {
+          "id": "map_geography.reading_a_map",
+          "name": "Reading a map",
+          "standard": "Standard 3.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 1
+        },
+        {
+          "id": "map_geography.coordinates",
+          "name": "Latitude and longitude",
+          "standard": "Standard 3.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 3
+        },
+        {
+          "id": "map_geography.people_place",
+          "name": "People and environment",
+          "standard": "Standard 3.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "pre-algebra",
@@ -66,7 +181,30 @@
       "strand": "math",
       "standard": "7.EE.B.4",
       "source": "Maryland CCR Standards for Mathematics (2025), p105",
-      "objective": "Use variables to represent quantities in a real-world or mathematical problem, and construct simple equations and inequalities to solve problems by reasoning about the quantities."
+      "objective": "Use variables to represent quantities in a real-world or mathematical problem, and construct simple equations and inequalities to solve problems by reasoning about the quantities.",
+      "concepts": [
+        {
+          "id": "pre-algebra.variables",
+          "name": "Using variables",
+          "standard": "7.EE.B.4",
+          "source": "Maryland CCR Standards for Mathematics (2025), p105",
+          "at": 1
+        },
+        {
+          "id": "pre-algebra.equations",
+          "name": "Building equations",
+          "standard": "7.EE.B.4",
+          "source": "Maryland CCR Standards for Mathematics (2025), p105",
+          "at": 3
+        },
+        {
+          "id": "pre-algebra.inequalities",
+          "name": "Solving inequalities",
+          "standard": "7.EE.B.4",
+          "source": "Maryland CCR Standards for Mathematics (2025), p105",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "essay_writing",
@@ -76,7 +214,30 @@
       "strand": "ela",
       "standard": "W.7.1",
       "source": "Maryland CCR Standards for ELA (2025), p1106",
-      "objective": "Write arguments to support claims with clear reasons and relevant evidence."
+      "objective": "Write arguments to support claims with clear reasons and relevant evidence.",
+      "concepts": [
+        {
+          "id": "essay_writing.claim",
+          "name": "Making a claim",
+          "standard": "W.7.1",
+          "source": "Maryland CCR Standards for ELA (2025), p1106",
+          "at": 1
+        },
+        {
+          "id": "essay_writing.evidence",
+          "name": "Supporting with evidence",
+          "standard": "W.7.1",
+          "source": "Maryland CCR Standards for ELA (2025), p1106",
+          "at": 3
+        },
+        {
+          "id": "essay_writing.structure",
+          "name": "Structuring an argument",
+          "standard": "W.7.1",
+          "source": "Maryland CCR Standards for ELA (2025), p1106",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "earth_life_science",
@@ -86,7 +247,30 @@
       "strand": "science",
       "standard": "MS-LS1-1",
       "source": "Maryland Science Standards (NGSS)",
-      "objective": "Conduct an investigation to provide evidence that living things are made of cells; either one cell or many different numbers and types of cells."
+      "objective": "Conduct an investigation to provide evidence that living things are made of cells; either one cell or many different numbers and types of cells.",
+      "concepts": [
+        {
+          "id": "earth_life_science.cells",
+          "name": "Cells as building blocks",
+          "standard": "MS-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "earth_life_science.investigation",
+          "name": "Designing an investigation",
+          "standard": "MS-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "earth_life_science.from_evidence",
+          "name": "Drawing on evidence",
+          "standard": "MS-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "world_history",
@@ -96,7 +280,30 @@
       "strand": "social",
       "standard": "Standard 2.0",
       "source": "Maryland Social Studies Framework (June 2025)",
-      "objective": "Inquire about the people of the United States and the world using a historically grounded, multidisciplinary approach in order to recognize multiple narratives."
+      "objective": "Inquire about the people of the United States and the world using a historically grounded, multidisciplinary approach in order to recognize multiple narratives.",
+      "concepts": [
+        {
+          "id": "world_history.chronology",
+          "name": "Putting events in order",
+          "standard": "Standard 2.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 1
+        },
+        {
+          "id": "world_history.narratives",
+          "name": "Recognising multiple narratives",
+          "standard": "Standard 2.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 3
+        },
+        {
+          "id": "world_history.sources",
+          "name": "Weighing a source",
+          "standard": "Standard 2.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 6
+        }
+      ]
     },
     {
       "id": "speaking_listening",
@@ -106,7 +313,31 @@
       "strand": "ela",
       "standard": "SL.8.4",
       "source": "Maryland CCR Standards for ELA (2025), p885",
-      "objective": "Present claims and findings, emphasizing salient points in a focused, coherent manner with relevant evidence, sound valid reasoning, and well-chosen details."
+      "objective": "Present claims and findings, emphasizing salient points in a focused, coherent manner with relevant evidence, sound valid reasoning, and well-chosen details.",
+      "concepts": [
+        {
+          "id": "speaking_listening.presenting",
+          "name": "Presenting clearly",
+          "standard": "SL.8.4",
+          "source": "Maryland CCR Standards for ELA (2025), p885",
+          "at": 1
+        },
+        {
+          "id": "speaking_listening.salient",
+          "name": "Choosing the salient point",
+          "standard": "SL.8.4",
+          "source": "Maryland CCR Standards for ELA (2025), p885",
+          "at": 3
+        },
+        {
+          "id": "speaking_listening.reasoning",
+          "name": "Sound reasoning",
+          "standard": "SL.8.4",
+          "source": "Maryland CCR Standards for ELA (2025), p885",
+          "at": 6
+        }
+      ]
     }
-  ]
+  ],
+  "_concepts_note": "Concepts are COMPONENTS of their lesson's standard, and each one cites that same real code rather than a code of its own. Inventing a plausible-looking identifier for a sub-skill would be a fabricated citation, which is worse than no citation at all -- see the header of scripts/data/curriculum.gd. 'at' is how many times that lesson must have been taught before the concept is unlocked."
 }

@@ -42,6 +42,33 @@ static func category_of(id: String) -> String:
 	return String(get_def(id).get("cat", ""))
 
 
+## The concept owning this item confers, if any.
+static func teaches(id: String) -> String:
+	return String(get_def(id).get("teaches", ""))
+
+
+## The concept you must already know before this is on sale, if any.
+static func requires(id: String) -> String:
+	return String(get_def(id).get("needs", ""))
+
+
+## Is it on sale yet? Gating a few items on concepts means the shop grows as
+## you TEACH and not only as you earn -- so a term spent on science opens a
+## different catalogue from a term spent on English.
+static func is_unlocked(id: String) -> bool:
+	var need := requires(id)
+	return need == "" or Game.knows_concept(need)
+
+
+## What the shop can list right now, in one category.
+static func available_in_category(cat: String) -> Array:
+	var out: Array = []
+	for id: String in in_category(cat):
+		if is_unlocked(id):
+			out.append(id)
+	return out
+
+
 static func get_def(id: String) -> Dictionary:
 	return catalogue().get(id, {})
 
