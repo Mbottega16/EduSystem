@@ -317,6 +317,42 @@ func graduate(s: StudentData) -> Dictionary:
 	return record
 
 
+## Has today's lesson already been interrupted for a quiz? One per lesson:
+## the cost is lesson TIME, and without a limit the right play would be to
+## run it over and over until everybody had been flagged and resolved.
+var quiz_done: bool = false
+
+
+## Sit the whole class down for a quick quiz. Returns a row per student,
+## worst first — the order matters, because the entire point is to tell you
+## who to walk to next.
+func run_quiz() -> Dictionary:
+	Balance.ensure_loaded()
+	var rows: Array = []
+	var total := 0.0
+	var flagged := 0
+	for s: StudentData in roster:
+		if s.seat_index < 0:
+			continue
+		var right := s.take_quiz(rng, lesson_strand())
+		total += s.quiz_score
+		if s.quiz_flagged:
+			flagged += 1
+		rows.append({
+			"student": s, "right": right,
+			"of": Balance.quiz_questions,
+			"score": s.quiz_score, "flagged": s.quiz_flagged,
+		})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a["score"]) < float(b["score"]))
+	quiz_done = true
+	return {
+		"rows": rows, "flagged": flagged,
+		"average": total / maxf(1.0, float(rows.size())),
+		"subject": subject,
+	}
+
+
 ## Pay for extra help for one child. `kind` is "tuition" or "parents".
 func coach(s: StudentData, kind: String) -> String:
 	Balance.ensure_loaded()

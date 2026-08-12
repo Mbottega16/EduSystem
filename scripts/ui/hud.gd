@@ -470,6 +470,31 @@ func show_exam(result: Dictionary) -> void:
 	hint.text = "E - close.   That is the term."
 
 
+## The quiz results, straight away, worst first.
+##
+## The ORDER is the whole screen. This is read mid-lesson with the clock
+## running, so the useful thing is not a table of scores — it is a queue of
+## names to walk to, longest way behind at the top.
+func show_quiz_report(result: Dictionary) -> void:
+	_open(Mode.REPORT)
+	title.text = "QUICK QUIZ"
+	var lines: Array[String] = []
+	for r: Dictionary in result.get("rows", []):
+		var s: StudentData = r["student"]
+		lines.append("%-11s %d/%d %s" % [
+			s.first_name(), int(r["right"]), int(r["of"]),
+			"  <- behind" if bool(r["flagged"]) else ""])
+	lines.append("")
+	var n: int = int(result.get("flagged", 0))
+	if n == 0:
+		lines.append("Nobody is lost. Carry on.")
+	else:
+		lines.append("%d %s behind. Go over it at their desk." % [
+			n, "is" if n == 1 else "are"])
+	body.text = "\n".join(lines)
+	hint.text = "E - back to the lesson"
+
+
 func show_lesson_report(results: Array) -> void:
 	_open(Mode.REPORT)
 	title.text = "%s  (%s)" % [

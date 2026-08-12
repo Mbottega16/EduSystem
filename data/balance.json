@@ -396,6 +396,16 @@
     "ready_level": 5,
     "hold_grace_levels": 2
   },
+  "quiz": {
+    "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it.",
+    "questions": 4,
+    "seconds_cost": 10.0,
+    "flag_below": 0.5,
+    "retrieval_seconds": 1.5,
+    "resolve_seconds": 6.0,
+    "affinity_bonus": 0.15,
+    "misjudged_penalty": 0.2
+  },
   "graduation": {
     "_note": "What sending a child up is worth. Scaled by readiness, so graduating someone the moment they qualify pays less than seeing them through.",
     "base_coins": 90,

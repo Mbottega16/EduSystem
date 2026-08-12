@@ -21,6 +21,11 @@ signal day_started(day: int)
 signal item_move_requested(id: String, tile: Vector2i)
 signal desk_move_requested(seat_index: int)
 signal desks_changed()
+signal quiz_requested()
+
+## The bubble over a child the quiz caught out — cooler than the amber
+## "stuck" one, because it is a different kind of problem.
+const QUIZ_BUBBLE_TINT := Color(0.62, 0.82, 1.0)
 
 var grid := Grid.new()
 var player: Actor = null
@@ -53,6 +58,9 @@ func build() -> void:
 	stations = RoomBuilder.build_desks(self, grid)
 	_connect_desk_movers()
 	podium = RoomBuilder.build_podium(self, grid)
+	for q in get_tree().get_nodes_in_group("quiz_caller"):
+		if q is Interactable and not q.quiz_requested.is_connected(_on_quiz_requested):
+			q.quiz_requested.connect(_on_quiz_requested)
 	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
@@ -120,8 +128,14 @@ func _physics_process(delta: float) -> void:
 ## the data, whoever moved it.
 func _refresh_bubbles() -> void:
 	for n: Actor in students:
-		if n.data != null:
-			n.set_bubble(n.seated and n.data.is_struggling())
+		if n.data == null:
+			continue
+		# Stuck outranks quiz-flagged: a frozen work timer is the more urgent
+		# of the two, and it is what the amber bubble has always meant.
+		var stuck: bool = n.seated and n.data.is_struggling()
+		var flagged: bool = n.seated and n.data.quiz_flagged
+		n.set_bubble(stuck or flagged,
+			Color.WHITE if stuck else QUIZ_BUBBLE_TINT)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
@@ -163,6 +177,7 @@ func everyone_seated() -> bool:
 func start_lesson() -> int:
 	Balance.ensure_loaded()
 	Game.set_phase(Game.Phase.LESSON)
+	Game.quiz_done = false        # one quiz per lesson, so a new one re-arms it
 	lesson_left = Game.lesson_length()
 	var n := 0
 	for s: StudentData in Game.roster:
@@ -170,6 +185,22 @@ func start_lesson() -> int:
 		if node != null and node.seated and s.assign_work():
 			n += 1
 	return n
+
+
+## Podium, mid-lesson. Stops the class, asks everyone a few questions, and
+## charges the time to the lesson clock — which is the cost that makes it a
+## decision rather than something you always do.
+##
+## The clock is never taken below zero: a quiz called with eight seconds
+## left should end the lesson, not owe time to the next one.
+func run_quiz() -> Dictionary:
+	Balance.ensure_loaded()
+	var result := Game.run_quiz()
+	lesson_left = maxf(0.0, lesson_left - Balance.quiz_seconds_cost)
+	_refresh_bubbles()
+	if lesson_left <= 0.0:
+		lesson_timed_out.emit()
+	return result
 
 
 ## Podium, during a lesson. Grades everyone on what actually happened, then
@@ -251,6 +282,10 @@ func _connect_desk_movers() -> void:
 
 func _on_desk_move_requested(seat_index: int) -> void:
 	desk_move_requested.emit(seat_index)
+
+
+func _on_quiz_requested() -> void:
+	quiz_requested.emit()
 
 
 ## Bought furniture is rebuilt from data, so its interactables are new

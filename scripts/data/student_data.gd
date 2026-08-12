@@ -33,6 +33,14 @@ var work_timer: float = 0.0        ## seconds of UNSTUCK work still needed
 var confusion: float = 0.0
 var helps_received: int = 0        ## for the report; not a grade input
 
+## What they scored on today's quiz, 0..1, or -1 if none was set. Unlike
+## aptitude this is something the PLAYER is allowed to see -- that is the
+## entire point of running one.
+var quiz_score: float = -1.0
+## They came out below the line and nobody has been over it with them yet.
+## Actionable: it unlocks a verb at their desk that is not otherwise there.
+var quiz_flagged: bool = false
+
 # --- homework, persists across days -----------------------------------
 var hw_state: int = HW.NONE
 var hw_true_accuracy: float = 0.0  ## hidden from the player
@@ -98,7 +106,63 @@ func reset_lesson() -> void:
 	work_timer = 0.0
 	confusion = 0.0
 	helps_received = 0
+	quiz_score = -1.0
+	quiz_flagged = false
 	_since_stall = 0.0
+
+
+# ---------------------------------------------------------------- quiz
+
+## How well they understand TODAY'S lesson, right now. Built from what the
+## game already knows rather than from a new hidden stat: their aptitude,
+## how far into the work they have actually got, whether this is their
+## subject, and whether you waved through a homework sheet that was secretly
+## wrong. That last one is what makes a quiz able to catch a bad marking
+## call before it becomes a bad grade.
+func understanding(strand: String) -> float:
+	Balance.ensure_loaded()
+	var u := aptitude * 0.65 + work_fraction() * 0.35
+	if favourite != "" and favourite == strand:
+		u += Balance.quiz_affinity_bonus
+	if misjudged:
+		u -= Balance.quiz_misjudged_penalty
+	if is_struggling():
+		u -= 0.15
+	return clampf(u, 0.05, 0.98)
+
+
+## Sit today's quiz. Returns the number right; the questions are rolled
+## against understanding(), so the score is a genuine reading of a hidden
+## state rather than a second dice roll with no meaning behind it.
+func take_quiz(rng: RandomNumberGenerator, strand: String) -> int:
+	Balance.ensure_loaded()
+	var u := understanding(strand)
+	var right := 0
+	for i in Balance.quiz_questions:
+		if rng.randf() < u:
+			right += 1
+	quiz_score = float(right) / float(maxi(1, Balance.quiz_questions))
+	quiz_flagged = quiz_score < Balance.quiz_flag_below
+	# Retrieval practice: being asked is itself a small piece of learning,
+	# for everyone, whether or not they got it right.
+	work_timer = maxf(0.0, work_timer - Balance.quiz_retrieval_seconds)
+	return right
+
+
+## Go over the quiz with them. Only worth anything to a child the quiz
+## actually flagged -- which is what stops this being a second, better
+## "help" you would spam at everybody.
+func resolve_quiz() -> bool:
+	Balance.ensure_loaded()
+	if not quiz_flagged:
+		return false
+	quiz_flagged = false
+	confusion = 0.0
+	work_timer = maxf(0.0, work_timer - Balance.quiz_resolve_seconds)
+	helps_received += 1
+	helps_total += 1
+	add_xp(Balance.stu_xp_per_help)
+	return true
 
 
 # ---------------------------------------------------------------- work

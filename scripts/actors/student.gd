@@ -58,7 +58,12 @@ func is_walking() -> bool:
 	return not _path.is_empty()
 
 
-func set_bubble(on: bool) -> void:
+## `tint` distinguishes WHY the bubble is up: the ordinary amber one means
+## stuck right now, a cooler one means the quiz caught them out. Same shape
+## on purpose — it is the same instruction either way, go to that desk.
+func set_bubble(on: bool, tint: Color = Color.WHITE) -> void:
+	if bubble != null:
+		bubble.modulate = tint
 	if bubble == null or bubble.visible == on:
 		return
 	bubble.visible = on

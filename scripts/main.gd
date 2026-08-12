@@ -18,6 +18,7 @@ func _ready() -> void:
 	world.add_child(placement)
 
 	world.podium.lesson_ended.connect(hud.show_lesson_report)
+	world.quiz_requested.connect(_run_quiz)
 	world.bell.day_ended.connect(hud.show_day_report)
 	world.bell.term_ended.connect(hud.show_exam)
 	world.noticeboard.catalogue_opened.connect(hud.open_catalogue)
@@ -62,6 +63,10 @@ func _start_moving(id: String, tile: Vector2i) -> void:
 	Game.remove_item(_moving_from)
 	world.player.input_locked = true
 	placement.begin(id, world.grid, _moving_from)
+
+
+func _run_quiz() -> void:
+	hud.show_quiz_report(world.run_quiz())
 
 
 ## Carrying a desk. Unlike a bought item this is NOT lifted off the grid

@@ -20,6 +20,7 @@ const PROP_BOARD := preload("res://art/noticeboard.png")
 const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
 const DESK_MOVER_SCRIPT := preload("res://scripts/interact/desk_mover.gd")
 const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
+const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
@@ -138,6 +139,16 @@ static func build_podium(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(PODIUM_SCRIPT)
 	body.add_child(it)
+
+	# The same lectern, on the other button: E calls a quiz while F starts
+	# and ends the lesson. They are never both live -- the podium only offers
+	# anything in MORNING or at the END of a lesson, and the quiz only
+	# DURING one -- so the picker is never asked to choose between them.
+	var quiz := Interactable.new()
+	quiz.set_script(QUIZ_CALLER_SCRIPT)
+	quiz.add_to_group("quiz_caller")
+	body.add_child(quiz)
+
 	grid.set_cell(Layout.PODIUM, Grid.Cell.BLOCKED)
 	return it
 

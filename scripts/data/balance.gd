@@ -69,6 +69,15 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- the in-lesson quiz --------------------------------------------------
+static var quiz_questions: int = 4
+static var quiz_seconds_cost: float = 10.0
+static var quiz_flag_below: float = 0.5
+static var quiz_retrieval_seconds: float = 1.5
+static var quiz_resolve_seconds: float = 6.0
+static var quiz_affinity_bonus: float = 0.15
+static var quiz_misjudged_penalty: float = 0.2
+
 # --- graduation & coaching ----------------------------------------------
 static var grad_base_coins: int = 90
 static var grad_coins_per_level: int = 45
@@ -171,6 +180,15 @@ static func apply(d: Dictionary) -> void:
 	stu_diligence_step = float(st.get("level_diligence_step", stu_diligence_step))
 	stu_ready_level = int(st.get("ready_level", stu_ready_level))
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
+
+	var qz: Dictionary = d.get("quiz", {})
+	quiz_questions = int(qz.get("questions", quiz_questions))
+	quiz_seconds_cost = float(qz.get("seconds_cost", quiz_seconds_cost))
+	quiz_flag_below = float(qz.get("flag_below", quiz_flag_below))
+	quiz_retrieval_seconds = float(qz.get("retrieval_seconds", quiz_retrieval_seconds))
+	quiz_resolve_seconds = float(qz.get("resolve_seconds", quiz_resolve_seconds))
+	quiz_affinity_bonus = float(qz.get("affinity_bonus", quiz_affinity_bonus))
+	quiz_misjudged_penalty = float(qz.get("misjudged_penalty", quiz_misjudged_penalty))
 
 	var gr: Dictionary = d.get("graduation", {})
 	grad_base_coins = int(gr.get("base_coins", grad_base_coins))

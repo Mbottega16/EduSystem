@@ -118,6 +118,7 @@ func _main() -> void:
 	test_curator()
 	test_cheats()
 	await test_moving_desks()
+	await test_quiz()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1248,6 +1249,127 @@ func test_moving_desks() -> void:
 
 	Game.new_run(SEED)
 	world.move_desk(0, Layout.DEFAULT_SEATS[0])   # leave the room as we found it
+	await step(2)
+
+
+func test_quiz() -> void:
+	section("THE QUICK QUIZ")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()
+	await step(4)
+
+	chk("a fresh lesson has not had its quiz yet", not Game.quiz_done)
+	chk("nobody has a score before one is set", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.quiz_score >= 0.0:
+				return false
+		return true).call())
+
+	var time_before: float = world.lesson_left
+	var result: Dictionary = world.run_quiz()
+
+	chk("the quiz costs lesson time, which is what makes it a decision",
+		world.lesson_left < time_before,
+		"%.1f -> %.1f" % [time_before, world.lesson_left])
+	chk("and it costs what the table says it costs",
+		is_equal_approx(time_before - world.lesson_left, Balance.quiz_seconds_cost))
+	chk("it cannot be run twice in one lesson", Game.quiz_done)
+
+	chk("everyone sat it", result["rows"].size() == Game.roster.size())
+	chk("every score is a real fraction of the questions asked",
+		(func() -> bool:
+			for r: Dictionary in result["rows"]:
+				if int(r["right"]) < 0 or int(r["right"]) > Balance.quiz_questions:
+					return false
+				if not is_equal_approx(float(r["score"]),
+						float(r["right"]) / float(Balance.quiz_questions)):
+					return false
+			return true).call())
+
+	# The order IS the screen: this is read with the clock running, so it has
+	# to be a queue of who to walk to, not a table to study.
+	chk("the results are worst first", (func() -> bool:
+		var last := -1.0
+		for r: Dictionary in result["rows"]:
+			if last >= 0.0 and float(r["score"]) < last:
+				return false
+			last = float(r["score"])
+		return true).call())
+
+	chk("whoever fell below the line is flagged", (func() -> bool:
+		for r: Dictionary in result["rows"]:
+			var want: bool = float(r["score"]) < Balance.quiz_flag_below
+			if bool(r["flagged"]) != want:
+				return false
+		return true).call())
+
+	# --- what the flag is FOR ---
+	var flagged: StudentData = null
+	for s: StudentData in Game.roster:
+		if s.quiz_flagged:
+			flagged = s
+			break
+	if flagged != null:
+		var st: Interactable = world.station(flagged.seat_index)
+		chk("a flagged child offers a verb their desk did not have before",
+			st != null and st.action() == st.Action.GO_OVER, st.action())
+		chk("and the prompt says what it is",
+			st.prompt_text().contains("Go over"), st.prompt_text())
+		var work_before: float = flagged.work_timer
+		chk("going over it works", flagged.resolve_quiz())
+		chk("it clears the flag", not flagged.quiz_flagged)
+		chk("and it genuinely moves their work along",
+			flagged.work_timer < work_before,
+			"%.1f -> %.1f" % [work_before, flagged.work_timer])
+		chk("going over it twice does nothing -- it is not a second Help",
+			not flagged.resolve_quiz())
+	else:
+		chk("SKIPPED: this seed flagged nobody", true)
+
+	# The quiz must never be a way to score points directly; the three-row
+	# balance contract is measured without one, so any grade weight here
+	# would move the pillar without anything saying so.
+	var s0: StudentData = Game.roster[0]
+	var grade_before := Game.grade_for(s0)
+	s0.quiz_score = 1.0
+	chk("a quiz score is worth no grade by itself",
+		is_equal_approx(Game.grade_for(s0), grade_before))
+
+	# retrieval practice: being asked is itself a small piece of learning
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()
+	await step(4)
+	var s1: StudentData = Game.roster[0]
+	s1.work_timer = Balance.work_seconds
+	s1.take_quiz(Game.rng, Game.lesson_strand())
+	chk("being asked is itself a little bit of learning, for everyone",
+		s1.work_timer < Balance.work_seconds,
+		"%.1f" % s1.work_timer)
+
+	# understanding is built from what the game already knows
+	var a := StudentData.new()
+	a.aptitude = 0.9
+	var b := StudentData.new()
+	b.aptitude = 0.2
+	chk("a stronger child understands more of the lesson",
+		a.understanding("math") > b.understanding("math"))
+	var c := StudentData.new()
+	c.aptitude = 0.5
+	c.favourite = "math"
+	var d := StudentData.new()
+	d.aptitude = 0.5
+	chk("and their own subject helps them",
+		c.understanding("math") > d.understanding("math"))
+	var e := StudentData.new()
+	e.aptitude = 0.5
+	e.misjudged = true
+	chk("a sheet you waved through shows up here, before it becomes a grade",
+		e.understanding("math") < d.understanding("math"))
+
+	world.end_lesson()
 	await step(2)
 
 
