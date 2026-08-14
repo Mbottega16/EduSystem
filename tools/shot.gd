@@ -40,6 +40,11 @@ func _ready() -> void:
 	get_tree().root.add_child.call_deferred(main)
 	await get_tree().process_frame
 
+	# Optional: open a named screen before shooting. Every overlay in this
+	# project has needed two or three passes to stop running off the bottom
+	# of a 288x128 panel, and no assertion catches text that merely overflows.
+	var screen: String = args[5] if args.size() > 5 else ""
+
 	if grow > 0:
 		Game.coins = 99999999
 		for i in grow:
@@ -51,6 +56,12 @@ func _ready() -> void:
 	# and students walk to their chairs on a stagger.
 	for i in frames:
 		await get_tree().physics_frame
+
+	if screen != "":
+		_open_screen(main, screen)
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+
 	await RenderingServer.frame_post_draw
 
 	var img := get_viewport().get_texture().get_image()
@@ -58,3 +69,48 @@ func _ready() -> void:
 	print("shot: %s  %dx%d  err=%d  (%d frames)" % [
 		out, img.get_width(), img.get_height(), err, frames])
 	get_tree().quit(0 if err == OK else 1)
+
+
+## Drive the HUD straight to a screen, rather than trying to walk the teacher
+## across the room and press the right buttons in the right phase.
+func _open_screen(main: Node, screen: String) -> void:
+	var hud: Node = main.get_node("UI/HUD")
+	var world: Node = main.get_node("World")
+	match screen:
+		"quiz":
+			world.start_lesson()
+			hud.show_quiz_report(world.run_quiz())
+		"curriculum":
+			for l: Dictionary in Curriculum.lessons:
+				for i in 4:
+					Game.record_taught(String(l.get("id", "")))
+			hud.show_curriculum()
+		"unit_test":
+			for i in 5:
+				Game.record_taught("basic_arithmetic")
+			world.start_test("basic_arithmetic")
+			hud.show_test_report(world.end_test())
+		"student":
+			var s: StudentData = Game.roster[0]
+			Game.lesson = Curriculum.by_id("basic_arithmetic")
+			Game.grade_class()
+			Game.lesson = Curriculum.by_id("reading_fluency")
+			Game.grade_class()
+			hud.show_student(s)
+		"shop":
+			Game.add_coins(3000)
+			hud.open_catalogue()
+		"room":
+			Game.add_coins(50000)
+			hud.open_catalogue()
+			hud._shop = hud.Shop.ROOM
+			hud._render_catalogue()
+		"staff":
+			Game.add_teacher_xp(4000)
+			hud.open_catalogue()
+			hud._shop = hud.Shop.STAFF
+			hud._render_catalogue()
+		"class_list":
+			hud.show_class_list()
+		_:
+			push_error("unknown screen: " + screen)

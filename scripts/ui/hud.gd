@@ -36,13 +36,32 @@ var mode: int = Mode.NONE
 var _player: Node = null
 var _sel: int = 0
 var _shop: int = Shop.BUY
+## What the highlighted item is for, shown on the hint bar.
+var _shop_blurb: String = ""
 ## Which category tab the buy list is showing. 29 items in one flat
 ## list is more than fits the panel, let alone more than you can scan.
 var _cat: int = 0
 
-## How many list rows fit the overlay body at font 8 alongside a tab strip,
-## a blurb and the scroll markers.
-const LIST_ROWS := 5
+## How many list rows fit the overlay body alongside a tab strip, a blurb
+## and the scroll markers.
+const LIST_ROWS := 4
+
+## The widest a body line can be before the Label wraps it -- and a wrapped
+## line is a SECOND line, which is how three separate panels came to overflow
+## while every one of them looked short enough in the source.
+##
+## Taken from real screenshots: a 45-character row renders on one line in
+## the 288px panel. Do NOT tune this against get_line_count() -- headless
+## Godot has no renderer, falls back to different font metrics, and will
+## happily report wrapping that does not happen.
+const LINE_CHARS := 47
+
+
+## Clip a line to the panel width. Truncating is honest here: these are
+## fixed-width columns, so what gets cut is the tail of the last column
+## rather than something load-bearing.
+func _clip(text: String) -> String:
+	return text if text.length() <= LINE_CHARS else text.substr(0, LINE_CHARS)
 
 
 ## First visible row so that _sel stays on screen, scrolling only when the
@@ -302,10 +321,15 @@ func _render_class_list() -> void:
 	var lines: Array[String] = []
 	# The objective is the source document's own wording, so a player can
 	# see what the lesson is genuinely for rather than just a subject word.
-	lines.append("Today: %s  [%s]" % [
-		String(Game.lesson.get("name", "")), String(Game.lesson.get("standard", ""))])
-	lines.append(_wrap(String(Game.lesson.get("objective", "")), 62, 1))
-	lines.append("  %-10s %-9s %-5s %s" % ["name", "best at", "avg", "notes"])
+	# Two header lines, not three. Eight students plus a three-line header
+	# is one line more than the panel holds, and the objective is on the
+	# noticeboard as well.
+	lines.append(_clip("Today: %s  [%s]" % [
+		String(Game.lesson.get("name", "")),
+		String(Game.lesson.get("standard", ""))]))
+	# No column header. A full class is eight rows and the panel holds nine
+	# lines including the lesson line, so the header was the difference
+	# between showing everyone and hiding whoever sits in seat eight.
 	for i in Game.roster.size():
 		var s: StudentData = Game.roster[i]
 		var notes: Array[String] = []
@@ -364,12 +388,13 @@ func show_student(s: StudentData) -> void:
 	var lines: Array[String] = []
 	lines.append("Seat %d, joined on day %d." % [s.seat_index + 1, s.joined_day])
 	lines.append(_ability_line(s))
-	lines.append("Best at %s." % Curriculum.strand_label(s.favourite))
+	lines.append(_subject_line(s))
 	lines.append(_grades_line(s))
-	lines.append(_transcript_line(s))
 	lines.append(_homework_line(s))
 	lines.append(_help_line(s))
-	lines.append("")
+	# No blank separator. With every line filled in -- a full transcript, a
+	# marked sheet, ready to move up -- the file is exactly at the panel's
+	# limit, and the "> " markers already tell the actions from the prose.
 	lines.append_array(_bio_actions(s))
 	body.text = "\n".join(lines)
 	hint.text = "Up/Down choose    E do it    Esc back"
@@ -396,12 +421,30 @@ func _bio_actions(s: StudentData) -> Array[String]:
 		g_label = "Send them up             +%d coins" % [
 			Balance.grad_base_coins + Balance.grad_coins_per_level * extra]
 
+	# The "learned all they can" note rides on the Send-them-up row rather
+	# than taking a line of its own: the file is already at the panel's
+	# limit, and an extra line here pushes an ACTION off the bottom -- which
+	# is the half of the screen you can actually press.
+	if s.is_capped():
+		g_label += "  (all they can learn)"
 	var labels := [t_label, p_label, g_label]
 	for i in labels.size():
-		out.append("%s %s" % [">" if i == _bio_sel else " ", labels[i]])
-	if s.is_capped():
-		out.append("They have learned all they can from this class.")
+		out.append(_clip("%s %s" % [">" if i == _bio_sel else " ", labels[i]]))
 	return out
+
+
+## What they are good at, and what they have turned out to be good at.
+##
+## Folded into ONE line rather than given its own. The file already runs to
+## seven lines of a panel that holds about six, and every line added here
+## pushes an ACTION off the bottom -- which is the half of the screen you
+## can actually press.
+func _subject_line(s: StudentData) -> String:
+	var line := "Best at %s." % Curriculum.strand_label(s.favourite)
+	var best := s.best_subject()
+	if best != "" and s.transcript.size() >= 2:
+		line += "  Strongest so far: %s." % best
+	return line
 
 
 ## What this child has actually been taught, in one line.
@@ -508,20 +551,36 @@ func show_exam(result: Dictionary) -> void:
 ## so an explanation here would be a lie about where the result came from.
 func show_test_report(results: Array) -> void:
 	_open(Mode.REPORT)
-	title.text = "UNIT TEST: %s" % String(Game.lesson.get("name", "")).to_upper()
-	var lines: Array[String] = []
 	var total := 0.0
 	for r: Dictionary in results:
-		var s: StudentData = r["student"]
 		total += float(r["grade"])
-		lines.append("%-13s %s" % [s.first_name(), String(r["letter"])])
 	var avg: float = total / maxf(1.0, float(results.size()))
-	lines.append("")
-	lines.append("Unit average: %s   (%s)" % [
-		Game.grade_letter(avg), String(Game.lesson.get("standard", ""))])
-	lines.append("This is the room you built, not the day you had.")
-	body.text = "\n".join(lines)
-	hint.text = "E - close.   Ring the bell to end the day."
+
+	# The average goes in the title and the names run TWO to a line. A full
+	# class is eight children, and the panel holds about six lines -- one
+	# name per line plus a summary ran straight under the hint bar.
+	title.text = "%s  -  %s" % [
+		String(Game.lesson.get("name", "")).to_upper(), Game.grade_letter(avg)]
+
+	var lines: Array[String] = []
+	var i := 0
+	while i < results.size():
+		var left: Dictionary = results[i]
+		var cell := "%-11s %s" % [
+			(left["student"] as StudentData).first_name(), String(left["letter"])]
+		if i + 1 < results.size():
+			var right: Dictionary = results[i + 1]
+			cell += "     %-11s %s" % [
+				(right["student"] as StudentData).first_name(),
+				String(right["letter"])]
+		lines.append(cell)
+		i += 2
+	body.text = "
+".join(lines)
+	# No "why" column, unlike the lesson report: there is nothing you could
+	# have done differently on the day, which is the point of the instrument.
+	hint.text = "%s   E - close.   The room you built, not the day." % String(
+		Game.lesson.get("standard", ""))
 
 
 ## What you have learned to teach, and what is still ahead.
@@ -531,38 +590,51 @@ func show_test_report(results: Array) -> void:
 ## made-up one of its own — see the note at the top of data/curriculum.json.
 func show_curriculum() -> void:
 	_open(Mode.REPORT)
-	var known: int = Game.concepts.size()
-	title.text = "CURRICULUM  %d/%d" % [known, Curriculum.concept_count()]
 
-	# Grouped by lesson, because that is how they unlock: teach a lesson
-	# again and the next one down its list opens.
-	var lines: Array[String] = []
+	var known: int = Game.concepts.size()
+	# The headline number goes in the TITLE, where nothing can push it off.
+	title.text = "CURRICULUM  %d/%d  (+%.0f%%)" % [
+		known, Curriculum.concept_count(), Game.concept_bonus() * 100.0]
+
+	# GROUPED BY SUBJECT, not listed by lesson.
+	#
+	# Ten lesson rows do not fit. The panel holds about six lines whatever
+	# font size is asked for -- the game's font is a fixed-size pixel font,
+	# so add_theme_font_size_override() on this Label does nothing at all,
+	# which is worth knowing before designing another list screen.
+	#
+	# Four subjects is also the better summary: what you want off this screen
+	# is which subject to teach next, not a ten-row audit.
+	var got := {}
+	var total := {}
+	var nearest := {}          # strand -> [lessons still to teach, name]
 	for l: Dictionary in Curriculum.lessons:
 		var lid := String(l.get("id", ""))
-		var times := Game.times_taught(lid)
-		var got := 0
-		var next_at := -1
+		var strand := String(l.get("strand", ""))
 		for c: Dictionary in Curriculum.concepts_of(lid):
+			total[strand] = int(total.get(strand, 0)) + 1
 			if Game.knows_concept(String(c.get("id", ""))):
-				got += 1
-			elif next_at < 0:
-				next_at = int(c.get("at", 1))
-		var tail := "all learned"
-		if next_at >= 0:
-			tail = "next after %d more" % maxi(1, next_at - times)
-		lines.append("%-13s %s  %d/%d  %s" % [
-			Curriculum.short_name(l), String(l.get("standard", "")),
-			got, Curriculum.concepts_of(lid).size(), tail])
+				got[strand] = int(got.get(strand, 0)) + 1
+			elif not nearest.has(strand):
+				nearest[strand] = [
+					maxi(1, int(c.get("at", 1)) - Game.times_taught(lid)),
+					Curriculum.short_name(l)]
 
-	lines.append("")
+	var lines: Array[String] = []
+	for strand: String in Curriculum.strands():
+		var tail := "all learned"
+		if nearest.has(strand):
+			var row: Array = nearest[strand]
+			tail = "%s in %d" % [String(row[1]), int(row[0])]
+		lines.append("%-11s %d/%-3d %s" % [
+			Curriculum.strand_label(strand),
+			int(got.get(strand, 0)), int(total.get(strand, 0)), tail])
+
 	if known == 0:
-		lines.append("Teach a lesson and you will start to learn it yourself.")
-	else:
-		lines.append("Worth +%.0f%% to every grade%s." % [
-			Game.concept_bonus() * 100.0,
-			" (at the cap)" if Game.concept_bonus()
-				>= Balance.concept_bonus_cap - 0.0001 else ""])
-	body.text = "\n".join(lines)
+		lines.append("")
+		lines.append("Teach a lesson and you start to learn it too.")
+	body.text = "
+".join(lines)
 	hint.text = "E - close"
 
 
@@ -598,13 +670,15 @@ func show_lesson_report(results: Array) -> void:
 		String(Game.lesson.get("standard", ""))]
 	# Plain English, not the raw floats this used to print. A player should
 	# be able to see WHY a grade happened and what to do differently.
+	# The class average moves to the TITLE and the blank line goes: a full
+	# class is eight rows, and eight rows plus a spacer plus a summary is
+	# two lines more than the panel holds.
+	title.text += "   avg %s" % Game.grade_letter(Game.class_average())
 	var lines: Array[String] = []
 	for r: Dictionary in results:
 		var s: StudentData = r["student"]
-		lines.append("%-11s %s   %s" % [
-			s.first_name(), String(r["letter"]), _why(s)])
-	lines.append("")
-	lines.append("Class average: %s" % Game.grade_letter(Game.class_average()))
+		lines.append(_clip("%-11s %s   %s" % [
+			s.first_name(), String(r["letter"]), _why(s)]))
 	body.text = "\n".join(lines)
 	hint.text = "E - close.   Ring the bell to end the day."
 
@@ -710,7 +784,10 @@ func _render_catalogue() -> void:
 	if _shop == Shop.BUY:
 		var cats := Items.categories()
 		for i in cats.size():
-			tabs += ("[%s]" if i == _cat else " %s ") % Items.category_label(String(cats[i]))
+			# initials for the tabs you are NOT on; the full word only for
+			# the one you are, which is the only one you need to read
+			var label := Items.category_label(String(cats[i]))
+			tabs += ("[%s]" % label) if i == _cat else (" %s " % label.substr(0, 3))
 	var heading := "BUY FURNITURE"
 	if _shop == Shop.SELL:
 		heading = "SELL FURNITURE"
@@ -748,30 +825,37 @@ func _render_catalogue() -> void:
 		for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
 			var id: String = rows[i]
 			var d := Items.get_def(id)
-			lines.append("%s %-13s %4d  %-16s%s" % [
+			lines.append(_clip("%s %-13s %4d  %-16s%s" % [
 				">" if i == _sel else " ", String(d["name"]), int(d["cost"]),
 				_reach_words(int(d["range"]), float(d["bonus"])),
-				"" if Game.can_afford(int(d["cost"])) else "  too dear"])
+				"" if Game.can_afford(int(d["cost"])) else "  too dear"]))
 		if lo + LIST_ROWS < rows.size():
 			lines.append("   ...")
-		lines.append("")
-		lines.append(String(Items.get_def(rows[_sel]).get("blurb", "")))
+		# The blurb rides on the HINT bar rather than taking a body line. The
+		# tab strip plus four rows is already everything the panel holds, and
+		# the blurb was landing on top of the hint text.
+		_shop_blurb = String(Items.get_def(rows[_sel]).get("blurb", ""))
 	else:
-		for i in rows.size():
+		# The sell list is windowed too. A full room is far more items than
+		# the panel holds, and it used to print every one of them.
+		var lo2 := _window_start(rows.size(), LIST_ROWS)
+		if lo2 > 0:
+			lines.append("   ...")
+		for i in range(lo2, mini(rows.size(), lo2 + LIST_ROWS)):
 			var placed: Dictionary = rows[i]
 			var pid := String(placed["id"])
-			lines.append("%s %-13s  back %3d   at %d,%d" % [
+			lines.append(_clip("%s %-13s  back %3d   at %d,%d" % [
 				">" if i == _sel else " ",
 				String(Items.get_def(pid).get("name", pid)),
-				Game.sell_value(pid), placed["tile"].x, placed["tile"].y])
-		lines.append("")
-		lines.append("Selling gives back half.")
-		lines.append("To MOVE something, walk up to it instead.")
+				Game.sell_value(pid), placed["tile"].x, placed["tile"].y]))
+		if lo2 + LIST_ROWS < rows.size():
+			lines.append("   ...")
+		lines.append("Selling gives back half. To MOVE one, walk to it.")
 	body.text = "\n".join(lines)
 	var verb := "order"
 	var next_tab := "sell list"
 	if _shop == Shop.BUY:
-		hint.text = "Up/Down pick   Left/Right category   E order   Tab sell   Esc close"
+		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E order   Esc close"
 		body.text = "
 ".join(lines)
 		return

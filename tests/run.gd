@@ -125,6 +125,7 @@ func _main() -> void:
 	await test_unit_test()
 	await test_two_buttons_one_landmark()
 	await test_growing_the_room()
+	await test_panels_fit()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1887,6 +1888,148 @@ func test_growing_the_room() -> void:
 	await step(2)
 
 
+## How many lines of body text a panel can actually show.
+##
+## Measured from real screenshots, NOT from get_line_count(). Headless Godot
+## has no renderer and falls back to different font metrics, where it insists
+## six lines are wrapping that plainly do not wrap on screen -- so a layout
+## assertion built on it fails honest code and would eventually be deleted
+## for crying wolf. Written lines against a measured budget is the same
+## question, and it gives the same answer in both places.
+##
+## The two numbers are the two font sizes the overlays use: the REPORT
+## default, and the smaller one the denser screens switch to.
+const PANEL_LINES := 5
+const PANEL_LINES_SMALL := 9
+
+
+func _lines_in(label: Label) -> int:
+	return label.text.split("\n").size()
+
+
+func _fits(label: Label, budget: int) -> bool:
+	return _lines_in(label) <= budget
+
+
+func _overflow(label: Label, budget: int) -> String:
+	return "%d lines, room for %d" % [_lines_in(label), budget]
+
+
+func test_panels_fit() -> void:
+	section("PANELS THAT FIT")
+	var hud := _hud()
+	Game.new_run(SEED)
+	Game.add_coins(50000)
+	await step(2)
+
+	# EVERY overlay in this project has needed two or three passes to stop
+	# running off the bottom of its panel, and until now nothing caught it --
+	# a screen that overflows is not a failed assertion, it is just wrong on
+	# screen. The unit-test report, the curriculum screen and the student
+	# file were all shipped overflowing in the same afternoon.
+
+	Game.set_phase(Game.Phase.MORNING)
+	await step(30)
+	world.start_lesson()
+	hud.show_quiz_report(world.run_quiz())
+	chk("the quiz report fits a full class",
+		_fits(hud.body, PANEL_LINES_SMALL),
+		_overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+
+	# a FULL class is the hard case for any per-student list
+	while Game.enrol() != null:
+		pass
+	chk("the class really is full", Game.roster.size() == Game.seat_capacity())
+
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	hud.show_lesson_report(Game.grade_class())
+	chk("the lesson report fits a full class",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+
+	for i in Balance.test_requires_taught:
+		Game.record_taught("basic_arithmetic")
+	hud.show_test_report(Game.grade_test())
+	chk("the unit test report fits a full class",
+		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+	hud.close()
+
+	hud.show_curriculum()
+	chk("the curriculum screen fits when you know nothing",
+		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+	hud.close()
+	for l: Dictionary in Curriculum.lessons:
+		for i in 10:
+			Game.record_taught(String(l.get("id", "")))
+	hud.show_curriculum()
+	chk("and still fits when you know everything",
+		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+	hud.close()
+
+	# the student file, with everything on it at once
+	var s: StudentData = Game.roster[0]
+	Game.lesson = Curriculum.by_id("reading_fluency")
+	Game.grade_class()
+	s.hw_state = StudentData.HW.MARKED
+	s.hw_player_verdict = 1
+	while not s.is_ready_to_graduate():
+		s.add_xp(1)
+	hud.show_student(s)
+	chk("a student file fits with every line filled in",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	chk("and it still offers all three actions",
+		hud.body.text.contains("Extra tuition")
+		and hud.body.text.contains("parents")
+		and hud.body.text.contains("Send them up"), hud.body.text)
+	hud.close()
+
+	hud.show_class_list()
+	chk("the class list fits a full class",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+
+	# every shop tab
+	hud.open_catalogue()
+	for tab in [hud.Shop.BUY, hud.Shop.SELL, hud.Shop.STAFF, hud.Shop.ROOM]:
+		hud._shop = tab
+		hud._sel = 0
+		hud._render_catalogue()
+		chk("shop tab %d fits" % tab, _fits(hud.body, PANEL_LINES_SMALL),
+			_overflow(hud.body, PANEL_LINES_SMALL))
+	# the busiest category, at the bottom of its list
+	hud._shop = hud.Shop.BUY
+	var biggest := 0
+	for i in Items.categories().size():
+		if Items.available_in_category(String(Items.categories()[i])).size() \
+				> Items.available_in_category(String(Items.categories()[biggest])).size():
+			biggest = i
+	hud._cat = biggest
+	hud._sel = Items.available_in_category(
+		String(Items.categories()[biggest])).size() - 1
+	hud._render_catalogue()
+	chk("the fullest shop category fits, scrolled to the end",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	# Put the shop back on its first category. A section that leaves UI
+	# state behind breaks a later one somewhere unrelated.
+	hud._cat = 0
+	hud._sel = 0
+	hud.close()
+
+	hud.show_title()
+	chk("the title screen fits",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+
+	hud.show_pause()
+	chk("the pause menu fits",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -1951,7 +2094,11 @@ func test_overlays() -> void:
 	# order something, and place it. Opening the board is a MANAGE action;
 	# confirming a row inside the overlay is still the ordinary use button.
 	await tap("manage")
-	var chosen: String = Items.order()[hud._sel]
+	# The row that is actually highlighted. Items.order()[_sel] is the FLAT
+	# catalogue, but the shop shows one category at a time -- the two agree
+	# only while you are on the first category, which is exactly the kind of
+	# coincidence that holds until something else moves.
+	var chosen: String = String(hud._shop_rows()[hud._sel])
 	var coins_before: int = Game.coins
 	var items_before: int = Game.room_items.size()
 	await tap("interact")
