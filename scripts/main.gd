@@ -22,6 +22,8 @@ func _ready() -> void:
 	world.quiz_requested.connect(_run_quiz)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
+	world.lesson_auto_ended.connect(hud.show_lesson_report)
+	world.test_auto_ended.connect(hud.show_test_report)
 	world.room_rebuilt.connect(_wire_room)
 	_wire_room()
 

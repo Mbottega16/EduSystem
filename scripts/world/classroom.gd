@@ -15,6 +15,10 @@ const TEACHER_START := Vector2i(9, 3)
 
 signal lesson_tick(seconds_left: float)
 signal lesson_timed_out()
+## The clock ran out on its own, rather than the teacher calling time. The
+## results still have to reach a screen, exactly as they do from the podium.
+signal lesson_auto_ended(results: Array)
+signal test_auto_ended(results: Array)
 
 signal work_finished(seat_index: int)
 signal day_started(day: int)
@@ -199,7 +203,23 @@ func _physics_process(delta: float) -> void:
 			if s.tick_work(delta, roll):
 				_on_work_done(s)
 		if lesson_left <= 0.0:
+			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
+			#
+			# This used to emit lesson_timed_out and stop, and nothing in
+			# the game listened to it. The clock hit zero and the day just
+			# stayed there: still in LESSON, so the bell -- which only rings
+			# in the afternoon -- never came on offer, and there was no way
+			# left to end the day at all. Every test called world.end_day()
+			# directly, so the suite never once walked to a landmark and
+			# pressed the button a player would press.
+			#
+			# end_lesson() and end_test() both move to AFTERNOON, so the
+			# phase check above is what stops this firing twice.
 			lesson_timed_out.emit()
+			if Game.test_active:
+				test_auto_ended.emit(end_test())
+			else:
+				lesson_auto_ended.emit(end_lesson())
 	_refresh_bubbles()
 
 

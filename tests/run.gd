@@ -127,6 +127,7 @@ func _main() -> void:
 	await test_growing_the_room()
 	await test_panels_fit()
 	await test_systems_together()
+	await test_a_whole_day()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -2154,6 +2155,66 @@ func test_systems_together() -> void:
 	await step(2)
 
 
+func test_a_whole_day() -> void:
+	section("ONE WHOLE DAY, THROUGH THE REAL BUTTONS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var hud := _hud()
+	var p: Actor = world.player
+	await step(40)                      # let the class walk in and sit down
+
+	# Everything else drives the day by calling world.start_lesson() and
+	# world.end_day() directly. Nothing walked a teacher to a landmark and
+	# pressed the button a player would press, which is why "you cannot end
+	# the day" was able to be true while every test passed.
+	chk("the class is seated and it is morning",
+		world.everyone_seated() and Game.phase == Game.Phase.MORNING, Game.phase)
+
+	# --- start the lesson at the podium ---
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	chk("the podium offers to teach", (func() -> bool:
+		var t: Interactable = p.targets["manage"]
+		return t != null and t.prompt_text().begins_with("Teach")).call(),
+		p.targets["manage"])
+	await tap("manage")
+	chk("tapping manage starts the lesson", Game.phase == Game.Phase.LESSON,
+		Game.phase)
+
+	# --- let the clock run all the way out ---
+	var guard := 0
+	while world.lesson_left > 0.0 and guard < 4000:
+		await step(1)
+		guard += 1
+	chk("the lesson clock reaches zero", world.lesson_left <= 0.0,
+		world.lesson_left)
+
+	# THE BUG. The clock running out emitted lesson_timed_out and NOTHING
+	# listened, so the day simply stopped: still in LESSON, so the bell --
+	# which only rings in the afternoon -- was never on offer, and there was
+	# no way left to end the day at all.
+	await step(10)
+	chk("a lesson that runs out of time actually ENDS",
+		Game.phase == Game.Phase.AFTERNOON, Game.phase)
+	_hud().close()
+	await step(2)
+
+	# --- ring the bell ---
+	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	chk("the bell is now on offer", world.bell.can_interact())
+	chk("and MANAGE is pointing at it", p.targets["manage"] == world.bell)
+	var day_before: int = Game.day
+	await hold_confirm("manage", 0.9)
+	chk("holding at the bell ends the day", Game.day == day_before + 1,
+		"day %d phase %d" % [Game.day, Game.phase])
+	chk("and the day report is on screen",
+		hud.mode == hud.Mode.REPORT, hud.mode)
+	await tap("interact")
+	await step(2)
+	chk("E closes it and hands you back the room",
+		hud.mode == hud.Mode.NONE and not p.input_locked, hud.mode)
+	chk("tomorrow has begun", Game.phase == Game.Phase.MORNING, Game.phase)
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -2922,6 +2983,20 @@ func test_buttons() -> void:
 	await tap("manage")
 	chk("neither mashing use nor tapping manage ends the day",
 		Game.day == day_before, Game.day)
+
+	# ...but HOLDING it must. This was asserted only in the negative until
+	# now -- the suite proved the bell could not be rung by accident and
+	# never once proved it could be rung on purpose, and it called
+	# world.end_day() directly everywhere else.
+	chk("the bell is what MANAGE is pointing at",
+		world.player.targets["manage"] == world.bell,
+		world.player.targets["manage"])
+	chk("and it is offering to end the day", world.bell.can_interact())
+	await hold_confirm("manage", 0.9)
+	chk("holding manage at the bell DOES end the day",
+		Game.day == day_before + 1, "day %d, phase %d" % [Game.day, Game.phase])
+	_hud().close()
+	await step(2)
 
 	# ...but starting a lesson is instant, because it costs nothing to undo
 	Game.set_phase(Game.Phase.MORNING)
