@@ -126,6 +126,7 @@ func _main() -> void:
 	await test_two_buttons_one_landmark()
 	await test_growing_the_room()
 	await test_panels_fit()
+	await test_systems_together()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -2061,6 +2062,93 @@ func test_panels_fit() -> void:
 	chk("the pause menu fits",
 		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
 	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_systems_together() -> void:
+	section("THE NEW SYSTEMS, TOGETHER")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	Game.coins = 100000
+	await step(2)
+
+	# --- move a desk, THEN grow the room ---
+	# Growing rebuilds the seating from Layout, so a desk you moved has to
+	# survive being rebuilt around. If it did not, the room getting bigger
+	# would silently undo your arrangement.
+	var s0: StudentData = Game.roster[0]
+	var moved := Vector2i(5, 3)
+	chk("the desk moves", world.move_desk(s0.seat_index, moved))
+	Game.expand_room("wide")
+	await step(2)
+	chk("and it is still where you put it after the room grows",
+		Layout.seat(s0.seat_index) == moved, Layout.seat(s0.seat_index))
+	chk("the grid agrees",
+		world.grid.get_cell(moved) == Grid.Cell.SEAT, world.grid.get_cell(moved))
+	chk("and the child is still sitting at it", (func() -> bool:
+		var n: Actor = world.student_node(s0.seat_index)
+		return n != null and n.global_position == Grid.tile_to_world(moved)).call())
+	chk("everyone can still reach the door", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if not world.grid.reachable(Layout.DOOR, Layout.seat(st.seat_index)):
+				return false
+		return true).call())
+
+	# --- the arrangement AND the size survive the same save ---
+	var seats := Layout.seats().duplicate()
+	var w := Grid.W
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("a save remembers the arrangement and the size together",
+		Layout.seats() == seats and Grid.W == w,
+		"%dx%d, seat0 %s" % [Grid.W, Grid.H, Layout.seat(0)])
+	Game.delete_save()
+
+	# --- a quiz, then a test, on the same day ---
+	Game.new_run(SEED)
+	await step(30)
+	world.start_lesson()
+	await step(2)
+	world.run_quiz()
+	chk("a quiz flags people during an ordinary lesson", Game.quiz_done)
+	world.end_lesson()
+	await step(2)
+
+	for i in Balance.test_requires_taught:
+		Game.record_taught(String(Game.lesson.get("id", "")))
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(String(Game.lesson.get("id", "")))
+	chk("a test can be sat after a lesson day", Game.test_active)
+	chk("and it clears any quiz flag left over, because you cannot act on one",
+		(func() -> bool:
+			for st: StudentData in Game.roster:
+				if st.quiz_flagged:
+					return false
+			return true).call())
+	world.end_test()
+	await step(2)
+
+	# --- concepts unlock furniture, which unlocks concepts ---
+	Game.new_run(SEED)
+	var gated := ""
+	for id: String in Items.order():
+		if Items.requires(id) != "":
+			gated = id
+			break
+	chk("the gated item starts locked", not Items.is_unlocked(gated))
+	# teach the lesson its gate belongs to until the concept opens
+	var need := Items.requires(gated)
+	var lesson_id := String(Curriculum.concept(need).get("lesson", ""))
+	var guard := 0
+	while not Game.knows_concept(need) and guard < 40:
+		Game.record_taught(lesson_id)
+		guard += 1
+	chk("teaching its subject unlocks it", Items.is_unlocked(gated), gated)
+	chk("and it appears in the shop", (func() -> bool:
+		return Items.available_in_category(Items.category_of(gated)).has(gated)).call())
 
 	Game.new_run(SEED)
 	await step(2)

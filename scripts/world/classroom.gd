@@ -285,6 +285,12 @@ func start_test(lesson_id: String) -> int:
 	Game.subject = String(Game.lesson.get("name", "Test"))
 	Game.test_active = true
 	Game.quiz_done = true          # no quizzing your way through a test
+	# Any flag left over from an earlier lesson goes with it. The blue
+	# bubble means "go to that desk", and during a test the desk offers
+	# nothing at all -- a signal you cannot act on is worse than none.
+	for s: StudentData in Game.roster:
+		s.quiz_flagged = false
+		s.quiz_score = -1.0
 	Game.set_phase(Game.Phase.LESSON)
 	lesson_left = Balance.test_seconds
 	var n := 0
