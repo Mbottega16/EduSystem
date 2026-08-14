@@ -1,5 +1,7 @@
 extends Control
 
+const BUILD_STAMP := preload("res://scripts/data/version.gd")
+
 ## Status strip, interaction prompt, and the full-screen overlays.
 ##
 ## The status strip deliberately sits over the top wall band, where nothing
@@ -240,16 +242,21 @@ func show_title() -> void:
 	body.add_theme_font_size_override("font_size", 8)
 	body.add_theme_constant_override("line_spacing", 1)
 	title.text = "P I X E L R O O M"
+	# This screen had gone stale. It still described only the original loop,
+	# so a player who had just been given traits, disruption, a voice and
+	# three assessments was told about none of them and quite reasonably
+	# concluded that nothing had changed.
 	body.text = "\n".join([
-		"You are the teacher. Arrows/WASD walk, E does the",
-		"prompt at the bottom, Tab shows your class.",
-		"Start the lesson at the PODIUM, then walk the room.",
-		"A student with a ? is STUCK and their work has",
-		"stopped - press E at their desk to get them going.",
-		"Collect the work, hand it in at YOUR desk, ring the",
-		"BELL. After %d days the class sits an exam." % Balance.term_days,
+		"You are the teacher. WASD walks. E is the prompt at",
+		"the bottom, F the one beside it. Tab: your class.",
+		"Teach at the PODIUM, then walk the room:",
+		"  amber ? stuck     red ! playing up (it SPREADS)",
+		"  blue ? behind     Q settles who can hear you",
+		"Collect work, mark homework at YOUR desk, ring the",
+		"BELL. Quiz mid-lesson; test a unit you know well.",
+		"%d days, then the exam." % Balance.term_days,
 	])
-	hint.text = "E - begin"
+	hint.text = "E - begin        %s" % BUILD_STAMP.stamp()
 
 
 ## The pause menu. Deliberately short: the full settings live on the title

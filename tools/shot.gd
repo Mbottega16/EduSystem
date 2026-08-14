@@ -112,6 +112,8 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
+		"title":
+			hud.show_title()
 		"inspection":
 			Game.event = DayEvent.by_id("inspector")
 			var g := 0
