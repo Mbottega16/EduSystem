@@ -16,7 +16,11 @@ func can_interact() -> bool:
 
 
 func prompt_text() -> String:
-	return "Furniture  (%d coins)" % Game.coins
+	# No coin count. The prompt bar names BOTH buttons now, and the board
+	# shares its tile with the curriculum, so a redundant number here was
+	# pushing the shop's own name off the end of the line -- which is how
+	# the shop appeared to vanish. Your coins are on the status strip.
+	return "Furniture shop"
 
 
 func interact(by: Node) -> void:

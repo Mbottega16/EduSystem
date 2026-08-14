@@ -13,6 +13,19 @@ extends Area2D
 
 const PICK_RADIUS := 20.0
 
+
+## Shrink (or grow) this one thing's own reach.
+##
+## Reach is the SUM of the player's zone and the interactable's circle, so a
+## default 20 here plus 20 there is a 40px grab -- two and a half tiles. Two
+## landmarks a couple of tiles apart therefore both answer from the same
+## spot, and the one on the busier button wins the prompt. Anything sharing
+## a corner with something else wants a smaller circle than the default.
+func set_pick_radius(r: float) -> void:
+	for c in get_children():
+		if c is CollisionShape2D and (c as CollisionShape2D).shape is CircleShape2D:
+			((c as CollisionShape2D).shape as CircleShape2D).radius = r
+
 ## Which button works this thing.
 ##   USE    - the constant, safe, repeated verbs: help, collect, hand in.
 ##   MANAGE - the deliberate, session-level ones: start or end a lesson,

@@ -79,6 +79,19 @@ theme_override_colors/font_color = Color(0.95, 0.91, 0.77, 1)
 theme_override_font_sizes/font_size = 10
 theme_override_constants/line_spacing = 4
 
+[node name="Rich" type="RichTextLabel" parent="Overlay"]
+visible = false
+offset_left = 16.0
+offset_top = 24.0
+offset_right = 304.0
+offset_bottom = 152.0
+mouse_filter = 2
+bbcode_enabled = true
+scroll_active = false
+theme_override_colors/default_color = Color(0.95, 0.91, 0.77, 1)
+theme_override_font_sizes/normal_font_size = 10
+theme_override_constants/line_separation = 4
+
 [node name="Hint" type="Label" parent="Overlay"]
 offset_top = 156.0
 offset_right = 320.0

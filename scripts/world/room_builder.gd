@@ -286,6 +286,10 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	cur.set_script(CURRICULUM_SCRIPT)
 	cur.add_to_group("curriculum_board")
 	body.add_child(cur)
+	# The board sits two tiles from the BELL, and reach is the sum of both
+	# circles -- so at the default it answered from the bell's own tile and
+	# took the prompt with it. You have to be at the board to read the board.
+	cur.set_pick_radius(9.0)
 
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
 	return it

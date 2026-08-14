@@ -31,6 +31,10 @@ signal perk_bought()
 @onready var overlay: ColorRect = $Overlay
 @onready var title: Label = $Overlay/Title
 @onready var body: Label = $Overlay/Body
+## A second body for the one screen that needs COLOUR rather than columns.
+## A Label is one colour by definition, and the curriculum is a list of four
+## different subjects -- which is exactly the thing colour is for.
+@onready var rich: RichTextLabel = $Overlay/Rich
 @onready var hint: Label = $Overlay/Hint
 @onready var portrait: TextureRect = $Overlay/Portrait
 
@@ -185,29 +189,43 @@ func _update_prompt() -> void:
 		prompt.visible = false
 		prompt_box.visible = false
 		return
-	var target: Interactable = null
-	if _player != null and is_instance_valid(_player) 			and is_instance_valid(_player.target):
-		target = _player.target
 	# a timed hint owns the prompt bar while it is up
 	if _hint_until > Time.get_ticks_msec() / 1000.0:
 		return
-	var showing := target != null and target.can_interact()
+	if _player == null or not is_instance_valid(_player):
+		prompt.visible = false
+		prompt_box.visible = false
+		return
+
+	# BOTH buttons, always.
+	#
+	# This used to show one target -- whichever the picker preferred, which
+	# was always E. Stand at the noticeboard and it said "Curriculum", so the
+	# SHOP, sitting right there on F, was invisible; the game looked like it
+	# had lost a feature. Stand by the bell and it said "Curriculum" again
+	# while "Ring the bell" went unmentioned on F, which is how the day
+	# became impossible to end.
+	#
+	# One target per button was already true. The bar simply was not saying so.
+	var parts: Array[String] = []
+	for action: String in ["interact", "manage"]:
+		var t: Interactable = _player.targets.get(action)
+		if t == null or not is_instance_valid(t) or not t.can_interact():
+			continue
+		var key: String = t.key_hint()
+		if t.hold_time > 0.0:
+			var held: float = _player.hold_progress if _player._holding == action else 0.0
+			var filled := int(round(held * 6.0))
+			parts.append("hold %s [%s%s] %s" % [
+				key, "#".repeat(filled), ".".repeat(6 - filled), t.prompt_text()])
+		else:
+			parts.append("%s - %s" % [key, t.prompt_text()])
+
+	var showing := not parts.is_empty()
 	prompt.visible = showing
 	prompt_box.visible = showing
 	if showing:
-		# name the key this thing actually listens for -- there are two now,
-		# and anything irreversible has to be held rather than tapped
-		var hint_key: String = target.key_hint()
-		if target.hold_time > 0.0:
-			var held: float = 0.0
-			if _player != null and is_instance_valid(_player):
-				held = _player.hold_progress
-			var filled := int(round(held * 8.0))
-			prompt.text = "hold %s [%s%s]  %s" % [
-				hint_key, "#".repeat(filled), ".".repeat(8 - filled),
-				target.prompt_text()]
-		else:
-			prompt.text = "%s  —  %s" % [hint_key, target.prompt_text()]
+		prompt.text = _clip("   ".join(parts))
 
 
 # ---------------------------------------------------------------- overlays
@@ -219,6 +237,9 @@ func _open(m: int) -> void:
 	# every mode that wants a portrait turns it back on; this is the
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
+	# the same single line that stops one screen leaking into the next
+	rich.visible = false
+	body.visible = true
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -691,54 +712,95 @@ func show_test_report(results: Array) -> void:
 ## Each row carries the REAL standard code its lesson cites. A concept is a
 ## component of that standard and shares its code rather than getting a
 ## made-up one of its own — see the note at the top of data/curriculum.json.
+## One colour per subject, so the shape of what you have taught is readable
+## before a single word is. Four strands, four hues, and the same hue is used
+## for that subject everywhere it appears.
+const STRAND_COLOUR := {
+	"math": "8ab4f8",      # blue
+	"ela": "9fd89f",       # green
+	"science": "f2c66b",   # amber
+	"social": "d0a3e8",    # violet
+}
+const DIM := "6a6a72"
+
+
+static func strand_colour(strand: String) -> String:
+	return String(STRAND_COLOUR.get(strand, "cfcfcf"))
+
+
 func show_curriculum() -> void:
 	_open(Mode.REPORT)
+	# this is the one screen that is a list of four different SUBJECTS, so
+	# it gets the rich body rather than the plain one
+	body.visible = false
+	rich.visible = true
+	# Ten subjects plus a key is eleven lines. At the default spacing that
+	# runs off the bottom and silently drops the last three subjects -- on a
+	# screen whose whole job is "what have I not taught yet", the worst
+	# possible thing to lose.
+	# A RichTextLabel's line box is taller than its font size, so eleven rows
+	# at font 10 do not fit 128px however tight the separation. Font 8 does,
+	# and this screen is a scannable list rather than prose.
+	rich.add_theme_constant_override("line_separation", 1)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	# Ten subjects plus a key is eleven lines. At the default spacing that
+	# runs off the bottom and silently loses the last three subjects, which
+	# on a screen whose whole job is "what have I not taught yet" is the
+	# worst possible thing to drop.
+	rich.add_theme_constant_override("line_separation", 1)
 
 	var known: int = Game.concepts.size()
-	# The headline number goes in the TITLE, where nothing can push it off.
-	title.text = "CURRICULUM  %d/%d  (+%.0f%%)" % [
-		known, Curriculum.concept_count(), Game.concept_bonus() * 100.0]
+	title.text = "CURRICULUM  %d/%d" % [known, Curriculum.concept_count()]
 
-	# GROUPED BY SUBJECT, not listed by lesson.
-	#
-	# Ten lesson rows do not fit. The panel holds about six lines whatever
-	# font size is asked for -- the game's font is a fixed-size pixel font,
-	# so add_theme_font_size_override() on this Label does nothing at all,
-	# which is worth knowing before designing another list screen.
-	#
-	# Four subjects is also the better summary: what you want off this screen
-	# is which subject to teach next, not a ten-row audit.
-	var got := {}
-	var total := {}
-	var nearest := {}          # strand -> [lessons still to teach, name]
+	# Grouped by lesson, because that is how they unlock: teach a lesson
+	# again and the next one down its list opens.
+	var lines: Array[String] = []
 	for l: Dictionary in Curriculum.lessons:
 		var lid := String(l.get("id", ""))
-		var strand := String(l.get("strand", ""))
+		var times := Game.times_taught(lid)
+		var total: int = Curriculum.concepts_of(lid).size()
+		var got := 0
+		var next_at := -1
 		for c: Dictionary in Curriculum.concepts_of(lid):
-			total[strand] = int(total.get(strand, 0)) + 1
 			if Game.knows_concept(String(c.get("id", ""))):
-				got[strand] = int(got.get(strand, 0)) + 1
-			elif not nearest.has(strand):
-				nearest[strand] = [
-					maxi(1, int(c.get("at", 1)) - Game.times_taught(lid)),
-					Curriculum.short_name(l)]
+				got += 1
+			elif next_at < 0:
+				next_at = int(c.get("at", 1))
 
-	var lines: Array[String] = []
-	for strand: String in Curriculum.strands():
-		var tail := "all learned"
-		if nearest.has(strand):
-			var row: Array = nearest[strand]
-			tail = "%s in %d" % [String(row[1]), int(row[0])]
-		lines.append("%-11s %d/%-3d %s" % [
-			Curriculum.strand_label(strand),
-			int(got.get(strand, 0)), int(total.get(strand, 0)), tail])
+		var hue := strand_colour(String(l.get("strand", "")))
+		# A lesson you have never touched is dimmed rather than hidden: what
+		# you have NOT taught is half the information on this screen.
+		var name_hue := hue if times > 0 else DIM
+		var tail := "[color=#%s]all learned[/color]" % hue
+		if next_at >= 0:
+			tail = "[color=#%s]next after %d more[/color]" % [
+				DIM, maxi(1, next_at - times)]
+		lines.append("[color=#%s]%s[/color] %s  %s  %s" % [
+			name_hue, Curriculum.short_name(l).rpad(13),
+			String(l.get("standard", "")).rpad(9),
+			_pips(got, total, hue), tail])
 
-	if known == 0:
-		lines.append("")
-		lines.append("Teach a lesson and you start to learn it too.")
-	body.text = "
+	# No colour key. Ten subjects fill the panel exactly, and every row
+	# already NAMES its own subject -- the colour groups them (all four
+	# English rows green, both maths rows blue) rather than being the only
+	# thing carrying the meaning. A key would cost a subject to explain
+	# something the screen already says in words.
+	rich.text = "
 ".join(lines)
-	hint.text = "E - close"
+	if known == 0:
+		hint.text = "E - close.   Teach a lesson and you start to learn it too."
+	else:
+		hint.text = _clip("E - close.   +%.0f%% to every grade%s" % [
+			Game.concept_bonus() * 100.0,
+			" (capped)" if Game.concept_bonus()
+				>= Balance.concept_bonus_cap - 0.0001 else ""])
+
+
+## Filled and empty marks rather than "2/3", so a row reads at a glance.
+func _pips(got: int, total: int, hue: String) -> String:
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
+		hue, "*".repeat(got), DIM, "-".repeat(maxi(0, total - got))]
+
 
 
 ## The quiz results, straight away, worst first.

@@ -112,6 +112,22 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
+		"curriculum":
+			for i in 7:
+				Game.record_taught("basic_arithmetic")
+			for i in 4:
+				Game.record_taught("reading_fluency")
+			Game.record_taught("science_basics")
+			hud.show_curriculum()
+		"at_board":
+			# standing at the noticeboard: BOTH buttons must be named
+			Game.set_phase(Game.Phase.AFTERNOON)
+			world.player.global_position = Grid.tile_to_world(
+				Layout.BOARD + Vector2i(0, 1))
+		"at_bell":
+			Game.set_phase(Game.Phase.AFTERNOON)
+			world.player.global_position = Grid.tile_to_world(
+				Layout.BELL + Vector2i(0, 1))
 		"title":
 			hud.show_title()
 		"inspection":

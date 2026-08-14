@@ -2070,6 +2070,23 @@ func test_panels_fit() -> void:
 		_overflow(hud.body, PANEL_LINES))
 	hud.close()
 
+	# The PROMPT BAR names both buttons now, and two landmarks sharing a tile
+	# is exactly when it is longest. It is a Label, so it clips in silence.
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	hud._update_prompt()
+	chk("both buttons are named at the noticeboard",
+		hud.prompt.text.contains("Curriculum") and hud.prompt.text.contains("shop"),
+		hud.prompt.text)
+	chk("and the prompt bar fits on its line",
+		hud.prompt.text.length() <= hud.LINE_CHARS,
+		"%d: %s" % [hud.prompt.text.length(), hud.prompt.text])
+
+	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	hud._update_prompt()
+	chk("and the bell is named at the bell, not the curriculum",
+		hud.prompt.text.contains("bell"), hud.prompt.text)
+
 	# The status strip is a Label too, and it runs off the right-hand edge
 	# the moment a lesson adds a clock, a voice meter and three counters.
 	Game.set_phase(Game.Phase.LESSON)
