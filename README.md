@@ -13,10 +13,10 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | key | | rebindable |
 |---|---|---|
 | Arrows / WASD | walk | yes |
-| **E** / Space | **help a student, collect work, hand it in** | yes |
-| **F** | **start or end a lesson, ring the bell, open the shop** | yes |
+| **E** / Space | **help, collect, hand in, call a quiz, sit a test** | yes |
+| **F** | **start or end a lesson, ring the bell, open the shop, move a desk** | yes |
 | Shift | hurry (1.7x) | yes |
-| Tab | class list, and swaps buy/sell in the shop | yes |
+| Tab | class list, and cycles buy / sell / staff room / the room | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
 | F1 / F2 | live tuning panel | dev only |
@@ -28,6 +28,10 @@ two that cannot be undone (ending a lesson early, ending the day) must be
 **held**, with a bar in the prompt showing the hold. Before this, one key did
 all of it, and reaching to help a student who happened to be near the podium
 ended the whole lesson.
+
+One landmark can carry a verb on **each** button, and several now do: the
+podium teaches on F and quizzes on E, a desk offers help on E and picks
+itself up on F, the noticeboard is the shop on F and the curriculum on E.
 
 **Settings** covers master and sound volume, window size, fullscreen and
 whether hints appear. **Controls** rebinds any key — taking a key from
@@ -52,13 +56,74 @@ Settings live in their own file, so erasing your save keeps them.
    desks it would actually help light up green.
 8. After 20 days the class sits an exam. That is the run.
 
+## Three ways to find out what they know
+
+|  | when | stakes | what you do |
+|---|---|---|---|
+| **Quiz** | mid-lesson, **E** at the podium | low | A few questions answered at the desks. Results **immediately**, worst first. |
+| **Homework** | overnight | medium | Set it, collect it, mark it with the key hidden. |
+| **Test** | end of a unit, **E** at the podium in the morning | high | Silent room. You may only watch. |
+
+The quiz is the only one you can act on. It costs **lesson seconds** — the
+one thing a lesson cannot make more of — and can be run once per lesson.
+It carries no grade of its own; what it buys is knowing who is behind while
+there is still time to walk over. Whoever falls below the line is **flagged**,
+which unlocks "go over it with them" at their desk and puts a blue bubble
+over their head. Going over it twice does nothing, so it cannot become a
+second, better Help.
+
+The test is gated on having taught the unit three times. Every verb is
+switched off for its duration — no helping, no collecting, and nobody stalls,
+because you would not be allowed to unstick them. It measures the room you
+**built** and the children you developed, not how well you ran around today,
+and it is worth more than a lesson can ever be.
+
+## Learning to teach
+
+Teaching a lesson teaches *you*. Each of the ten lessons has three
+**concepts** that unlock as you teach it (after 1, 3 and 6 lessons), and
+every concept you know is worth a little to every grade — small, capped at
+12%, and **breadth is the only route to the cap**: teaching one lesson
+thirty times unlocks its three concepts and then nothing, forever.
+
+A concept cites its parent lesson's real standard code. It does not get one
+of its own — minting a plausible-looking sub-code would be a fabricated
+citation, which is worse than no citation at all.
+
+Furniture joins the curriculum in both directions. Some items **teach** a
+concept just by being in the room (a microscope really does put cells within
+reach), and some are **gated** behind one, so the shop grows as you teach
+and not only as you earn — a term spent on science opens a different
+catalogue from a term spent on English. **F** at the noticeboard shows what
+you know against what is left.
+
+Every child keeps their own **transcript**: what they were taught, when, the
+standard, and what they got. It is theirs, so it goes with them when they
+move up, and it can tell you what they turned out to be strongest at, which
+is not always the subject they were born good at.
+
+## A room you can rearrange, and grow
+
+Walk up to any desk and press **F** to pick it up — the chair and whoever is
+sitting there come with it. The same aisle-safety check that stops you
+walling a student in applies: a seat nobody can reach is as broken as a seat
+blocked off.
+
+The classroom itself can be bought bigger, a column or a row at a time, from
+the fourth shop tab. At the opening 20x11 the room is exactly the screen and
+the camera sits dead still — the whole-room-at-a-glance reading that the `?`
+bubble and the audio design both lean on. Buy past one screen and the view
+starts to follow you. That is a deliberate choice you make, not something
+that happens to you.
+
 ## How a grade is built
 
 ```
-room   0.28 .. 0.62   the furniture in range of that desk
-lesson 0.00 .. 0.35   how much of their work they got through
-                      (halved if you never collected it)
-hw     0.00 .. 0.12   homework, reduced if you misjudged it
+room     0.28 .. 0.62   the furniture in range of that desk
+lesson   0.00 .. 0.35   how much of their work they got through
+                        (halved if you never collected it)
+hw       0.00 .. 0.12   homework, reduced if you misjudged it
+concepts 0.00 .. 0.12   what you have learned to teach (zero on day one)
 ```
 
 Deliberately, **neither the room nor the teaching alone reaches the top**:
@@ -66,12 +131,16 @@ a perfect room with an absent teacher is a C, a bare room with perfect
 teaching is a C, and both together is an A. Those three rows are asserted by
 the test suite against *simulated play*.
 
+Concept knowledge is worth exactly **zero on day one**, which is what lets it
+grow a teacher across a term without moving that pillar.
+
 ## Your class
 
 **Tab** opens the class list. Arrow to a student and press **E** to read
 their file: portrait, full name, which seat they took and the day they
 joined, what they are best at, how their grades are trending, their homework
-record, and how often you have gone over to help them.
+record, how often you have gone over to help them, and what their own
+record says they are strongest at.
 
 Everything on it is something the game actually tracked — there is no
 invented backstory — and every number is turned into a letter, a count of
@@ -117,12 +186,28 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            246 assertions
+Run Tests.bat            607 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
+Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
 python tools/make_art.py     redraw every image
 python tools/make_audio.py   resynthesise every sound
+
+godot --path . res://tools/shot.tscn -- out.png [frames] [w] [h] [grow] [screen]
 ```
+
+That last one is the screenshot harness. It runs the **real** scene windowed
+and saves what it drew, optionally growing the room first or opening a named
+screen (`quiz`, `curriculum`, `unit_test`, `student`, `shop`, `room`,
+`staff`, `class_list`).
+
+It exists because headless runs cannot see. A broken HUD once survived a
+headless boot check, because the game opens on the title screen and never
+instantiates the HUD; and six panels were quietly overflowing their box at
+once, which no assertion had ever been able to catch. Note that headless
+Godot also falls back to different font metrics, so `get_line_count()` lies
+there — `test_panels_fit()` counts written lines against a budget measured
+from real screenshots instead.
 
 All art and all audio are generated by those two scripts — nothing is
 sourced. To add art without touching code, drop a text file in
@@ -153,9 +238,13 @@ scripts/
   autoload/  game.gd, sfx.gd
   world/     layout, grid, room_builder, classroom, placement
   actors/    actor, player, student
-  interact/  podium, bell, desk_station, marking_desk, noticeboard, placed_item
-  data/      balance, items, questions, events, names, student_data
+  interact/  podium, bell, desk_station, desk_mover, marking_desk,
+             noticeboard, curriculum_board, quiz_caller, test_caller,
+             placed_item
+  data/      balance, items, questions, events, names, curriculum,
+             progress, student_data
   ui/        hud, floater, debug_panel
-tools/       make_art.py, make_audio.py, sim.gd, sprites/
+tools/       make_art.py, make_audio.py, sim.gd, curator.gd, shot.gd,
+             sprites/
 tests/run.gd
 ```
