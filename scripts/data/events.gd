@@ -35,8 +35,8 @@ const TABLE := [
 	},
 	{
 		"id": "inspector", "weight": 8, "name": "An inspector is visiting",
-		"blurb": "Grades today are worth far more than usual.",
-		"coin_mult": 2.2,
+		"blurb": "They will watch the lesson. Have the room ready.",
+		"inspection": true,
 	},
 	{
 		"id": "wet_play", "weight": 8, "name": "Wet play",

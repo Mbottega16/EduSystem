@@ -28,6 +28,8 @@ signal desks_changed()
 signal quiz_requested()
 ## How many heard you, so the room can react. -1 means you had nothing left.
 signal voice_raised(settled: int)
+## The inspector has seen enough.
+signal inspected(report: Dictionary)
 signal curriculum_requested()
 signal test_requested(lesson_id: String)
 signal room_rebuilt()
@@ -397,6 +399,10 @@ func run_quiz() -> Dictionary:
 ## sets tonight's homework.
 func end_lesson() -> Array:
 	lesson_left = 0.0
+	# Judged on the lesson they actually watched, BEFORE grading resets
+	# anything -- who was still stuck or still playing up at the bell is
+	# half of what they came to see.
+	var report := Game.inspect() if Game.being_inspected() else {}
 	var results := Game.grade_class()
 	Game.assign_homework()
 	Game.set_phase(Game.Phase.AFTERNOON)
@@ -405,6 +411,8 @@ func end_lesson() -> Array:
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
+	if not report.is_empty():
+		inspected.emit(report)
 	return results
 
 

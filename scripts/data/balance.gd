@@ -69,6 +69,13 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- being inspected -----------------------------------------------------
+static var insp_grant: int = 420
+static var insp_pass: float = 0.55
+static var insp_w_room: float = 0.35
+static var insp_w_lesson: float = 0.45
+static var insp_w_knowledge: float = 0.20
+
 # --- raising your voice --------------------------------------------------
 static var voice_range: int = 5
 static var voice_cost: float = 0.34
@@ -210,6 +217,13 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var ins: Dictionary = d.get("inspection", {})
+	insp_grant = int(ins.get("grant", insp_grant))
+	insp_pass = float(ins.get("pass_mark", insp_pass))
+	insp_w_room = float(ins.get("weight_room", insp_w_room))
+	insp_w_lesson = float(ins.get("weight_lesson", insp_w_lesson))
+	insp_w_knowledge = float(ins.get("weight_knowledge", insp_w_knowledge))
 
 	var vc: Dictionary = d.get("voice", {})
 	voice_range = int(vc.get("range_tiles", voice_range))

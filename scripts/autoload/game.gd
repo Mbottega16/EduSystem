@@ -105,6 +105,7 @@ func new_run(seed_value: int = 0) -> void:
 	quiz_done = false
 	test_active = false
 	voice = 1.0
+	last_inspection = {}
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -573,6 +574,79 @@ func grade_test() -> Array:
 		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
 	test_active = false
 	return out
+
+
+# --- being inspected --------------------------------------------------
+## The last inspection, kept so the class list and the term can refer back
+## to it. Empty until one has happened.
+var last_inspection: Dictionary = {}
+
+
+func being_inspected() -> bool:
+	return bool(event.get("inspection", false))
+
+
+## What the inspector made of it.
+##
+## Three judgements, all computed from things the game ALREADY tracks -- no
+## hidden inspection stat, and nothing that was not visible to the player
+## while it was happening:
+##
+##   the room      what the furniture is worth to the desks, against its cap
+##   the lesson    how much of the work got done, less what was still going
+##                 wrong at the bell
+##   the material  whether you know what you are teaching today
+##
+## It is announced the evening before, so all three are things you can go
+## and do something about. An unannounced judgement is weather.
+func inspect() -> Dictionary:
+	Balance.ensure_loaded()
+	var seated := 0
+	var room_total := 0.0
+	var work_total := 0.0
+	var trouble := 0
+	for s: StudentData in roster:
+		if s.seat_index < 0:
+			continue
+		seated += 1
+		room_total += room_score(s.seat_index)
+		work_total += s.work_fraction()
+		if s.disrupting or s.is_struggling():
+			trouble += 1
+
+	var n := maxf(1.0, float(seated))
+	# room_base is what an empty room is worth, so the judgement is what YOU
+	# added rather than what the building came with.
+	var room := clampf(
+		(room_total / n - Balance.room_base)
+		/ maxf(0.01, Balance.room_cap - Balance.room_base), 0.0, 1.0)
+	var lesson := clampf(work_total / n - float(trouble) / n * 0.5, 0.0, 1.0)
+
+	var lid := String(self.lesson.get("id", ""))
+	var concepts_here := Curriculum.concepts_of(lid)
+	var known := 0
+	for c: Dictionary in concepts_here:
+		if knows_concept(String(c.get("id", ""))):
+			known += 1
+	var knowledge := 0.0 if concepts_here.is_empty() \
+		else float(known) / float(concepts_here.size())
+
+	var overall := room * Balance.insp_w_room \
+		+ lesson * Balance.insp_w_lesson \
+		+ knowledge * Balance.insp_w_knowledge
+	var passed := overall >= Balance.insp_pass
+	var grant := int(round(float(Balance.insp_grant) * overall)) if passed else 0
+	if grant > 0:
+		add_coins(grant)
+
+	last_inspection = {
+		"day": day, "room": room, "lesson": lesson, "knowledge": knowledge,
+		"overall": overall, "letter": grade_letter(overall),
+		"passed": passed, "grant": grant,
+		"subject": String(self.lesson.get("name", "")),
+		"standard": String(self.lesson.get("standard", "")),
+	}
+	return last_inspection
 
 
 # --- your voice ------------------------------------------------------

@@ -112,6 +112,18 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
+		"inspection":
+			Game.event = DayEvent.by_id("inspector")
+			var g := 0
+			while Game.room_score(0) < Balance.room_cap - 0.001 and g < 60:
+				Game.room_items.append({"id": Items.order()[g % Items.order().size()],
+					"tile": Layout.seat(0) + Vector2i(0, -1)})
+				g += 1
+			for st: StudentData in Game.roster:
+				st.work_state = StudentData.Work.COLLECTED
+			for i in 20:
+				Game.record_taught(String(Game.lesson.get("id", "")))
+			hud.show_inspection(Game.inspect())
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance

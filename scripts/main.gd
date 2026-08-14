@@ -22,7 +22,8 @@ func _ready() -> void:
 	world.quiz_requested.connect(_run_quiz)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
-	world.lesson_auto_ended.connect(hud.show_lesson_report)
+	world.lesson_auto_ended.connect(_on_lesson_ended)
+	world.inspected.connect(hud.show_inspection)
 	world.test_auto_ended.connect(hud.show_test_report)
 	world.room_rebuilt.connect(_wire_room)
 	_wire_room()
@@ -46,9 +47,18 @@ func _ready() -> void:
 ## a freed node and the podium, the bell, the shop and the marking desk all
 ## silently stopped working -- with the prompt still cheerfully offering
 ## them, because the interactables themselves were fine.
+## On an inspection day the inspector's verdict IS the day's headline, and
+## it already carries the class average -- so it replaces the ordinary
+## lesson report rather than stacking a second screen behind it.
+func _on_lesson_ended(results: Array) -> void:
+	if Game.being_inspected():
+		return
+	hud.show_lesson_report(results)
+
+
 func _wire_room() -> void:
 	var pairs := [
-		[world.podium, "lesson_ended", hud.show_lesson_report],
+		[world.podium, "lesson_ended", _on_lesson_ended],
 		[world.podium, "test_ended", hud.show_test_report],
 		[world.bell, "day_ended", hud.show_day_report],
 		[world.bell, "term_ended", hud.show_exam],

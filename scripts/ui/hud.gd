@@ -598,6 +598,48 @@ func _exam_cell(row: Dictionary) -> String:
 		"(ok)" if bool(row["passed"]) else "(no)"]
 
 
+## What the inspector made of it.
+##
+## Three verdicts in words, not three numbers. The player is never shown a
+## decimal anywhere else in this game and an inspection is not the place to
+## start -- "the room is doing its job" is a thing you can act on, 0.62 is
+## not.
+func show_inspection(report: Dictionary) -> void:
+	_open(Mode.REPORT)
+	Sfx.play("grade")
+	title.text = "INSPECTION  -  %s" % String(report.get("letter", "F"))
+	var lines: Array[String] = [
+		_clip("The room:     %s" % _insp_verdict(float(report.get("room", 0.0)),
+			"doing its job", "helping a little", "bare")),
+		_clip("The lesson:   %s" % _insp_verdict(float(report.get("lesson", 0.0)),
+			"well run", "getting there", "not under control")),
+		_clip("The material: %s" % _insp_verdict(float(report.get("knowledge", 0.0)),
+			"you know it", "you are learning it", "you have not taught this")),
+	]
+	if bool(report.get("passed", false)):
+		lines.append(_clip("Funding of %d coins follows." % int(report.get("grant", 0))))
+	else:
+		lines.append("No funding this time.")
+	body.text = "
+".join(lines)
+	# The average and the citation ride on the hint bar. Four verdict lines
+	# is already the whole panel, and the fifth was landing under it.
+	hint.text = _clip("E - close.   %s today.   %s" % [
+		Game.grade_letter(Game.class_average()),
+		String(report.get("standard", ""))])
+
+
+## Three bands, in words. The thresholds are deliberately generous at the
+## bottom: an inspector saying "bare" about a room you have spent nothing on
+## is information, not a punishment.
+func _insp_verdict(v: float, good: String, middling: String, poor: String) -> String:
+	if v >= 0.66:
+		return good
+	if v >= 0.33:
+		return middling
+	return poor
+
+
 ## Unit test results.
 ##
 ## No "why" column, unlike the lesson report. There is nothing you could

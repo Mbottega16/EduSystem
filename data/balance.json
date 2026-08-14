@@ -537,5 +537,13 @@
     "cost": 0.34,
     "recharge_per_second": 0.055,
     "unheard_stall_seconds": 3.0
+  },
+  "inspection": {
+    "_note": "What an inspector actually judges. Three things, and you can prepare for all three, because the visit is announced the evening before -- an unannounced judgement is weather, not a decision. Each is something the game already tracks: the room you built, the lesson they watched, and whether you know the material you are teaching.",
+    "grant": 420,
+    "pass_mark": 0.55,
+    "weight_room": 0.35,
+    "weight_lesson": 0.45,
+    "weight_knowledge": 0.2
   }
 }

@@ -136,6 +136,7 @@ func _main() -> void:
 	test_save_isolation()
 	await test_bubbles()
 	await test_voice()
+	await test_inspection()
 	await test_disruption()
 	await test_overlays()
 	await test_marking()
@@ -2063,6 +2064,12 @@ func test_panels_fit() -> void:
 	Game.cheated = false
 	hud.close()
 
+	Game.event = DayEvent.by_id("inspector")
+	hud.show_inspection(Game.inspect())
+	chk("the inspection report fits", _fits(hud.body, PANEL_LINES),
+		_overflow(hud.body, PANEL_LINES))
+	hud.close()
+
 	# The status strip is a Label too, and it runs off the right-hand edge
 	# the moment a lesson adds a clock, a voice meter and three counters.
 	Game.set_phase(Game.Phase.LESSON)
@@ -2707,6 +2714,137 @@ func test_voice() -> void:
 	world.end_test()
 
 	Layout.reset_seats()
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_inspection() -> void:
+	section("BEING INSPECTED")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("an ordinary day is not an inspection", not Game.being_inspected())
+	Game.event = DayEvent.by_id("inspector")
+	chk("but an inspector's day is", Game.being_inspected())
+
+	# It has to be ANNOUNCED. The events roll for tomorrow and the day
+	# report says so, which is what makes the room, the lesson and the
+	# material things you can go and do something about. An unannounced
+	# judgement is weather, not a decision.
+	chk("the event says what they are coming to do",
+		String(DayEvent.by_id("inspector").get("blurb", "")).contains("watch"),
+		DayEvent.by_id("inspector").get("blurb", ""))
+	chk("and it no longer just multiplies coins, which inspected nothing",
+		not DayEvent.by_id("inspector").has("coin_mult"))
+
+	# --- the three judgements are real, and separable ---
+	Game.coins = 0
+	var bare := Game.inspect()
+	chk("a bare room is judged bare", float(bare["room"]) < 0.2, bare["room"])
+
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("inspector")
+	var guard := 0
+	while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
+		Game.room_items.append({"id": Items.order()[guard % Items.order().size()],
+			"tile": Layout.seat(0) + Vector2i(0, -1)})
+		guard += 1
+	var furnished := Game.inspect()
+	chk("a room you furnished is judged better",
+		float(furnished["room"]) > float(bare["room"]),
+		"%.2f -> %.2f" % [bare["room"], furnished["room"]])
+
+	# the lesson they watched
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("inspector")
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.WORKING
+		st.work_timer = Balance.work_seconds       # nothing done at all
+	var nothing_done := Game.inspect()
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.COLLECTED
+	var all_done := Game.inspect()
+	chk("a lesson where the work got done is judged better",
+		float(all_done["lesson"]) > float(nothing_done["lesson"]),
+		"%.2f -> %.2f" % [nothing_done["lesson"], all_done["lesson"]])
+
+	# what they see at the bell is half of it
+	for st: StudentData in Game.roster:
+		st.disrupting = true
+	var in_chaos := Game.inspect()
+	chk("and a room still in chaos at the bell is judged worse",
+		float(in_chaos["lesson"]) < float(all_done["lesson"]),
+		"%.2f vs %.2f" % [in_chaos["lesson"], all_done["lesson"]])
+	for st: StudentData in Game.roster:
+		st.disrupting = false
+
+	# knowing your material
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("inspector")
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	var unread := Game.inspect()
+	chk("teaching something you have never taught shows",
+		is_equal_approx(float(unread["knowledge"]), 0.0), unread["knowledge"])
+	for i in 40:
+		Game.record_taught("basic_arithmetic")
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	var mastered := Game.inspect()
+	chk("and so does knowing it inside out",
+		float(mastered["knowledge"]) > float(unread["knowledge"]),
+		"%.2f -> %.2f" % [unread["knowledge"], mastered["knowledge"]])
+
+	# --- the payoff ---
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("inspector")
+	Game.coins = 0
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.WORKING
+		st.work_timer = Balance.work_seconds
+	var failed := Game.inspect()
+	chk("a bad inspection pays nothing", int(failed["grant"]) == 0)
+	chk("and says so", not bool(failed["passed"]))
+	chk("your coins are untouched by it", Game.coins == 0, Game.coins)
+
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("inspector")
+	Game.coins = 0
+	var g2 := 0
+	while Game.room_score(0) < Balance.room_cap - 0.001 and g2 < 60:
+		Game.room_items.append({"id": Items.order()[g2 % Items.order().size()],
+			"tile": Layout.seat(0) + Vector2i(0, -1)})
+		g2 += 1
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.COLLECTED
+	for i in 40:
+		Game.record_taught(String(Game.lesson.get("id", "")))
+	var passed := Game.inspect()
+	chk("a good one is a pass", bool(passed["passed"]), passed["overall"])
+	chk("and it pays a grant", int(passed["grant"]) > 0, passed["grant"])
+	chk("which really reaches your purse", Game.coins == int(passed["grant"]),
+		"%d coins, grant %d" % [Game.coins, passed["grant"]])
+	chk("it is remembered", not Game.last_inspection.is_empty())
+
+	# --- it happens through the real end of a lesson ---
+	Game.new_run(SEED)
+	await step(40)
+	Game.event = DayEvent.by_id("inspector")
+	world.start_lesson()
+	await step(4)
+	var hud := _hud()
+	world.end_lesson()
+	await step(2)
+	chk("ending an inspected lesson puts the verdict on screen",
+		hud.mode == hud.Mode.REPORT and hud.title.text.begins_with("INSPECTION"),
+		hud.title.text)
+	chk("in words, not decimals", not hud.body.text.contains("0."), hud.body.text)
+	# It REPLACES the ordinary lesson report that day, so the average has to
+	# still be on screen somewhere -- it moved to the hint bar when the
+	# fifth body line turned out not to fit.
+	chk("and the day's average is still on screen, so nothing is lost",
+		hud.hint.text.contains("today"), hud.hint.text)
+	hud.close()
+
 	Game.new_run(SEED)
 	await step(2)
 

@@ -15,6 +15,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | Arrows / WASD | walk | yes |
 | **E** / Space | **help, collect, hand in, call a quiz, sit a test** | yes |
 | **F** | **start or end a lesson, ring the bell, open the shop, move a desk** | yes |
+| **Q** | **settle the room within earshot** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
 | P | pause | yes |
@@ -55,6 +56,78 @@ Settings live in their own file, so erasing your save keeps them.
 7. Buy furniture at the **noticeboard**. Range matters — while placing, the
    desks it would actually help light up green.
 8. After 20 days the class sits an exam. That is the run.
+
+## The class is eight particular children
+
+Every child has a **trait**, and each one changes what you have to do about
+them rather than only what a number does:
+
+| | |
+|---|---|
+| **Quiet** | Will not say when they are lost — no `?` for a few seconds |
+| **Curious** | Gets stuck more, and gets more out of every answer |
+| **Chatty** | Drags whoever sits *next to them* off task |
+| **Steady** | Quietly gets on with it |
+| **Copies** | Leans over at the first sign of trouble |
+| **Bright spark** | Finishes early and helps the next desk along |
+
+The rule for adding one, which the suite enforces: **it must reach into the
+work model or the seating.** A trait that only prints a sentence is
+decoration, and decoration is what teaches a player to stop reading the
+screen it is on.
+
+**Copies** is the one worth watching. They get themselves unstuck off their
+neighbour — the work moves, the bubble disappears, and it looks like the
+problem solved itself. Then the quiz, the homework and the test all quietly
+disagree, because copying is not understanding.
+
+## Messing about, and the seating plan that answers it
+
+Being stuck and playing up are different problems, and only one of them gets
+worse while you are somewhere else. A disruptive child stops working **and**
+doubles the stall chance either side of them, and it **spreads along the
+desks** until somebody deals with it. Settling outranks helping at the desk
+for exactly that reason.
+
+Three problems, three bubble colours: **red** spreads, **amber** is frozen,
+**blue** is behind but working.
+
+Both routes in are your own doing, which is what stops it feeling like bad
+luck — **boredom** is finished work you never came to collect, and
+**frustration** is a child left stuck too long. Collecting promptly is no
+longer only worth grade points; it is how you keep the room quiet.
+
+Which is why the desks move. Sit the Chatty one next to somebody who needs
+to concentrate and you will find out.
+
+## Your voice
+
+**Q** settles every disruptive child *within earshot*. It is the only verb
+in the game not attached to a landmark — and it still depends on where you
+are standing, which is the line that keeps walking the room the game.
+
+It settles the room. It does not teach anybody anything, so a stuck child is
+still a walk to their desk. Roughly three shouts, recharging slowly through
+the lesson, so it is the answer to *more than one at a time* rather than the
+answer to everything.
+
+The term simulator puts it at about **a whole letter grade** for a careless
+player — settling two at once stops a cascade, and a cascade is what ruins a
+term — while still not reaching the A that walking over earns.
+
+## Being inspected
+
+Sometimes the evening report says an inspector is coming tomorrow. They
+watch the lesson and judge three things, all of which you can prepare
+because you were told the night before:
+
+- **the room** — what your furniture is actually worth to the desks
+- **the lesson** — how much work got done, less whoever was still stuck or
+  still playing up at the bell
+- **the material** — whether you know what you are teaching today
+
+A pass pays a grant. Everything judged is something the game already
+tracked, and every verdict is a sentence rather than a decimal.
 
 ## Three ways to find out what they know
 
@@ -186,7 +259,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            607 assertions
+Run Tests.bat            724 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
@@ -242,7 +315,7 @@ scripts/
              noticeboard, curriculum_board, quiz_caller, test_caller,
              placed_item
   data/      balance, items, questions, events, names, curriculum,
-             progress, student_data
+             progress, traits, student_data
   ui/        hud, floater, debug_panel
 tools/       make_art.py, make_audio.py, sim.gd, curator.gd, shot.gd,
              sprites/
