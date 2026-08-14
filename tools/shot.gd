@@ -112,6 +112,14 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
+		"noise":
+			# one of each problem, side by side, to check the three bubble
+			# colours read apart at a glance
+			world.start_lesson()
+			Game.roster[0].disrupting = true
+			Game.roster[1].confusion = 1.0
+			Game.roster[1].trait_id = "steady"
+			Game.roster[2].quiz_flagged = true
 		"day":
 			while Game.enrol() != null:
 				pass

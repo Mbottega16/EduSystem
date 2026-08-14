@@ -84,6 +84,9 @@ const DT := 1.0 / 60.0
 
 
 func _ready() -> void:
+	# Not the player's save -- advance_day() autosaves and this plays whole
+	# terms. See the note on Game.save_path.
+	Game.save_path = "user://pixelroom_SIM_save.json"
 	Balance.ensure_loaded()
 	var args := OS.get_cmdline_user_args()
 	var days := int(args[0]) if args.size() > 0 else 40
@@ -116,7 +119,7 @@ func _ready() -> void:
 func _run(policy: String, days: int) -> void:
 	Game.new_run(12345)
 	print("\n--- %s ---" % policy.to_upper())
-	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done")
+	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done  noise")
 
 	var first_enrol := -1
 	var first_buy := -1
@@ -132,12 +135,13 @@ func _run(policy: String, days: int) -> void:
 			first_enrol = Game.day
 
 		if day < 6 or day % 5 == 0 or day == days - 1:
-			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d" % [
+			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d  %d/%d" % [
 				report["day"], report["average"],
 				Game.grade_letter(float(report["average"])),
 				Game.coins, Game.room_items.size(), before,
 				stats["still_stuck"], report["homework_done"], before,
-				stats["work"], stats["finished"], stats["of"]])
+				stats["work"], stats["finished"], stats["of"],
+				stats["settled"], stats["noisy"]])
 
 	print("  first purchase: day %s     first new student: day %s" % [
 		"never" if first_buy < 0 else str(first_buy),
@@ -152,6 +156,8 @@ func _play_day(policy: String) -> Dictionary:
 	var reaction: float = REACTION[policy]
 	var stuck_since := {}
 	var flagged_since := {}
+	var noisy_since := {}
+	var settled := 0
 	for s: StudentData in Game.roster:
 		s.assign_work()
 
@@ -171,8 +177,23 @@ func _play_day(policy: String) -> Dictionary:
 			var result := Game.run_quiz()
 			flagged_total = int(result.get("flagged", 0))
 			lesson_len -= Balance.quiz_seconds_cost
+		# Who is next to whom, and who has started playing up. Without this
+		# the simulator cannot see disruption at all, and a system the
+		# simulator cannot see is the exact thing it exists to catch.
+		Game.tick_class(DT, Game.rng)
 		for s: StudentData in Game.roster:
 			s.tick_work(DT, Game.rng)
+			# Settling comes first, as it does at the desk: it is the one
+			# that gets worse while you are dealing with something else.
+			if s.disrupting:
+				if not noisy_since.has(s.id):
+					noisy_since[s.id] = t
+				elif t - float(noisy_since[s.id]) >= reaction:
+					if s.settle():
+						settled += 1
+					noisy_since.erase(s.id)
+				continue
+			noisy_since.erase(s.id)
 			if s.is_struggling():
 				if not stuck_since.has(s.id):
 					stuck_since[s.id] = t
@@ -193,6 +214,7 @@ func _play_day(policy: String) -> Dictionary:
 						flagged_since.erase(s.id)
 
 	var still := 0
+	var noisy := 0
 	var work_total := 0.0
 	var finished := 0
 	for s: StudentData in Game.roster:
@@ -201,6 +223,8 @@ func _play_day(policy: String) -> Dictionary:
 			finished += 1
 		if s.is_struggling():
 			still += 1
+		if s.disrupting:
+			noisy += 1
 		if COLLECTS[policy]:
 			s.collect_work()
 		# mark whatever homework came in; assume the player judges well
@@ -212,7 +236,8 @@ func _play_day(policy: String) -> Dictionary:
 	Game.assign_homework()
 	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved,
 		"work": work_total / maxf(1.0, float(Game.roster.size())),
-		"finished": finished, "of": Game.roster.size()}
+		"finished": finished, "of": Game.roster.size(),
+		"noisy": noisy, "settled": settled}
 
 
 ## Buy the item with the best bonus-per-coin that we can afford and that

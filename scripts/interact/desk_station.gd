@@ -3,6 +3,7 @@ extends Interactable
 ## One student's desk. Everything you do to an individual student happens
 ## here, chosen by priority rather than by a menu:
 ##
+##   0. they're playing up    -> settle them
 ##   1. they're stuck        -> help them
 ##   2. classwork finished   -> collect it
 ##   3. quiz flagged them    -> go over it with them
@@ -13,7 +14,7 @@ extends Interactable
 ## unsticking them, they stay stuck — the priority makes the urgent thing the
 ## default thing.
 
-enum Action { NONE, HELP, COLLECT_WORK, GO_OVER, COLLECT_HW }
+enum Action { NONE, SETTLE, HELP, COLLECT_WORK, GO_OVER, COLLECT_HW }
 
 var seat_index: int = -1
 var paper: Sprite2D = null      ## the finished sheet sitting on the desk
@@ -27,6 +28,11 @@ func action() -> int:
 	var s := student()
 	if s == null:
 		return Action.NONE
+	# Settling comes FIRST, above even a stuck child. Messing about spreads
+	# to the desks either side; being stuck does not. The most urgent thing
+	# is the one that gets worse while you deal with something else.
+	if s.disrupting:
+		return Action.SETTLE
 	if s.is_struggling():
 		return Action.HELP
 	if s.has_work_to_collect():
@@ -54,6 +60,7 @@ func prompt_text() -> String:
 		return ""
 	var who: String = s.first_name()
 	match action():
+		Action.SETTLE: return "Have a word with %s" % who
 		Action.HELP: return "Help %s" % who
 		Action.COLLECT_WORK: return "Collect %s's work" % who
 		Action.GO_OVER: return "Go over the quiz with %s" % who
@@ -66,6 +73,11 @@ func interact(by: Node) -> void:
 	if s == null:
 		return
 	match action():
+		Action.SETTLE:
+			if s.settle():
+				Sfx.play("deny")             # a sterner noise than helping
+				_pop("sorry!", Color(1, 0.7, 0.5))
+				used.emit(by)
 		Action.HELP:
 			if s.help():
 				Sfx.play("help")

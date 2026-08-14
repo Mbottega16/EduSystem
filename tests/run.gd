@@ -25,6 +25,10 @@ var world: Node2D = null
 
 
 func _ready() -> void:
+	# NEVER the player's save. advance_day() autosaves, and this suite
+	# advances hundreds of days -- it was overwriting a real save file every
+	# time anybody ran the tests.
+	Game.save_path = "user://pixelroom_TEST_save.json"
 	# Never let a broken run hang a terminal.
 	get_tree().create_timer(420.0).timeout.connect(func() -> void:
 		push_error("watchdog: suite exceeded 420s")
@@ -129,6 +133,9 @@ func _main() -> void:
 	await test_systems_together()
 	await test_a_whole_day()
 	test_traits()
+	test_save_isolation()
+	await test_bubbles()
+	await test_disruption()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -2355,6 +2362,237 @@ func test_traits() -> void:
 		return false).call())
 	Game.delete_save()
 	Game.new_run(SEED)
+
+
+## Sit the class in one straight row from x, so "next to" is unambiguous.
+func _seat_in_a_row(x: int, y: int) -> void:
+	var seats: Array[Vector2i] = []
+	for i in Layout.DEFAULT_SEATS.size():
+		seats.append(Vector2i(x + i, y))
+	Layout.set_seats(seats)
+
+
+func test_disruption() -> void:
+	section("MESSING ABOUT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	var c: StudentData = Game.roster[2]
+	for st: StudentData in Game.roster:
+		st.trait_id = "steady"
+
+	chk("nobody starts off playing up", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if st.disrupting:
+				return false
+		return true).call())
+
+	# --- it is NOT the same as being stuck ---
+	a.disrupting = true
+	chk("a disruptive child is not doing any work", (func() -> bool:
+		a.work_state = StudentData.Work.WORKING
+		a.work_timer = 10.0
+		var before := a.work_timer
+		a.tick_work(1.0, Game.rng)
+		return is_equal_approx(a.work_timer, before)).call())
+	chk("and the room shows the louder problem, not the quieter one",
+		not a.is_visibly_struggling())
+
+	# --- it makes the desks either side worse ---
+	b.trait_id = "steady"
+	var beside_trouble := b.stall_chance()
+	chk("sitting next to somebody playing up is worse for you",
+		b.neighbour_stall_multiplier() > 1.0, b.neighbour_stall_multiplier())
+	a.disrupting = false
+	chk("and no worse than anyone else once they have settled",
+		is_equal_approx(b.neighbour_stall_multiplier(), 1.0)
+		and b.stall_chance() < beside_trouble,
+		"%.4f beside trouble, %.4f after" % [beside_trouble, b.stall_chance()])
+
+	# --- SPREADING is what makes it urgent ---
+	a.disrupting = true
+	var spread_guard := 0
+	while not b.disrupting and spread_guard < 6000:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+		spread_guard += 1
+	chk("it spreads to the next desk if you leave it", b.disrupting,
+		"gave up after %d frames" % spread_guard)
+	chk("which is why settling outranks helping at the desk", (func() -> bool:
+		var st: Interactable = world.station(a.seat_index)
+		a.confusion = 1.0                 # stuck AND playing up
+		return st != null and st.action() == st.Action.SETTLE).call())
+
+	# --- dealing with it ---
+	chk("having a word settles them", a.settle())
+	chk("and they are working again", not a.disrupting)
+	chk("having a word with somebody behaving does nothing at all",
+		not c.settle())
+
+	# --- BOTH sources are the player's own doing ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	for st: StudentData in Game.roster:
+		st.trait_id = "steady"
+	var bored: StudentData = Game.roster[0]
+	bored.work_state = StudentData.Work.DONE      # finished, never collected
+	var guard2 := 0
+	while not bored.disrupting and guard2 < 12000:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+		guard2 += 1
+	# Collecting promptly stops being only a grade bonus: it is now also how
+	# you keep the room quiet.
+	chk("work you never came to collect turns into a bored child",
+		bored.disrupting, "gave up after %d frames" % guard2)
+	chk("and collecting it instead would have prevented that", (func() -> bool:
+		Game.new_run(SEED)
+		_seat_in_a_row(2, 4)
+		for st: StudentData in Game.roster:
+			st.trait_id = "steady"
+			st.work_state = StudentData.Work.COLLECTED   # picked up promptly
+		for i in 12000:
+			Game.tick_class(1.0 / 60.0, Game.rng)
+		for st: StudentData in Game.roster:
+			if st.disrupting:
+				return false
+		return true).call())
+
+	# --- a test is silent: nobody plays up when you cannot intervene ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.DONE
+	for i in 3000:
+		Game.tick_class(1.0 / 60.0, null)         # null rng == a test
+	chk("nobody plays up during a test, because you could not deal with it",
+		(func() -> bool:
+			for st: StudentData in Game.roster:
+				if st.disrupting:
+					return false
+			return true).call())
+
+	# --- the good half of a seating plan ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	var helper: StudentData = Game.roster[0]
+	var lost: StudentData = Game.roster[1]
+	helper.trait_id = "bright"
+	helper.work_state = StudentData.Work.COLLECTED   # work_fraction 1.0
+	lost.trait_id = "steady"
+	lost.confusion = 1.0
+	chk("they are sitting together", Game.neighbours_of(lost).has(helper))
+	var guard3 := 0
+	while lost.is_struggling() and guard3 < 12000:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+		guard3 += 1
+	chk("a bright spark who has finished helps the desk beside them",
+		not lost.is_struggling(), "gave up after %d frames" % guard3)
+
+	# --- copying looks like the problem solving itself ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	var cheat: StudentData = Game.roster[0]
+	var source: StudentData = Game.roster[1]
+	cheat.trait_id = "copier"
+	cheat.work_state = StudentData.Work.WORKING
+	cheat.work_timer = 18.0
+	cheat.confusion = 1.0
+	source.trait_id = "steady"
+	source.work_state = StudentData.Work.WORKING
+	source.work_timer = 2.0                          # much further along
+	var understood_before := cheat.understanding("math")
+	var guard4 := 0
+	while cheat.is_struggling() and guard4 < 12000:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+		guard4 += 1
+	chk("a copier gets themselves unstuck off the next desk",
+		not cheat.is_struggling(), "gave up after %d frames" % guard4)
+	chk("so on the surface it looks like they sorted themselves out",
+		cheat.copied)
+	# ...and here is where it stops looking like that
+	chk("but they understand LESS than they did, not more",
+		cheat.understanding("math") < understood_before,
+		"%.3f -> %.3f" % [understood_before, cheat.understanding("math")])
+
+	Layout.reset_seats()
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_save_isolation() -> void:
+	section("THE SUITE MUST NOT EAT YOUR SAVE")
+	# advance_day() autosaves, and this suite advances hundreds of days. It
+	# spent its whole life overwriting the real save file, so anybody who
+	# ran the tests lost their game -- and the tests all passed while doing
+	# it, because nothing ever asserted where the writing went.
+	chk("the suite is not writing to the real save",
+		Game.save_path != Game.SAVE_PATH, Game.save_path)
+	chk("and it is writing somewhere", Game.save_path != "")
+	Game.save_game()
+	chk("its own save file works", Game.has_save())
+	Game.delete_save()
+	chk("and can be cleaned up", not Game.has_save())
+
+
+func test_bubbles() -> void:
+	section("THREE PROBLEMS, THREE COLOURS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	# They walk in from the door on a stagger; 40 frames is not enough, and
+	# an unseated child falls through every branch of the bubble logic --
+	# which is exactly why the screenshot showed one bubble instead of three.
+	var guard := 0
+	while not world.everyone_seated() and guard < 900:
+		await step(1)
+		guard += 1
+	chk("the class is seated", world.everyone_seated(), guard)
+
+	var s0: StudentData = Game.roster[0]
+	var n0: Actor = world.student_node(s0.seat_index)
+	s0.trait_id = "steady"              # no hiding, so the signal is prompt
+
+	# Checked here rather than by screenshot: the bubble is a 7px sprite in
+	# a 320x176 frame, and "is that one reddish?" is not a verification.
+	chk("a settled child shows nothing", (func() -> bool:
+		world._refresh_bubbles()
+		return not n0.bubble.visible).call())
+
+	s0.confusion = 1.0
+	world._refresh_bubbles()
+	chk("stuck shows the plain bubble",
+		n0.bubble.visible and n0.bubble.modulate == Color.WHITE, n0.bubble.modulate)
+
+	s0.confusion = 0.0
+	s0.quiz_flagged = true
+	world._refresh_bubbles()
+	chk("quiz-flagged shows the cool one",
+		n0.bubble.visible and n0.bubble.modulate == world.QUIZ_BUBBLE_TINT,
+		n0.bubble.modulate)
+
+	s0.disrupting = true
+	world._refresh_bubbles()
+	chk("and messing about shows the hot one, over both of the others",
+		n0.bubble.visible and n0.bubble.modulate == world.NOISE_BUBBLE_TINT,
+		n0.bubble.modulate)
+	chk("and the three colours are actually different from each other",
+		world.NOISE_BUBBLE_TINT != world.QUIZ_BUBBLE_TINT
+		and world.NOISE_BUBBLE_TINT != Color.WHITE
+		and world.QUIZ_BUBBLE_TINT != Color.WHITE)
+
+	# a Quiet child is stuck without the room saying so
+	s0.disrupting = false
+	s0.quiz_flagged = false
+	s0.trait_id = "quiet"
+	s0.confusion = 1.0
+	s0._hidden_for = 0.0
+	world._refresh_bubbles()
+	chk("a quiet child gives you nothing to scan for, at first",
+		not n0.bubble.visible)
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_overlays() -> void:

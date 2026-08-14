@@ -69,6 +69,14 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- messing about -------------------------------------------------------
+static var dis_boredom: float = 0.030
+static var dis_frustration: float = 0.018
+static var dis_frustration_after: float = 8.0
+static var dis_spread: float = 0.045
+static var dis_neighbour_stall_mult: float = 2.0
+static var dis_settle_xp: int = 3
+
 # --- knowing your material ----------------------------------------------
 static var concept_bonus: float = 0.012
 static var concept_bonus_cap: float = 0.12
@@ -196,6 +204,16 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var ds: Dictionary = d.get("disruption", {})
+	dis_boredom = float(ds.get("from_boredom_per_second", dis_boredom))
+	dis_frustration = float(ds.get("from_frustration_per_second", dis_frustration))
+	dis_frustration_after = float(ds.get("frustration_after_seconds",
+		dis_frustration_after))
+	dis_spread = float(ds.get("spread_per_second", dis_spread))
+	dis_neighbour_stall_mult = float(ds.get("neighbour_stall_mult",
+		dis_neighbour_stall_mult))
+	dis_settle_xp = int(ds.get("xp_for_settling", dis_settle_xp))
 
 	var cn: Dictionary = d.get("concepts", {})
 	concept_bonus = float(cn.get("bonus", concept_bonus))

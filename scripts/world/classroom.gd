@@ -33,6 +33,9 @@ signal room_rebuilt()
 ## The bubble over a child the quiz caught out — cooler than the amber
 ## "stuck" one, because it is a different kind of problem.
 const QUIZ_BUBBLE_TINT := Color(0.62, 0.82, 1.0)
+## Messing about. Hot, because unlike the other two it gets WORSE while you
+## are somewhere else.
+const NOISE_BUBBLE_TINT := Color(1.0, 0.45, 0.35)
 
 var grid := Grid.new()
 var player: Actor = null
@@ -59,6 +62,13 @@ func _ready() -> void:
 	build()
 	Game.room_changed.connect(_rebuild_purchased)
 	Game.room_resized.connect(rebuild_room)
+	# A new run builds a whole new roster. Without this the actor nodes stay
+	# bound to the PREVIOUS run's StudentData -- the room carries on showing
+	# and animating children who are no longer in the class, and every
+	# change to the real roster is invisible. It never bit in play only
+	# because the title screen reloads the scene straight afterwards, which
+	# is luck rather than design.
+	Game.run_started.connect(_rebind_to_new_run)
 
 
 func build() -> void:
@@ -162,7 +172,7 @@ func rebuild_room() -> void:
 ## Everyone starts at the doorway and walks to their own chair. If a seat
 ## somehow can't be reached they are placed directly rather than left
 ## standing in the doorway forever.
-func _spawn_students() -> void:
+func _spawn_students(walk_in: bool = true) -> void:
 	var n := 0
 	for s: StudentData in Game.roster:
 		if s.seat_index < 0 or s.seat_index >= Layout.seat_count():
@@ -174,7 +184,9 @@ func _spawn_students() -> void:
 
 		var seat: Vector2i = Layout.seat(s.seat_index)
 		var path := grid.path(Layout.DOOR, seat)
-		if path.is_empty():
+		if not walk_in:
+			node.seat_at(Grid.tile_to_world(seat))
+		elif path.is_empty():
 			push_warning("seat %d unreachable from the door — seating directly" % s.seat_index)
 			node.seat_at(Grid.tile_to_world(seat))
 		else:
@@ -202,6 +214,8 @@ func _physics_process(delta: float) -> void:
 		for s: StudentData in Game.roster:
 			if s.tick_work(delta, roll):
 				_on_work_done(s)
+		# who is sitting next to whom, and who has started playing up
+		Game.tick_class(delta, roll)
 		if lesson_left <= 0.0:
 			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
 			#
@@ -234,12 +248,24 @@ func _refresh_bubbles() -> void:
 	for n: Actor in students:
 		if n.data == null:
 			continue
-		# Stuck outranks quiz-flagged: a frozen work timer is the more urgent
-		# of the two, and it is what the amber bubble has always meant.
-		var stuck: bool = n.seated and n.data.is_struggling()
+		# Three problems, three colours, in order of how fast they get worse
+		# while you are somewhere else:
+		#   red    messing about  -- SPREADS to the desks either side
+		#   amber  stuck          -- frozen, but going nowhere
+		#   blue   quiz-flagged   -- behind, but working
+		#
+		# is_VISIBLY_struggling, not is_struggling: a Quiet child sits on it
+		# for a few seconds, which is what stops scanning for bubbles from
+		# being the whole of the job.
+		var noisy: bool = n.seated and n.data.disrupting
+		var stuck: bool = n.seated and n.data.is_visibly_struggling()
 		var flagged: bool = n.seated and n.data.quiz_flagged
-		n.set_bubble(stuck or flagged,
-			Color.WHITE if stuck else QUIZ_BUBBLE_TINT)
+		var tint := QUIZ_BUBBLE_TINT
+		if noisy:
+			tint = NOISE_BUBBLE_TINT
+		elif stuck:
+			tint = Color.WHITE
+		n.set_bubble(noisy or stuck or flagged, tint)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
@@ -377,6 +403,21 @@ func end_day() -> Dictionary:
 	_respawn_students()
 	day_started.emit(Game.day)
 	return report
+
+
+## A brand new run: throw away the actors bound to the previous roster and
+## make new ones, ALREADY SEATED.
+##
+## Not the walk-in: that belongs to the start of a school day. This is the
+## world catching up with a run that was replaced underneath it, and the
+## class should simply be there.
+func _rebind_to_new_run() -> void:
+	for n: Actor in students:
+		n.queue_free()
+	students.clear()
+	_spawn_students(false)
+	if player != null:
+		player.global_position = Grid.tile_to_world(TEACHER_START)
 
 
 func _respawn_students() -> void:

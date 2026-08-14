@@ -18,6 +18,15 @@ enum Phase {
 
 const SAVE_PATH := "user://pixelroom_save.json"
 
+## Where this process saves.
+##
+## A var, not the const, because advance_day() autosaves -- so the test
+## suite and the term simulator, both of which advance hundreds of days,
+## were quietly overwriting the player's real save every time they ran. A
+## dev tool must never be able to destroy the thing it is meant to be
+## testing. Both point this somewhere else.
+var save_path: String = SAVE_PATH
+
 signal phase_changed(phase: int)
 signal day_changed(day: int)
 signal coins_changed(coins: int)
@@ -190,6 +199,54 @@ func neighbours_of(s: StudentData) -> Array[StudentData]:
 		if absi(there.x - here.x) + absi(there.y - here.y) <= 1:
 			out.append(other)
 	return out
+
+
+## Everything that depends on WHO IS SITTING NEXT TO WHOM, once per frame.
+##
+## This lives here rather than in tick_work() because it needs the whole
+## roster and the seating, and a student's own record deliberately knows
+## nothing about the class around it.
+##
+## Both routes into messing about are things the PLAYER caused. Boredom is
+## finished work you never came to collect; frustration is a child left
+## stuck too long. Neither is bad luck, so neither feels like one.
+func tick_class(delta: float, rng: RandomNumberGenerator) -> void:
+	Balance.ensure_loaded()
+	if rng == null:
+		return                      # a test is silent; nobody plays up
+	for s: StudentData in roster:
+		if s.seat_index < 0:
+			continue
+		var mates := neighbours_of(s)
+
+		# --- the good half of a seating plan ---
+		# Somebody who has finished helps the desk beside them.
+		if s.is_struggling() and not s.disrupting:
+			for m: StudentData in mates:
+				if m.disrupting:
+					continue
+				var lift := Traits.value(m.trait_id, "helps_neighbour", 0.0)
+				if lift > 0.0 and m.work_fraction() >= 0.999 						and rng.randf() < lift * delta:
+					s.help()
+					break
+				if Traits.has_flag(s.trait_id, "copy_from_neighbour") 						and rng.randf() < 0.6 * delta:
+					if s.copy_from(m):
+						break
+
+		# --- messing about ---
+		if s.disrupting:
+			continue
+		var chance := 0.0
+		if s.work_state == StudentData.Work.DONE:
+			chance += Balance.dis_boredom          # finished, and ignored
+		if s.is_struggling() and s.stuck_seconds() >= Balance.dis_frustration_after:
+			chance += Balance.dis_frustration      # left stuck too long
+		for m: StudentData in mates:
+			if m.disrupting:
+				chance += Balance.dis_spread       # it travels along the desks
+		chance *= Traits.value(s.trait_id, "neighbour_stall_mult", 1.0)
+		if chance > 0.0 and rng.randf() < chance * delta:
+			s.disrupting = true
 
 
 func student_in_seat(seat: int) -> StudentData:
@@ -943,7 +1000,7 @@ func from_dict(d: Dictionary) -> void:
 # ------------------------------------------------------------- save file
 
 func save_game() -> bool:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var f := FileAccess.open(save_path, FileAccess.WRITE)
 	if f == null:
 		push_error("could not open the save file for writing")
 		return false
@@ -953,9 +1010,9 @@ func save_game() -> bool:
 
 
 func load_game() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
+	if not FileAccess.file_exists(save_path):
 		return false
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var f := FileAccess.open(save_path, FileAccess.READ)
 	if f == null:
 		return false
 	var text := f.get_as_text()
@@ -973,7 +1030,7 @@ func load_game() -> bool:
 func saved_day() -> int:
 	if not has_save():
 		return 0
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var f := FileAccess.open(save_path, FileAccess.READ)
 	if f == null:
 		return 0
 	var parsed: Variant = JSON.parse_string(f.get_as_text())
@@ -984,9 +1041,9 @@ func saved_day() -> int:
 
 
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return FileAccess.file_exists(save_path)
 
 
 func delete_save() -> void:
 	if has_save():
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))

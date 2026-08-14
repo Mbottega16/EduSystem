@@ -31,6 +31,14 @@ var favourite: String = ""
 ## says how well they do it; this says what you have to DO about them.
 var trait_id: String = ""
 
+## Messing about. NOT the same as being stuck: a stuck child has stopped
+## and wants you, a disruptive one has stopped and is stopping the children
+## either side of them as well.
+var disrupting: bool = false
+## Copied their way out of being stuck. The work moves, the understanding
+## does not -- which is exactly what copying is.
+var copied: bool = false
+
 ## Seconds this child has been stuck without letting on. A Quiet student
 ## hides it for a while, which is the whole point of them: you cannot
 ## triage by scanning for bubbles alone.
@@ -165,8 +173,45 @@ func reset_lesson() -> void:
 	helps_received = 0
 	quiz_score = -1.0
 	quiz_flagged = false
+	disrupting = false
+	copied = false
 	_since_stall = 0.0
 	_hidden_for = 0.0
+
+
+## Have a word. Returns false if they were behaving, so this can never
+## become a second Help you spam at everybody.
+func settle() -> bool:
+	Balance.ensure_loaded()
+	if not disrupting:
+		return false
+	disrupting = false
+	confusion = 0.0
+	_since_stall = 0.0
+	_hidden_for = 0.0
+	helps_received += 1
+	helps_total += 1
+	add_xp(Balance.dis_settle_xp)
+	return true
+
+
+## Lean over and copy the desk next door.
+##
+## The point of this is that it LOOKS like the problem solved itself. The
+## work moves and the "?" goes away, so a player watching bubbles sees a
+## child who sorted themselves out -- and then the quiz, the homework and
+## the test all quietly disagree, because copying is not understanding.
+func copy_from(other: StudentData) -> bool:
+	if not is_struggling() or other == null:
+		return false
+	if other.work_fraction() <= work_fraction():
+		return false
+	confusion = 0.0
+	_since_stall = 0.0
+	_hidden_for = 0.0
+	copied = true
+	work_timer = maxf(0.0, work_timer - 2.0)
+	return true
 
 
 # ---------------------------------------------------------------- quiz
@@ -186,6 +231,10 @@ func understanding(strand: String) -> float:
 		u -= Balance.quiz_misjudged_penalty
 	if is_struggling():
 		u -= 0.15
+	if copied:
+		# The work got done. That is not the same as knowing it, and this is
+		# where the difference finally shows up.
+		u -= 0.25
 	return clampf(u, 0.05, 0.98)
 
 
@@ -260,6 +309,8 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
 	Balance.ensure_loaded()
 	if work_state != Work.WORKING:
 		return false
+	if disrupting:
+		return false                      # not doing a stroke until settled
 	if is_struggling():
 		# Count how long they have sat there without letting on. A Quiet
 		# child withholds the "?" for a few seconds, which is what stops
@@ -306,9 +357,12 @@ func stall_chance() -> float:
 ## Read from the LIVE seating, so moving a desk changes it immediately and
 ## the effect of a rearrangement is visible in the same lesson.
 func neighbour_stall_multiplier() -> float:
+	Balance.ensure_loaded()
 	var mult := 1.0
 	for other: StudentData in Game.neighbours_of(self):
 		mult *= Traits.value(other.trait_id, "neighbour_stall_mult", 1.0)
+		if other.disrupting:
+			mult *= Balance.dis_neighbour_stall_mult
 	return mult
 
 
@@ -317,9 +371,16 @@ func neighbour_stall_multiplier() -> float:
 ## The "?" bubble is the game's scan-the-room signal, and a Quiet student
 ## withholding it for a few seconds is what stops scanning being the whole
 ## of the job -- you have to actually know your class.
+## How long they have been stuck, whether or not they are showing it.
+func stuck_seconds() -> float:
+	return _hidden_for
+
+
 func is_visibly_struggling() -> bool:
 	if not is_struggling():
 		return false
+	if disrupting:
+		return false          # the room shows the louder problem instead
 	return _hidden_for >= Traits.value(trait_id, "hide_seconds", 0.0)
 
 
@@ -426,6 +487,7 @@ func to_dict() -> Dictionary:
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite, "trait": trait_id,
+		"disrupting": disrupting, "copied": copied,
 		"joined_day": joined_day, "helps_total": helps_total,
 		"xp": xp, "level": level, "coached": coached,
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
@@ -448,6 +510,8 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.misjudged = bool(d.get("misjudged", false))
 	s.favourite = String(d.get("favourite", ""))
 	s.trait_id = String(d.get("trait", ""))
+	s.disrupting = bool(d.get("disrupting", false))
+	s.copied = bool(d.get("copied", false))
 	s.joined_day = int(d.get("joined_day", 1))
 	s.xp = int(d.get("xp", 0))
 	s.level = int(d.get("level", 1))

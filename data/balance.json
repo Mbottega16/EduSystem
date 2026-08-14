@@ -521,5 +521,14 @@
       "blurb": "Finishes early and helps the next desk along.",
       "helps_neighbour": 0.35
     }
+  },
+  "disruption": {
+    "_note": "Messing about, which is NOT the same as being stuck. A stuck child has stopped and wants you; a disruptive one has stopped and is stopping the children either side of them, and it spreads along the desks until somebody deals with it. Both sources are things the player caused: boredom is finished work you never came to collect, frustration is a child left stuck too long. Neither is bad luck.",
+    "from_boredom_per_second": 0.03,
+    "from_frustration_per_second": 0.018,
+    "frustration_after_seconds": 8.0,
+    "spread_per_second": 0.045,
+    "neighbour_stall_mult": 2.0,
+    "xp_for_settling": 3
   }
 }

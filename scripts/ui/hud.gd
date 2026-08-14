@@ -135,8 +135,13 @@ func _update_status() -> void:
 			line += "    %d homework" % _player.carrying_hw
 	var stuck := 0
 	var waiting := 0
+	var noisy := 0
 	for s: StudentData in Game.roster:
-		if s.is_struggling():
+		if s.disrupting:
+			noisy += 1
+		# what you can SEE, not what is true -- the strip must never quietly
+		# know more about the room than the room is showing you
+		if s.is_visibly_struggling():
 			stuck += 1
 		if s.has_work_to_collect():
 			waiting += 1
@@ -145,6 +150,10 @@ func _update_status() -> void:
 	var place := get_tree().get_first_node_in_group("placement")
 	if place != null and place.active:
 		line += "    this spot helps %d" % place.reach_count()
+	# Loudest first: messing about is the one that gets worse while you are
+	# somewhere else.
+	if noisy > 0:
+		line += "    %d PLAYING UP" % noisy
 	if stuck > 0:
 		line += "    %d stuck" % stuck
 	if waiting > 0:
