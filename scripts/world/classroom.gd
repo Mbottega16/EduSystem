@@ -49,6 +49,9 @@ var podium: Interactable = null
 var teacher_desk: Interactable = null
 var bell: Interactable = null
 var noticeboard: Interactable = null
+## Standing at the back on inspection days. Not in `students`, so nothing
+## that walks the roster ever mistakes them for a child.
+var inspector: Actor = null
 var camera: Camera2D = null
 
 var lesson_left: float = 0.0
@@ -97,6 +100,51 @@ func build() -> void:
 	_connect_placed()
 	_spawn_students()
 	_spawn_player()
+	refresh_inspector()
+
+
+## The inspector is IN THE ROOM on the day they visit, standing at the back
+## where they can see everything and are in nobody's way.
+##
+## Being able to see them is most of the mechanic. The verdict arrives at the
+## end of the lesson either way, but a judgement you can watch being formed
+## is a different feeling from a number that turns up afterwards -- and it is
+## the difference between a day that is announced and a day that is tense.
+func refresh_inspector() -> void:
+	var wanted: bool = Game.being_inspected()
+	if wanted == (inspector != null and is_instance_valid(inspector)):
+		return
+	if not wanted:
+		if inspector != null and is_instance_valid(inspector):
+			inspector.queue_free()
+		inspector = null
+		return
+
+	inspector = STUDENT_SCENE.instantiate()
+	add_child(inspector)
+	var tex: Texture2D = load("res://art/inspector.png")
+	if tex != null and inspector.has_node("Sprite2D"):
+		inspector.get_node("Sprite2D").texture = tex
+	inspector.global_position = Grid.tile_to_world(_inspector_tile())
+	# Standing, NOT sitting, and facing the class. They are not a pupil, and
+	# seat_at() would put them in a chair pose on the floor.
+	inspector.facing = Actor.DIR_UP
+	inspector.set_idle()
+
+
+## A free tile at the back, out of the way. Falls back through the row and
+## then to anywhere free, so a room the player has packed with furniture
+## cannot leave the inspector standing inside a bookcase.
+func _inspector_tile() -> Vector2i:
+	var y: int = Grid.H - 2
+	for x in range(Grid.W - 3, 1, -1):
+		var t := Vector2i(x, y)
+		if grid.is_free(t) and Game.item_at(t).is_empty():
+			return t
+	for t: Vector2i in grid.free_tiles():
+		if Game.item_at(t).is_empty():
+			return t
+	return Vector2i(Grid.W - 3, y)
 
 
 func _spawn_player() -> void:
@@ -426,6 +474,7 @@ func end_day() -> Dictionary:
 	for st: Interactable in stations:
 		st.show_paper(false)
 	_respawn_students()
+	refresh_inspector()
 	day_started.emit(Game.day)
 	return report
 

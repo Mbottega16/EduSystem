@@ -37,6 +37,16 @@ CHARACTERS = {
         "legs": (78, 92, 130), "shoe": (74, 53, 36),
         "long_hair": False, "skirt": False,
     },
+    # The inspector. Grey, and in a suit nobody else in the building owns,
+    # because the entire job of this sprite is to be recognised across the
+    # room without a label. Same generator as everyone else -- it is a
+    # palette, not new drawing code.
+    "inspector": {
+        "hair": (178, 178, 184), "hair_d": (138, 138, 146),
+        "shirt": (52, 56, 72), "shirt_d": (36, 38, 52),
+        "legs": (42, 44, 56), "shoe": (28, 26, 30),
+        "long_hair": False, "skirt": False,
+    },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
     # rather than any new drawing code. Keys must match Names.ART in

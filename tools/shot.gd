@@ -126,6 +126,10 @@ func _open_screen(main: Node, screen: String) -> void:
 			for i in 20:
 				Game.record_taught(String(Game.lesson.get("id", "")))
 			hud.show_inspection(Game.inspect())
+		"inspector_here":
+			Game.event = DayEvent.by_id("inspector")
+			world.refresh_inspector()
+			world.start_lesson()
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance

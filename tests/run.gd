@@ -2845,6 +2845,34 @@ func test_inspection() -> void:
 		hud.hint.text.contains("today"), hud.hint.text)
 	hud.close()
 
+	# --- they are IN THE ROOM ---
+	# Being able to see them is most of the mechanic: a judgement you watch
+	# being formed is a different feeling from a number that arrives later.
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("none")
+	world.refresh_inspector()
+	await step(2)
+	chk("nobody is watching on an ordinary day", world.inspector == null)
+
+	Game.event = DayEvent.by_id("inspector")
+	world.refresh_inspector()
+	await step(2)
+	chk("the inspector is in the room on the day they visit",
+		world.inspector != null and is_instance_valid(world.inspector))
+	chk("standing, not sitting at a desk like a pupil",
+		not world.inspector.seated)
+	chk("and not counted among the children",
+		not world.students.has(world.inspector))
+	chk("on a tile that is actually free", (func() -> bool:
+		var t := Grid.world_to_tile(world.inspector.global_position)
+		return world.grid.is_free(t) and Game.item_at(t).is_empty()).call(),
+		Grid.world_to_tile(world.inspector.global_position))
+
+	Game.event = DayEvent.by_id("none")
+	world.refresh_inspector()
+	await step(2)
+	chk("and they leave when the day is over", world.inspector == null)
+
 	Game.new_run(SEED)
 	await step(2)
 
