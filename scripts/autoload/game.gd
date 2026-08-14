@@ -386,6 +386,59 @@ func concept_bonus() -> float:
 		Balance.concept_bonus_cap)
 
 
+# --- the end-of-unit test -------------------------------------------
+## Is the class sitting a test right now? The single flag that makes the
+## room go quiet: no helping, no collecting, no stalls, no quiz.
+var test_active: bool = false
+
+
+## May this unit be tested yet? You have to have actually taught it -- a
+## test on something the class has never covered is not a difficulty
+## setting, it is just a worse lesson.
+func can_test(lesson_id: String) -> bool:
+	Balance.ensure_loaded()
+	return times_taught(lesson_id) >= Balance.test_requires_taught
+
+
+## Any unit ready to be tested, for the podium's prompt.
+func testable_lesson() -> Dictionary:
+	Curriculum.ensure_loaded()
+	for l: Dictionary in Curriculum.lessons:
+		if can_test(String(l.get("id", ""))):
+			return l
+	return {}
+
+
+## What a child scores on the test.
+##
+## Deliberately NOT the same formula as a lesson. There is no homework term
+## -- it is a test -- and no credit for you having collected anything,
+## because you are not allowed to. What is left is the room you built, the
+## work they can do unaided, and what you know well enough to have taught
+## them. That is the whole argument for the instrument existing.
+func test_grade_for(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	return clampf(room_score(s.seat_index)
+		+ s.work_fraction() * Balance.test_cap
+		+ concept_bonus(), 0.0, 1.0)
+
+
+## Mark the papers. Worth a row in every child's record, flagged as a test
+## so their transcript can tell the two apart.
+func grade_test() -> Array:
+	Balance.ensure_loaded()
+	var out: Array = []
+	for s: StudentData in roster:
+		var g := test_grade_for(s)
+		s.last_grade = g
+		s.grades.append(g)
+		s.record_result(lesson, g, day, true)
+		s.add_xp(Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done)
+		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
+	test_active = false
+	return out
+
+
 ## Has today's lesson already been interrupted for a quiz? One per lesson:
 ## the cost is lesson TIME, and without a limit the right play would be to
 ## run it over and over until everybody had been flagged and resolved.

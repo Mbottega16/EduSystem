@@ -409,6 +409,12 @@
     "bonus": 0.012,
     "bonus_cap": 0.12
   },
+  "test": {
+    "_note": "The end-of-unit test. Playable only after you have taught the unit enough times to have unlocked its concepts. It is the one instrument you cannot intervene in: no helping, no collecting, no stalls. What it measures is the classroom you BUILT and the children you developed, not how well you ran round the room today -- which is exactly why it is worth more than a lesson.",
+    "requires_taught": 3,
+    "cap": 0.5,
+    "seconds": 30.0
+  },
   "quiz": {
     "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it.",
     "questions": 4,

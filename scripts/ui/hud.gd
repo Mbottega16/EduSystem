@@ -491,6 +491,29 @@ func show_exam(result: Dictionary) -> void:
 	hint.text = "E - close.   That is the term."
 
 
+## Unit test results.
+##
+## No "why" column, unlike the lesson report. There is nothing you could
+## have done differently on the day — that is what the instrument is for —
+## so an explanation here would be a lie about where the result came from.
+func show_test_report(results: Array) -> void:
+	_open(Mode.REPORT)
+	title.text = "UNIT TEST: %s" % String(Game.lesson.get("name", "")).to_upper()
+	var lines: Array[String] = []
+	var total := 0.0
+	for r: Dictionary in results:
+		var s: StudentData = r["student"]
+		total += float(r["grade"])
+		lines.append("%-13s %s" % [s.first_name(), String(r["letter"])])
+	var avg: float = total / maxf(1.0, float(results.size()))
+	lines.append("")
+	lines.append("Unit average: %s   (%s)" % [
+		Game.grade_letter(avg), String(Game.lesson.get("standard", ""))])
+	lines.append("This is the room you built, not the day you had.")
+	body.text = "\n".join(lines)
+	hint.text = "E - close.   Ring the bell to end the day."
+
+
 ## What you have learned to teach, and what is still ahead.
 ##
 ## Each row carries the REAL standard code its lesson cites. A concept is a

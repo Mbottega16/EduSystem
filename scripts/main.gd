@@ -20,6 +20,8 @@ func _ready() -> void:
 	world.podium.lesson_ended.connect(hud.show_lesson_report)
 	world.quiz_requested.connect(_run_quiz)
 	world.curriculum_requested.connect(hud.show_curriculum)
+	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
+	world.podium.test_ended.connect(hud.show_test_report)
 	world.bell.day_ended.connect(hud.show_day_report)
 	world.bell.term_ended.connect(hud.show_exam)
 	world.noticeboard.catalogue_opened.connect(hud.open_catalogue)

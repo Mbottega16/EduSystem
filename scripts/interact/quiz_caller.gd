@@ -23,7 +23,7 @@ func _init() -> void:
 func can_interact() -> bool:
 	if Game.phase != Game.Phase.LESSON:
 		return false
-	if Game.quiz_done:
+	if Game.quiz_done or Game.test_active:
 		return false
 	return not Game.roster.is_empty()
 

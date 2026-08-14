@@ -100,13 +100,24 @@ func is_struggling() -> bool:
 
 
 ## One line in their record. Called once per graded lesson.
-func record_result(lesson: Dictionary, grade: float, day: int) -> void:
+func record_result(lesson: Dictionary, grade: float, day: int,
+		was_test: bool = false) -> void:
 	transcript.append({
 		"lesson": String(lesson.get("id", "")),
 		"name": String(lesson.get("name", "Lesson")),
 		"standard": String(lesson.get("standard", "")),
-		"day": day, "grade": grade,
+		"day": day, "grade": grade, "test": was_test,
 	})
+
+
+## Only the tests. A unit result carries more than a day's lesson did, and
+## a record you cannot separate the two in is not much of a record.
+func tests_taken() -> Array:
+	var out: Array = []
+	for row: Dictionary in transcript:
+		if bool(row.get("test", false)):
+			out.append(row)
+	return out
 
 
 ## Their best subject BY RESULT rather than by the favourite they were born

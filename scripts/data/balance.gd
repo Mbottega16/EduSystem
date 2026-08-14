@@ -73,6 +73,11 @@ static var stu_hold_grace: int = 2
 static var concept_bonus: float = 0.012
 static var concept_bonus_cap: float = 0.12
 
+# --- the end-of-unit test ------------------------------------------------
+static var test_requires_taught: int = 3
+static var test_cap: float = 0.5
+static var test_seconds: float = 30.0
+
 # --- the in-lesson quiz --------------------------------------------------
 static var quiz_questions: int = 4
 static var quiz_seconds_cost: float = 10.0
@@ -188,6 +193,11 @@ static func apply(d: Dictionary) -> void:
 	var cn: Dictionary = d.get("concepts", {})
 	concept_bonus = float(cn.get("bonus", concept_bonus))
 	concept_bonus_cap = float(cn.get("bonus_cap", concept_bonus_cap))
+
+	var ts: Dictionary = d.get("test", {})
+	test_requires_taught = int(ts.get("requires_taught", test_requires_taught))
+	test_cap = float(ts.get("cap", test_cap))
+	test_seconds = float(ts.get("seconds", test_seconds))
 
 	var qz: Dictionary = d.get("quiz", {})
 	quiz_questions = int(qz.get("questions", quiz_questions))

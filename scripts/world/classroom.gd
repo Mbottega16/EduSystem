@@ -23,6 +23,7 @@ signal desk_move_requested(seat_index: int)
 signal desks_changed()
 signal quiz_requested()
 signal curriculum_requested()
+signal test_requested(lesson_id: String)
 
 ## The bubble over a child the quiz caught out — cooler than the amber
 ## "stuck" one, because it is a different kind of problem.
@@ -62,6 +63,9 @@ func build() -> void:
 	for q in get_tree().get_nodes_in_group("quiz_caller"):
 		if q is Interactable and not q.quiz_requested.is_connected(_on_quiz_requested):
 			q.quiz_requested.connect(_on_quiz_requested)
+	for t in get_tree().get_nodes_in_group("test_caller"):
+		if t is Interactable and not t.test_requested.is_connected(_on_test_requested):
+			t.test_requested.connect(_on_test_requested)
 	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
@@ -115,8 +119,13 @@ func _physics_process(delta: float) -> void:
 		# always reach every student and there was no triage to do.
 		lesson_left = maxf(0.0, lesson_left - delta)
 		lesson_tick.emit(lesson_left)
+		# Passing a null rng is what makes a test silent: tick_work() only
+		# ever stalls a student when it has one to roll with. Nobody gets
+		# stuck in a test, because you would not be allowed to go and
+		# unstick them if they did.
+		var roll: RandomNumberGenerator = null if Game.test_active else Game.rng
 		for s: StudentData in Game.roster:
-			if s.tick_work(delta, Game.rng):
+			if s.tick_work(delta, roll):
 				_on_work_done(s)
 		if lesson_left <= 0.0:
 			lesson_timed_out.emit()
@@ -189,6 +198,43 @@ func start_lesson() -> int:
 		if node != null and node.seated and s.assign_work():
 			n += 1
 	return n
+
+
+## Podium, in the morning, on a unit you have taught enough times. Sits the
+## whole class down for the unit test.
+##
+## Mechanically it IS a lesson — the clock runs, the work ticks — but every
+## verb you have is switched off for the duration. That is the instrument:
+## the one time the game asks what you built rather than what you are doing.
+func start_test(lesson_id: String) -> int:
+	Balance.ensure_loaded()
+	if not Game.can_test(lesson_id):
+		return -1
+	Game.lesson = Curriculum.by_id(lesson_id)
+	Game.subject = String(Game.lesson.get("name", "Test"))
+	Game.test_active = true
+	Game.quiz_done = true          # no quizzing your way through a test
+	Game.set_phase(Game.Phase.LESSON)
+	lesson_left = Balance.test_seconds
+	var n := 0
+	for s: StudentData in Game.roster:
+		var node := student_node(s.seat_index)
+		if node != null and node.seated and s.assign_work():
+			n += 1
+	return n
+
+
+## Papers in. Unlike end_lesson() this sets no homework — the unit is over.
+func end_test() -> Array:
+	lesson_left = 0.0
+	var results := Game.grade_test()
+	Game.set_phase(Game.Phase.AFTERNOON)
+	for s: StudentData in Game.roster:
+		s.confusion = 0.0
+	_refresh_bubbles()
+	for st: Interactable in stations:
+		st.show_paper(false)
+	return results
 
 
 ## Podium, mid-lesson. Stops the class, asks everyone a few questions, and
@@ -294,6 +340,10 @@ func _on_quiz_requested() -> void:
 
 func _on_curriculum_requested() -> void:
 	curriculum_requested.emit()
+
+
+func _on_test_requested(lesson_id: String) -> void:
+	test_requested.emit(lesson_id)
 
 
 ## Bought furniture is rebuilt from data, so its interactables are new

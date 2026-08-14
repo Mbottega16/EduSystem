@@ -21,6 +21,7 @@ const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
 const DESK_MOVER_SCRIPT := preload("res://scripts/interact/desk_mover.gd")
 const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
 const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
+const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
@@ -149,6 +150,13 @@ static func build_podium(parent: Node2D, grid: Grid) -> Interactable:
 	quiz.set_script(QUIZ_CALLER_SCRIPT)
 	quiz.add_to_group("quiz_caller")
 	body.add_child(quiz)
+
+	# And the unit test, also on E but only in the MORNING -- so it and the
+	# quiz are never offered in the same phase.
+	var unit := Interactable.new()
+	unit.set_script(TEST_CALLER_SCRIPT)
+	unit.add_to_group("test_caller")
+	body.add_child(unit)
 
 	grid.set_cell(Layout.PODIUM, Grid.Cell.BLOCKED)
 	return it

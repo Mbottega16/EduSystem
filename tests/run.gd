@@ -122,6 +122,8 @@ func _main() -> void:
 	test_concepts()
 	test_transcript()
 	test_unlockables()
+	await test_unit_test()
+	await test_two_buttons_one_landmark()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1592,6 +1594,196 @@ func test_unlockables() -> void:
 		return true).call())
 
 
+func test_unit_test() -> void:
+	section("THE UNIT TEST")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	var lid := "basic_arithmetic"
+	chk("you cannot test a unit you have never taught", not Game.can_test(lid))
+	chk("so the podium offers no test at all", Game.testable_lesson().is_empty())
+	chk("and asking for one anyway is refused", world.start_test(lid) == -1)
+
+	for i in Balance.test_requires_taught:
+		Game.record_taught(lid)
+	chk("teaching it enough times unlocks the test", Game.can_test(lid))
+	chk("and the podium now has one to offer",
+		String(Game.testable_lesson().get("id", "")) == lid,
+		Game.testable_lesson().get("id", ""))
+
+	# --- sitting it ---
+	Game.set_phase(Game.Phase.MORNING)
+	var seated: int = world.start_test(lid)
+	chk("the whole class sits it", seated == Game.roster.size(), seated)
+	chk("the room knows a test is running", Game.test_active)
+	chk("it runs on the lesson clock", world.lesson_left > 0.0)
+	chk("and for the time the table says",
+		is_equal_approx(world.lesson_left, Balance.test_seconds))
+	chk("today's subject became the unit being tested",
+		String(Game.lesson.get("id", "")) == lid)
+
+	# THE INSTRUMENT: every verb you have is switched off.
+	var s0: StudentData = Game.roster[0]
+	s0.confusion = 1.0                      # even if somebody IS stuck
+	var st: Interactable = world.station(s0.seat_index)
+	chk("you cannot help anyone during a test", not st.can_interact())
+	s0.work_state = StudentData.Work.DONE
+	chk("nor collect their paper", not st.can_interact())
+	s0.confusion = 0.0
+	s0.work_state = StudentData.Work.WORKING
+
+	chk("and you cannot quiz your way through it", (func() -> bool:
+		for q in get_tree().get_nodes_in_group("quiz_caller"):
+			if q.can_interact():
+				return false
+		return true).call())
+
+	# Nobody stalls in a test, because you would not be allowed to unstick
+	# them. classroom passes a null rng, and tick_work only stalls with one.
+	var stalled := false
+	for i in 400:
+		await step(1)
+		for s: StudentData in Game.roster:
+			if s.is_struggling():
+				stalled = true
+		if world.lesson_left <= 0.0:
+			break
+	chk("nobody gets stuck in a test", not stalled)
+
+	# --- marking it ---
+	var before: int = Game.roster[0].transcript.size()
+	var results: Array = world.end_test()
+	chk("every child gets a result", results.size() == Game.roster.size())
+	chk("the test is over", not Game.test_active)
+	chk("and the day moves on", Game.phase == Game.Phase.AFTERNOON)
+	chk("it goes into their record", Game.roster[0].transcript.size() == before + 1)
+	chk("marked AS a test, so a record can tell the two apart",
+		Game.roster[0].tests_taken().size() == 1)
+	chk("no homework is set -- the unit is finished", not Game.homework_out)
+
+	# --- what it measures ---
+	# Not the same formula as a lesson: no homework term, and no credit for
+	# collecting, because you were not allowed to collect.
+	Game.new_run(SEED)
+	var a: StudentData = Game.roster[0]
+	a.hw_state = StudentData.HW.MARKED
+	a.hw_true_accuracy = 1.0
+	a.hw_player_verdict = 1
+	var with_hw := Game.test_grade_for(a)
+	a.hw_state = StudentData.HW.NONE
+	chk("homework counts for nothing on a test",
+		is_equal_approx(with_hw, Game.test_grade_for(a)))
+
+	# It IS moved by the room you built and by what you know -- that is the
+	# whole argument for the instrument.
+	var bare := Game.test_grade_for(a)
+	Game.room_items.append({"id": "bookshelf", "tile": Layout.seat(a.seat_index) + Vector2i(1, 0)})
+	chk("but the room you built counts", Game.test_grade_for(a) > bare,
+		"%.3f -> %.3f" % [bare, Game.test_grade_for(a)])
+
+	var furnished := Game.test_grade_for(a)
+	for l: Dictionary in Curriculum.lessons:
+		for i in 10:
+			Game.record_taught(String(l.get("id", "")))
+	chk("and so does knowing your material",
+		Game.test_grade_for(a) > furnished)
+
+	# A test is worth more than a day's lesson, which is what "high stakes"
+	# has to mean mechanically rather than in the prose.
+	chk("a test can carry more than a single lesson ever could",
+		Balance.test_cap > Balance.lesson_cap,
+		"%.2f vs %.2f" % [Balance.test_cap, Balance.lesson_cap])
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_two_buttons_one_landmark() -> void:
+	section("TWO BUTTONS AT ONE LANDMARK")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var p: Actor = world.player
+
+	# The picker used to keep ONE target for both buttons, so whenever two
+	# interactables shared a tile the loser was silently unreachable and the
+	# tie was settled by node order. Every landmark that has grown a second
+	# verb has run into it.
+	chk("each button has its own target", p.targets.has("interact")
+		and p.targets.has("manage"))
+
+	# --- the podium in the morning: teach on F, unit test on E ---
+	for i in Balance.test_requires_taught:
+		Game.record_taught("basic_arithmetic")
+	Game.set_phase(Game.Phase.MORNING)
+	await step(30)                       # let everyone reach their chairs
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+
+	chk("MANAGE offers the lesson", p.targets["manage"] == world.podium,
+		p.targets["manage"])
+	chk("and USE offers the unit test at the same moment", (func() -> bool:
+		var t: Interactable = p.targets["interact"]
+		return t != null and t.prompt_text().begins_with("Unit test")).call(),
+		p.targets["interact"])
+	chk("both are on offer together", p.offers().size() == 2, p.offers().size())
+
+	# --- a desk: help on E, move it on F ---
+	Game.set_phase(Game.Phase.AFTERNOON)
+	var s0: StudentData = Game.roster[0]
+	s0.work_state = StudentData.Work.DONE
+	await place_player(Layout.seat(s0.seat_index) + Vector2i(1, 1), Actor.DIR_LEFT)
+	await step(2)
+	# A desk is the deliberate EXCEPTION to two-verbs-at-once: the mover
+	# stands down whenever there is something you could be doing for the
+	# child, so "move this desk" can never shoulder "collect their work" off
+	# the prompt.
+	chk("with work to collect, the desk offers only that",
+		p.offers().size() == 1, p.offers().map(func(t: Interactable) -> String:
+			return t.prompt_text()))
+	chk("and it is on the USE button", (func() -> bool:
+		var t: Interactable = p.targets["interact"]
+		return t != null and t.prompt_text().contains("Collect")).call())
+
+	s0.work_state = StudentData.Work.COLLECTED       # nothing left to do for them
+	await step(2)
+	chk("with nothing to do for the child, MANAGE offers the move instead",
+		(func() -> bool:
+			var t: Interactable = p.targets["manage"]
+			return t != null and t.prompt_text().contains("desk")).call(),
+		p.targets["manage"])
+
+	# THE CRASH THIS GUARDS. Reading a freed node into a TYPED variable
+	# throws "Trying to assign invalid previously freed instance", which
+	# aborted the rest of _physics_process -- every frame, forever. Targets
+	# stopped refreshing and every button in the game went dead, and nothing
+	# in the suite noticed because the error is not a failed assertion.
+	Game.room_items.clear()
+	Game.add_item("plant", Vector2i(9, 6))
+	await step(3)
+	await place_player(Vector2i(9, 7), Actor.DIR_UP)
+	await step(3)
+	chk("the plant is what you are standing at", (func() -> bool:
+		var t: Interactable = p.targets["interact"]
+		return t != null and t.prompt_text().contains("Plant")).call())
+	Game.remove_item(Vector2i(9, 6))     # frees the node under the player
+	await step(3)
+	chk("removing it under your feet does not leave a dead target",
+		p.targets["interact"] == null or is_instance_valid(p.targets["interact"]))
+
+	Game.add_item("bookshelf", Vector2i(9, 6))
+	await step(4)
+	chk("and the picker recovers rather than staying dead forever",
+		(func() -> bool:
+			var t: Interactable = p.targets["interact"]
+			return t != null and t.prompt_text().contains("Bookshelf")).call(),
+		p.targets["interact"])
+
+	Game.room_items.clear()
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -1838,7 +2030,9 @@ func test_shop() -> void:
 	await place_player(Vector2i(11, 4), Actor.DIR_UP)
 	await tap("interact")
 	await step(3)
-	chk("a move is in progress", main.placement.active and Game.room_items.is_empty())
+	chk("a move is in progress",
+		main.placement.active and Game.room_items.is_empty(),
+		"active=%s  items=%d" % [main.placement.active, Game.room_items.size()])
 	main.placement.tile = Vector2i(9, 6)
 	main.placement._refresh()
 	await tap("cancel")
@@ -2302,7 +2496,10 @@ func test_buttons() -> void:
 	await step(2)
 	chk("the lesson is running", Game.phase == Game.Phase.LESSON)
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
-	chk("the podium is what you are standing at", world.player.target == world.podium)
+	# The podium has two verbs now (E quizzes, F ends the lesson), so the
+	# question is which button points at it, not what the single target is.
+	chk("the podium is what MANAGE is pointing at",
+		world.player.targets["manage"] == world.podium)
 	for i in 4:
 		await tap("interact")
 	chk("mashing the USE button at the podium cannot end the lesson",

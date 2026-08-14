@@ -41,6 +41,10 @@ func action() -> int:
 
 
 func can_interact() -> bool:
+	# A test is silent. No helping, no collecting, no going over anything --
+	# it is the one stretch of the game where you can only watch.
+	if Game.test_active:
+		return false
 	return action() != Action.NONE
 
 

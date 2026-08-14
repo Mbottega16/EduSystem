@@ -13,6 +13,7 @@ func _init() -> void:
 	super()
 	uses_key = Key.MANAGE
 signal lesson_ended(results: Array)
+signal test_ended(results: Array)
 
 
 func _classroom() -> Node:
@@ -40,7 +41,7 @@ func prompt_text() -> String:
 	if Game.phase == Game.Phase.MORNING:
 		return "Teach %s" % String(Game.lesson.get("name", Game.subject))
 	if Game.phase == Game.Phase.LESSON:
-		return "End the lesson early"
+		return "Collect the papers" if Game.test_active else "End the lesson early"
 	return ""
 
 
@@ -52,5 +53,8 @@ func interact(by: Node) -> void:
 		Sfx.play("start")
 		lesson_started.emit(room.start_lesson())
 	elif Game.phase == Game.Phase.LESSON:
-		lesson_ended.emit(room.end_lesson())
+		if Game.test_active:
+			test_ended.emit(room.end_test())
+		else:
+			lesson_ended.emit(room.end_lesson())
 	used.emit(by)
