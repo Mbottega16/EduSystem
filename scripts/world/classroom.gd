@@ -243,6 +243,9 @@ func _spawn_students(walk_in: bool = true) -> void:
 			node.seat_at(Grid.tile_to_world(seat))
 		else:
 			node.walk_to_seat(path, n * Balance.entry_stagger)
+		var d: StudentData = s
+		if not node.arrived.is_connected(_on_student_arrived):
+			node.arrived.connect(func() -> void: _on_student_arrived(d))
 		students.append(node)
 		n += 1
 
@@ -322,6 +325,16 @@ func _refresh_bubbles() -> void:
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
+
+
+## Somebody sat down. If the lesson has already started they have missed
+## the hand-out, so they get theirs now -- which is what makes starting
+## before the whole class is settled a real option rather than a mistake.
+func _on_student_arrived(s: StudentData) -> void:
+	if s == null:
+		return
+	if Game.phase == Game.Phase.LESSON and s.work_state == StudentData.Work.NONE:
+		s.assign_work()
 
 
 func _on_work_done(s: StudentData) -> void:

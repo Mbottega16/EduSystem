@@ -2197,6 +2197,51 @@ func test_a_whole_day() -> void:
 	Game.new_run(SEED)
 	var hud := _hud()
 	var p: Actor = world.player
+
+	# THE BUG THIS GUARDS, and it made the whole game unplayable.
+	#
+	# The podium used to require that EVERYONE was seated. The class takes
+	# about ten seconds to file in, so for those ten seconds the one landmark
+	# the day starts from offered nothing at all -- no prompt, no reason. You
+	# could not teach, so you never reached the afternoon, so the bell could
+	# never ring, so the day could never end.
+	#
+	# Every existing test stepped 40+ frames or teleported first, so not one
+	# of them ever stood at the podium on the frame a day actually begins.
+	await step(2)
+	# Force the condition rather than racing it: send one child back to the
+	# door and have them walk in properly, which is exactly the state every
+	# day opens in.
+	var late: Actor = world.students[world.students.size() - 1]
+	late.global_position = Grid.tile_to_world(Layout.DOOR)
+	late.walk_to_seat(world.grid.path(Layout.DOOR,
+		Layout.seat(late.data.seat_index)), 0.0)
+	await step(2)
+	chk("somebody is still on their feet", not world.everyone_seated())
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	chk("the podium ALREADY offers to teach, before they are all sat down",
+		(func() -> bool:
+			var t: Interactable = p.targets["manage"]
+			return t != null and t.prompt_text().begins_with("Teach")).call(),
+		p.targets["manage"])
+	await tap("manage")
+	chk("and it really starts", Game.phase == Game.Phase.LESSON, Game.phase)
+
+	# whoever was still walking gets their paper when they sit
+	await step(700)
+	chk("everyone is seated eventually", world.everyone_seated())
+	chk("and the latecomers were given work too, not skipped",
+		(func() -> bool:
+			for st: StudentData in Game.roster:
+				if st.work_state == StudentData.Work.NONE:
+					return false
+			return true).call(),
+		Game.roster.map(func(st: StudentData) -> int: return st.work_state))
+	world.end_lesson()
+	await step(2)
+	hud.close()
+
+	Game.new_run(SEED)
 	await step(40)                      # let the class walk in and sit down
 
 	# Everything else drives the day by calling world.start_lesson() and

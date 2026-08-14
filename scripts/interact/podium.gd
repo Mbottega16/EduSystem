@@ -32,8 +32,17 @@ func _update_hold() -> void:
 func can_interact() -> bool:
 	_update_hold()
 	if Game.phase == Game.Phase.MORNING:
-		var room := _classroom()
-		return room != null and room.everyone_seated() and not Game.roster.is_empty()
+		# NOT "everyone is seated". That gate meant the podium offered
+		# absolutely nothing for the ten seconds the class takes to file in
+		# -- no prompt, no reason, just a blank prompt bar at the one landmark
+		# the whole day starts from. A player walks up, sees nothing, and
+		# concludes the game is broken. They were right to.
+		#
+		# You can start the lesson whenever you like now. Anyone still on
+		# their way gets their work the moment they sit down, so starting
+		# early costs THEM a little working time and costs you nothing you
+		# cannot see.
+		return not Game.roster.is_empty()
 	return Game.phase == Game.Phase.LESSON
 
 

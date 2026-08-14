@@ -38,9 +38,8 @@ func _classroom() -> Node:
 func can_interact() -> bool:
 	if Game.phase != Game.Phase.MORNING or Game.roster.is_empty():
 		return false
-	var room := _classroom()
-	if room == null or not room.everyone_seated():
-		return false
+	# Same reasoning as the podium: never offer nothing at the landmark the
+	# day starts from. Latecomers are handed their paper when they sit.
 	return not Game.testable_lesson().is_empty()
 
 
