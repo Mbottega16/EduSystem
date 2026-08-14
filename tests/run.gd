@@ -1434,10 +1434,28 @@ func test_concepts() -> void:
 	# changed nothing were "the single clearest reason the learning system
 	# doesn't make sense". So this has to show up in a real grade.
 	var s0: StudentData = Game.roster[0]
+
+	# A child who has done none of the work gains NOTHING from your
+	# expertise. The term simulator caught this as a flat bonus: a player
+	# who never helped anybody climbed a whole letter grade over a term
+	# purely for having stood at the podium. Expertise pays for teaching,
+	# not for attendance.
+	var idle_before := Game.grade_for(s0)
+	for i in 30:
+		Game.record_taught(lid)
+	chk("expertise is worth nothing to a child who did no work",
+		is_equal_approx(Game.grade_for(s0), idle_before),
+		"%.3f -> %.3f" % [idle_before, Game.grade_for(s0)])
+
+	# ...but it shows up plainly in a child who did.
+	Game.concepts.clear()
+	s0.assign_work()
+	s0.work_timer = 0.0
+	s0.work_state = StudentData.Work.COLLECTED
 	var without := Game.grade_for(s0)
 	for i in 30:
 		Game.record_taught(lid)
-	chk("knowing your material shows up in what the class scores",
+	chk("knowing your material shows up in what a working class scores",
 		Game.grade_for(s0) > without,
 		"%.3f -> %.3f" % [without, Game.grade_for(s0)])
 

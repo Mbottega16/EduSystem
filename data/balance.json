@@ -405,7 +405,7 @@
     "hold_grace_levels": 2
   },
   "concepts": {
-    "_note": "What knowing your material is worth. Small per concept and capped, because this is the difference between a teacher in their first term and one in their fifth -- not a substitute for the room or for turning up. It is a bonus that grows ACROSS runs of days, so the three-row contract (measured on day one, with nothing learned) is untouched by it.",
+    "_note": "What knowing your material is worth. It scales with how much of the lesson the child actually got through, so it rewards TEACHING rather than merely turning up: a class you never went near gains almost nothing from your expertise. Small per concept and capped, and worth zero on day one, which is what keeps the three-row contract unmoved.",
     "bonus": 0.012,
     "bonus_cap": 0.12
   },
@@ -421,9 +421,9 @@
     "seconds": 30.0
   },
   "quiz": {
-    "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it.",
+    "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it. It costs 14 of a 45-second lesson, raised from 10 after the term simulator showed quizzing paying about ten times the coins at an identical grade -- which is not a decision, it is a formality.",
     "questions": 4,
-    "seconds_cost": 10.0,
+    "seconds_cost": 14.0,
     "flag_below": 0.5,
     "retrieval_seconds": 1.5,
     "resolve_seconds": 6.0,

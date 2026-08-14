@@ -24,15 +24,38 @@ extends Node
 ##   good     — a realistic attentive player: a few seconds to walk over
 ##   lazy     — starts the lesson and wanders off
 ##   nobody   — never helps, never collects (the floor of the game)
+##   quizzer  — exactly 'good', except it spends lesson seconds on a quiz
+##              and then goes over it with whoever it flags
+##
+## That last pair is the point: 'good' and 'quizzer' differ in ONE decision,
+## so the gap between their two rows is roughly what the quiz is worth.
+##
+## READ IT AS A DIRECTION, NOT A MEASUREMENT. The quiz consumes rng draws
+## that 'good' never makes, so from the first quiz onward the two runs are
+## on different random sequences and part of any gap is simply that. It is
+## enough to answer "is this worth doing at all" -- it was paying about ten
+## times the coins at an identical grade, which is why a quiz now costs 14
+## seconds of a 45-second lesson rather than 10 -- but do not tune a number
+## to two significant figures against it.
 
-const POLICIES := ["ideal", "good", "lazy", "nobody"]
+const POLICIES := ["ideal", "good", "lazy", "nobody", "quizzer"]
 
 ## How long the player takes to notice and walk to a stuck student.
-const REACTION := {"ideal": 0.5, "good": 4.0, "lazy": 15.0, "nobody": 999.0}
+const REACTION := {
+	"ideal": 0.5, "good": 4.0, "lazy": 15.0, "nobody": 999.0, "quizzer": 4.0}
 ## Whether they bother picking the finished work up.
-const COLLECTS := {"ideal": true, "good": true, "lazy": false, "nobody": false}
+const COLLECTS := {
+	"ideal": true, "good": true, "lazy": false, "nobody": false, "quizzer": true}
 ## Coins they will spend on furniture at the end of a day.
-const BUYS := {"ideal": true, "good": true, "lazy": true, "nobody": false}
+const BUYS := {
+	"ideal": true, "good": true, "lazy": true, "nobody": false, "quizzer": true}
+## Whether they stop the lesson for a quiz.
+const QUIZZES := {
+	"ideal": false, "good": false, "lazy": false, "nobody": false,
+	"quizzer": true}
+## How far into the lesson the quiz is called. Early enough that there is
+## still time to act on it, which is the entire argument for the instrument.
+const QUIZ_AT := 0.25
 
 const DT := 1.0 / 60.0
 
@@ -104,12 +127,26 @@ func _run(policy: String, days: int) -> void:
 func _play_day(policy: String) -> Dictionary:
 	var reaction: float = REACTION[policy]
 	var stuck_since := {}
+	var flagged_since := {}
 	for s: StudentData in Game.roster:
 		s.assign_work()
 
+	# The quiz is PAID FOR out of the lesson, so the clock it runs against
+	# shortens. Charging it anywhere else would make it free, and a free
+	# diagnostic is not a decision.
+	Game.quiz_done = false
+	var lesson_len := Balance.lesson_seconds
+	var quiz_at: float = lesson_len * QUIZ_AT if QUIZZES[policy] else -1.0
+	var flagged_total := 0
+	var resolved := 0
+
 	var t := 0.0
-	while t < Balance.lesson_seconds:
+	while t < lesson_len:
 		t += DT
+		if quiz_at > 0.0 and not Game.quiz_done and t >= quiz_at:
+			var result := Game.run_quiz()
+			flagged_total = int(result.get("flagged", 0))
+			lesson_len -= Balance.quiz_seconds_cost
 		for s: StudentData in Game.roster:
 			s.tick_work(DT, Game.rng)
 			if s.is_struggling():
@@ -120,6 +157,16 @@ func _play_day(policy: String) -> Dictionary:
 					stuck_since.erase(s.id)
 			else:
 				stuck_since.erase(s.id)
+				# Going over the quiz only ever happens to someone who is
+				# NOT currently stuck: a frozen work timer outranks it, the
+				# same priority the desk itself applies.
+				if s.quiz_flagged:
+					if not flagged_since.has(s.id):
+						flagged_since[s.id] = t
+					elif t - float(flagged_since[s.id]) >= reaction:
+						if s.resolve_quiz():
+							resolved += 1
+						flagged_since.erase(s.id)
 
 	var still := 0
 	for s: StudentData in Game.roster:
@@ -134,7 +181,7 @@ func _play_day(policy: String) -> Dictionary:
 
 	Game.grade_class()
 	Game.assign_homework()
-	return {"still_stuck": still}
+	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved}
 
 
 ## Buy the item with the best bonus-per-coin that we can afford and that

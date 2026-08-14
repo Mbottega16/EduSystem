@@ -738,10 +738,17 @@ func grade_for(s: StudentData) -> float:
 		if not s.verdict_was_right():
 			hw *= Balance.verdict_weight
 
-	# Knowing your material. Zero on day one -- which is why the three-row
-	# balance contract, measured on a fresh run, is unmoved by it.
-	return clampf(room_score(s.seat_index) + lesson + hw + concept_bonus(),
-		0.0, 1.0)
+	# Knowing your material, SCALED BY how much of the lesson they actually
+	# got through.
+	#
+	# As a flat bonus it lifted the floor as much as the ceiling: the term
+	# simulator showed a player who never helped anybody climbing from an E
+	# to a D purely for having stood at the podium. Expertise should pay for
+	# teaching, not for attendance -- so a child who did none of the work
+	# gains nothing from yours. Zero on day one either way, which is what
+	# keeps the three-row contract unmoved.
+	var expertise := concept_bonus() * s.work_fraction()
+	return clampf(room_score(s.seat_index) + lesson + hw + expertise, 0.0, 1.0)
 
 
 ## Close the lesson: everyone is graded, and it is recorded.
