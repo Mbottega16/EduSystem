@@ -27,6 +27,15 @@ var diligence: float = 0.5         ## 0..1 — will they do the homework
 ## reason to exist beyond being a label.
 var favourite: String = ""
 
+## How they behave while they work — see scripts/data/traits.gd. Aptitude
+## says how well they do it; this says what you have to DO about them.
+var trait_id: String = ""
+
+## Seconds this child has been stuck without letting on. A Quiet student
+## hides it for a while, which is the whole point of them: you cannot
+## triage by scanning for bubbles alone.
+var _hidden_for: float = 0.0
+
 # --- per-lesson, reset by reset_lesson() ------------------------------
 var work_state: int = Work.NONE
 var work_timer: float = 0.0        ## seconds of UNSTUCK work still needed
@@ -157,6 +166,7 @@ func reset_lesson() -> void:
 	quiz_score = -1.0
 	quiz_flagged = false
 	_since_stall = 0.0
+	_hidden_for = 0.0
 
 
 # ---------------------------------------------------------------- quiz
@@ -251,6 +261,10 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
 	if work_state != Work.WORKING:
 		return false
 	if is_struggling():
+		# Count how long they have sat there without letting on. A Quiet
+		# child withholds the "?" for a few seconds, which is what stops
+		# scanning the room for bubbles from being the whole of the job.
+		_hidden_for += delta
 		return false                      # frozen until someone helps
 
 	work_timer -= delta
@@ -266,6 +280,7 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
 		if rng.randf() < stall_chance() * delta:
 			confusion = 1.0
 			_since_stall = 0.0
+			_hidden_for = 0.0
 	return false
 
 
@@ -279,7 +294,33 @@ func stall_chance() -> float:
 	if favourite != "" and favourite == Game.lesson_strand():
 		c *= (1.0 - Balance.affinity_bonus)      # on a good day for them
 	c *= Game.event_stall_multiplier()
+	c *= Traits.value(trait_id, "stall_mult", 1.0)
+	# Somebody chatty at the next desk drags this one off task too. It is
+	# the reason a seating plan is a decision rather than decoration.
+	c *= neighbour_stall_multiplier()
 	return c
+
+
+## What the desks either side are doing to this child's concentration.
+##
+## Read from the LIVE seating, so moving a desk changes it immediately and
+## the effect of a rearrangement is visible in the same lesson.
+func neighbour_stall_multiplier() -> float:
+	var mult := 1.0
+	for other: StudentData in Game.neighbours_of(self):
+		mult *= Traits.value(other.trait_id, "neighbour_stall_mult", 1.0)
+	return mult
+
+
+## Is this child visibly stuck, or hiding it?
+##
+## The "?" bubble is the game's scan-the-room signal, and a Quiet student
+## withholding it for a few seconds is what stops scanning being the whole
+## of the job -- you have to actually know your class.
+func is_visibly_struggling() -> bool:
+	if not is_struggling():
+		return false
+	return _hidden_for >= Traits.value(trait_id, "hide_seconds", 0.0)
 
 
 ## Award XP and apply any levels it earns. Returns levels gained.
@@ -356,9 +397,12 @@ func help() -> bool:
 		return false
 	confusion = 0.0
 	_since_stall = 0.0
+	_hidden_for = 0.0
 	helps_received += 1
 	helps_total += 1
-	add_xp(Balance.stu_xp_per_help)
+	# A child who asks about everything gets more out of being answered.
+	add_xp(int(round(float(Balance.stu_xp_per_help)
+		* Traits.value(trait_id, "help_xp_mult", 1.0))))
 	return true
 
 
@@ -381,7 +425,7 @@ func to_dict() -> Dictionary:
 		"seat_index": seat_index, "aptitude": aptitude, "diligence": diligence,
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
-		"favourite": favourite,
+		"favourite": favourite, "trait": trait_id,
 		"joined_day": joined_day, "helps_total": helps_total,
 		"xp": xp, "level": level, "coached": coached,
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
@@ -403,6 +447,7 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
 	s.misjudged = bool(d.get("misjudged", false))
 	s.favourite = String(d.get("favourite", ""))
+	s.trait_id = String(d.get("trait", ""))
 	s.joined_day = int(d.get("joined_day", 1))
 	s.xp = int(d.get("xp", 0))
 	s.level = int(d.get("level", 1))

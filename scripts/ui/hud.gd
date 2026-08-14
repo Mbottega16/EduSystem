@@ -333,6 +333,10 @@ func _render_class_list() -> void:
 	for i in Game.roster.size():
 		var s: StudentData = Game.roster[i]
 		var notes: Array[String] = []
+		# The trait first: it is the note that changes what you DO.
+		var tname := Traits.name_of(s.trait_id)
+		if tname != "":
+			notes.append(tname.to_lower())
 		if s.aptitude >= 0.65:
 			notes.append("quick")
 		elif s.aptitude <= 0.4:
@@ -467,7 +471,16 @@ func _transcript_line(s: StudentData) -> String:
 	return line
 
 
+## How this child works, in one line.
+##
+## The TRAIT wins when there is one, because it is the more useful sentence:
+## "will not say when they are lost" tells you what to do about them, and
+## "works at a steady pace" does not. Pace is still shown when there is no
+## trait to say anything better.
 func _ability_line(s: StudentData) -> String:
+	var blurb := Traits.blurb(s.trait_id)
+	if blurb != "":
+		return blurb
 	if s.aptitude >= 0.65:
 		return "Picks things up quickly."
 	if s.aptitude <= 0.40:

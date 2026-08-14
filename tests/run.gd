@@ -128,6 +128,7 @@ func _main() -> void:
 	await test_panels_fit()
 	await test_systems_together()
 	await test_a_whole_day()
+	test_traits()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -2215,6 +2216,147 @@ func test_a_whole_day() -> void:
 	chk("tomorrow has begun", Game.phase == Game.Phase.MORNING, Game.phase)
 
 
+func test_traits() -> void:
+	section("WHAT MAKES ONE CHILD DIFFERENT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("there are traits to have", Traits.ids().size() >= 4, Traits.ids().size())
+	chk("the roll order is stable, not dictionary order", (func() -> bool:
+		var a := Traits.ids()
+		var b := Traits.ids()
+		return a == b and a == a.duplicate()).call())
+
+	# THE RULE. A trait that only prints a sentence is decoration, and
+	# decoration teaches a player to stop reading the screen it is on. Every
+	# one of these has to reach into the work model, the seating, or both.
+	chk("every trait has a name and a blurb", (func() -> bool:
+		for id: String in Traits.ids():
+			if Traits.name_of(id) == "" or Traits.blurb(id) == "":
+				return false
+		return true).call())
+	chk("and every one of them actually DOES something", (func() -> bool:
+		var hooks := ["stall_mult", "help_xp_mult", "hide_seconds",
+			"neighbour_stall_mult", "copy_from_neighbour", "helps_neighbour"]
+		for id: String in Traits.ids():
+			var found := false
+			for h: String in hooks:
+				if Traits.get_def(id).has(h):
+					found = true
+			if not found:
+				return false
+		return true).call())
+
+	chk("everybody gets one when they arrive", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.trait_id == "" or not Traits.ids().has(s.trait_id):
+				return false
+		return true).call())
+	chk("and a class is not all the same one", (func() -> bool:
+		while Game.enrol() != null:
+			pass
+		var seen := {}
+		for s: StudentData in Game.roster:
+			seen[s.trait_id] = true
+		return seen.size() >= 2).call())
+
+	# --- the hooks, one at a time ---
+	Game.new_run(SEED)
+	var a := StudentData.new()
+	a.aptitude = 0.5
+	var b := StudentData.new()
+	b.aptitude = 0.5
+	a.trait_id = "steady"
+	b.trait_id = "curious"
+	chk("a steady child stalls less often than a curious one",
+		a.stall_chance() < b.stall_chance(),
+		"%.4f vs %.4f" % [a.stall_chance(), b.stall_chance()])
+
+	# Curious costs you time and pays it back: they get stuck more, and each
+	# answer is worth more to them. That is the trade, not a drawback.
+	var c := StudentData.new()
+	c.trait_id = "curious"
+	c.confusion = 1.0
+	var xp_before := c.xp
+	c.help()
+	var plain := StudentData.new()
+	plain.trait_id = "steady"
+	plain.confusion = 1.0
+	var plain_before := plain.xp
+	plain.help()
+	chk("and gets more out of being answered",
+		c.xp - xp_before > plain.xp - plain_before,
+		"%d vs %d" % [c.xp - xp_before, plain.xp - plain_before])
+
+	# --- Quiet: stuck, but not showing it ---
+	var q := StudentData.new()
+	q.trait_id = "quiet"
+	q.work_state = StudentData.Work.WORKING
+	q.work_timer = 10.0
+	q.confusion = 1.0
+	chk("a quiet child who is stuck really is stuck", q.is_struggling())
+	chk("but does not show it at first", not q.is_visibly_struggling())
+	for i in 60 * 8:
+		q.tick_work(1.0 / 60.0, null)
+	chk("they show it eventually, so nobody is lost forever",
+		q.is_visibly_struggling())
+	q.help()
+	chk("and helping clears the hiding too", not q.is_visibly_struggling())
+
+	var loud := StudentData.new()
+	loud.trait_id = "steady"
+	loud.confusion = 1.0
+	chk("everyone else shows it the moment it happens",
+		loud.is_visibly_struggling())
+
+	# --- Chatty: it is about WHERE they sit ---
+	Game.new_run(SEED)
+	var s0: StudentData = Game.roster[0]
+	var s1: StudentData = Game.roster[1]
+	s0.trait_id = "steady"
+	s1.trait_id = "chatty"
+	# park them far apart, then next to each other
+	Layout.set_seats([Vector2i(3, 4), Vector2i(15, 7), Vector2i(11, 4),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	var apart := s0.stall_chance()
+	chk("across the room, they are not neighbours",
+		Game.neighbours_of(s0).is_empty(), Game.neighbours_of(s0).size())
+
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(11, 4),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("sat next to each other, they are", Game.neighbours_of(s0).has(s1))
+	chk("and the chatty one drags the other off task",
+		s0.stall_chance() > apart,
+		"%.4f -> %.4f" % [apart, s0.stall_chance()])
+	chk("which is the whole reason a seating plan is a decision",
+		s0.neighbour_stall_multiplier() > 1.0)
+
+	# a desk diagonally away is NOT next to you -- otherwise every desk in a
+	# block would be everyone's neighbour and seating would stop mattering
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 5), Vector2i(11, 4),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("diagonals do not count", not Game.neighbours_of(s0).has(s1))
+	Layout.reset_seats()
+
+	# --- it is theirs, so it is saved ---
+	Game.new_run(SEED)
+	var who: String = Game.roster[0].display_name
+	var what: String = Game.roster[0].trait_id
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("a trait survives a save", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.display_name == who:
+				return s.trait_id == what
+		return false).call())
+	Game.delete_save()
+	Game.new_run(SEED)
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -3248,9 +3390,15 @@ func test_bio() -> void:
 	chk("a student's file never shows a raw ability number",
 		not hud.body.text.contains("0."), hud.body.text)
 	chk("nor a percentage", not hud.body.text.contains("%"), hud.body.text)
-	chk("it describes their ability in words",
-		hud.body.text.contains("quickly") or hud.body.text.contains("steady")
-		or hud.body.text.contains("longer"), hud.body.text)
+	# How they work, in words. A child with a TRAIT gets the trait's own
+	# sentence instead of the generic pace line, because it is the more
+	# useful one -- "will not say when they are lost" tells you what to do,
+	# "works at a steady pace" does not. Either way it is prose.
+	chk("it describes how they work in words", (func() -> bool:
+		if hud.body.text.contains("quickly") or hud.body.text.contains("steady") 				or hud.body.text.contains("longer"):
+			return true
+		return s0.trait_id != "" and hud.body.text.contains(
+			Traits.blurb(s0.trait_id))).call(), hud.body.text)
 	chk("it reports homework as a word, not a fraction",
 		hud.body.text.contains("most") or hud.body.text.contains("about half")
 		or hud.body.text.contains("all"), hud.body.text)

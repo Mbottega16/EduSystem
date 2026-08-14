@@ -130,6 +130,7 @@ func enrol() -> StudentData:
 	var strands := Curriculum.strands()
 	s.favourite = strands[rng.randi_range(0, strands.size() - 1)] \
 		if not strands.is_empty() else "math"
+	s.trait_id = Traits.roll(rng)
 	s.seat_index = _lowest_free_seat()
 	roster.append(s)
 	roster_changed.emit()
@@ -169,6 +170,26 @@ func student_by_id(sid: int) -> StudentData:
 		if s.id == sid:
 			return s
 	return null
+
+
+## Whoever is sitting at an ADJACENT desk, read from the live seating.
+##
+## Orthogonal neighbours only, and it asks the LAYOUT rather than assuming a
+## grid of rows -- desks can be moved anywhere now, so "the next one along"
+## is no longer a fact about seat_index. Two desks pushed together are
+## neighbours; the same two moved apart are not.
+func neighbours_of(s: StudentData) -> Array[StudentData]:
+	var out: Array[StudentData] = []
+	if s == null or s.seat_index < 0:
+		return out
+	var here: Vector2i = Layout.seat(s.seat_index)
+	for other: StudentData in roster:
+		if other == s or other.seat_index < 0:
+			continue
+		var there: Vector2i = Layout.seat(other.seat_index)
+		if absi(there.x - here.x) + absi(there.y - here.y) <= 1:
+			out.append(other)
+	return out
 
 
 func student_in_seat(seat: int) -> StudentData:

@@ -487,5 +487,39 @@
     "comfort",
     "decor"
   ],
-  "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn."
+  "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn.",
+  "traits": {
+    "_note": "One per child, rolled at enrolment and never changed. Every trait has a real mechanical hook -- a trait that only shows up as a line of text on the class list is decoration, and decoration is what makes a player stop reading the list. 'blurb' is what the file says about them; the player is never told the numbers.",
+    "quiet": {
+      "name": "Quiet",
+      "blurb": "Will not say when they are lost.",
+      "hide_seconds": 6.0
+    },
+    "curious": {
+      "name": "Curious",
+      "blurb": "Asks about everything. Gets stuck more, learns more.",
+      "stall_mult": 1.35,
+      "help_xp_mult": 2.0
+    },
+    "chatty": {
+      "name": "Chatty",
+      "blurb": "Talks to whoever is sitting next to them.",
+      "neighbour_stall_mult": 1.5
+    },
+    "steady": {
+      "name": "Steady",
+      "blurb": "Quietly gets on with it.",
+      "stall_mult": 0.7
+    },
+    "copier": {
+      "name": "Copies",
+      "blurb": "Leans over at the first sign of trouble.",
+      "copy_from_neighbour": true
+    },
+    "bright": {
+      "name": "Bright spark",
+      "blurb": "Finishes early and helps the next desk along.",
+      "helps_neighbour": 0.35
+    }
+  }
 }

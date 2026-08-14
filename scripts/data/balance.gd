@@ -115,6 +115,7 @@ static var verdict_weight: float = 0.5
 
 # --- items -------------------------------------------------------------
 static var items: Dictionary = {}
+static var traits: Dictionary = {}
 static var item_order: Array = []
 static var item_categories: Array = []
 
@@ -193,6 +194,8 @@ static func apply(d: Dictionary) -> void:
 	stu_diligence_step = float(st.get("level_diligence_step", stu_diligence_step))
 	stu_ready_level = int(st.get("ready_level", stu_ready_level))
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
+
+	traits = d.get("traits", {})
 
 	var cn: Dictionary = d.get("concepts", {})
 	concept_bonus = float(cn.get("bonus", concept_bonus))
