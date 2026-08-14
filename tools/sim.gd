@@ -57,6 +57,29 @@ const QUIZZES := {
 ## still time to act on it, which is the entire argument for the instrument.
 const QUIZ_AT := 0.25
 
+## WHY 'ideal' AND 'good' BOTH FINISH ON AN A, which looks at first glance
+## like a flat skill curve and is not.
+##
+## The `work` and `done` columns are what settle it: both policies sit at
+## 1.00 and 8/8 on every single day of the term. A 45-second lesson against
+## 20 seconds of work leaves so much slack that a four-second reaction is
+## absorbed entirely, so the lesson term is pinned at its cap for both and
+## the letter cannot tell them apart. Only 'lazy', at fifteen seconds, ever
+## fails to finish.
+##
+## Tried and REVERTED, because none of it was an improvement: longer work
+## (26s), a higher stall rate (0.24/s), and both together. Even at the point
+## where 'good' starts dropping work, both still land on an A -- because by
+## the end of a term the room is fully furnished, room_score is at its cap,
+## and the room alone is most of the grade.
+##
+## The letter saturating is the DESIGN, not a fault: "room and teaching
+## together earn an A" is the pillar, and a player who does both has earned
+## it. The skill signal is in the economy instead, and it is large -- across
+## the same term 'ideal' finishes several hundred coins ahead of 'good',
+## which is another wing of furniture, or perks, or coaching. Look at the
+## coins column, not the letter, to see how well someone played.
+
 const DT := 1.0 / 60.0
 
 
@@ -93,7 +116,7 @@ func _ready() -> void:
 func _run(policy: String, days: int) -> void:
 	Game.new_run(12345)
 	print("\n--- %s ---" % policy.to_upper())
-	print(" day  avg  letter   coins  items  class   stuck-left  hw")
+	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done")
 
 	var first_enrol := -1
 	var first_buy := -1
@@ -109,11 +132,12 @@ func _run(policy: String, days: int) -> void:
 			first_enrol = Game.day
 
 		if day < 6 or day % 5 == 0 or day == days - 1:
-			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d" % [
+			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d" % [
 				report["day"], report["average"],
 				Game.grade_letter(float(report["average"])),
 				Game.coins, Game.room_items.size(), before,
-				stats["still_stuck"], report["homework_done"], before])
+				stats["still_stuck"], report["homework_done"], before,
+				stats["work"], stats["finished"], stats["of"]])
 
 	print("  first purchase: day %s     first new student: day %s" % [
 		"never" if first_buy < 0 else str(first_buy),
@@ -169,7 +193,12 @@ func _play_day(policy: String) -> Dictionary:
 						flagged_since.erase(s.id)
 
 	var still := 0
+	var work_total := 0.0
+	var finished := 0
 	for s: StudentData in Game.roster:
+		work_total += s.work_fraction()
+		if s.work_fraction() >= 0.999:
+			finished += 1
 		if s.is_struggling():
 			still += 1
 		if COLLECTS[policy]:
@@ -181,7 +210,9 @@ func _play_day(policy: String) -> Dictionary:
 
 	Game.grade_class()
 	Game.assign_homework()
-	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved}
+	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved,
+		"work": work_total / maxf(1.0, float(Game.roster.size())),
+		"finished": finished, "of": Game.roster.size()}
 
 
 ## Buy the item with the best bonus-per-coin that we can afford and that
