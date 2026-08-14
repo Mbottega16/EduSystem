@@ -73,6 +73,10 @@ static var stu_hold_grace: int = 2
 static var concept_bonus: float = 0.012
 static var concept_bonus_cap: float = 0.12
 
+# --- buying floor space --------------------------------------------------
+static var room_expand_cost_per_tile: int = 26
+static var room_expand_growth: float = 1.45
+
 # --- the end-of-unit test ------------------------------------------------
 static var test_requires_taught: int = 3
 static var test_cap: float = 0.5
@@ -193,6 +197,10 @@ static func apply(d: Dictionary) -> void:
 	var cn: Dictionary = d.get("concepts", {})
 	concept_bonus = float(cn.get("bonus", concept_bonus))
 	concept_bonus_cap = float(cn.get("bonus_cap", concept_bonus_cap))
+
+	var rm: Dictionary = d.get("room", {})
+	room_expand_cost_per_tile = int(rm.get("expand_cost_per_tile", room_expand_cost_per_tile))
+	room_expand_growth = float(rm.get("expand_growth", room_expand_growth))
 
 	var ts: Dictionary = d.get("test", {})
 	test_requires_taught = int(ts.get("requires_taught", test_requires_taught))

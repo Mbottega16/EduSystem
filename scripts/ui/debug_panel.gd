@@ -32,6 +32,7 @@ const CHEATS := [
 	{"label": "Everyone ready to graduate", "id": "ready"},
 	{"label": "One of every item, placed", "id": "furnish"},
 	{"label": "Fill the class to capacity", "id": "enrol"},
+	{"label": "Bigger room (+1 wide, +1 long)", "id": "grow"},
 	{"label": "Skip a day", "id": "day"},
 	{"label": "End the term now", "id": "term"},
 ]

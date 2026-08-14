@@ -90,17 +90,34 @@ const BOARD: Vector2i = Vector2i(16, 2)
 const DOOR_TILES: Array[Vector2i] = [Vector2i(0, 7), Vector2i(0, 8)]
 const DOOR: Vector2i = Vector2i(0, 8)
 
+## The wall band is two tiles at the top and one everywhere else, which is
+## what makes the top wall read as a wall rather than a line.
+const TOP_WALL := 2
+
+
 ## Walls as SEGMENTS rather than four solid boxes — which is exactly what
-## lets the left wall have a one-tile hole in it at DOOR without any
-## special-casing. Tile-space rects, matching the wall band drawn into
-## room.png by tools/make_art.py (2 tiles at the top, 1 elsewhere).
-const WALL_SEGMENTS: Array[Rect2i] = [
-	Rect2i(0, 0, 20, 2),    # top (2 tiles tall)
-	Rect2i(0, 10, 20, 1),   # bottom
-	Rect2i(0, 0, 1, 7),     # left, above the door
-	Rect2i(0, 9, 1, 2),     # left, below the door
-	Rect2i(19, 0, 1, 11),   # right
-]
+## lets the left wall have a hole in it at DOOR without any special-casing.
+##
+## Derived from the CURRENT room size rather than written down, because the
+## room can be bought bigger. The door stays where it is: it is a fixed point
+## on the left wall, and the room grows away from it to the right and down.
+static func wall_segments() -> Array[Rect2i]:
+	var w := Grid.W
+	var h := Grid.H
+	var door_top: int = DOOR_TILES[0].y
+	var door_bottom: int = DOOR_TILES[DOOR_TILES.size() - 1].y
+	return [
+		Rect2i(0, 0, w, TOP_WALL),            # top (2 tiles tall)
+		Rect2i(0, h - 1, w, 1),               # bottom
+		Rect2i(0, 0, 1, door_top),            # left, above the door
+		Rect2i(0, door_bottom + 1, 1, h - door_bottom - 1),   # left, below it
+		Rect2i(w - 1, 0, 1, h),               # right
+	]
+
+
+## Every tile inside the walls: the floor you can actually stand on.
+static func floor_rect() -> Rect2i:
+	return Rect2i(1, TOP_WALL, Grid.W - 2, Grid.H - TOP_WALL - 1)
 
 
 ## World position for a prop spanning several tiles: the bottom-centre of the

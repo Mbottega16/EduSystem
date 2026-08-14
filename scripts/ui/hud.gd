@@ -11,7 +11,10 @@ extends Control
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT }
-enum Shop { BUY, SELL, STAFF }
+enum Shop { BUY, SELL, STAFF, ROOM }
+## The two ways the room can grow. It only ever grows right and down --
+## the door is a fixed point on the left wall.
+const ROOM_ROWS := ["wide", "tall"]
 ## Actions offered on a student's own file.
 enum Act { TUITION, PARENTS, GRADUATE, COUNT }
 
@@ -57,6 +60,13 @@ var _shown_hints := {}
 ## exactly one transition to remember (class list -> bio -> back).
 var _bio: StudentData = null
 var _bio_sel: int = 0
+
+
+func _ready() -> void:
+	# A new run must not inherit the last one's screen.
+	Game.run_started.connect(func() -> void:
+		if mode != Mode.TITLE:
+			close())
 
 
 ## Display only. Every INPUT read lives on the physics tick below.
@@ -683,6 +693,8 @@ func _shop_rows() -> Array:
 		return Items.available_in_category(String(cats[_cat]))
 	if _shop == Shop.STAFF:
 		return Progress.perk_order()
+	if _shop == Shop.ROOM:
+		return ROOM_ROWS.duplicate()
 	return Game.room_items.duplicate()
 
 
@@ -704,6 +716,8 @@ func _render_catalogue() -> void:
 		heading = "SELL FURNITURE"
 	elif _shop == Shop.STAFF:
 		heading = "STAFF ROOM"
+	elif _shop == Shop.ROOM:
+		heading = "THE ROOM  %dx%d" % [Grid.W, Grid.H]
 	title.text = "%s  -  %d coins" % [heading, Game.coins]
 
 	# Show the thing you are buying. You used to be choosing furniture you
@@ -720,6 +734,8 @@ func _render_catalogue() -> void:
 		lines.append(tabs)
 	if _shop == Shop.STAFF:
 		lines = _render_staff()
+	elif _shop == Shop.ROOM:
+		lines = _render_room()
 	elif rows.is_empty():
 		lines.append("   Nothing to sell - the room is bare.")
 	elif _shop == Shop.BUY:
@@ -764,8 +780,41 @@ func _render_catalogue() -> void:
 		next_tab = "staff room"
 	elif _shop == Shop.STAFF:
 		verb = "learn"
+		next_tab = "the room"
+	elif _shop == Shop.ROOM:
+		verb = "build"
 		next_tab = "buy list"
 	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [verb, next_tab]
+
+
+## Buying floor space.
+##
+## Priced per tile of NEW floor and rising with each expansion, so a wider
+## room charges more for another row than a narrow one, and the fifth
+## expansion costs a great deal more than the first. A bigger classroom is
+## meant to be a thing you save for.
+func _render_room() -> Array[String]:
+	Balance.ensure_loaded()
+	var out: Array[String] = []
+	out.append("   Your classroom is %d by %d tiles." % [Grid.W, Grid.H])
+	out.append("")
+	for i in ROOM_ROWS.size():
+		var axis := String(ROOM_ROWS[i])
+		var label := "One column wider" if axis == "wide" else "One row longer"
+		var tail := ""
+		if not Game.can_expand(axis):
+			tail = "at its limit"
+		else:
+			tail = "%d coins" % Game.expand_cost(axis)
+		out.append("%s %-22s %s" % [">" if i == _sel else " ", label, tail])
+	out.append("")
+	if Grid.W > Grid.BASE_W or Grid.H > Grid.BASE_H:
+		out.append("   The view follows you now the room is bigger")
+		out.append("   than the screen.")
+	else:
+		out.append("   A bigger room holds more desks -- and the view")
+		out.append("   will start to follow you rather than sitting still.")
+	return out
 
 
 ## How an item's effect reads in words. The exact number is already
@@ -980,7 +1029,7 @@ func _handle_input() -> void:
 			Sfx.play("blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("menu"):
-			_shop = (_shop + 1) % 3      # buy -> sell -> staff room
+			_shop = (_shop + 1) % 4      # buy -> sell -> staff -> the room
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()
@@ -993,7 +1042,11 @@ func _handle_input() -> void:
 			Sfx.play("blip")
 			_render_catalogue()
 		elif Game.claim_interact() and not rows.is_empty():
-			if _shop == Shop.STAFF:
+			if _shop == Shop.ROOM:
+				var e := Game.expand_room(String(rows[_sel]))
+				Sfx.play("deny" if e != "" else "coins")
+				_render_catalogue()
+			elif _shop == Shop.STAFF:
 				var err := Game.buy_perk(String(rows[_sel]))
 				Sfx.play("deny" if err != "" else "confirm")
 				if err == "":

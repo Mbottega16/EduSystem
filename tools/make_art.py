@@ -596,6 +596,46 @@ def door_tile(top):
     return t
 
 
+# How many speckle variants of each floor parity get exported. floor_tile()
+# seeds its speckle from the tile position, so it is not a finite set -- but
+# once the room can be any size, the runtime has to compose it from a bank of
+# real tiles. Eight variants picked by a position hash keeps "stable between
+# runs, never visibly repeating" without shipping a tile per coordinate.
+FLOOR_VARIANTS = 4
+
+
+def make_room_tiles():
+    """The room, in pieces, so it can be rebuilt at ANY size at runtime.
+
+    room.png is still written for the opening 20x11 classroom, but a room the
+    player can grow cannot be one baked image -- see RoomBuilder.build_floor.
+    """
+    out = []
+
+    def save(img, name):
+        img.save(os.path.join(OUT, "%s.png" % name))
+        out.append(name)
+
+    for i in range(FLOOR_VARIANTS):
+        # even/odd parity are the two vinyl shades; x offsets pick a speckle
+        save(floor_tile(i * 2, 0), "tile_floor_a%d" % i)
+        save(floor_tile(i * 2 + 1, 0), "tile_floor_b%d" % i)
+
+    save(wall_tile(False, cap=True, row=0), "tile_wall_top0")
+    save(wall_tile(False, cap=False, row=1), "tile_wall_top1")
+    save(wall_tile(False, cap=False, row=2), "tile_wall_side")
+    save(wall_tile(True, cap=False, row=0), "tile_wall_bottom")
+
+    save(window_tile(True, True), "tile_window_l0")
+    save(window_tile(False, True), "tile_window_r0")
+    save(window_tile(True, False), "tile_window_l1")
+    save(window_tile(False, False), "tile_window_r1")
+
+    save(door_tile(True), "tile_door_top")
+    save(door_tile(False), "tile_door_bottom")
+    return out
+
+
 def make_room():
     im = Image.new("RGBA", (ROOM_W * TILE, ROOM_H * TILE))
     for ty in range(ROOM_H):
@@ -847,3 +887,6 @@ if __name__ == "__main__":
     r = make_room()
     print("art/%-18s %3dx%-3d (%d x %d tiles of %d)"
           % ("room.png", r[0], r[1], ROOM_W, ROOM_H, TILE))
+    pieces = make_room_tiles()
+    print("art/tile_*.png       %d room pieces, for rooms built at runtime"
+          % len(pieces))

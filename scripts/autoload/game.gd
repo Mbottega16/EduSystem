@@ -23,6 +23,10 @@ signal day_changed(day: int)
 signal coins_changed(coins: int)
 signal roster_changed()
 signal room_changed()
+## A brand new run has begun. The HUD listens so that no screen from the
+## previous run is left hanging over the new one -- a report about a class
+## that no longer exists is worse than no report.
+signal run_started()
 
 var day: int = 1
 var coins: int = 0
@@ -90,13 +94,22 @@ func new_run(seed_value: int = 0) -> void:
 	taught.clear()
 	concepts.clear()
 	quiz_done = false
+	test_active = false
+	expansions = 0
+	Grid.reset_size()
 	_next_id = 1
 	Layout.reset_seats()      # back to the opening arrangement
 	Balance.ensure_loaded()
 	coins = Balance.start_coins
 	for i in Balance.class_start:
 		enrol()
+	run_started.emit()
 	roster_changed.emit()
+	# The room may have been left bigger by the previous run. Grid.reset_size()
+	# above puts the NUMBERS back, but the world is still holding the old
+	# room's walls and floor until something tells it to rebuild -- and a grid
+	# that disagrees with the nodes on screen is the worst of both.
+	room_resized.emit()
 	room_changed.emit()
 
 
@@ -384,6 +397,50 @@ func concept_bonus() -> float:
 	Balance.ensure_loaded()
 	return minf(Balance.concept_bonus * float(concepts.size()),
 		Balance.concept_bonus_cap)
+
+
+# --- the room itself -------------------------------------------------
+## How many times floor space has been bought. Priced off this, so each
+## expansion costs more than the last.
+var expansions: int = 0
+
+signal room_resized()
+
+
+## Which way the room can still grow. It only ever grows RIGHT and DOWN:
+## the door is a fixed point on the left wall, and everything already placed
+## has to keep the coordinates it was placed at.
+func can_expand(axis: String) -> bool:
+	if axis == "wide":
+		return Grid.W < Grid.MAX_W
+	return Grid.H < Grid.MAX_H
+
+
+## What the next column or row costs. Per tile of NEW floor, so a wide room
+## charges more for another row than a narrow one -- and rising each time,
+## which is what keeps a bigger room an investment rather than a formality.
+func expand_cost(axis: String) -> int:
+	Balance.ensure_loaded()
+	var tiles: int = Grid.H if axis == "wide" else Grid.W
+	var base := float(Balance.room_expand_cost_per_tile * tiles)
+	return int(round(base * pow(Balance.room_expand_growth, float(expansions))))
+
+
+## Buy one more column or row. Returns "" on success, or why not.
+func expand_room(axis: String) -> String:
+	Balance.ensure_loaded()
+	if not can_expand(axis):
+		return "The room cannot get any bigger than this."
+	var cost := expand_cost(axis)
+	if not spend(cost):
+		return "You cannot afford that."
+	if axis == "wide":
+		Grid.set_size(Grid.W + 1, Grid.H)
+	else:
+		Grid.set_size(Grid.W, Grid.H + 1)
+	expansions += 1
+	room_resized.emit()
+	return ""
 
 
 # --- the end-of-unit test -------------------------------------------
@@ -804,6 +861,7 @@ func to_dict() -> Dictionary:
 		"perk_ranks": perk_ranks,
 		"graduated": graduated,
 		"cheated": cheated,
+		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -829,6 +887,9 @@ func from_dict(d: Dictionary) -> void:
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	graduated = d.get("graduated", []).duplicate()
+	# An older save has no size, so it simply reopens at the base room.
+	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
+	expansions = int(d.get("expansions", 0))
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()
 	# where the desks were left. An older save has no "seats" key, so it

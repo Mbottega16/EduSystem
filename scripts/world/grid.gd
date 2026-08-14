@@ -15,8 +15,34 @@ extends RefCounted
 ## a headless test, which navigation-agent output is not.
 
 const TILE := 16
-const W := 20                ## tiles across, matching tools/make_art.py
-const H := 11                ## tiles down
+
+## The room the game opens in, and the floor of every later size.
+const BASE_W := 20           ## tiles across, matching tools/make_art.py
+const BASE_H := 11           ## tiles down
+## Nothing sensible happens beyond this, and it bounds the floor image the
+## renderer composes.
+const MAX_W := 34
+const MAX_H := 20
+
+## The CURRENT room size. Static vars rather than consts, because the room
+## can be bought bigger now -- and static rather than an autoload for the
+## same reason Balance and Layout are: the headless tests and the term
+## simulator have no SceneTree, and "how big is the room" has to be
+## answerable without one.
+static var W: int = BASE_W
+static var H: int = BASE_H
+
+
+## Grow (or reset) the room. Everything that reads W/H reads it live, so the
+## only thing that has to be rebuilt afterwards is the room itself.
+static func set_size(w: int, h: int) -> void:
+	W = clampi(w, BASE_W, MAX_W)
+	H = clampi(h, BASE_H, MAX_H)
+
+
+static func reset_size() -> void:
+	W = BASE_W
+	H = BASE_H
 
 enum Cell { FREE, BLOCKED, SEAT }
 
@@ -25,6 +51,12 @@ var astar := AStarGrid2D.new()
 
 
 func _init() -> void:
+	rebuild()
+
+
+## Re-cut the grid to the current room size. Everything on it is forgotten,
+## because the caller is about to re-mark every wall, desk and item anyway.
+func rebuild() -> void:
 	cells.resize(W * H)
 	cells.fill(Cell.FREE)
 	astar.region = Rect2i(0, 0, W, H)

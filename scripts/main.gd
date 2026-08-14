@@ -17,15 +17,13 @@ func _ready() -> void:
 	placement.visible = false
 	world.add_child(placement)
 
-	world.podium.lesson_ended.connect(hud.show_lesson_report)
+	# Signals that belong to the WORLD itself survive a rebuild, so they are
+	# connected once.
 	world.quiz_requested.connect(_run_quiz)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
-	world.podium.test_ended.connect(hud.show_test_report)
-	world.bell.day_ended.connect(hud.show_day_report)
-	world.bell.term_ended.connect(hud.show_exam)
-	world.noticeboard.catalogue_opened.connect(hud.open_catalogue)
-	world.teacher_desk.marking_requested.connect(hud.open_marking)
+	world.room_rebuilt.connect(_wire_room)
+	_wire_room()
 
 	hud.item_chosen.connect(_start_placing)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
@@ -36,6 +34,33 @@ func _ready() -> void:
 	placement.placed.connect(_finish_placing)
 	placement.desk_placed.connect(_finish_moving_desk)
 	placement.cancelled.connect(_unlock)
+
+
+## The fixed props are NEW NODES after the room is rebuilt at a bigger size,
+## so their signals have to be reconnected to match.
+##
+## Connecting them once in _ready() was correct only while the room was a
+## constant. The moment rebuild_room() existed, every one of these pointed at
+## a freed node and the podium, the bell, the shop and the marking desk all
+## silently stopped working -- with the prompt still cheerfully offering
+## them, because the interactables themselves were fine.
+func _wire_room() -> void:
+	var pairs := [
+		[world.podium, "lesson_ended", hud.show_lesson_report],
+		[world.podium, "test_ended", hud.show_test_report],
+		[world.bell, "day_ended", hud.show_day_report],
+		[world.bell, "term_ended", hud.show_exam],
+		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
+		[world.teacher_desk, "marking_requested", hud.open_marking],
+	]
+	for row: Array in pairs:
+		var node: Object = row[0]
+		if node == null or not is_instance_valid(node):
+			continue
+		var sig: String = row[1]
+		var target: Callable = row[2]
+		if not node.is_connected(sig, target):
+			node.connect(sig, target)
 
 
 func _start_placing(id: String) -> void:

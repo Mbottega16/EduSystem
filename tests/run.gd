@@ -124,6 +124,7 @@ func _main() -> void:
 	test_unlockables()
 	await test_unit_test()
 	await test_two_buttons_one_landmark()
+	await test_growing_the_room()
 	await test_overlays()
 	await test_marking()
 	await test_shop()
@@ -1784,6 +1785,108 @@ func test_two_buttons_one_landmark() -> void:
 	await step(2)
 
 
+func test_growing_the_room() -> void:
+	section("A ROOM YOU CAN GROW")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("a new run opens in the base classroom",
+		Grid.W == Grid.BASE_W and Grid.H == Grid.BASE_H,
+		"%dx%d" % [Grid.W, Grid.H])
+
+	# THE THING THAT MUST NOT CHANGE. At the opening size the room is exactly
+	# the viewport, so the camera limits pin it dead still -- which is what
+	# keeps the whole-room-at-a-glance reading that the "?" bubble, the audio
+	# design and the Practised Eye perk were all argued from.
+	chk("there is a camera", world.camera != null)
+	chk("and at the opening size it is pinned to the room exactly",
+		world.camera.limit_right == Grid.BASE_W * Grid.TILE
+		and world.camera.limit_bottom == Grid.BASE_H * Grid.TILE,
+		"%d x %d" % [world.camera.limit_right, world.camera.limit_bottom])
+
+	# --- buying space ---
+	chk("you cannot expand on an empty purse", (func() -> bool:
+		Game.coins = 0
+		return Game.expand_room("wide") != "").call())
+	chk("and the room did not grow anyway", Grid.W == Grid.BASE_W)
+
+	Game.coins = 100000
+	var cost := Game.expand_cost("wide")
+	chk("a column has a price", cost > 0, cost)
+	var coins_before: int = Game.coins
+	chk("and it can be bought", Game.expand_room("wide") == "")
+	chk("the room really is wider", Grid.W == Grid.BASE_W + 1, Grid.W)
+	chk("it was paid for", Game.coins == coins_before - cost,
+		"%d -> %d" % [coins_before, Game.coins])
+	chk("and the next one costs more than the last",
+		Game.expand_cost("wide") > cost,
+		"%d then %d" % [cost, Game.expand_cost("wide")])
+
+	await step(2)
+	chk("the camera now has room to move",
+		world.camera.limit_right == Grid.W * Grid.TILE, world.camera.limit_right)
+
+	# --- the room rebuilt itself around everyone ---
+	chk("the walls moved with it", (func() -> bool:
+		# the old right-hand wall column is floor now
+		return world.grid.is_free(Vector2i(Grid.BASE_W - 1, 5))).call(),
+		world.grid.get_cell(Vector2i(Grid.BASE_W - 1, 5)))
+	chk("and the new right-hand column is wall",
+		world.grid.get_cell(Vector2i(Grid.W - 1, 5)) == Grid.Cell.BLOCKED)
+	chk("the door is still where it always was",
+		world.grid.is_free(Layout.DOOR))
+	chk("every seat is still reachable from it", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if not world.grid.reachable(Layout.DOOR, Layout.seat(st.seat_index)):
+				return false
+		return true).call())
+	chk("the desks are still there", world.stations.size() == Layout.seat_count())
+	chk("and so is everyone sitting at them",
+		world.students.size() == Game.roster.size())
+	chk("the podium survived the rebuild",
+		world.podium != null and is_instance_valid(world.podium))
+
+	# growing must never move what is already placed
+	Game.room_items.clear()
+	Game.add_item("plant", Vector2i(6, 6))
+	await step(2)
+	Game.coins = 100000
+	Game.expand_room("tall")
+	await step(2)
+	chk("furniture keeps the tile it was put on",
+		Game.room_items.size() == 1 and Game.room_items[0]["tile"] == Vector2i(6, 6),
+		Game.room_items)
+	chk("and it is still solid on the rebuilt grid",
+		not world.grid.is_free(Vector2i(6, 6)))
+	chk("the room got longer", Grid.H == Grid.BASE_H + 1, Grid.H)
+
+	# --- limits ---
+	Game.coins = 100000
+	var guard := 0
+	while Game.can_expand("wide") and guard < 40:
+		Game.coins = 100000000      # the cost rises steeply; this is about the LIMIT
+		Game.expand_room("wide")
+		guard += 1
+	chk("the room stops at a sensible maximum", Grid.W == Grid.MAX_W, Grid.W)
+	chk("and asking again is refused rather than ignored",
+		Game.expand_room("wide") != "")
+
+	# --- it survives the night ---
+	var w := Grid.W
+	var h := Grid.H
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run is back to the base room", Grid.W == Grid.BASE_W)
+	Game.load_game()
+	chk("but a saved room remembers how big you built it",
+		Grid.W == w and Grid.H == h, "%dx%d" % [Grid.W, Grid.H])
+	Game.delete_save()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -1797,17 +1900,29 @@ func test_overlays() -> void:
 	# to E. That separation is the point: E is mashed all lesson long and
 	# must never reach anything session-level.
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
-	chk("standing at the noticeboard offers the catalogue",
-		p.target != null and p.target.prompt_text().begins_with("Furniture"),
-		"" if p.target == null else p.target.prompt_text())
+	# The board carries two things now -- the shop on F, the curriculum on E
+	# -- so the question is which BUTTON offers the shop.
+	chk("standing at the noticeboard offers the catalogue", (func() -> bool:
+		var t: Interactable = p.targets["manage"]
+		return t != null and t.prompt_text().begins_with("Furniture")).call(),
+		p.targets["manage"])
 	chk("the noticeboard listens for the manage button, not the use button",
-		p.target.action_name() == "manage", p.target.action_name())
+		world.noticeboard.action_name() == "manage",
+		world.noticeboard.action_name())
 	await tap("interact")
 	chk("pressing the USE button does NOT open the shop",
-		hud.mode == hud.Mode.NONE, hud.mode)
+		hud.mode != hud.Mode.CATALOGUE, hud.mode)
+	chk("it opens the curriculum instead, which costs you nothing",
+		hud.title.text.begins_with("CURRICULUM"), hud.title.text)
+	# Closed directly rather than with a key: a REPORT closes on E, and
+	# tapping E while standing at the board would simply reopen it.
+	hud.close()
+	await step(2)
+	chk("and it really did close", hud.mode == hud.Mode.NONE, hud.mode)
 	await tap("manage")
 	chk("pressing the MANAGE button opens the catalogue",
-		hud.mode == hud.Mode.CATALOGUE, hud.mode)
+		hud.mode == hud.Mode.CATALOGUE,
+		hud.mode)
 	chk("the player is frozen while it is open", p.input_locked)
 
 	var first: int = hud._sel
@@ -1876,6 +1991,10 @@ func test_overlays() -> void:
 	await step(3)
 	chk("cancelling placement leaves you unlocked and un-charged",
 		not main.placement.active and not p.input_locked and Game.coins == mid_coins)
+	# A section that leaves a screen up poisons every section after it, and
+	# the failure surfaces somewhere unrelated. Cheap to pin here.
+	chk("BUTTONS leaves no overlay open behind it",
+		_hud().mode == _hud().Mode.NONE, _hud().title.text)
 
 
 func test_marking() -> void:
@@ -1983,9 +2102,11 @@ func test_shop() -> void:
 	chk("the sold item's tile is free to build on again",
 		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
 
-	# Tab is a three-stop cycle now: buy -> sell -> staff room -> buy
+	# Tab is a four-stop cycle: buy -> sell -> staff room -> the room -> buy
 	await tap("menu")
 	chk("Tab goes on to the staff room", hud._shop == hud.Shop.STAFF)
+	await tap("menu")
+	chk("then to the room itself", hud._shop == hud.Shop.ROOM)
 	await tap("menu")
 	chk("and round again to buying", hud._shop == hud.Shop.BUY)
 	await tap("cancel")
@@ -2500,10 +2621,16 @@ func test_buttons() -> void:
 	# question is which button points at it, not what the single target is.
 	chk("the podium is what MANAGE is pointing at",
 		world.player.targets["manage"] == world.podium)
+	# E at the podium is the QUICK QUIZ now. That is the point of the split:
+	# the mashable button reaches only the safe, reversible verb, however
+	# many times you hit it.
 	for i in 4:
 		await tap("interact")
 	chk("mashing the USE button at the podium cannot end the lesson",
 		Game.phase == Game.Phase.LESSON, Game.phase)
+	chk("all it can do is call a quiz", Game.quiz_done)
+	_hud().close()          # the quiz report must not leak into the next test
+	await step(2)
 
 	# nor can a TAP of manage, because ending a lesson is held
 	chk("ending a lesson requires a hold, not a tap", world.podium.hold_time > 0.0)
@@ -2536,6 +2663,8 @@ func test_buttons() -> void:
 
 
 func test_curriculum() -> void:
+	chk("CURRICULUM starts with a clean screen",
+		_hud().mode == _hud().Mode.NONE, _hud().title.text)
 	section("CURRICULUM")
 	Curriculum.ensure_loaded()
 	chk("the curriculum loads", Curriculum.count() > 0, Curriculum.count())
@@ -2817,6 +2946,8 @@ func test_bio() -> void:
 
 
 func test_lifetime_counters() -> void:
+	chk("LIFETIME starts with a clean screen",
+		_hud().mode == _hud().Mode.NONE, _hud().title.text)
 	section("LIFETIME COUNTERS")
 	Game.new_run(SEED)
 	var s: StudentData = Game.roster[0]
@@ -3139,6 +3270,10 @@ func test_shop_and_staff() -> void:
 	chk("which shows your level", hud.body.text.contains("Level"), hud.body.text)
 	chk("and no picture, because there is nothing to look at",
 		not hud.portrait.visible)
+	await tap("menu")
+	chk("Tab again reaches the room itself", hud._shop == hud.Shop.ROOM)
+	chk("which tells you how big your classroom is",
+		hud.body.text.contains("%d by %d" % [Grid.W, Grid.H]), hud.body.text)
 	await tap("menu")
 	chk("and Tab cycles back round to buying", hud._shop == hud.Shop.BUY)
 

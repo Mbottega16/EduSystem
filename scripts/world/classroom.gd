@@ -24,6 +24,7 @@ signal desks_changed()
 signal quiz_requested()
 signal curriculum_requested()
 signal test_requested(lesson_id: String)
+signal room_rebuilt()
 
 ## The bubble over a child the quiz caught out — cooler than the amber
 ## "stuck" one, because it is a different kind of problem.
@@ -37,6 +38,7 @@ var podium: Interactable = null
 var teacher_desk: Interactable = null
 var bell: Interactable = null
 var noticeboard: Interactable = null
+var camera: Camera2D = null
 
 var lesson_left: float = 0.0
 var _purchased: Array = []
@@ -52,6 +54,7 @@ func _ready() -> void:
 	Game.ensure_run()
 	build()
 	Game.room_changed.connect(_rebuild_purchased)
+	Game.room_resized.connect(rebuild_room)
 
 
 func build() -> void:
@@ -82,6 +85,74 @@ func _spawn_player() -> void:
 	player = PLAYER_SCENE.instantiate()
 	player.position = Grid.tile_to_world(TEACHER_START)
 	add_child(player)
+	_attach_camera()
+
+
+## A camera that follows the teacher, clamped to the room.
+##
+## At the opening 20x11 the room is EXACTLY the viewport, so the limits pin
+## the camera dead still and the game looks and feels precisely as it always
+## has — the whole-room-at-a-glance reading that the "?" bubble, the audio
+## design and the Practised Eye perk were all justified against. It only
+## starts to move once you have bought a room bigger than one screen, which
+## is the point at which those arguments genuinely change.
+func _attach_camera() -> void:
+	if camera == null:
+		camera = Camera2D.new()
+		camera.position_smoothing_enabled = true
+		camera.position_smoothing_speed = 8.0
+		player.add_child(camera)
+	_refresh_camera_limits()
+	camera.make_current()
+	camera.reset_smoothing()
+
+
+func _refresh_camera_limits() -> void:
+	if camera == null:
+		return
+	camera.limit_left = 0
+	camera.limit_top = 0
+	camera.limit_right = Grid.W * Grid.TILE
+	camera.limit_bottom = Grid.H * Grid.TILE
+
+
+## The room got bigger. Rebuild the geometry around the people in it.
+##
+## Everything the room is made of is torn down and rebuilt, exactly as a
+## desk move does, and for the same reason: the floor image, the collision
+## boxes, the grid cells and the interactables cannot be patched into
+## agreement one edge case at a time. The students and the teacher are NOT
+## room parts, so they stay exactly where they were standing.
+func rebuild_room() -> void:
+	for n in get_tree().get_nodes_in_group("room_part"):
+		if n is Node and n.get_parent() == self:
+			remove_child(n)
+			n.queue_free()
+	_purchased.clear()
+	_purchased_tiles.clear()
+
+	grid.rebuild()
+	RoomBuilder.build_floor(self)
+	RoomBuilder.build_walls(self, grid)
+	stations = RoomBuilder.build_desks(self, grid)
+	_connect_desk_movers()
+	podium = RoomBuilder.build_podium(self, grid)
+	for q in get_tree().get_nodes_in_group("quiz_caller"):
+		if q is Interactable and not q.quiz_requested.is_connected(_on_quiz_requested):
+			q.quiz_requested.connect(_on_quiz_requested)
+	for t in get_tree().get_nodes_in_group("test_caller"):
+		if t is Interactable and not t.test_requested.is_connected(_on_test_requested):
+			t.test_requested.connect(_on_test_requested)
+	teacher_desk = RoomBuilder.build_teacher_desk(self, grid)
+	bell = RoomBuilder.build_bell(self, grid)
+	noticeboard = RoomBuilder.build_noticeboard(self, grid)
+	for c in get_tree().get_nodes_in_group("curriculum_board"):
+		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
+			c.curriculum_opened.connect(_on_curriculum_requested)
+	_purchased = RoomBuilder.build_purchased(self, grid)
+	_connect_placed()
+	_refresh_camera_limits()
+	room_rebuilt.emit()
 
 
 ## Everyone starts at the doorway and walks to their own chair. If a seat

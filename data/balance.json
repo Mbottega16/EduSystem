@@ -409,6 +409,11 @@
     "bonus": 0.012,
     "bonus_cap": 0.12
   },
+  "room": {
+    "_note": "Buying floor space. Priced per TILE of new floor and rising with each expansion, so a bigger room is a real investment rather than a thing you tick off on day two. The room only grows right and down: the door is a fixed point on the left wall and everything already placed must keep its coordinates.",
+    "expand_cost_per_tile": 26,
+    "expand_growth": 1.45
+  },
   "test": {
     "_note": "The end-of-unit test. Playable only after you have taught the unit enough times to have unlocked its concepts. It is the one instrument you cannot intervene in: no helping, no collecting, no stalls. What it measures is the classroom you BUILT and the children you developed, not how well you ran round the room today -- which is exactly why it is worth more than a lesson.",
     "requires_taught": 3,

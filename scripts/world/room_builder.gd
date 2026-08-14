@@ -55,18 +55,108 @@ static func add_prop(parent: Node2D, tex: Texture2D, at: Vector2,
 
 	if block != Vector2.ZERO:
 		body.add_child(make_box(block, Vector2(0, -block.y / 2.0)))
+	# Every prop is part of the ROOM rather than part of the cast, so the
+	# geometry can be torn down and rebuilt when the room grows without
+	# disturbing the students and the teacher standing in it.
+	body.add_to_group("room_part")
 	parent.add_child(body)
 	return body
 
 
-## The floor image. One baked PNG rather than a TileMap: a single draw call,
-## from the same procedural pipeline as everything else, and nothing here
-## needs editor tile-painting. Occupancy lives in Grid, not in cell data.
+## How many speckle variants of each floor shade exist on disk. Must match
+## FLOOR_VARIANTS in tools/make_art.py.
+const FLOOR_VARIANTS := 4
+
+
+## The floor and walls, composed at runtime into ONE image.
+##
+## This used to be a single baked room.png, which was the right call while
+## the room was a constant -- one draw call, no editor tile-painting. The
+## moment the room can be bought bigger, a fixed image cannot answer for it.
+##
+## Still one draw call: the pieces are stamped into an Image and uploaded as
+## a single ImageTexture, rather than becoming several hundred Sprite2Ds.
+## Occupancy stays in Grid; this is only what you can see.
 static func build_floor(parent: Node2D) -> void:
 	var floor_spr := Sprite2D.new()
-	floor_spr.texture = load("res://art/room.png")
+	floor_spr.texture = compose_room()
 	floor_spr.centered = false
+	floor_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	floor_spr.add_to_group("room_floor")
+	floor_spr.add_to_group("room_part")
 	parent.add_child(floor_spr)
+
+
+static func _tile_img(name: String) -> Image:
+	var tex: Texture2D = load("res://art/%s.png" % name)
+	return tex.get_image() if tex != null else null
+
+
+## Paint the room at its current size, piece by piece.
+static func compose_room() -> ImageTexture:
+	var w := Grid.W
+	var h := Grid.H
+	var t := Grid.TILE
+	var im := Image.create(w * t, h * t, false, Image.FORMAT_RGBA8)
+
+	var floors: Array[Image] = []
+	for i in FLOOR_VARIANTS:
+		floors.append(_tile_img("tile_floor_a%d" % i))
+		floors.append(_tile_img("tile_floor_b%d" % i))
+	var wall_top0 := _tile_img("tile_wall_top0")
+	var wall_top1 := _tile_img("tile_wall_top1")
+	var wall_side := _tile_img("tile_wall_side")
+	var wall_bottom := _tile_img("tile_wall_bottom")
+	var door_top := _tile_img("tile_door_top")
+	var door_bottom := _tile_img("tile_door_bottom")
+	var win := [[_tile_img("tile_window_l0"), _tile_img("tile_window_r0")],
+		[_tile_img("tile_window_l1"), _tile_img("tile_window_r1")]]
+
+	var door_tiles := Layout.DOOR_TILES
+	var src := Rect2i(0, 0, t, t)
+
+	for ty in h:
+		for tx in w:
+			var here := Vector2i(tx, ty)
+			var img: Image = null
+			if door_tiles.has(here):
+				img = door_top if here == door_tiles[0] else door_bottom
+			elif ty < Layout.TOP_WALL and _window_col(tx, w) >= 0:
+				img = win[ty][_window_col(tx, w)]
+			elif ty == 0:
+				img = wall_top0
+			elif ty < Layout.TOP_WALL:
+				img = wall_top1
+			elif ty == h - 1:
+				img = wall_bottom
+			elif tx == 0 or tx == w - 1:
+				img = wall_side
+			else:
+				# Position-hashed rather than random, so the speckle is
+				# stable between runs and between rebuilds -- the floor must
+				# not visibly reshuffle when you buy a tile.
+				var shade := (tx + ty) % 2
+				var v := absi(tx * 7919 + ty * 104729) % FLOOR_VARIANTS
+				img = floors[v * 2 + shade]
+			if img != null:
+				im.blit_rect(img, src, here * t)
+
+	return ImageTexture.create_from_image(im)
+
+
+## Which half of a window this column is, or -1 for plain wall.
+##
+## The windows REPEAT rather than sitting at two fixed columns, so a room
+## bought wider gets more of them instead of one lit end and a long blank
+## stretch. The first pair lands where it always did.
+const WINDOW_FIRST := 5
+const WINDOW_EVERY := 7
+
+static func _window_col(tx: int, w: int) -> int:
+	if tx < WINDOW_FIRST or tx >= w - 2:
+		return -1
+	var off := (tx - WINDOW_FIRST) % WINDOW_EVERY
+	return off if off <= 1 else -1
 
 
 ## Walls as a list of segments rather than four fixed boxes — which is
@@ -75,12 +165,13 @@ static func build_walls(parent: Node2D, grid: Grid) -> void:
 	var body := StaticBody2D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
+	body.add_to_group("room_part")
 	parent.add_child(body)
 
 	grid.block_rect(Rect2i(0, 0, Grid.W, Grid.H), Grid.Cell.BLOCKED)
-	grid.block_rect(Rect2i(1, 2, Grid.W - 2, Grid.H - 3), Grid.Cell.FREE)
+	grid.block_rect(Layout.floor_rect(), Grid.Cell.FREE)
 
-	for seg: Rect2i in Layout.WALL_SEGMENTS:
+	for seg: Rect2i in Layout.wall_segments():
 		var size := Vector2(seg.size) * Grid.TILE
 		var top_left := Vector2(seg.position) * Grid.TILE
 		body.add_child(make_box(size, top_left + size / 2.0))
