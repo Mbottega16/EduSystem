@@ -637,6 +637,10 @@ def make_room_tiles():
 
 
 def make_room():
+    """RETIRED. The room is composed from tiles at runtime now, because the
+    player can buy it bigger and a baked image cannot answer for a size that
+    is not known until the save is loaded. Kept only as a reference render
+    -- nothing in the game loads it. See RoomBuilder.compose_room()."""
     im = Image.new("RGBA", (ROOM_W * TILE, ROOM_H * TILE))
     for ty in range(ROOM_H):
         for tx in range(ROOM_W):
@@ -655,8 +659,7 @@ def make_room():
             else:
                 tile = floor_tile(tx, ty)
             im.alpha_composite(tile, (tx * TILE, ty * TILE))
-    im.save(os.path.join(OUT, "room.png"))
-    return im.size
+    return im.size          # not saved: nothing loads it any more
 
 
 # ====================================================================
@@ -884,9 +887,6 @@ if __name__ == "__main__":
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
     make_grid_sprites()
-    r = make_room()
-    print("art/%-18s %3dx%-3d (%d x %d tiles of %d)"
-          % ("room.png", r[0], r[1], ROOM_W, ROOM_H, TILE))
     pieces = make_room_tiles()
     print("art/tile_*.png       %d room pieces, for rooms built at runtime"
           % len(pieces))

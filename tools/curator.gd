@@ -77,6 +77,19 @@ func _scan_references() -> void:
 	for a: String in Names.ART:
 		_note(a, "names.gd (student)")
 
+	# Art loaded by a name BUILT AT RUNTIME, which no regex over the source
+	# can see. The room is composed tile by tile from these, and without
+	# this every one of them is reported as unreferenced -- eighteen false
+	# alarms in a report whose entire value is that you believe it.
+	for i in RoomBuilder.FLOOR_VARIANTS:
+		_note("tile_floor_a%d" % i, "room_builder.gd (floor)")
+		_note("tile_floor_b%d" % i, "room_builder.gd (floor)")
+	for n: String in ["tile_wall_top0", "tile_wall_top1", "tile_wall_side",
+			"tile_wall_bottom", "tile_window_l0", "tile_window_r0",
+			"tile_window_l1", "tile_window_r1", "tile_door_top",
+			"tile_door_bottom"]:
+		_note(n, "room_builder.gd (walls)")
+
 
 func _note(art_name: String, where: String) -> void:
 	if not _referenced.has(art_name):

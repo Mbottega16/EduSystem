@@ -3691,6 +3691,28 @@ func test_curator() -> void:
 		c._missing.is_empty(), c._missing)
 	chk("it knows which script uses the player sprite",
 		c._referenced.get("player", []).size() > 0)
+	# The room tiles are loaded by a name built at runtime, so no regex over
+	# the source can find them. If the curator does not know about them it
+	# reports eighteen false alarms, and a report you have learned to ignore
+	# is worth nothing.
+	chk("and about the room tiles, which no regex could find",
+		c._referenced.has("tile_floor_a0") and c._referenced.has("tile_wall_side"))
+	# Nothing on disk should be unexplained. The two exceptions are sample
+	# art for the text-grid sprite pipeline (tools/sprites/*.txt), which
+	# exists to demonstrate that pipeline rather than to be used -- they are
+	# named here so that a THIRD orphan appearing is a failure rather than
+	# something that blends into an accepted list.
+	const ART_SAMPLES := ["table", "poster_abc"]
+	chk("nothing on disk is left unexplained", (func() -> bool:
+		for f: String in c._files:
+			if not c._referenced.has(f) and not ART_SAMPLES.has(f):
+				return false
+		return true).call(), (func() -> Array:
+			var orphans: Array = []
+			for f: String in c._files:
+				if not c._referenced.has(f) and not ART_SAMPLES.has(f):
+					orphans.append(f)
+			return orphans).call())
 	c.queue_free()
 
 
