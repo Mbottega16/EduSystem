@@ -2034,6 +2034,24 @@ func test_panels_fit() -> void:
 	hud._sel = 0
 	hud.close()
 
+	# The two end screens, with everything they can possibly show at once:
+	# somebody joining, an event tomorrow, and a full class.
+	var report := Game.advance_day()
+	report["joined"] = "Someone New"
+	report["event"] = "A wasp in the room"
+	report["event_blurb"] = "Nobody is going to concentrate today."
+	hud.show_day_report(report)
+	chk("the end-of-day report fits with everything on it",
+		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+	hud.close()
+
+	Game.cheated = true          # the cheat notice is one more line
+	hud.show_exam(Game.sit_exam())
+	chk("the end-of-term exam fits a full class",
+		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+	Game.cheated = false
+	hud.close()
+
 	hud.show_title()
 	chk("the title screen fits",
 		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))

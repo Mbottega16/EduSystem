@@ -527,21 +527,36 @@ func _help_line(s: StudentData) -> String:
 func show_exam(result: Dictionary) -> void:
 	_open(Mode.REPORT)
 	Sfx.play("grade")
-	title.text = "END OF TERM EXAM"
+	# Two children to a line, and the verdict in the title. A full class one
+	# per line plus a summary is eleven lines in a panel that holds five --
+	# so the single most important sentence of the whole run was the one
+	# falling off the bottom.
+	title.text = "END OF TERM  -  %s" % String(result.get("letter", "F"))
+	var rows: Array = result.get("rows", [])
 	var lines: Array[String] = []
-	for r: Dictionary in result.get("rows", []):
-		var s: StudentData = r["student"]
-		lines.append("  %-12s %s    %s" % [
-			s.first_name(), String(r["letter"]),
-			"passed" if bool(r["passed"]) else "did not pass"])
-	lines.append("")
-	if Game.cheated:
-		lines.append("  (cheats were used this term)")
-	lines.append("  %d of %d passed.   Class grade: %s" % [
+	var i := 0
+	while i < rows.size():
+		var cell := _exam_cell(rows[i])
+		if i + 1 < rows.size():
+			cell += "  " + _exam_cell(rows[i + 1])
+		lines.append(cell)
+		i += 2
+	lines.append(_clip("%d of %d passed.%s" % [
 		int(result.get("passed", 0)), int(result.get("total", 0)),
-		String(result.get("letter", "F"))])
+		"   (cheats were used)" if Game.cheated else ""]))
 	body.text = "\n".join(lines)
 	hint.text = "E - close.   That is the term."
+
+
+## One child on the exam board.
+##
+## The pass reads as (ok)/(no), not as +/-. A bare minus sat right next to
+## the letter and turned an F into what looked like an F-minus, which is a
+## grade rather than a verdict.
+func _exam_cell(row: Dictionary) -> String:
+	var s: StudentData = row["student"]
+	return "%-9s %s %s" % [s.first_name(), String(row["letter"]),
+		"(ok)" if bool(row["passed"]) else "(no)"]
 
 
 ## Unit test results.
@@ -726,22 +741,25 @@ func _why(s: StudentData) -> String:
 func show_day_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	_open(Mode.REPORT)
-	title.text = "DAY %d DONE" % int(report.get("day", 0))
+	# Eleven lines in a five-line panel, once a day had both an arrival and
+	# an event. The average and the days left move to the TITLE -- they are
+	# the two numbers you actually look for -- and each remaining line does
+	# a whole job instead of a third of one.
+	title.text = "DAY %d  -  %s  -  %d LEFT" % [
+		int(report.get("day", 0)),
+		Game.grade_letter(float(report.get("average", 0.0))),
+		int(report.get("days_left", 0))]
 	var lines: Array[String] = [
-		"Class average    %s" % Game.grade_letter(float(report.get("average", 0.0))),
-		"Coins earned     %d" % int(report.get("coins", 0)),
-		"Upkeep           -%d" % int(report.get("upkeep", 0)),
-		"Homework done    %d of %d" % [int(report.get("homework_done", 0)), Game.roster.size()],
+		_clip("Earned %d coins, less %d upkeep." % [
+			int(report.get("coins", 0)), int(report.get("upkeep", 0))]),
+		_clip("Homework: %d of %d came back." % [
+			int(report.get("homework_done", 0)), Game.roster.size()]),
 	]
 	if String(report.get("joined", "")) != "":
-		lines.append("")
-		lines.append("%s has joined the class." % String(report["joined"]))
-	lines.append("")
+		lines.append(_clip("%s has joined the class." % String(report["joined"])))
 	if String(report.get("event", "")) != "":
-		lines.append("Tomorrow: %s" % String(report["event"]))
-		lines.append("  %s" % String(report.get("event_blurb", "")))
-	lines.append("")
-	lines.append("%d days left in the term." % int(report.get("days_left", 0)))
+		lines.append(_clip("Tomorrow: %s" % String(report["event"])))
+		lines.append(_clip(String(report.get("event_blurb", ""))))
 	body.text = "\n".join(lines)
 	hint.text = "E — close"
 

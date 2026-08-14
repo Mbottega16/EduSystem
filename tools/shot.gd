@@ -112,5 +112,17 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
+		"day":
+			while Game.enrol() != null:
+				pass
+			var rep := Game.advance_day()
+			rep["joined"] = "Someone New"
+			rep["event"] = "A wasp in the room"
+			rep["event_blurb"] = "Nobody is going to concentrate today."
+			hud.show_day_report(rep)
+		"exam":
+			while Game.enrol() != null:
+				pass
+			hud.show_exam(Game.sit_exam())
 		_:
 			push_error("unknown screen: " + screen)
