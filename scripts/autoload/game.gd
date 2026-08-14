@@ -104,6 +104,7 @@ func new_run(seed_value: int = 0) -> void:
 	concepts.clear()
 	quiz_done = false
 	test_active = false
+	voice = 1.0
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -572,6 +573,56 @@ func grade_test() -> Array:
 		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
 	test_active = false
 	return out
+
+
+# --- your voice ------------------------------------------------------
+## 0..1. Spent settling the room, and it comes back slowly on its own.
+##
+## The second resource inside a lesson. Lesson TIME is the first, and the
+## interesting decision is between them: crossing the room to have a word
+## costs seconds, raising your voice costs this instead and reaches several
+## desks at once -- but only the ones near enough to hear you.
+var voice: float = 1.0
+
+signal voice_changed(level: float)
+
+
+func tick_voice(delta: float) -> void:
+	Balance.ensure_loaded()
+	if voice >= 1.0:
+		return
+	voice = minf(1.0, voice + Balance.voice_recharge * delta)
+	voice_changed.emit(voice)
+
+
+func can_raise_voice() -> bool:
+	Balance.ensure_loaded()
+	return phase == Phase.LESSON and not test_active and voice >= Balance.voice_cost
+
+
+## "Right — settle down." Settles every disruptive child WITHIN EARSHOT of
+## `from`, and does nothing whatever for anybody who is merely stuck.
+##
+## That restriction is the whole design. Settling is crowd control and can
+## be done from across a few desks; teaching cannot, so a stuck child still
+## needs you to walk over. Returns how many heard you, or -1 if you had no
+## voice left.
+func raise_voice(from: Vector2i) -> int:
+	Balance.ensure_loaded()
+	if not can_raise_voice():
+		return -1
+	voice = maxf(0.0, voice - Balance.voice_cost)
+	voice_changed.emit(voice)
+	var settled := 0
+	for s: StudentData in roster:
+		if s.seat_index < 0 or not s.disrupting:
+			continue
+		var seat: Vector2i = Layout.seat(s.seat_index)
+		if absi(seat.x - from.x) + absi(seat.y - from.y) > Balance.voice_range:
+			continue
+		if s.settle():
+			settled += 1
+	return settled
 
 
 ## Has today's lesson already been interrupted for a quiz? One per lesson:

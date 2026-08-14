@@ -135,6 +135,7 @@ func _main() -> void:
 	test_traits()
 	test_save_isolation()
 	await test_bubbles()
+	await test_voice()
 	await test_disruption()
 	await test_overlays()
 	await test_marking()
@@ -2062,6 +2063,26 @@ func test_panels_fit() -> void:
 	Game.cheated = false
 	hud.close()
 
+	# The status strip is a Label too, and it runs off the right-hand edge
+	# the moment a lesson adds a clock, a voice meter and three counters.
+	Game.set_phase(Game.Phase.LESSON)
+	world.lesson_left = 45.0
+	Game.voice = 0.5
+	for st: StudentData in Game.roster:
+		st.disrupting = true
+		st.work_state = StudentData.Work.DONE
+	world.player.carry_work(3)
+	world.player.carry_homework(2)
+	hud._update_status()
+	chk("the status strip fits on its one line",
+		hud.status.text.length() <= hud.LINE_CHARS,
+		"%d chars: %s" % [hud.status.text.length(), hud.status.text])
+	for st: StudentData in Game.roster:
+		st.disrupting = false
+	world.player.drop_all_work()
+	world.player.drop_all_homework()
+	Game.set_phase(Game.Phase.AFTERNOON)
+
 	hud.show_title()
 	chk("the title screen fits",
 		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
@@ -2591,6 +2612,101 @@ func test_bubbles() -> void:
 	chk("a quiet child gives you nothing to scan for, at first",
 		not n0.bubble.visible)
 
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_voice() -> void:
+	section("RAISING YOUR VOICE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	await step(2)
+	var p: Actor = world.player
+
+	chk("it is a real, rebindable action, like every other key",
+		InputMap.has_action("voice"))
+	chk("and it is offered in the controls screen", (func() -> bool:
+		for row: Dictionary in Settings.ACTIONS:
+			if String(row["action"]) == "voice":
+				return true
+		return false).call())
+
+	chk("you start a run with a full voice", is_equal_approx(Game.voice, 1.0))
+	chk("but you cannot use it outside a lesson", not Game.can_raise_voice())
+
+	Game.set_phase(Game.Phase.LESSON)
+	chk("during a lesson you can", Game.can_raise_voice())
+
+	# --- it is about WHERE YOU ARE STANDING ---
+	# The only verb in the game not attached to a landmark, so this is the
+	# line that keeps walking the room the game rather than a formality.
+	var near: StudentData = Game.roster[0]
+	var far: StudentData = Game.roster[1]
+	Layout.set_seats([Vector2i(3, 4), Vector2i(17, 8), Vector2i(11, 4),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	near.disrupting = true
+	far.disrupting = true
+
+	var heard := Game.raise_voice(Vector2i(3, 5))     # standing by `near`
+	chk("the desk beside you hears it", not near.disrupting)
+	chk("the desk across the room does not", far.disrupting)
+	chk("and it says how many heard you", heard == 1, heard)
+
+	# --- it settles the room; it does not teach anybody ---
+	# If shouting also unstuck people it would replace the walk to the desk,
+	# and the walk to the desk is the game.
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	Game.set_phase(Game.Phase.LESSON)
+	var lost: StudentData = Game.roster[0]
+	lost.trait_id = "steady"
+	lost.confusion = 1.0
+	Game.raise_voice(Layout.seat(lost.seat_index))
+	chk("shouting at a stuck child does not unstick them",
+		lost.is_struggling())
+
+	# --- the cost, and getting it back ---
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.LESSON)
+	var before := Game.voice
+	Game.raise_voice(Vector2i(9, 5))
+	chk("it costs you something even when nobody was playing up",
+		Game.voice < before, "%.2f -> %.2f" % [before, Game.voice])
+
+	var shouts := 1
+	while Game.can_raise_voice() and shouts < 20:
+		Game.raise_voice(Vector2i(9, 5))
+		shouts += 1
+	chk("you get a small handful of them, not an unlimited supply",
+		shouts >= 2 and shouts <= 5, shouts)
+	chk("and then you have to go and do it properly",
+		not Game.can_raise_voice())
+	chk("asking anyway is refused rather than ignored",
+		Game.raise_voice(Vector2i(9, 5)) == -1)
+
+	var empty := Game.voice
+	for i in 600:
+		Game.tick_voice(1.0 / 60.0)
+	chk("it comes back on its own", Game.voice > empty,
+		"%.2f -> %.2f" % [empty, Game.voice])
+	for i in 6000:
+		Game.tick_voice(1.0 / 60.0)
+	chk("but never past full", is_equal_approx(Game.voice, 1.0))
+
+	# --- not during a test ---
+	Game.new_run(SEED)
+	for i in Balance.test_requires_taught:
+		Game.record_taught(String(Game.lesson.get("id", "")))
+	Game.set_phase(Game.Phase.MORNING)
+	await step(30)
+	world.start_test(String(Game.lesson.get("id", "")))
+	chk("you cannot shout the class down during a test either",
+		not Game.can_raise_voice())
+	world.end_test()
+
+	Layout.reset_seats()
 	Game.new_run(SEED)
 	await step(2)
 

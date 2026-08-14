@@ -65,6 +65,12 @@ func _physics_process(delta: float) -> void:
 
 	if not input_locked:
 		_tick_hold(delta)
+		# The one verb that is not a landmark. It is still about where you
+		# are standing -- only the desks within earshot hear it.
+		if Game.claim_action("voice"):
+			var room := get_tree().get_first_node_in_group("classroom")
+			if room != null and room.has_method("raise_voice"):
+				room.raise_voice()
 
 
 ## Nearest interactable, but strongly preferring whatever you are facing.

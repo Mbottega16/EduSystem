@@ -69,6 +69,12 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- raising your voice --------------------------------------------------
+static var voice_range: int = 5
+static var voice_cost: float = 0.34
+static var voice_recharge: float = 0.055
+static var voice_unheard_seconds: float = 3.0
+
 # --- messing about -------------------------------------------------------
 static var dis_boredom: float = 0.030
 static var dis_frustration: float = 0.018
@@ -204,6 +210,13 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var vc: Dictionary = d.get("voice", {})
+	voice_range = int(vc.get("range_tiles", voice_range))
+	voice_cost = float(vc.get("cost", voice_cost))
+	voice_recharge = float(vc.get("recharge_per_second", voice_recharge))
+	voice_unheard_seconds = float(vc.get("unheard_stall_seconds",
+		voice_unheard_seconds))
 
 	var ds: Dictionary = d.get("disruption", {})
 	dis_boredom = float(ds.get("from_boredom_per_second", dis_boredom))

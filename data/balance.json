@@ -530,5 +530,12 @@
     "spread_per_second": 0.045,
     "neighbour_stall_mult": 2.0,
     "xp_for_settling": 3
+  },
+  "voice": {
+    "_note": "Raising your voice. The only verb in the game that is not attached to a landmark -- but it still depends on WHERE YOU ARE STANDING, because it only reaches desks within earshot. It settles the room; it does not teach anybody anything, so a stuck child still needs you at their desk. That is the line that keeps walking the room the game.",
+    "range_tiles": 5,
+    "cost": 0.34,
+    "recharge_per_second": 0.055,
+    "unheard_stall_seconds": 3.0
   }
 }

@@ -26,6 +26,8 @@ signal item_move_requested(id: String, tile: Vector2i)
 signal desk_move_requested(seat_index: int)
 signal desks_changed()
 signal quiz_requested()
+## How many heard you, so the room can react. -1 means you had nothing left.
+signal voice_raised(settled: int)
 signal curriculum_requested()
 signal test_requested(lesson_id: String)
 signal room_rebuilt()
@@ -216,6 +218,7 @@ func _physics_process(delta: float) -> void:
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
 		Game.tick_class(delta, roll)
+		Game.tick_voice(delta)
 		if lesson_left <= 0.0:
 			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
 			#
@@ -358,6 +361,20 @@ func end_test() -> Array:
 	for st: Interactable in stations:
 		st.show_paper(false)
 	return results
+
+
+## "Right -- settle down." Reaches the desks near enough to hear it.
+func raise_voice() -> int:
+	if player == null:
+		return -1
+	var n := Game.raise_voice(Grid.world_to_tile(player.global_position))
+	if n >= 0:
+		Sfx.play("deny")            # a sterner noise than anything else here
+		_refresh_bubbles()
+	else:
+		Sfx.play("blip")
+	voice_raised.emit(n)
+	return n
 
 
 ## Podium, mid-lesson. Stops the class, asks everyone a few questions, and

@@ -119,46 +119,63 @@ func _physics_process(_delta: float) -> void:
 
 
 func _update_status() -> void:
+	# ONE LINE, and it runs off the right-hand edge if you let it. What
+	# belongs on it changes with the phase, so it is built in priority order
+	# and cut rather than assembled and hoped over: mid-lesson the subject
+	# and the coin count are things you already know and cannot act on,
+	# while the clock, your voice and who needs you are the whole job.
 	var left: int = maxi(0, Balance.term_days - Game.day + 1)
-	var line := "Day %d/%d  %s    %d coins" % [
-		Game.day, Balance.term_days, Curriculum.short_name(Game.lesson), Game.coins]
-	if Game.phase == Game.Phase.LESSON:
+	var teaching: bool = Game.phase == Game.Phase.LESSON
+	var bits: Array[String] = ["Day %d/%d" % [Game.day, Balance.term_days]]
+
+	if teaching:
 		var room := get_tree().get_first_node_in_group("classroom")
 		if room != null:
-			line += "    %ds left" % int(ceil(room.lesson_left))
-	elif left <= 3:
-		line += "    LAST %d DAYS" % left
+			bits.append("%ds" % int(ceil(room.lesson_left)))
+		if not Game.test_active:
+			var pips := int(round(Game.voice * 4.0))
+			bits.append("voice %s%s" % ["|".repeat(pips), ".".repeat(4 - pips)])
+	else:
+		bits.append(Curriculum.short_name(Game.lesson))
+		bits.append("%d coins" % Game.coins)
+		if left <= 3:
+			bits.append("LAST %d DAYS" % left)
+
 	if _player != null and is_instance_valid(_player):
 		if _player.carrying > 0:
-			line += "    carrying %d" % _player.carrying
+			bits.append("%d work" % _player.carrying)
 		if _player.carrying_hw > 0:
-			line += "    %d homework" % _player.carrying_hw
+			bits.append("%d hw" % _player.carrying_hw)
+
 	var stuck := 0
 	var waiting := 0
 	var noisy := 0
-	for s: StudentData in Game.roster:
-		if s.disrupting:
+	for st: StudentData in Game.roster:
+		if st.disrupting:
 			noisy += 1
 		# what you can SEE, not what is true -- the strip must never quietly
 		# know more about the room than the room is showing you
-		if s.is_visibly_struggling():
+		if st.is_visibly_struggling():
 			stuck += 1
-		if s.has_work_to_collect():
+		if st.has_work_to_collect():
 			waiting += 1
+
 	# via a group, not current_scene -- current_scene is not Main when the
 	# game is instantiated inside a test or a screenshot harness
 	var place := get_tree().get_first_node_in_group("placement")
 	if place != null and place.active:
-		line += "    this spot helps %d" % place.reach_count()
+		bits.append("helps %d" % place.reach_count())
+
 	# Loudest first: messing about is the one that gets worse while you are
 	# somewhere else.
 	if noisy > 0:
-		line += "    %d PLAYING UP" % noisy
+		bits.append("%d NOISY" % noisy)
 	if stuck > 0:
-		line += "    %d stuck" % stuck
+		bits.append("%d stuck" % stuck)
 	if waiting > 0:
-		line += "    %d ready" % waiting
-	status.text = line
+		bits.append("%d ready" % waiting)
+
+	status.text = _clip("   ".join(bits))
 
 
 func _update_prompt() -> void:

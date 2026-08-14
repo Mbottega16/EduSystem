@@ -26,6 +26,10 @@ extends Node
 ##   nobody   — never helps, never collects (the floor of the game)
 ##   quizzer  — exactly 'good', except it spends lesson seconds on a quiz
 ##              and then goes over it with whoever it flags
+##   shouter  — exactly 'lazy', except it raises its voice. Attentive play
+##              settles children before two are ever noisy at once, so the
+##              only way to find out what the voice is worth is to give it
+##              to somebody who has let the room get away from them.
 ##
 ## That last pair is the point: 'good' and 'quizzer' differ in ONE decision,
 ## so the gap between their two rows is roughly what the quiz is worth.
@@ -38,21 +42,34 @@ extends Node
 ## seconds of a 45-second lesson rather than 10 -- but do not tune a number
 ## to two significant figures against it.
 
-const POLICIES := ["ideal", "good", "lazy", "nobody", "quizzer"]
+const POLICIES := ["ideal", "good", "lazy", "nobody", "quizzer", "shouter"]
 
 ## How long the player takes to notice and walk to a stuck student.
 const REACTION := {
-	"ideal": 0.5, "good": 4.0, "lazy": 15.0, "nobody": 999.0, "quizzer": 4.0}
+	"ideal": 0.5, "good": 4.0, "lazy": 15.0, "nobody": 999.0, "quizzer": 4.0,
+	"shouter": 15.0}
 ## Whether they bother picking the finished work up.
 const COLLECTS := {
-	"ideal": true, "good": true, "lazy": false, "nobody": false, "quizzer": true}
+	"ideal": true, "good": true, "lazy": false, "nobody": false,
+	"quizzer": true, "shouter": false}
 ## Coins they will spend on furniture at the end of a day.
 const BUYS := {
-	"ideal": true, "good": true, "lazy": true, "nobody": false, "quizzer": true}
+	"ideal": true, "good": true, "lazy": true, "nobody": false,
+	"quizzer": true, "shouter": true}
+## Whether they shout the room down when several are playing up at once.
+## 'nobody' never does anything; 'lazy' is not paying enough attention to
+## notice. The rest use it the way a real player would -- as the answer to
+## more than one at a time.
+const SHOUTS := {
+	"ideal": true, "good": true, "lazy": false, "nobody": false,
+	"quizzer": true, "shouter": true}
+## How many have to be playing up before it is worth the voice.
+const SHOUT_AT := 2
+
 ## Whether they stop the lesson for a quiz.
 const QUIZZES := {
 	"ideal": false, "good": false, "lazy": false, "nobody": false,
-	"quizzer": true}
+	"quizzer": true, "shouter": false}
 ## How far into the lesson the quiz is called. Early enough that there is
 ## still time to act on it, which is the entire argument for the instrument.
 const QUIZ_AT := 0.25
@@ -119,7 +136,7 @@ func _ready() -> void:
 func _run(policy: String, days: int) -> void:
 	Game.new_run(12345)
 	print("\n--- %s ---" % policy.to_upper())
-	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done  noise")
+	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done  noise  shout")
 
 	var first_enrol := -1
 	var first_buy := -1
@@ -135,13 +152,13 @@ func _run(policy: String, days: int) -> void:
 			first_enrol = Game.day
 
 		if day < 6 or day % 5 == 0 or day == days - 1:
-			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d  %d/%d" % [
+			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d  %d/%d  %5d" % [
 				report["day"], report["average"],
 				Game.grade_letter(float(report["average"])),
 				Game.coins, Game.room_items.size(), before,
 				stats["still_stuck"], report["homework_done"], before,
 				stats["work"], stats["finished"], stats["of"],
-				stats["settled"], stats["noisy"]])
+				stats["settled"], stats["noisy"], stats["shouted"]])
 
 	print("  first purchase: day %s     first new student: day %s" % [
 		"never" if first_buy < 0 else str(first_buy),
@@ -158,12 +175,19 @@ func _play_day(policy: String) -> Dictionary:
 	var flagged_since := {}
 	var noisy_since := {}
 	var settled := 0
+	var shouted := 0
 	for s: StudentData in Game.roster:
 		s.assign_work()
 
 	# The quiz is PAID FOR out of the lesson, so the clock it runs against
 	# shortens. Charging it anywhere else would make it free, and a free
 	# diagnostic is not a decision.
+	# The simulator used to run a whole "lesson" without ever entering the
+	# LESSON phase, because it assigns work directly rather than going
+	# through the podium. Anything phase-gated was therefore invisible to
+	# it -- raising your voice among them, which is why the shout column
+	# read zero for every policy including the one built to use it.
+	Game.set_phase(Game.Phase.LESSON)
 	Game.quiz_done = false
 	var lesson_len := Balance.lesson_seconds
 	var quiz_at: float = lesson_len * QUIZ_AT if QUIZZES[policy] else -1.0
@@ -181,6 +205,22 @@ func _play_day(policy: String) -> Dictionary:
 		# the simulator cannot see disruption at all, and a system the
 		# simulator cannot see is the exact thing it exists to catch.
 		Game.tick_class(DT, Game.rng)
+		Game.tick_voice(DT)
+
+		# Raising your voice reaches several desks at once, but only the
+		# ones near enough to hear. The simulator has no teacher position --
+		# reaction time stands in for walking -- so the shout is modelled as
+		# coming from the desk they were already on their way to, which is
+		# where a real player would be standing.
+		if SHOUTS[policy] and Game.can_raise_voice():
+			var noisy_now: Array[StudentData] = []
+			for s: StudentData in Game.roster:
+				if s.disrupting:
+					noisy_now.append(s)
+			if noisy_now.size() >= SHOUT_AT:
+				if Game.raise_voice(Layout.seat(noisy_now[0].seat_index)) > 0:
+					shouted += 1
+
 		for s: StudentData in Game.roster:
 			s.tick_work(DT, Game.rng)
 			# Settling comes first, as it does at the desk: it is the one
@@ -232,12 +272,13 @@ func _play_day(policy: String) -> Dictionary:
 			s.hw_state = StudentData.HW.MARKED
 			s.hw_player_verdict = 1 if Questions.sheet_is_good(s.hw_sheet) else 0
 
+	Game.set_phase(Game.Phase.AFTERNOON)
 	Game.grade_class()
 	Game.assign_homework()
 	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved,
 		"work": work_total / maxf(1.0, float(Game.roster.size())),
 		"finished": finished, "of": Game.roster.size(),
-		"noisy": noisy, "settled": settled}
+		"noisy": noisy, "settled": settled, "shouted": shouted}
 
 
 ## Buy the item with the best bonus-per-coin that we can afford and that
