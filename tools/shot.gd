@@ -163,8 +163,31 @@ func _open_screen(main: Node, screen: String) -> void:
 			rep["event_blurb"] = "Nobody is going to concentrate today."
 			hud.show_day_report(rep)
 		"exam":
+			# A term somebody actually played: a furnished room, a full
+			# curriculum, one child sent up, and a spread of results rather
+			# than a column of identical failures.
 			while Game.enrol() != null:
 				pass
+			var g := 0
+			while Game.room_score(0) < Balance.room_cap - 0.001 and g < 40:
+				Game.room_items.append({"id": Items.order()[g % Items.order().size()],
+					"tile": Layout.seat(0) + Vector2i(0, -1)})
+				g += 1
+			for l: Dictionary in Curriculum.lessons:
+				for i in 4:
+					Game.record_taught(String(l.get("id", "")))
+			# Graduate FIRST: sending a child up enrols a replacement, and a
+			# replacement has no grades at all -- so grades handed out before
+			# this went to a student who is no longer in the room.
+			var up: StudentData = Game.roster[0]
+			while not up.is_ready_to_graduate():
+				up.add_xp(1)
+			Game.graduate(up)
+			var k := 0
+			for st: StudentData in Game.roster:
+				st.grades.append(0.94 - 0.075 * float(k))
+				st.grades.append(0.90 - 0.070 * float(k))
+				k += 1
 			hud.show_exam(Game.sit_exam())
 		_:
 			push_error("unknown screen: " + screen)

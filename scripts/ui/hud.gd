@@ -594,25 +594,78 @@ func _help_line(s: StudentData) -> String:
 func show_exam(result: Dictionary) -> void:
 	_open(Mode.REPORT)
 	Sfx.play("grade")
-	# Two children to a line, and the verdict in the title. A full class one
-	# per line plus a summary is eleven lines in a panel that holds five --
-	# so the single most important sentence of the whole run was the one
-	# falling off the bottom.
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 1)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+
 	title.text = "END OF TERM  -  %s" % String(result.get("letter", "F"))
+
+	# Two children to a line, in the colour of their verdict. Twenty days
+	# come down to this screen, and a column of identical "(no)"s says
+	# nothing about which of them you nearly got there with.
 	var rows: Array = result.get("rows", [])
 	var lines: Array[String] = []
 	var i := 0
 	while i < rows.size():
-		var cell := _exam_cell(rows[i])
+		var cell := _exam_cell_rich(rows[i])
 		if i + 1 < rows.size():
-			cell += "  " + _exam_cell(rows[i + 1])
+			cell += "  " + _exam_cell_rich(rows[i + 1])
 		lines.append(cell)
 		i += 2
-	lines.append(_clip("%d of %d passed.%s" % [
-		int(result.get("passed", 0)), int(result.get("total", 0)),
-		"   (cheats were used)" if Game.cheated else ""]))
-	body.text = "\n".join(lines)
-	hint.text = "E - close.   That is the term."
+
+	var passed: int = int(result.get("passed", 0))
+	var total: int = int(result.get("total", 0))
+	lines.append("")
+	lines.append("[color=#%s]%d of %d passed.[/color]   %s" % [
+		strand_colour("ela") if passed * 2 >= total else DIM,
+		passed, total, _term_verdict(passed, total)])
+
+	# What you BUILT, not just what they scored. The room, the curriculum
+	# and the children you saw all the way through are the three things a
+	# term actually leaves behind, and none of them were on this screen.
+	lines.append("[color=#%s]%s[/color]" % [DIM, _term_legacy()])
+	rich.text = "\n".join(lines)
+	hint.text = _clip("E - close.%s" % (
+		"   Cheats were used." if Game.cheated else "   That is the term."))
+
+
+## One line on what kind of term that was. It is the last sentence the game
+## says to you, so it should be about the class rather than the arithmetic.
+func _term_verdict(passed: int, total: int) -> String:
+	if total == 0:
+		return "Nobody sat it."
+	var share := float(passed) / float(total)
+	if share >= 0.99:
+		return "Every one of them."
+	if share >= 0.6:
+		return "A good class."
+	if share >= 0.3:
+		return "Some got there."
+	if passed > 0:
+		return "A hard term."
+	return "Not this time."
+
+
+## The three things a term leaves behind.
+func _term_legacy() -> String:
+	var bits: Array[String] = []
+	bits.append("%d concept%s taught" % [Game.concepts.size(),
+		"" if Game.concepts.size() == 1 else "s"])
+	bits.append("%d item%s in the room" % [Game.room_items.size(),
+		"" if Game.room_items.size() == 1 else "s"])
+	if not Game.graduated.is_empty():
+		bits.append("%d sent up" % Game.graduated.size())
+	return "   ".join(bits)
+
+
+## One child on the exam board, in the colour of their verdict.
+func _exam_cell_rich(row: Dictionary) -> String:
+	var s: StudentData = row["student"]
+	var ok: bool = bool(row.get("passed", false))
+	var hue := strand_colour("ela") if ok else "d08a86"
+	return "[color=#%s]%-7s %s[/color]" % [
+		hue, s.first_name().substr(0, 7), String(row.get("letter", "?"))]
 
 
 ## One child on the exam board.

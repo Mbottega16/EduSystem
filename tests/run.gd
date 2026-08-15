@@ -2065,6 +2065,39 @@ func test_panels_fit() -> void:
 	Game.cheated = false
 	hud.close()
 
+	# The two RICH screens are not Labels, so _fits() cannot see them -- they
+	# overflow by scrolling their content out of the box instead of wrapping.
+	# Eleven rows is what the 128px body holds at font 8.
+	const RICH_ROWS := 11
+	for i in 40:
+		Game.record_taught(String(Curriculum.lessons[i % Curriculum.lessons.size()]
+			.get("id", "")))
+	hud.show_curriculum()
+	chk("the curriculum fits every subject in the panel",
+		hud.rich.text.split("
+").size() <= RICH_ROWS,
+		"%d rows" % hud.rich.text.split("
+").size())
+	chk("and it really is showing all of them",
+		hud.rich.text.split("
+").size() >= Curriculum.lessons.size(),
+		hud.rich.text.split("
+").size())
+	hud.close()
+
+	while Game.enrol() != null:
+		pass
+	hud.show_exam(Game.sit_exam())
+	chk("a full class fits on the end-of-term board",
+		hud.rich.text.split("
+").size() <= RICH_ROWS,
+		"%d rows" % hud.rich.text.split("
+").size())
+	chk("and the board says what the term left behind",
+		hud.rich.text.contains("concept") and hud.rich.text.contains("room"),
+		hud.rich.text)
+	hud.close()
+
 	Game.event = DayEvent.by_id("inspector")
 	hud.show_inspection(Game.inspect())
 	chk("the inspection report fits", _fits(hud.body, PANEL_LINES),

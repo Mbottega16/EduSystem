@@ -13,7 +13,7 @@ extends RefCounted
 ##
 ## Bump BUILD whenever something lands that a player would notice.
 
-const BUILD := "b12"
+const BUILD := "b13"
 const DATED := "2026-08-14"
 
 ## The headline of what went in, short enough for one line on the title.
