@@ -308,6 +308,19 @@ sourced. To add art without touching code, drop a text file in
 Every gameplay number lives in `data/balance.json`. Nothing tunable is a
 constant in a script.
 
+### Making art
+
+    Make a Sprite.bat    a NEW CHARACTER, by palette
+    Draw a Sprite.bat    hand-draw one sprite, pixel by pixel
+
+A character in this game IS a palette — one drawing routine in
+`tools/make_art.py` and a table of six-line colour entries — so the
+generator is the right tool for a new person: it writes the palette, draws
+the sheet with the same code as everyone else, imports it, and registers the
+name. The editor is for the one-offs that are not palettes: props, icons,
+touch-ups. It draws 16x24 cells in a 5x4 grid and exports the single 80x96
+sheet the game loads.
+
 ### After adding a `class_name` or new art
 
     godot --headless --path . --import

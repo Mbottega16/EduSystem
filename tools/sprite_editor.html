@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PixelRoom — Sprite Editor</title>
+<style>
+/* ============================================================
+   PixelRoom Sprite Editor
+   A standalone hand-drawing tool for the one-off sprites the
+   parametric generator cannot make. Same tool set and the same
+   paper-and-chalk styling as EduSystems' sprite_curator.html, fitted
+   to PixelRoom's actual format instead of EduSystems':
+
+     EduSystems   88x88 canvas, 10 separately-named PNGs, exported
+                  as a ZIP because that is 10 files
+     PixelRoom    16x24 cells in a 5x4 grid -> ONE 80x96 sheet, which
+                  is what Sprite2D(hframes=5, vframes=4) loads
+
+   Because the export is a single file, the hand-rolled ZIP writer that
+   tool needs is simply not required here. One download, one PNG.
+
+   Loading existing art is a FILE PICKER rather than an embedded base64
+   library. EduSystems inlines 588KB of base64 for this because reading
+   pixels back out of a file:// <img> taints the canvas and throws in
+   Chrome; a FileReader data URL does not, so the same round-trip costs
+   nothing and the page stays small.
+
+   100% offline. No network calls of any kind.
+   ============================================================ */
+:root{
+  --paper:#FBF4E4; --paper2:#F3E6CB; --card:#FFFDF6;
+  --ink:#392D24; --ink2:#7C6A59; --line:#E7D6B6; --line2:#D9C39B;
+  --chalk:#2E6E4E; --chalk-d:#23583E;
+  --wood:#8A5A30; --wood-d:#6E4523;
+  --bad:#C0392B;
+  --r:12px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  background:#1c3626 radial-gradient(circle at 4px 4px, rgba(255,255,255,.05) 1px, transparent 1.4px) 0 0/22px 22px;}
+header{padding:16px 18px;background:linear-gradient(165deg,#357a54 0%,#2e6b4a 45%,#1a4530 100%);color:#FBF4E4;
+  box-shadow:0 3px 0 rgba(0,0,0,.18),0 6px 18px rgba(0,0,0,.25);position:relative;overflow:hidden;}
+header::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(-45deg,rgba(255,255,255,.035) 0 2px,transparent 2px 14px);}
+header h1{margin:0;font-size:20px;letter-spacing:.2px;text-shadow:0 2px 0 rgba(0,0,0,.25);}
+header p{margin:5px 0 0;font-size:12.5px;opacity:.82;max-width:820px;line-height:1.5;}
+#togglesBar{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:10px 18px;
+  background:var(--card);border-bottom:1.5px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.tglLabel{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2);}
+.tglSep{width:1.5px;height:20px;background:var(--line);margin:0 3px;}
+.tglCheck{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;}
+main{display:flex;flex-wrap:wrap;gap:16px;padding:16px;align-items:flex-start;max-width:1400px;margin:0 auto;}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:0 4px 14px rgba(0,0,0,.12);}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2);margin:0 0 10px;}
+details{margin:0;}
+details>summary{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2);
+  cursor:pointer;list-style:none;padding:2px 0;display:flex;align-items:center;gap:7px;user-select:none;}
+details>summary::-webkit-details-marker{display:none;}
+details>summary::before{content:"\25B8";font-size:10px;color:#a8957f;display:inline-block;
+  transition:transform .15s;flex:0 0 auto;}
+details[open]>summary::before{transform:rotate(90deg);}
+details>summary:hover{color:var(--chalk-d);}
+details>*:not(summary){margin-top:9px;}
+.help{font-size:11.5px;color:var(--ink2);line-height:1.5;margin:8px 0 0;}
+
+/* ---- frame strip: laid out as the SHEET is, 5 across by 4 down ---- */
+#frameStrip{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;width:280px;flex:0 0 auto;align-content:start;}
+.rowLabel{grid-column:1 / -1;font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--ink2);margin-top:4px;}
+.frameBtn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px;border-radius:8px;
+  border:2px solid transparent;background:var(--paper2);cursor:pointer;}
+.frameBtn.active{border-color:var(--chalk);background:#e3f0e7;}
+.frameBtn canvas{width:32px;height:48px;image-rendering:pixelated;background:
+  repeating-conic-gradient(#e9e2cf 0% 25%, #f7f2e4 0% 50%) 0 0/8px 8px;border:1px solid var(--line);border-radius:3px;}
+.frameBtn span{font-size:9px;font-weight:700;color:var(--ink2);}
+.frameBtn.active span{color:var(--chalk-d);}
+.frameBtn .dot{width:5px;height:5px;border-radius:50%;background:var(--chalk);display:none;}
+.frameBtn.has-art .dot{display:block;}
+
+/* ---- canvas area ---- */
+#canvasCard{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;}
+#canvasWrap{position:relative;background:
+  repeating-conic-gradient(#e9e2cf 0% 25%, #f7f2e4 0% 50%) 0 0/16px 16px;
+  border:2px solid var(--wood);border-radius:8px;touch-action:none;}
+#onionCanvas,#pixCanvas{position:absolute;top:0;left:0;image-rendering:pixelated;}
+#onionCanvas{opacity:.28;pointer-events:none;}
+#gridOverlay{position:absolute;inset:0;pointer-events:none;display:none;}
+#gridOverlay.on{display:block;}
+#brushCursor{position:absolute;pointer-events:none;display:none;box-sizing:border-box;
+  border:1.5px solid rgba(255,255,255,.95);box-shadow:0 0 0 1px rgba(0,0,0,.65);}
+#canvasMeta{font-size:11px;color:var(--ink2);}
+
+/* ---- toolbar ---- */
+#toolPanel{width:230px;flex:0 0 auto;display:flex;flex-direction:column;gap:12px;}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.row label{font-size:12px;font-weight:700;color:var(--ink2);}
+button.tool{font-family:inherit;font-weight:800;font-size:12px;padding:8px 10px;border-radius:9px;
+  border:1.5px solid var(--line);background:var(--paper2);color:var(--ink);cursor:pointer;}
+button.tool.on{background:var(--chalk);color:#fff;border-color:var(--chalk-d);}
+button.tool:active{transform:translateY(1px);}
+.swatch{width:22px;height:22px;border-radius:5px;border:1.5px solid rgba(0,0,0,.25);cursor:pointer;}
+input[type=color]{width:34px;height:28px;border:1.5px solid var(--line);border-radius:6px;padding:0;cursor:pointer;background:none;}
+#spectrumPicker{display:flex;flex-direction:column;gap:6px;}
+#hueBar,#satValSquare{display:block;width:100%;border-radius:6px;cursor:crosshair;touch-action:none;
+  border:1.5px solid rgba(0,0,0,.2);}
+#hueBar{height:18px;}
+#satValSquare{height:100px;}
+#toolDescription{font-size:11.5px;color:var(--ink2);font-style:italic;min-height:15px;margin-top:4px;}
+input[type=range]{width:100%;}
+.smallBtn{font-family:inherit;font-weight:700;font-size:11.5px;padding:6px 10px;border-radius:8px;
+  border:1.5px solid var(--line2);background:var(--paper);color:var(--ink);cursor:pointer;}
+.smallBtn.danger{border-color:#e3b3ad;color:var(--bad);}
+.bigBtn{font-family:inherit;font-weight:800;font-size:14px;padding:11px 16px;border-radius:10px;
+  border:1.5px solid var(--chalk-d);background:var(--chalk);color:#fff;cursor:pointer;width:100%;}
+#exportCard{width:100%;max-width:900px;}
+#exportNote{font-size:11.5px;color:var(--ink2);line-height:1.5;}
+input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radius:8px;
+  border:1.5px solid var(--line2);background:var(--paper);color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PixelRoom — Sprite Editor</h1>
+  <p>Twenty cells: four facings down the sheet, five frames across
+  (stand, step, stand, step, <b>sit</b>). Draw them, export one
+  <b>80&times;96</b> PNG, drop it in <code>art/</code> — then run
+  <code>godot --headless --path . --import</code>, or the game cannot
+  load it.</p>
+</header>
+
+<div id="togglesBar">
+  <span class="tglLabel">History</span>
+  <button class="smallBtn" id="undoBtn">&#8630; Undo</button>
+  <button class="smallBtn" id="redoBtn">&#8631; Redo</button>
+  <div class="tglSep"></div>
+  <label class="tglCheck"><input type="checkbox" id="gridToggle"> Grid</label>
+  <label class="tglCheck"><input type="checkbox" id="onionToggle"> Onion skin</label>
+  <label class="tglCheck"><input type="checkbox" id="mirrorToggle"> Mirror X</label>
+  <div class="tglSep"></div>
+  <span class="tglLabel">Zoom</span>
+  <input type="range" id="zoomInput" min="4" max="20" value="11" style="width:120px;">
+  <span id="zoomLabel" style="font-size:11.5px;color:var(--ink2);width:34px;">11&times;</span>
+</div>
+
+<main>
+  <div id="frameStrip" class="card"></div>
+
+  <div id="canvasCard" class="card">
+    <div id="canvasWrap">
+      <canvas id="onionCanvas"></canvas>
+      <canvas id="pixCanvas"></canvas>
+      <div id="gridOverlay"></div>
+      <div id="brushCursor"></div>
+    </div>
+    <div id="canvasMeta">16 &times; 24 px — one character frame</div>
+  </div>
+
+  <div id="toolPanel" class="card">
+    <details open>
+      <summary>&#129520; Tool</summary>
+      <div class="row">
+        <button class="tool on" id="toolBrush">&#9999; Brush</button>
+        <button class="tool" id="toolEraser">&#129657; Eraser</button>
+        <button class="tool" id="toolFill">&#129522; Fill</button>
+        <button class="tool" id="toolSoften">&#127787; Soften</button>
+        <button class="tool" id="toolFlatten">&#129529; Flatten</button>
+        <button class="tool" id="toolRetint">&#127752; Retint</button>
+        <button class="tool" id="toolEyedrop">&#128167; Eyedropper</button>
+      </div>
+      <div id="toolDescription"></div>
+      <p class="help">Keys <b>1-7</b> pick tools in this order &middot;
+      Alt+click samples a colour with any tool &middot; <b>[</b>/<b>]</b>
+      brush size &middot; Ctrl+Z undo, Ctrl+Shift+Z redo.</p>
+    </details>
+
+    <div>
+      <h2>&#128207; Brush size</h2>
+      <input type="range" id="brushSize" min="1" max="4" value="1">
+      <div id="brushSizeLabel" style="font-size:11.5px;color:var(--ink2)">1 px</div>
+    </div>
+
+    <details open>
+      <summary>&#127912; Colour</summary>
+      <div id="spectrumPicker">
+        <canvas id="hueBar" width="200" height="18"></canvas>
+        <canvas id="satValSquare" width="200" height="100"></canvas>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input type="color" id="colorPicker" value="#392d24">
+        <span id="colorHex" style="font-size:11.5px;color:var(--ink2);font-family:monospace;"></span>
+      </div>
+      <button class="smallBtn" id="extractPaletteBtn" style="width:100%;margin-top:8px;">Extract colours from this frame</button>
+      <div id="extractedSwatches" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
+    </details>
+
+    <details>
+      <summary>&#127787; Soften</summary>
+      <p class="help">Blends each drawn pixel toward its neighbours'
+      average — a hard colour edge becomes a short hand-drawn gradient
+      instead of a flat step. Never touches transparent pixels.</p>
+    </details>
+
+    <details>
+      <summary>&#129529; Flatten</summary>
+      <input type="range" id="flattenTolerance" min="5" max="150" value="45">
+      <div id="flattenToleranceLabel" style="font-size:11.5px;color:var(--ink2)">tolerance 45</div>
+      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="flattenAll"> Apply to all 20 cells</label>
+      <p class="help">Click a pixel and every pixel <em>close enough in
+      colour</em> anywhere in the frame collapses to one shared average.
+      Gathers "all the blue, but not the red".</p>
+    </details>
+
+    <details>
+      <summary>&#127752; Retint</summary>
+      <input type="range" id="retintTolerance" min="5" max="60" value="24">
+      <div id="retintToleranceLabel" style="font-size:11.5px;color:var(--ink2)">&plusmn;24&deg; hue</div>
+      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="retintAll"> Apply to all 20 cells</label>
+      <p class="help">Recolours a whole <em>shaded</em> region at once and
+      keeps the shading. Click a blue shirt's mid-tone with green picked:
+      the dark fold and the light highlight both become the matching
+      shades of green, because only the HUE moves and each pixel keeps
+      its own lightness. Near-greyscale pixels are never touched, so
+      outlines stay put. This is what makes variants practical.</p>
+    </details>
+
+    <div>
+      <h2>&#11015; Load</h2>
+      <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;">
+        Load an 80&times;96 sheet
+        <input type="file" id="importSheet" accept="image/png" style="display:none">
+      </label>
+      <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;margin-top:6px;">
+        Load a PNG into this cell
+        <input type="file" id="importCell" accept="image/png" style="display:none">
+      </label>
+      <p class="help">Load any existing character straight out of
+      <code>art/</code> and edit it — the sheet is split back into its
+      twenty cells.</p>
+    </div>
+
+    <div>
+      <h2>&#128336; Clear</h2>
+      <div class="row">
+        <button class="smallBtn danger" id="clearFrameBtn">Clear cell</button>
+        <button class="smallBtn danger" id="clearAllBtn">Clear all</button>
+      </div>
+    </div>
+
+    <div>
+      <h2>&#8596; Transform</h2>
+      <button class="smallBtn" id="flipBtn" style="width:100%;">Flip cell horizontally</button>
+      <button class="smallBtn" id="copyLeftBtn" style="width:100%;margin-top:6px;">Copy LEFT row, flipped, into RIGHT</button>
+    </div>
+  </div>
+
+  <div id="exportCard" class="card">
+    <h2>&#128190; Export</h2>
+    <div class="row">
+      <label for="charName">Name</label>
+      <input type="text" id="charName" value="student_i" size="18">
+      <button class="bigBtn" id="exportBtn" style="width:auto;">Export 80&times;96 sheet</button>
+    </div>
+    <p id="exportNote" style="margin-top:10px;">
+      Saves <code>&lt;name&gt;.png</code>. Put it in <code>art/</code>,
+      then <b>run the import</b> —
+      <code>godot --headless --path . --import</code> — because a PNG on
+      disk is not a texture Godot can load until it has been imported.
+      To have children born with it, add the name to <code>ART</code> in
+      <code>scripts/data/names.gd</code>.
+      <br><br>
+      For a whole new <em>character</em> rather than a one-off, use
+      <b>Make a Sprite.bat</b> instead: characters here are palettes, and
+      that tool writes the palette, draws the sheet, imports it and
+      registers the name for you.
+    </p>
+  </div>
+</main>
+
+<script>
+"use strict";
+/* ============================================================
+   PixelRoom's format, which is what every constant below is about.
+   CW/CH is one cell; COLS x ROWS is the sheet the game loads with
+   Sprite2D(hframes=5, vframes=4).
+   ============================================================ */
+const CW = 16, CH = 24, COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
+const ROW_NAMES = ["Facing down", "Facing left", "Facing right", "Facing up"];
+const COL_NAMES = ["stand", "step", "stand", "step", "sit"];
+
+let zoom = 11;
+let cur = 0;
+let tool = "brush";
+let brush = 1;
+let colour = "#392d24";
+let showGrid = false, showOnion = false, mirrorX = false;
+
+const store = [];          // one offscreen canvas per cell
+const undoStack = [], redoStack = [];
+
+const wrap = document.getElementById("canvasWrap");
+const pix = document.getElementById("pixCanvas");
+const onion = document.getElementById("onionCanvas");
+const grid = document.getElementById("gridOverlay");
+const cursor = document.getElementById("brushCursor");
+const strip = document.getElementById("frameStrip");
+const ctx = pix.getContext("2d", {willReadFrequently: true});
+const octx = onion.getContext("2d");
+
+/* ---------------------------------------------------------- setup */
+function makeCell(){
+  const c = document.createElement("canvas");
+  c.width = CW; c.height = CH;
+  return c;
+}
+for (let i = 0; i < CELLS; i++) store.push(makeCell());
+
+function buildStrip(){
+  strip.innerHTML = "";
+  for (let r = 0; r < ROWS; r++){
+    const lab = document.createElement("div");
+    lab.className = "rowLabel";
+    lab.textContent = ROW_NAMES[r];
+    strip.appendChild(lab);
+    for (let c = 0; c < COLS; c++){
+      const i = r * COLS + c;
+      const b = document.createElement("div");
+      b.className = "frameBtn" + (i === cur ? " active" : "");
+      b.dataset.i = i;
+      const cv = document.createElement("canvas");
+      cv.width = CW; cv.height = CH;
+      const sp = document.createElement("span");
+      sp.textContent = COL_NAMES[c];
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      b.appendChild(cv); b.appendChild(sp); b.appendChild(dot);
+      b.addEventListener("click", () => switchTo(i));
+      strip.appendChild(b);
+    }
+  }
+  refreshStrip();
+}
+
+function refreshStrip(){
+  const btns = strip.querySelectorAll(".frameBtn");
+  btns.forEach(b => {
+    const i = +b.dataset.i;
+    b.classList.toggle("active", i === cur);
+    const cv = b.querySelector("canvas");
+    const c2 = cv.getContext("2d");
+    c2.clearRect(0, 0, CW, CH);
+    c2.drawImage(store[i], 0, 0);
+    b.classList.toggle("has-art", hasArt(store[i]));
+  });
+}
+
+function hasArt(cv){
+  const d = cv.getContext("2d", {willReadFrequently: true})
+    .getImageData(0, 0, CW, CH).data;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return true;
+  return false;
+}
+
+function applyZoom(){
+  pix.width = CW; pix.height = CH;
+  onion.width = CW; onion.height = CH;
+  const w = CW * zoom, h = CH * zoom;
+  pix.style.width = onion.style.width = wrap.style.width = w + "px";
+  pix.style.height = onion.style.height = wrap.style.height = h + "px";
+  ctx.imageSmoothingEnabled = false;
+  octx.imageSmoothingEnabled = false;
+  drawGrid();
+  loadFrame();
+}
+
+function drawGrid(){
+  grid.innerHTML = "";
+  if (!showGrid) { grid.classList.remove("on"); return; }
+  grid.classList.add("on");
+  const svg = `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <defs><pattern id="p" width="${zoom}" height="${zoom}" patternUnits="userSpaceOnUse">
+    <path d="M ${zoom} 0 L 0 0 0 ${zoom}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"/>
+    </pattern></defs><rect width="100%" height="100%" fill="url(#p)"/></svg>`;
+  grid.innerHTML = svg;
+}
+
+/* ------------------------------------------------------ frame I/O */
+function saveFrame(){
+  const c = store[cur].getContext("2d");
+  c.clearRect(0, 0, CW, CH);
+  c.drawImage(pix, 0, 0);
+  refreshStrip();
+}
+
+function loadFrame(){
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.drawImage(store[cur], 0, 0);
+  drawOnion();
+}
+
+function switchTo(i){
+  saveFrame();
+  cur = i;
+  loadFrame();
+  refreshStrip();
+}
+
+/* Onion skin: the cell to the LEFT in the same facing, which is the
+   frame before it in the walk cycle. Falls back to the first cell of
+   the row, so the sit pose can be lined up against the stand. */
+function drawOnion(){
+  octx.clearRect(0, 0, CW, CH);
+  if (!showOnion) return;
+  const row = Math.floor(cur / COLS), col = cur % COLS;
+  const src = col > 0 ? cur - 1 : row * COLS;
+  if (src !== cur) octx.drawImage(store[src], 0, 0);
+}
+
+/* --------------------------------------------------------- undo */
+function pushUndo(){
+  undoStack.push({i: cur, data: ctx.getImageData(0, 0, CW, CH)});
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack.length = 0;
+}
+function undo(){
+  if (!undoStack.length) return;
+  const s = undoStack.pop();
+  redoStack.push({i: cur, data: ctx.getImageData(0, 0, CW, CH)});
+  if (s.i !== cur) { cur = s.i; refreshStrip(); }
+  ctx.putImageData(s.data, 0, 0);
+  saveFrame();
+}
+function redo(){
+  if (!redoStack.length) return;
+  const s = redoStack.pop();
+  undoStack.push({i: cur, data: ctx.getImageData(0, 0, CW, CH)});
+  if (s.i !== cur) { cur = s.i; refreshStrip(); }
+  ctx.putImageData(s.data, 0, 0);
+  saveFrame();
+}
+
+/* -------------------------------------------------------- colour */
+function hexToRgb(h){
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r, g, b){
+  return "#" + [r, g, b].map(v =>
+    Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+}
+function rgbToHsl(r, g, b){
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  let h = 0, s = 0; const l = (mx + mn) / 2;
+  if (mx !== mn){
+    const d = mx - mn;
+    s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0));
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return [h, s, l];
+}
+function hslToRgb(h, s, l){
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60){ r = c; g = x; }
+  else if (h < 120){ r = x; g = c; }
+  else if (h < 180){ g = c; b = x; }
+  else if (h < 240){ g = x; b = c; }
+  else if (h < 300){ r = x; b = c; }
+  else { r = c; b = x; }
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+
+const hueBar = document.getElementById("hueBar");
+const satVal = document.getElementById("satValSquare");
+let pickH = 20, pickS = 0.3, pickV = 0.22;
+
+function paintHue(){
+  const c = hueBar.getContext("2d");
+  const g = c.createLinearGradient(0, 0, hueBar.width, 0);
+  for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${i * 60},100%,50%)`);
+  c.fillStyle = g; c.fillRect(0, 0, hueBar.width, hueBar.height);
+}
+function paintSatVal(){
+  const c = satVal.getContext("2d");
+  c.fillStyle = `hsl(${pickH},100%,50%)`;
+  c.fillRect(0, 0, satVal.width, satVal.height);
+  let g = c.createLinearGradient(0, 0, satVal.width, 0);
+  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = g; c.fillRect(0, 0, satVal.width, satVal.height);
+  g = c.createLinearGradient(0, 0, 0, satVal.height);
+  g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,1)");
+  c.fillStyle = g; c.fillRect(0, 0, satVal.width, satVal.height);
+}
+function setColour(hex){
+  colour = hex;
+  document.getElementById("colorPicker").value = hex;
+  document.getElementById("colorHex").textContent = hex.toUpperCase();
+}
+hueBar.addEventListener("pointerdown", e => {
+  const f = e.offsetX / hueBar.width;
+  pickH = Math.max(0, Math.min(359, f * 360));
+  paintSatVal();
+  const [r, g, b] = hslToRgb(pickH, pickS, pickV);
+  setColour(rgbToHex(r, g, b));
+});
+satVal.addEventListener("pointerdown", e => {
+  const c = satVal.getContext("2d", {willReadFrequently: true});
+  const d = c.getImageData(Math.max(0, Math.min(satVal.width - 1, e.offsetX)),
+    Math.max(0, Math.min(satVal.height - 1, e.offsetY)), 1, 1).data;
+  setColour(rgbToHex(d[0], d[1], d[2]));
+});
+document.getElementById("colorPicker").addEventListener("input", e => setColour(e.target.value));
+
+/* ---------------------------------------------------- drawing ops */
+function at(e){
+  const r = pix.getBoundingClientRect();
+  return [Math.floor((e.clientX - r.left) / zoom), Math.floor((e.clientY - r.top) / zoom)];
+}
+function inside(x, y){ return x >= 0 && y >= 0 && x < CW && y < CH; }
+
+function plot(x, y, erase){
+  for (let dy = 0; dy < brush; dy++){
+    for (let dx = 0; dx < brush; dx++){
+      const px = x + dx, py = y + dy;
+      if (!inside(px, py)) continue;
+      if (erase) ctx.clearRect(px, py, 1, 1);
+      else { ctx.fillStyle = colour; ctx.fillRect(px, py, 1, 1); }
+      if (mirrorX){
+        const mx = CW - 1 - px;
+        if (inside(mx, py)){
+          if (erase) ctx.clearRect(mx, py, 1, 1);
+          else ctx.fillRect(mx, py, 1, 1);
+        }
+      }
+    }
+  }
+}
+
+function pixelAt(d, x, y){
+  const i = (y * CW + x) * 4;
+  return [d[i], d[i + 1], d[i + 2], d[i + 3]];
+}
+function setPixel(d, x, y, r, g, b, a){
+  const i = (y * CW + x) * 4;
+  d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a;
+}
+function near(a, b, tol){
+  return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) <= tol;
+}
+
+function fill(x, y){
+  const img = ctx.getImageData(0, 0, CW, CH), d = img.data;
+  const target = pixelAt(d, x, y);
+  const [nr, ng, nb] = hexToRgb(colour);
+  if (near(target, [nr, ng, nb], 2) && target[3] === 255) return;
+  const q = [[x, y]];
+  while (q.length){
+    const [cx, cy] = q.pop();
+    if (!inside(cx, cy)) continue;
+    const p = pixelAt(d, cx, cy);
+    if (p[3] !== target[3] || !near(p, target, 8)) continue;
+    setPixel(d, cx, cy, nr, ng, nb, 255);
+    q.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function soften(x, y){
+  const img = ctx.getImageData(0, 0, CW, CH), d = img.data;
+  const p = pixelAt(d, x, y);
+  if (p[3] === 0) return;                       // never touch transparency
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++){
+      const nx = x + dx, ny = y + dy;
+      if (!inside(nx, ny)) continue;
+      const q = pixelAt(d, nx, ny);
+      if (q[3] === 0) continue;
+      r += q[0]; g += q[1]; b += q[2]; n++;
+    }
+  if (!n) return;
+  setPixel(d, x, y, (p[0] + r / n) / 2, (p[1] + g / n) / 2, (p[2] + b / n) / 2, p[3]);
+  ctx.putImageData(img, 0, 0);
+}
+
+/* Gather every pixel close enough in colour, anywhere in the cell, and
+   collapse them to one shared average. */
+function flatten(x, y, target2d){
+  const c = target2d || ctx;
+  const img = c.getImageData(0, 0, CW, CH), d = img.data;
+  const seed = pixelAt(d, x, y);
+  if (seed[3] === 0) return;
+  const tol = +document.getElementById("flattenTolerance").value;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < CW * CH; i++){
+    const px = i % CW, py = (i / CW) | 0;
+    const p = pixelAt(d, px, py);
+    if (p[3] === 0 || !near(p, seed, tol)) continue;
+    r += p[0]; g += p[1]; b += p[2]; n++;
+  }
+  if (!n) return;
+  r /= n; g /= n; b /= n;
+  for (let i = 0; i < CW * CH; i++){
+    const px = i % CW, py = (i / CW) | 0;
+    const p = pixelAt(d, px, py);
+    if (p[3] === 0 || !near(p, seed, tol)) continue;
+    setPixel(d, px, py, r, g, b, p[3]);
+  }
+  c.putImageData(img, 0, 0);
+}
+
+/* Shift a whole shaded colour family to a new hue, keeping every
+   pixel's own lightness. The reason variants are practical. */
+function retint(x, y, target2d){
+  const c = target2d || ctx;
+  const img = c.getImageData(0, 0, CW, CH), d = img.data;
+  const seed = pixelAt(d, x, y);
+  if (seed[3] === 0) return;
+  const tol = +document.getElementById("retintTolerance").value;
+  const [sh, ss] = rgbToHsl(seed[0], seed[1], seed[2]);
+  const [dh, dsat] = rgbToHsl(...hexToRgb(colour));
+  for (let i = 0; i < CW * CH; i++){
+    const px = i % CW, py = (i / CW) | 0;
+    const p = pixelAt(d, px, py);
+    if (p[3] === 0) continue;
+    const [h, s, l] = rgbToHsl(p[0], p[1], p[2]);
+    if (s < 0.12) continue;                     // outlines and greys stay put
+    let diff = Math.abs(h - sh);
+    if (diff > 180) diff = 360 - diff;
+    if (diff > tol) continue;
+    const [r, g, b] = hslToRgb(dh + (h - sh), Math.max(s, dsat * 0.5), l);
+    setPixel(d, px, py, r, g, b, p[3]);
+  }
+  c.putImageData(img, 0, 0);
+}
+
+function eyedrop(x, y){
+  const d = ctx.getImageData(x, y, 1, 1).data;
+  if (d[3] === 0) return;
+  setColour(rgbToHex(d[0], d[1], d[2]));
+  setTool("brush");
+}
+
+/* Run flatten/retint across every cell, for the "apply to all" boxes. */
+function acrossAll(fn, x, y){
+  saveFrame();
+  for (let i = 0; i < CELLS; i++){
+    const c = store[i].getContext("2d", {willReadFrequently: true});
+    fn(x, y, c);
+  }
+  loadFrame(); refreshStrip();
+}
+
+/* ----------------------------------------------------- pointer */
+let drawing = false;
+pix.addEventListener("pointerdown", e => {
+  const [x, y] = at(e);
+  if (!inside(x, y)) return;
+  pix.setPointerCapture(e.pointerId);
+  if (e.altKey) { eyedrop(x, y); return; }
+  pushUndo();
+  if (tool === "brush" || tool === "eraser"){
+    drawing = true;
+    plot(x, y, tool === "eraser");
+  } else if (tool === "fill") fill(x, y);
+  else if (tool === "soften") { drawing = true; soften(x, y); }
+  else if (tool === "flatten"){
+    if (document.getElementById("flattenAll").checked) acrossAll(flatten, x, y);
+    else flatten(x, y);
+  } else if (tool === "retint"){
+    if (document.getElementById("retintAll").checked) acrossAll(retint, x, y);
+    else retint(x, y);
+  } else if (tool === "eyedrop") eyedrop(x, y);
+  saveFrame();
+});
+pix.addEventListener("pointermove", e => {
+  const [x, y] = at(e);
+  if (inside(x, y)){
+    cursor.style.display = "block";
+    cursor.style.left = (x * zoom) + "px";
+    cursor.style.top = (y * zoom) + "px";
+    cursor.style.width = (brush * zoom) + "px";
+    cursor.style.height = (brush * zoom) + "px";
+  } else cursor.style.display = "none";
+  if (!drawing || !inside(x, y)) return;
+  if (tool === "brush" || tool === "eraser") plot(x, y, tool === "eraser");
+  else if (tool === "soften") soften(x, y);
+  saveFrame();
+});
+["pointerup", "pointerleave", "pointercancel"].forEach(ev =>
+  pix.addEventListener(ev, () => { drawing = false; cursor.style.display = "none"; }));
+
+/* -------------------------------------------------------- tools */
+const TOOL_HELP = {
+  brush: "Paint pixels.",
+  eraser: "Rub pixels back to transparent.",
+  fill: "Flood a connected area of one colour.",
+  soften: "Blend a pixel toward its neighbours.",
+  flatten: "Collapse a colour family to one flat colour.",
+  retint: "Shift a shaded colour family to a new hue.",
+  eyedrop: "Pick a colour out of the cell.",
+};
+const TOOL_IDS = ["brush", "eraser", "fill", "soften", "flatten", "retint", "eyedrop"];
+function setTool(t){
+  tool = t;
+  TOOL_IDS.forEach(id => {
+    const b = document.getElementById("tool" + id[0].toUpperCase() + id.slice(1));
+    if (b) b.classList.toggle("on", id === t);
+  });
+  document.getElementById("toolDescription").textContent = TOOL_HELP[t] || "";
+}
+TOOL_IDS.forEach(id => {
+  const b = document.getElementById("tool" + id[0].toUpperCase() + id.slice(1));
+  if (b) b.addEventListener("click", () => setTool(id));
+});
+
+/* ------------------------------------------------------ controls */
+document.getElementById("zoomInput").addEventListener("input", e => {
+  zoom = +e.target.value;
+  document.getElementById("zoomLabel").textContent = zoom + "×";
+  applyZoom();
+});
+document.getElementById("brushSize").addEventListener("input", e => {
+  brush = +e.target.value;
+  document.getElementById("brushSizeLabel").textContent = brush + " px";
+});
+document.getElementById("gridToggle").addEventListener("change", e => {
+  showGrid = e.target.checked; drawGrid();
+});
+document.getElementById("onionToggle").addEventListener("change", e => {
+  showOnion = e.target.checked; drawOnion();
+});
+document.getElementById("mirrorToggle").addEventListener("change", e => {
+  mirrorX = e.target.checked;
+});
+document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("redoBtn").addEventListener("click", redo);
+document.getElementById("clearFrameBtn").addEventListener("click", () => {
+  pushUndo(); ctx.clearRect(0, 0, CW, CH); saveFrame();
+});
+document.getElementById("clearAllBtn").addEventListener("click", () => {
+  if (!confirm("Clear all twenty cells?")) return;
+  store.forEach(c => c.getContext("2d").clearRect(0, 0, CW, CH));
+  loadFrame(); refreshStrip();
+});
+document.getElementById("flipBtn").addEventListener("click", () => {
+  pushUndo();
+  const tmp = makeCell();
+  const t = tmp.getContext("2d");
+  t.translate(CW, 0); t.scale(-1, 1); t.drawImage(pix, 0, 0);
+  ctx.clearRect(0, 0, CW, CH); ctx.drawImage(tmp, 0, 0);
+  saveFrame();
+});
+/* The left and right walk rows are mirror images in this art style, so
+   drawing one and flipping it is how the sheets were made in the first
+   place. */
+document.getElementById("copyLeftBtn").addEventListener("click", () => {
+  saveFrame();
+  for (let c = 0; c < COLS; c++){
+    const src = store[1 * COLS + c], dst = store[2 * COLS + c];
+    const t = dst.getContext("2d");
+    t.clearRect(0, 0, CW, CH); t.save();
+    t.translate(CW, 0); t.scale(-1, 1); t.drawImage(src, 0, 0); t.restore();
+  }
+  loadFrame(); refreshStrip();
+});
+document.getElementById("flattenTolerance").addEventListener("input", e =>
+  document.getElementById("flattenToleranceLabel").textContent = "tolerance " + e.target.value);
+document.getElementById("retintTolerance").addEventListener("input", e =>
+  document.getElementById("retintToleranceLabel").textContent = "±" + e.target.value + "° hue");
+
+document.getElementById("extractPaletteBtn").addEventListener("click", () => {
+  const d = ctx.getImageData(0, 0, CW, CH).data;
+  const seen = [];
+  for (let i = 0; i < d.length; i += 4){
+    if (d[i + 3] === 0) continue;
+    const hex = rgbToHex(d[i], d[i + 1], d[i + 2]);
+    if (!seen.includes(hex)) seen.push(hex);
+  }
+  const box = document.getElementById("extractedSwatches");
+  box.innerHTML = "";
+  seen.slice(0, 32).forEach(hex => {
+    const s = document.createElement("div");
+    s.className = "swatch"; s.style.background = hex; s.title = hex;
+    s.addEventListener("click", () => setColour(hex));
+    box.appendChild(s);
+  });
+});
+
+/* --------------------------------------------------------- load */
+function readImage(file, cb){
+  const fr = new FileReader();
+  fr.onload = () => {
+    const img = new Image();
+    img.onload = () => cb(img);
+    img.src = fr.result;      // a data URL, so the canvas is never tainted
+  };
+  fr.readAsDataURL(file);
+}
+document.getElementById("importSheet").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  readImage(f, img => {
+    if (img.width !== CW * COLS || img.height !== CH * ROWS){
+      if (!confirm(`That is ${img.width}x${img.height}, not ${CW * COLS}x${CH * ROWS}. Load it anyway?`)) return;
+    }
+    for (let i = 0; i < CELLS; i++){
+      const c = store[i].getContext("2d");
+      c.clearRect(0, 0, CW, CH);
+      c.drawImage(img, (i % COLS) * CW, ((i / COLS) | 0) * CH, CW, CH, 0, 0, CW, CH);
+    }
+    loadFrame(); refreshStrip();
+  });
+  e.target.value = "";
+});
+document.getElementById("importCell").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  readImage(f, img => {
+    pushUndo();
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.drawImage(img, 0, 0);
+    saveFrame();
+  });
+  e.target.value = "";
+});
+
+/* ------------------------------------------------------- export */
+document.getElementById("exportBtn").addEventListener("click", () => {
+  saveFrame();
+  const out = document.createElement("canvas");
+  out.width = CW * COLS; out.height = CH * ROWS;
+  const o = out.getContext("2d");
+  for (let i = 0; i < CELLS; i++)
+    o.drawImage(store[i], (i % COLS) * CW, ((i / COLS) | 0) * CH);
+  const name = (document.getElementById("charName").value || "sprite")
+    .replace(/[^A-Za-z0-9_]/g, "_");
+  const a = document.createElement("a");
+  a.download = name + ".png";
+  a.href = out.toDataURL("image/png");
+  a.click();
+});
+
+/* ---------------------------------------------------- keyboard */
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.ctrlKey && e.key.toLowerCase() === "z"){
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+    return;
+  }
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= TOOL_IDS.length) setTool(TOOL_IDS[n - 1]);
+  if (e.key === "[") { brush = Math.max(1, brush - 1); document.getElementById("brushSize").value = brush;
+    document.getElementById("brushSizeLabel").textContent = brush + " px"; }
+  if (e.key === "]") { brush = Math.min(4, brush + 1); document.getElementById("brushSize").value = brush;
+    document.getElementById("brushSizeLabel").textContent = brush + " px"; }
+});
+
+/* ----------------------------------------------------------- go */
+buildStrip();
+applyZoom();
+paintHue(); paintSatVal();
+setColour(colour);
+setTool("brush");
+</script>
+</body>
+</html>
