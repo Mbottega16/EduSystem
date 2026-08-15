@@ -127,6 +127,7 @@ func _main() -> void:
 	test_concepts()
 	test_exam_maths()
 	test_next_term()
+	test_term_target()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -3154,6 +3155,83 @@ func test_next_term() -> void:
 	chk("but a saved game remembers which term you are on", Game.term == 2,
 		Game.term)
 	chk("and every term you have finished", Game.term_history.size() == 1)
+	Game.delete_save()
+
+	Game.new_run(SEED)
+
+
+
+func test_term_target() -> void:
+	section("THE TARGET, AND LOSING")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# THE THING THIS FIXES: there was nothing to lose to. The room got
+	# better every term against a difficulty that never moved, so by the
+	# third term nothing the player did mattered very much.
+	chk("term one has a target", Game.term_target() > 0, Game.term_target())
+	chk("and a fresh run is not over", not Game.run_over)
+
+	var t1 := Game.term_target()
+	Game.term = 2
+	var t2 := Game.term_target()
+	Game.term = 3
+	var t3 := Game.term_target()
+	chk("the target rises every term", t2 > t1 and t3 > t2,
+		"%d, %d, %d" % [t1, t2, t3])
+	Game.term = 99
+	chk("but never past the number of children you could possibly have",
+		Game.term_target() <= Game.seat_capacity(), Game.term_target())
+
+	# --- missing it ends the run ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.10)             # nobody is passing this
+	var res := Game.sit_exam()
+	chk("nobody passed", int(res["passed"]) == 0, res["passed"])
+	chk("which is short of the target", not Game.met_target(int(res["passed"])))
+
+	var info := Game.next_term()
+	chk("so the run is over", Game.run_over)
+	chk("and it says so", bool(info.get("run_over", false)))
+	chk("the term does NOT advance past the one you failed", Game.term == 1,
+		Game.term)
+	chk("but the term is still on the record", Game.term_history.size() == 1)
+	chk("marked as missed", not bool(Game.term_history[0]["met"]))
+	chk("with the number you were asked for",
+		int(Game.term_history[0]["target"]) == Game.term_target())
+
+	# --- meeting it carries on ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)             # everybody sails it
+	var res2 := Game.sit_exam()
+	chk("everybody passed", int(res2["passed"]) == Game.roster.size())
+	var info2 := Game.next_term()
+	chk("the run continues", not Game.run_over)
+	chk("and so does the career", not bool(info2.get("run_over", false)))
+	chk("the term advances", Game.term == 2)
+	chk("and the term you passed is marked as met",
+		bool(Game.term_history[0]["met"]))
+
+	# --- the player can SEE the target all term, not just at the end ---
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.MORNING)
+	_hud()._update_status()
+	chk("the status strip says what you are playing towards",
+		_hud().status.text.contains("need"), _hud().status.text)
+
+	# --- it survives the night ---
+	Game.run_over = true
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run is not over", not Game.run_over)
+	Game.load_game()
+	chk("but a finished one stays finished", Game.run_over)
 	Game.delete_save()
 
 	Game.new_run(SEED)

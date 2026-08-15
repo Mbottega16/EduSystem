@@ -52,6 +52,9 @@ var term_over: bool = false
 var term: int = 1
 ## One row per finished term: [{term, letter, passed, total, moved_up}]
 var term_history: Array = []
+## The run ended because a term was missed. Distinct from term_over, which
+## only means the exam has been sat.
+var run_over: bool = false
 
 signal term_began(term: int)
 var exam_result: Dictionary = {}
@@ -102,6 +105,7 @@ func new_run(seed_value: int = 0) -> void:
 	term_over = false
 	term = 1
 	term_history.clear()
+	run_over = false
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
@@ -347,6 +351,26 @@ func exam_score_for(s: StudentData) -> float:
 	return clampf(s.average_grade() + built * Balance.exam_room_bonus, 0.0, 1.0)
 
 
+## How many children have to pass THIS term for you to keep the job.
+##
+## It rises every term, and it is the only thing in this game you can lose
+## to. Without it the room gets better every term against a difficulty that
+## never moves, so by the third term nothing you do matters much -- the
+## target is what makes a better room necessary rather than merely pleasant.
+##
+## Capped by the size of the class, because a target nobody could reach is
+## not a target, it is an ending with extra steps.
+func term_target() -> int:
+	Balance.ensure_loaded()
+	var want: int = Balance.term_target_base \
+		+ Balance.term_target_growth * (term - 1)
+	return mini(want, maxi(1, seat_capacity()))
+
+
+func met_target(passed: int) -> bool:
+	return passed >= term_target()
+
+
 ## Close the term and open the next one.
 ##
 ## THE POINT OF THIS is that a term is a chapter rather than the whole book.
@@ -362,6 +386,13 @@ func exam_score_for(s: StudentData) -> float:
 func next_term() -> Dictionary:
 	Balance.ensure_loaded()
 	var result := exam_result if not exam_result.is_empty() else sit_exam()
+
+	# Missing the target ends the RUN. Everything below still happens, so
+	# the final screen can say what the term was, but no next term opens.
+	var target := term_target()
+	var hit := met_target(int(result.get("passed", 0)))
+	if not hit:
+		run_over = true
 
 	var moved_up: Array[String] = []
 	var stayed: Array[StudentData] = []
@@ -381,7 +412,17 @@ func next_term() -> Dictionary:
 		"passed": int(result.get("passed", 0)),
 		"total": int(result.get("total", 0)),
 		"moved_up": moved_up.size(),
+		"target": target, "met": hit,
 	})
+
+	if run_over:
+		save_game()
+		return {
+			"term": term, "moved_up": moved_up, "joined": [],
+			"stayed": stayed.size(), "run_over": true,
+			"target": target,
+			"previous": term_history[term_history.size() - 1],
+		}
 
 	# whoever is left starts the new term with a clean slate but their own
 	# history -- the transcript is theirs and it travels
@@ -420,7 +461,9 @@ func next_term() -> Dictionary:
 	save_game()
 	return {
 		"term": term, "moved_up": moved_up, "joined": joined,
-		"stayed": stayed.size(), "previous": term_history[term_history.size() - 1],
+		"stayed": stayed.size(), "run_over": false,
+		"target": term_target(),
+		"previous": term_history[term_history.size() - 1],
 	}
 
 
@@ -1180,6 +1223,7 @@ func to_dict() -> Dictionary:
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"term_history": term_history,
+		"run_over": run_over,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -1209,6 +1253,7 @@ func from_dict(d: Dictionary) -> void:
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))
 	term = int(d.get("term", 1))
+	run_over = bool(d.get("run_over", false))
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()

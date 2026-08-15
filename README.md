@@ -129,6 +129,25 @@ because you were told the night before:
 A pass pays a grant. Everything judged is something the game already
 tracked, and every verdict is a sentence rather than a decimal.
 
+## A term is a chapter, and you can lose
+
+Twenty days, then the exam. **A set number of children have to pass** — two
+in your first term, rising every term after — and the number is on the
+status strip from the first morning, not sprung on you at the end.
+
+Miss it and the run is over: a screen of every term you taught, in order,
+and the one that ended it.
+
+Make it and the next term begins. **What you built carries over** — the
+room, where the desks are, the curriculum you learned to teach, your level,
+your perks, your coins. **The class does not.** Children who passed move up
+and out; children who did not stay for another go, keeping their record.
+
+Which means a term you taught well empties your class of exactly the
+children you had got good at teaching, and hands you a room of strangers and
+a better room to teach them in. The rising target is what makes that better
+room necessary rather than merely pleasant.
+
 ## Three ways to find out what they know
 
 |  | when | stakes | what you do |
@@ -259,7 +278,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            724 assertions
+Run Tests.bat            801 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

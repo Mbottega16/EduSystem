@@ -165,6 +165,23 @@ func _open_screen(main: Node, screen: String) -> void:
 			rep["event"] = "A wasp in the room"
 			rep["event_blurb"] = "Nobody is going to concentrate today."
 			hud.show_day_report(rep)
+		"run_over":
+			# a career: two terms taught, the second one missed. Cleared
+			# first -- the harness has already played real days by now, and
+			# their terms would stack under the ones being demonstrated.
+			Game.term_history.clear()
+			Game.graduated.clear()
+			Game.term_history.append({"term": 1, "letter": "C", "passed": 3,
+				"total": 6, "moved_up": 3, "target": 2, "met": true})
+			Game.term_history.append({"term": 2, "letter": "D", "passed": 1,
+				"total": 8, "moved_up": 1, "target": 3, "met": false})
+			Game.term = 2
+			for ll: Dictionary in Curriculum.lessons:
+				for ii in 3:
+					Game.record_taught(String(ll.get("id", "")))
+			for ii in 4:
+				Game.graduated.append({"name": "Someone", "level": 5})
+			hud.show_run_over({"run_over": true, "target": 3})
 		"new_term":
 			while Game.enrol() != null:
 				pass

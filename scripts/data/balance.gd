@@ -50,6 +50,9 @@ static var exam_pass: float = 0.62
 static var exam_room_bonus: float = 0.08
 ## Does passing move a child up and out of your class at the end of term?
 static var term_pass_moves_up: bool = true
+## How many must pass in term 1, and how much that rises each term after.
+static var term_target_base: int = 2
+static var term_target_growth: int = 1
 static var upkeep_per_item: int = 3
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
@@ -197,6 +200,8 @@ static func apply(d: Dictionary) -> void:
 	exam_pass = float(tm.get("exam_pass", exam_pass))
 	exam_room_bonus = float(tm.get("exam_room_bonus", exam_room_bonus))
 	term_pass_moves_up = bool(tm.get("pass_moves_them_up", term_pass_moves_up))
+	term_target_base = int(tm.get("target_base", term_target_base))
+	term_target_growth = int(tm.get("target_growth", term_target_growth))
 
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))

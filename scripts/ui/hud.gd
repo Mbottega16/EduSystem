@@ -91,6 +91,9 @@ var _bio_sel: int = 0
 ## The exam is the one screen whose closing DOES something, so it has to be
 ## told apart from every other report.
 var _showing_exam: bool = false
+## The run itself has ended. Closing this one starts a new run rather than
+## a new term.
+var _showing_run_over: bool = false
 
 
 func _ready() -> void:
@@ -152,6 +155,9 @@ func _update_status() -> void:
 	else:
 		bits.append(Curriculum.short_name(Game.lesson))
 		bits.append("%d coins" % Game.coins)
+		# What you are actually playing towards. It used to appear for the
+		# first time on the screen that judged you by it.
+		bits.append("need %d" % Game.term_target())
 		if left <= 3:
 			bits.append("LAST %d DAYS" % left)
 
@@ -252,6 +258,7 @@ func _open(m: int) -> void:
 	# must not. show_exam() sets it again straight after this runs, so the
 	# flag can only ever be true for the screen that set it.
 	_showing_exam = false
+	_showing_run_over = false
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -630,9 +637,15 @@ func show_exam(result: Dictionary) -> void:
 	var passed: int = int(result.get("passed", 0))
 	var total: int = int(result.get("total", 0))
 	lines.append("")
-	lines.append("[color=#%s]%d of %d passed.[/color]   %s" % [
-		strand_colour("ela") if passed * 2 >= total else DIM,
-		passed, total, _term_verdict(passed, total)])
+	# The TARGET, not just the count. A number you are measured against
+	# after the fact is a punishment; the same number known all term is a
+	# thing to play towards -- and this is the only screen where it resolves.
+	var target: int = Game.term_target()
+	var met: bool = passed >= target
+	lines.append("[color=#%s]%d of %d passed[/color]   need %d   [color=#%s]%s[/color]" % [
+		C_GOOD if met else C_BAD, passed, total, target,
+		C_GOOD if met else C_BAD,
+		"kept the job" if met else "NOT ENOUGH"])
 
 	# What you BUILT, not just what they scored. The room, the curriculum
 	# and the children you saw all the way through are the three things a
@@ -774,6 +787,38 @@ func show_test_report(results: Array) -> void:
 		Game.lesson.get("standard", ""))
 
 
+## The run is over: a term missed its target.
+##
+## Every term you taught, in order, so the run reads as a career rather than
+## a failure notice. The last row is the one that ended it, and it is the
+## only row with a number beside it that you did not reach.
+func show_run_over(info: Dictionary) -> void:
+	_open(Mode.REPORT)
+	_showing_run_over = true
+	Sfx.play("deny")
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+
+	title.text = "THAT IS THE END OF IT"
+	var lines: Array[String] = []
+	for row: Dictionary in Game.term_history:
+		var met: bool = bool(row.get("met", false))
+		lines.append("[color=#%s]Term %-2d  %s   %d of %d passed   needed %d[/color]" % [
+			C_GOOD if met else C_BAD, int(row["term"]),
+			String(row["letter"]), int(row["passed"]), int(row["total"]),
+			int(row.get("target", Balance.term_target_base))])
+	lines.append("")
+	lines.append("[color=#%s]%d term%s taught.  %d children sent up.  %d concepts.[/color]" % [
+		C_KNOW, Game.term_history.size(),
+		"" if Game.term_history.size() == 1 else "s",
+		Game.graduated.size(), Game.concepts.size()])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.6)
+	hint.text = "E - start again"
+
+
 ## A new term. Who left, who stayed, who is new.
 ##
 ## This screen is the reward for the one before it: it names what you KEEP.
@@ -811,6 +856,8 @@ func show_new_term(info: Dictionary) -> void:
 	lines.append("[color=#%s]You keep[/color]  %d items   %d concepts   level %d   %d coins" % [
 		C_KNOW, Game.room_items.size(), Game.concepts.size(),
 		Game.teacher_level, Game.coins])
+	lines.append("[color=#%s]This term you need %d of them through.[/color]" % [
+		C_BAD, int(info.get("target", Game.term_target()))])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.5)
 	hint.text = "E - first day of term %d" % int(info.get("term", Game.term))
@@ -1504,7 +1551,17 @@ func _handle_input() -> void:
 			# 22, 23 simply kept coming. It is a doorway now.
 			if _showing_exam:
 				_showing_exam = false
-				show_new_term(Game.next_term())
+				var info := Game.next_term()
+				if bool(info.get("run_over", false)):
+					show_run_over(info)
+				else:
+					show_new_term(info)
+				return
+			if _showing_run_over:
+				_showing_run_over = false
+				close()
+				Game.new_run()
+				show_title()
 				return
 			close()
 		return
