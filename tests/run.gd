@@ -126,6 +126,7 @@ func _main() -> void:
 	await test_quiz()
 	test_concepts()
 	test_exam_maths()
+	test_next_term()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -3056,6 +3057,107 @@ func test_inspection() -> void:
 
 	Game.new_run(SEED)
 	await step(2)
+
+
+func test_next_term() -> void:
+	section("THE TERM AFTER THIS ONE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("a run starts in term one", Game.term == 1)
+	chk("with no history behind it", Game.term_history.is_empty())
+
+	# Build a term worth carrying: a furnished room, a curriculum, coins,
+	# and a class where some pass and some do not.
+	while Game.enrol() != null:
+		pass
+	var guard := 0
+	while Game.room_score(0) < Balance.room_cap - 0.001 and guard < 60:
+		Game.room_items.append({"id": Items.order()[guard % Items.order().size()],
+			"tile": Layout.seat(0) + Vector2i(0, -1)})
+		guard += 1
+	for l: Dictionary in Curriculum.lessons:
+		for i in 4:
+			Game.record_taught(String(l.get("id", "")))
+	Game.coins = 1234
+	var i2 := 0
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95 - 0.10 * float(i2))
+		i2 += 1
+
+	var items_before: int = Game.room_items.size()
+	var concepts_before: int = Game.concepts.size()
+	var coins_before: int = Game.coins
+	var level_before: int = Game.teacher_level
+	var seats_before: Array = Layout.seats().duplicate()
+	var result := Game.sit_exam()
+	var should_move: int = int(result["passed"])
+	var names_before := {}
+	for st: StudentData in Game.roster:
+		names_before[st.display_name] = true
+
+	var info := Game.next_term()
+
+	chk("the term advances", Game.term == 2, Game.term)
+	chk("and the day goes back to one", Game.day == 1, Game.day)
+	chk("the term is no longer over", not Game.term_over)
+	chk("the term just played is on the record", Game.term_history.size() == 1)
+	chk("with the letter it earned",
+		String(Game.term_history[0]["letter"]) == String(result["letter"]))
+
+	# WHAT YOU KEEP -- the things you spent the term building. Taking these
+	# away at the bell would make twenty days of work into a sandbox.
+	chk("you keep the room you built",
+		Game.room_items.size() == items_before, Game.room_items.size())
+	chk("and where you put the desks", Layout.seats() == seats_before)
+	chk("you keep the curriculum you learned",
+		Game.concepts.size() == concepts_before)
+	chk("you keep your coins", Game.coins == coins_before, Game.coins)
+	chk("and your own level", Game.teacher_level == level_before)
+
+	# WHAT YOU DO NOT -- the class. That is the cost of teaching them well.
+	chk("everyone who passed has moved up",
+		(info["moved_up"] as Array).size() == should_move,
+		"%d moved, %d passed" % [(info["moved_up"] as Array).size(), should_move])
+	chk("and they are no longer in your class", (func() -> bool:
+		for n: String in info["moved_up"]:
+			for st: StudentData in Game.roster:
+				if st.display_name == n:
+					return false
+		return true).call())
+	chk("they are recorded as having been sent up",
+		Game.graduated.size() >= should_move)
+	chk("the empty desks are filled", Game.roster.size() == Game.seat_capacity(),
+		Game.roster.size())
+	chk("so you start the term with a full class",
+		not Game.roster.is_empty())
+
+	# whoever stayed keeps their record but starts on a clean sheet
+	var stayed_one: StudentData = null
+	for st: StudentData in Game.roster:
+		if names_before.has(st.display_name):
+			stayed_one = st
+			break
+	if stayed_one != null:
+		chk("a child who stayed has a fresh sheet of grades",
+			stayed_one.grades.is_empty())
+		chk("but keeps the record of what they were taught",
+			not stayed_one.transcript.is_empty() or stayed_one.joined_day > 0)
+	else:
+		chk("SKIPPED: everybody passed this seed", true)
+
+	# --- it survives the night ---
+	Game.save_game()
+	Game.new_run(1)
+	chk("a brand new run is back to term one", Game.term == 1)
+	Game.load_game()
+	chk("but a saved game remembers which term you are on", Game.term == 2,
+		Game.term)
+	chk("and every term you have finished", Game.term_history.size() == 1)
+	Game.delete_save()
+
+	Game.new_run(SEED)
+
 
 
 func test_overlays() -> void:

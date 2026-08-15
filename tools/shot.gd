@@ -165,6 +165,23 @@ func _open_screen(main: Node, screen: String) -> void:
 			rep["event"] = "A wasp in the room"
 			rep["event_blurb"] = "Nobody is going to concentrate today."
 			hud.show_day_report(rep)
+		"new_term":
+			while Game.enrol() != null:
+				pass
+			var gg := 0
+			while Game.room_score(0) < Balance.room_cap - 0.001 and gg < 40:
+				Game.room_items.append({"id": Items.order()[gg % Items.order().size()],
+					"tile": Layout.seat(0) + Vector2i(0, -1)})
+				gg += 1
+			for ll: Dictionary in Curriculum.lessons:
+				for ii in 4:
+					Game.record_taught(String(ll.get("id", "")))
+			var kk := 0
+			for st: StudentData in Game.roster:
+				st.grades.append(0.95 - 0.09 * float(kk))
+				kk += 1
+			Game.sit_exam()
+			hud.show_new_term(Game.next_term())
 		"exam":
 			# A term somebody actually played: a furnished room, a full
 			# curriculum, one child sent up, and a spread of results rather

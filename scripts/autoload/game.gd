@@ -47,6 +47,13 @@ var subject: String = ""        ## today's lesson NAME, for display
 var lesson: Dictionary = {}     ## the full curriculum entry behind it
 var event: Dictionary = {}      ## what makes today different from yesterday
 var term_over: bool = false
+## Which term this is. A run is not one term any more -- it is as many as
+## you keep teaching, and everything you built carries into the next.
+var term: int = 1
+## One row per finished term: [{term, letter, passed, total, moved_up}]
+var term_history: Array = []
+
+signal term_began(term: int)
 var exam_result: Dictionary = {}
 
 # --- the teacher's own progression ---------------------------------
@@ -93,6 +100,8 @@ func new_run(seed_value: int = 0) -> void:
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
 	term_over = false
+	term = 1
+	term_history.clear()
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
@@ -336,6 +345,83 @@ func exam_score_for(s: StudentData) -> float:
 	var built: float = clampf(
 		(room_score(s.seat_index) - Balance.room_base) / span, 0.0, 1.0)
 	return clampf(s.average_grade() + built * Balance.exam_room_bonus, 0.0, 1.0)
+
+
+## Close the term and open the next one.
+##
+## THE POINT OF THIS is that a term is a chapter rather than the whole book.
+## Everything you SPENT THE TERM BUILDING carries over -- the room, the
+## curriculum you learned to teach, your own level and perks, your coins.
+## Taking those away at the bell would make twenty days of building into a
+## sandbox you get bored of.
+##
+## The CLASS does not carry over, and that is the cost. Children who passed
+## move up and out; children who did not stay for another go, keeping the
+## record they already have. So a term you taught well empties your class of
+## exactly the children you got good at teaching.
+func next_term() -> Dictionary:
+	Balance.ensure_loaded()
+	var result := exam_result if not exam_result.is_empty() else sit_exam()
+
+	var moved_up: Array[String] = []
+	var stayed: Array[StudentData] = []
+	for row: Dictionary in result.get("rows", []):
+		var s: StudentData = row["student"]
+		if bool(row.get("passed", false)) and Balance.term_pass_moves_up:
+			moved_up.append(s.display_name)
+			graduated.append({
+				"name": s.display_name, "level": s.level,
+				"readiness": s.readiness(), "day": day, "term": term,
+			})
+		else:
+			stayed.append(s)
+
+	term_history.append({
+		"term": term, "letter": String(result.get("letter", "F")),
+		"passed": int(result.get("passed", 0)),
+		"total": int(result.get("total", 0)),
+		"moved_up": moved_up.size(),
+	})
+
+	# whoever is left starts the new term with a clean slate but their own
+	# history -- the transcript is theirs and it travels
+	roster.clear()
+	for s: StudentData in stayed:
+		s.grades.clear()
+		s.last_grade = -1.0
+		s.reset_lesson()
+		s.hw_state = StudentData.HW.NONE
+		s.misjudged = false
+		roster.append(s)
+
+	term += 1
+	day = 1
+	term_over = false
+	exam_result = {}
+	homework_out = false
+	quiz_done = false
+	test_active = false
+	voice = 1.0
+	last_inspection = {}
+	event = DayEvent.by_id("none")
+	subject = pick_subject()
+
+	# fill the empty desks
+	var joined: Array[String] = []
+	while roster.size() < seat_capacity():
+		var s := enrol()
+		if s == null:
+			break
+		joined.append(s.display_name)
+
+	set_phase(Phase.MORNING)
+	roster_changed.emit()
+	term_began.emit(term)
+	save_game()
+	return {
+		"term": term, "moved_up": moved_up, "joined": joined,
+		"stayed": stayed.size(), "previous": term_history[term_history.size() - 1],
+	}
 
 
 func sit_exam() -> Dictionary:
@@ -1092,6 +1178,8 @@ func to_dict() -> Dictionary:
 		"graduated": graduated,
 		"cheated": cheated,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
+		"term": term,
+		"term_history": term_history,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -1120,6 +1208,8 @@ func from_dict(d: Dictionary) -> void:
 	# An older save has no size, so it simply reopens at the base room.
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))
+	term = int(d.get("term", 1))
+	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()
 	# where the desks were left. An older save has no "seats" key, so it

@@ -48,6 +48,8 @@ static var term_days: int = 20
 static var exam_pass: float = 0.62
 ## What a fully furnished room is worth ON TOP of a child's own record.
 static var exam_room_bonus: float = 0.08
+## Does passing move a child up and out of your class at the end of term?
+static var term_pass_moves_up: bool = true
 static var upkeep_per_item: int = 3
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
@@ -194,6 +196,7 @@ static func apply(d: Dictionary) -> void:
 	term_days = int(tm.get("days", term_days))
 	exam_pass = float(tm.get("exam_pass", exam_pass))
 	exam_room_bonus = float(tm.get("exam_room_bonus", exam_room_bonus))
+	term_pass_moves_up = bool(tm.get("pass_moves_them_up", term_pass_moves_up))
 
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))

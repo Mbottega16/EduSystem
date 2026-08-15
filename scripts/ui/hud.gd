@@ -88,6 +88,9 @@ var _shown_hints := {}
 ## exactly one transition to remember (class list -> bio -> back).
 var _bio: StudentData = null
 var _bio_sel: int = 0
+## The exam is the one screen whose closing DOES something, so it has to be
+## told apart from every other report.
+var _showing_exam: bool = false
 
 
 func _ready() -> void:
@@ -135,7 +138,9 @@ func _update_status() -> void:
 	# while the clock, your voice and who needs you are the whole job.
 	var left: int = maxi(0, Balance.term_days - Game.day + 1)
 	var teaching: bool = Game.phase == Game.Phase.LESSON
-	var bits: Array[String] = ["Day %d/%d" % [Game.day, Balance.term_days]]
+	var bits: Array[String] = ["%sDay %d/%d" % [
+		"T%d " % Game.term if Game.term > 1 else "",
+		Game.day, Balance.term_days]]
 
 	if teaching:
 		var room := get_tree().get_first_node_in_group("classroom")
@@ -243,6 +248,10 @@ func _open(m: int) -> void:
 	# the same single line that stops one screen leaking into the next
 	rich.visible = false
 	body.visible = true
+	# ...and this one. Closing the exam starts a term; closing anything else
+	# must not. show_exam() sets it again straight after this runs, so the
+	# flag can only ever be true for the screen that set it.
+	_showing_exam = false
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -596,6 +605,7 @@ func _help_line(s: StudentData) -> String:
 ## End of term. The whole run, scored.
 func show_exam(result: Dictionary) -> void:
 	_open(Mode.REPORT)
+	_showing_exam = true
 	Sfx.play("grade")
 	body.visible = false
 	rich.visible = true
@@ -630,8 +640,8 @@ func show_exam(result: Dictionary) -> void:
 	lines.append("[color=#%s]%s[/color]" % [DIM, _term_legacy()])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.6)
-	hint.text = _clip("E - close.%s" % (
-		"   Cheats were used." if Game.cheated else "   That is the term."))
+	hint.text = _clip("E - begin term %d%s" % [Game.term + 1,
+		"   (cheats were used)" if Game.cheated else ""])
 
 
 ## One line on what kind of term that was. It is the last sentence the game
@@ -762,6 +772,57 @@ func show_test_report(results: Array) -> void:
 	# have done differently on the day, which is the point of the instrument.
 	hint.text = "%s   E - close.   The room you built, not the day." % String(
 		Game.lesson.get("standard", ""))
+
+
+## A new term. Who left, who stayed, who is new.
+##
+## This screen is the reward for the one before it: it names what you KEEP.
+## The room, the curriculum and your own experience carry over, because they
+## are what you spent twenty days building -- and the class does not, which
+## is the cost. Teach them well and they move up and out, and you begin
+## again with children you have never met.
+func show_new_term(info: Dictionary) -> void:
+	_open(Mode.REPORT)
+	Sfx.play("start")
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+
+	var prev: Dictionary = info.get("previous", {})
+	title.text = "TERM %d" % int(info.get("term", Game.term))
+
+	var moved: Array = info.get("moved_up", [])
+	var joined: Array = info.get("joined", [])
+	var lines: Array[String] = []
+	lines.append("[color=#%s]Last term: %s, %d of %d passed.[/color]" % [
+		DIM, String(prev.get("letter", "?")), int(prev.get("passed", 0)),
+		int(prev.get("total", 0))])
+	if moved.is_empty():
+		lines.append("[color=#%s]Nobody moved up. They are all still here.[/color]"
+			% C_BAD)
+	else:
+		lines.append("[color=#%s]Moved up:[/color] %s" % [C_GOOD,
+			_names_line(moved)])
+	if not joined.is_empty():
+		lines.append("[color=#%s]New in your class:[/color] %s" % [C_ROOM,
+			_names_line(joined)])
+	lines.append("")
+	lines.append("[color=#%s]You keep[/color]  %d items   %d concepts   level %d   %d coins" % [
+		C_KNOW, Game.room_items.size(), Game.concepts.size(),
+		Game.teacher_level, Game.coins])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.5)
+	hint.text = "E - first day of term %d" % int(info.get("term", Game.term))
+
+
+## First names only, and never more than the line holds.
+func _names_line(names: Array) -> String:
+	var out: Array[String] = []
+	for n: String in names:
+		out.append(String(n).split(" ")[0])
+	var line := ", ".join(out)
+	return line if line.length() <= 34 else line.substr(0, 31) + "..."
 
 
 ## What you have learned to teach, and what is still ahead.
@@ -1438,6 +1499,13 @@ func _handle_input() -> void:
 	if mode == Mode.REPORT or mode == Mode.TITLE:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("confirm")
+			# The end of term used to be a full stop: term_over was set and
+			# nothing anywhere read it, so you closed the exam and day 21,
+			# 22, 23 simply kept coming. It is a doorway now.
+			if _showing_exam:
+				_showing_exam = false
+				show_new_term(Game.next_term())
+				return
 			close()
 		return
 

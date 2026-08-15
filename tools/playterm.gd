@@ -96,8 +96,12 @@ func _play() -> void:
 	await frames(60)
 	var last_day := 0
 
-	for attempt in Balance.term_days * 3:
-		if Game.term_over:
+	# TWO terms, not one. The end of term is a doorway now -- closing the
+	# exam opens the next -- so the question stopped being "does the game
+	# end" and became "does the game CARRY ON", which is the harder one.
+	# term_over cannot be the loop guard any more: next_term() clears it.
+	for attempt in Balance.term_days * 4:
+		if Game.term > 2:
 			break
 		var day: int = Game.day
 
@@ -125,7 +129,7 @@ func _play() -> void:
 			break
 		await hold("manage", 0.9)
 
-		if Game.day == day and not Game.term_over:
+		if Game.day == day and not Game.term_over and Game.term == 1:
 			print("!! day %d: the bell did not ring (F=[%s])"
 				% [day, _offer("manage")])
 			break
@@ -139,7 +143,12 @@ func _play() -> void:
 		await frames(30)                        # the class files back in
 
 	print("\n-- how it finished --")
-	print("   term_over   : %s" % Game.term_over)
+	print("   term        : %d" % Game.term)
+	print("   terms played: %d" % Game.term_history.size())
+	for row: Dictionary in Game.term_history:
+		print("      term %d: %s, %d of %d passed, %d moved up" % [
+			int(row["term"]), String(row["letter"]), int(row["passed"]),
+			int(row["total"]), int(row["moved_up"])])
 	print("   day reached : %d of %d" % [Game.day, Balance.term_days])
 	print("   exam result : %s" % (
 		"%s, %d of %d passed" % [

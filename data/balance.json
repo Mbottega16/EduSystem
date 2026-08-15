@@ -377,7 +377,9 @@
     "days": 20,
     "exam_pass": 0.62,
     "_exam_note": "The exam is a child's own record, plus a little for the room you sat them in. It used to be average*0.75 + room*0.35, which counted the room TWICE -- room_score is already inside every daily grade -- and marked down everyone whose average was above 0.39. A child who averaged an A all term sat the exam in a bare room and got a B.",
-    "exam_room_bonus": 0.08
+    "exam_room_bonus": 0.08,
+    "_next_term_note": "What survives a term. The ROOM you built, the curriculum you learned, your own level and perks, and your coins all carry over -- they are the things you spent the term making, and taking them away would make the term a sandbox rather than a chapter. What does NOT carry is the class: children who passed move up and out, and children who did not stay for another go, keeping their record.",
+    "pass_moves_them_up": true
   },
   "upkeep": {
     "_note": "Furniture needs replacing. A per-item daily cost means coins never just pile up, and a huge room you cannot afford is a real decision.",
