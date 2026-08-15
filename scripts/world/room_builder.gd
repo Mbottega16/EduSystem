@@ -278,6 +278,10 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(BOARD_SCRIPT)
 	body.add_child(it)
+	# Same reason as the curriculum board it shares a tile with: at the
+	# default the shop answered from the BELL's square two tiles away, so
+	# the morning offered "Furniture shop" while standing at the bell.
+	it.set_pick_radius(12.0)
 
 	# Same board, other button: E is the shop, F is what you have learned to
 	# teach. Both are always live, which is fine -- the picker only has to

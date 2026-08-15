@@ -418,8 +418,16 @@ func end_test() -> Array:
 	lesson_left = 0.0
 	var results := Game.grade_test()
 	Game.set_phase(Game.Phase.AFTERNOON)
+	# The bell settles them. Confusion was already cleared here; disruption
+	# was not, so a child who had been playing up stayed "playing up" for the
+	# whole afternoon -- red bubble over their head, "Have a word with Quinn"
+	# offered at their desk -- with no lesson left to disrupt.
+	#
+	# Note the ORDER: the inspection above has already been taken, so the
+	# inspector still sees exactly who was still going at the bell.
 	for s: StudentData in Game.roster:
 		s.confusion = 0.0
+		s.disrupting = false
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
@@ -467,8 +475,16 @@ func end_lesson() -> Array:
 	var results := Game.grade_class()
 	Game.assign_homework()
 	Game.set_phase(Game.Phase.AFTERNOON)
+	# The bell settles them. Confusion was already cleared here; disruption
+	# was not, so a child who had been playing up stayed "playing up" all
+	# afternoon -- red bubble up, "Have a word with Quinn" offered at their
+	# desk -- with no lesson left to disrupt.
+	#
+	# Note the ORDER: the inspection above has already been taken, so the
+	# inspector still sees exactly who was still going at the bell.
 	for s: StudentData in Game.roster:
 		s.confusion = 0.0
+		s.disrupting = false
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)

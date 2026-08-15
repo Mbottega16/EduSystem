@@ -2070,6 +2070,45 @@ func test_panels_fit() -> void:
 		_overflow(hud.body, PANEL_LINES))
 	hud.close()
 
+	# THE BELL SETTLES THEM. Disruption used to survive the lesson it
+	# belonged to: a child who had been playing up kept a red bubble and
+	# kept offering "have a word" for the whole afternoon, with no lesson
+	# left to disrupt. Found by tools/audit.gd, which stands at every
+	# landmark in every phase -- no unit test was ever in the afternoon
+	# with a disruptive child.
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	await step(4)
+	Game.roster[0].disrupting = true
+	chk("somebody is playing up during the lesson", Game.roster[0].disrupting)
+	world.end_lesson()
+	await step(2)
+	chk("and the bell settles them", not Game.roster[0].disrupting)
+	chk("so nobody is still on offer to have a word with", (func() -> bool:
+		for st: Interactable in world.stations:
+			if st.action() == st.Action.SETTLE:
+				return false
+		return true).call())
+	hud.close()
+	await step(2)
+
+	# Landmarks must not answer from each other's squares. Reach is the SUM
+	# of both circles, so the board two tiles away was covering the bell.
+	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	Game.set_phase(Game.Phase.MORNING)
+	await step(3)
+	chk("nothing from the noticeboard reaches the bell's own square",
+		(func() -> bool:
+			for action: String in ["interact", "manage"]:
+				var t: Interactable = world.player.targets.get(action)
+				if t != null and is_instance_valid(t) and t.can_interact():
+					if t.prompt_text().contains("Curriculum") 							or t.prompt_text().contains("shop"):
+						return false
+			return true).call(),
+		"%s / %s" % [world.player.targets["interact"],
+			world.player.targets["manage"]])
+	Game.set_phase(Game.Phase.AFTERNOON)
+
 	# The PROMPT BAR names both buttons now, and two landmarks sharing a tile
 	# is exactly when it is longest. It is a Label, so it clips in silence.
 	Game.set_phase(Game.Phase.AFTERNOON)
