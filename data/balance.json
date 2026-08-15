@@ -435,12 +435,14 @@
   "quiz": {
     "_note": "The in-lesson diagnostic. Carries NO direct grade weight on purpose -- the three-row balance contract is measured without one, and a quiz that paid grade would quietly move the pillar. What it buys is information: who is behind, while there is still lesson left to do something about it. It costs 14 of a 45-second lesson, raised from 10 after the term simulator showed quizzing paying about ten times the coins at an identical grade -- which is not a decision, it is a formality.",
     "questions": 4,
-    "seconds_cost": 14.0,
+    "seconds_cost": 11.0,
     "flag_below": 0.5,
     "retrieval_seconds": 1.5,
     "resolve_seconds": 6.0,
     "affinity_bonus": 0.15,
-    "misjudged_penalty": 0.2
+    "misjudged_penalty": 0.2,
+    "_buff_note": "A quiz cost 14 of a 45-second lesson and returned 1.5s of work per student plus 6s per flagged child -- break-even at about four students on time alone, and nothing of it survived the bell. It now leaves the class FOCUSED for the rest of the lesson: they have just been made to think, so they get stuck less. That is the retrieval-practice claim the 1.5s was already gesturing at, made into something you can feel.",
+    "focus_stall_mult": 0.6
   },
   "graduation": {
     "_note": "What sending a child up is worth. Scaled by readiness, so graduating someone the moment they qualify pays less than seeing them through.",

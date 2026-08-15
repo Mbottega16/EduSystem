@@ -374,6 +374,7 @@ func start_lesson() -> int:
 	Balance.ensure_loaded()
 	Game.set_phase(Game.Phase.LESSON)
 	Game.quiz_done = false        # one quiz per lesson, so a new one re-arms it
+	Game.quiz_focus = false       # and the focus it bought goes with it
 	lesson_left = Game.lesson_length()
 	var n := 0
 	for s: StudentData in Game.roster:

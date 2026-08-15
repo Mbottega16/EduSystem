@@ -141,6 +141,7 @@ func _main() -> void:
 	await test_bubbles()
 	await test_screens_explain_themselves()
 	await test_voice()
+	await test_quiz_buff_and_calm()
 	await test_inspection()
 	await test_disruption()
 	await test_overlays()
@@ -3358,6 +3359,94 @@ func test_screens_explain_themselves() -> void:
 	chk("and the detail line names what teaching it again would unlock",
 		hud.hint.text.contains("unlocks"), hud.hint.text)
 	hud.close()
+
+
+
+func test_quiz_buff_and_calm() -> void:
+	section("WHAT A QUIZ BUYS, AND A PERK THAT WORKS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var s: StudentData = Game.roster[0]
+	s.trait_id = "steady"
+
+	# --- the quiz leaves the class FOCUSED ---
+	# It used to cost 14 seconds of a 45-second lesson and leave nothing
+	# behind at all: no grade term, no lasting effect, not even a saved
+	# field. Break-even was about four students on time alone.
+	Game.set_phase(Game.Phase.LESSON)
+	Game.quiz_focus = false
+	var before := s.stall_chance()
+	Game.quiz_focus = true
+	var after := s.stall_chance()
+	chk("a quiz makes the class harder to distract", after < before,
+		"%.4f -> %.4f" % [before, after])
+	chk("by the amount the table says",
+		is_equal_approx(after, before * Balance.quiz_focus_mult), after)
+
+	chk("running one really does set it", (func() -> bool:
+		Game.quiz_focus = false
+		Game.quiz_done = false
+		Game.run_quiz()
+		return Game.quiz_focus).call())
+
+	# it belongs to the lesson, like everything else about a lesson
+	world.start_lesson()
+	chk("and a new lesson starts unfocused again", not Game.quiz_focus)
+
+	# ...and to the RUN. This leaked at first: the term simulator quizzes in
+	# one policy and then measures the balance contract in another, and the
+	# focus carried over into a row that was supposed to have no quiz in it.
+	# It read 0.73 instead of 0.69 and nothing in the suite noticed, because
+	# a balance row moving is not a failing assertion.
+	Game.quiz_focus = true
+	Game.new_run(SEED)
+	chk("and a new RUN is never left focused from the last one",
+		not Game.quiz_focus)
+	await step(2)
+	Game.set_phase(Game.Phase.LESSON)
+
+	# The cost has to stay worth paying but not free.
+	chk("a quiz still costs a real slice of the lesson",
+		Balance.quiz_seconds_cost > 5.0
+		and Balance.quiz_seconds_cost < Balance.lesson_seconds * 0.4,
+		Balance.quiz_seconds_cost)
+
+	# --- Calm Presence ---
+	# THE BUG: this perk has been purchasable since perks existed and did
+	# nothing whatsoever. Progress.calm_multiplier() had no caller anywhere
+	# in scripts/ -- only a test asserted the maths of a function the game
+	# never called.
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.LESSON)
+	var t: StudentData = Game.roster[0]
+	t.trait_id = "steady"
+	Game.quiz_focus = false
+	Game.perk_ranks.clear()
+	var plain := t.stall_chance()
+
+	Game.perk_ranks["calm_presence"] = 1
+	world.player.global_position = Grid.tile_to_world(
+		Layout.seat(t.seat_index) + Vector2i(1, 0))
+	await step(2)
+	chk("standing next to a child settles them", t.stall_chance() < plain,
+		"%.4f -> %.4f" % [plain, t.stall_chance()])
+
+	world.player.global_position = Grid.tile_to_world(Vector2i(1, Grid.H - 2))
+	await step(2)
+	chk("and from across the room it does nothing",
+		is_equal_approx(t.stall_chance(), plain), t.stall_chance())
+
+	Game.perk_ranks.clear()
+	world.player.global_position = Grid.tile_to_world(
+		Layout.seat(t.seat_index) + Vector2i(1, 0))
+	await step(2)
+	chk("without the perk, standing there changes nothing",
+		is_equal_approx(t.stall_chance(), plain), t.stall_chance())
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 

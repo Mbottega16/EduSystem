@@ -120,6 +120,11 @@ func new_run(seed_value: int = 0) -> void:
 	taught.clear()
 	concepts.clear()
 	quiz_done = false
+	# and the focus a quiz leaves behind. Without this the buff leaked
+	# ACROSS runs: the term simulator quizzes in one policy and then
+	# measures the balance contract in another, so a row that should
+	# have had no quiz in it was quietly reading 0.69 -> 0.73.
+	quiz_focus = false
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -853,10 +858,33 @@ func raise_voice(from: Vector2i) -> int:
 	return settled
 
 
+## Calm Presence, finally wired up: a child sitting near the teacher gets
+## stuck less often.
+##
+## The perk has been on sale since perks existed and did absolutely nothing
+## -- Progress.calm_multiplier() had no caller in the whole of scripts/. A
+## perk you can spend on that does not work is worse than one that does not
+## exist, because you paid for it.
+func calm_multiplier_at(seat_index: int) -> float:
+	Balance.ensure_loaded()
+	if seat_index < 0 or perk_ranks.get("calm_presence", 0) == 0:
+		return 1.0
+	var room := get_tree().get_first_node_in_group("classroom") if is_inside_tree() else null
+	if room == null or room.player == null or not is_instance_valid(room.player):
+		return 1.0
+	var seat := Grid.tile_to_world(Layout.seat(seat_index))
+	if seat.distance_to(room.player.global_position) > Progress.calm_radius(perk_ranks):
+		return 1.0
+	return Progress.calm_multiplier(perk_ranks)
+
+
 ## Has today's lesson already been interrupted for a quiz? One per lesson:
 ## the cost is lesson TIME, and without a limit the right play would be to
 ## run it over and over until everybody had been flagged and resolved.
 var quiz_done: bool = false
+## The class has been made to think, and is harder to distract for the rest
+## of the lesson. Cleared with the lesson, like everything else about it.
+var quiz_focus: bool = false
 
 
 ## Sit the whole class down for a quick quiz. Returns a row per student,
@@ -882,6 +910,7 @@ func run_quiz() -> Dictionary:
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a["score"]) < float(b["score"]))
 	quiz_done = true
+	quiz_focus = true
 	return {
 		"rows": rows, "flagged": flagged,
 		"average": total / maxf(1.0, float(rows.size())),

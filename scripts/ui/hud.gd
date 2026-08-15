@@ -153,6 +153,9 @@ func _update_status() -> void:
 		if not Game.test_active:
 			var pips := int(round(Game.voice * 4.0))
 			bits.append("voice %s%s" % ["|".repeat(pips), ".".repeat(4 - pips)])
+		# A buff you cannot see is a buff you do not believe in.
+		if Game.quiz_focus:
+			bits.append("FOCUSED")
 	else:
 		bits.append(Curriculum.short_name(Game.lesson))
 		bits.append("%d coins" % Game.coins)

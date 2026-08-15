@@ -346,6 +346,14 @@ func stall_chance() -> float:
 		c *= (1.0 - Balance.affinity_bonus)      # on a good day for them
 	c *= Game.event_stall_multiplier()
 	c *= Traits.value(trait_id, "stall_mult", 1.0)
+	# Just been made to think. This is what a quiz BUYS, and the reason it
+	# is worth eleven seconds of a forty-five second lesson.
+	if Game.quiz_focus:
+		c *= Balance.quiz_focus_mult
+	# Calm Presence: students near you get stuck less often. This perk has
+	# been purchasable since perks existed and did nothing at all --
+	# Progress.calm_multiplier() had no caller anywhere in scripts/.
+	c *= Game.calm_multiplier_at(seat_index)
 	# Somebody chatty at the next desk drags this one off task too. It is
 	# the reason a seating plan is a decision rather than decoration.
 	c *= neighbour_stall_multiplier()

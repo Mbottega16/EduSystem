@@ -118,6 +118,8 @@ static var quiz_retrieval_seconds: float = 1.5
 static var quiz_resolve_seconds: float = 6.0
 static var quiz_affinity_bonus: float = 0.15
 static var quiz_misjudged_penalty: float = 0.2
+## What a quiz does to the stall chance for the rest of the lesson.
+static var quiz_focus_mult: float = 0.6
 
 # --- graduation & coaching ----------------------------------------------
 static var grad_base_coins: int = 90
@@ -274,6 +276,7 @@ static func apply(d: Dictionary) -> void:
 	quiz_resolve_seconds = float(qz.get("resolve_seconds", quiz_resolve_seconds))
 	quiz_affinity_bonus = float(qz.get("affinity_bonus", quiz_affinity_bonus))
 	quiz_misjudged_penalty = float(qz.get("misjudged_penalty", quiz_misjudged_penalty))
+	quiz_focus_mult = float(qz.get("focus_stall_mult", quiz_focus_mult))
 
 	var gr: Dictionary = d.get("graduation", {})
 	grad_base_coins = int(gr.get("base_coins", grad_base_coins))
