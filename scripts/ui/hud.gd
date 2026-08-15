@@ -35,6 +35,9 @@ signal perk_bought()
 ## A Label is one colour by definition, and the curriculum is a list of four
 ## different subjects -- which is exactly the thing colour is for.
 @onready var rich: RichTextLabel = $Overlay/Rich
+## The reveal running on the rich body, kept so a screen opened twice in
+## quick succession cannot leave two of them fighting over visible_ratio.
+var _reveal: Tween = null
 @onready var hint: Label = $Overlay/Hint
 @onready var portrait: TextureRect = $Overlay/Portrait
 
@@ -626,6 +629,7 @@ func show_exam(result: Dictionary) -> void:
 	# term actually leaves behind, and none of them were on this screen.
 	lines.append("[color=#%s]%s[/color]" % [DIM, _term_legacy()])
 	rich.text = "\n".join(lines)
+	_reveal_rich(0.6)
 	hint.text = _clip("E - close.%s" % (
 		"   Cheats were used." if Game.cheated else "   That is the term."))
 
@@ -838,8 +842,8 @@ func show_curriculum() -> void:
 	# English rows green, both maths rows blue) rather than being the only
 	# thing carrying the meaning. A key would cost a subject to explain
 	# something the screen already says in words.
-	rich.text = "
-".join(lines)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.35)
 	if known == 0:
 		hint.text = "E - close.   Teach a lesson and you start to learn it too."
 	else:
@@ -847,6 +851,39 @@ func show_curriculum() -> void:
 			Game.concept_bonus() * 100.0,
 			" (capped)" if Game.concept_bonus()
 				>= Balance.concept_bonus_cap - 0.0001 else ""])
+
+
+## Wipe the rich body on, left to right.
+##
+## RichTextLabel.visible_ratio does this for free, and on a screen built out
+## of coloured bars it reads as the bars FILLING rather than as text typing --
+## which is the whole reason these screens are bars and not numbers.
+##
+## Deliberately quick. This is a result you are waiting for, and an
+## animation you have to sit through stops being juice the second time you
+## see it.
+func _reveal_rich(seconds: float = 0.35) -> void:
+	if _reveal != null and _reveal.is_valid():
+		_reveal.kill()
+	rich.visible_ratio = 0.0
+	_reveal = create_tween()
+	_reveal.tween_property(rich, "visible_ratio", 1.0, seconds) 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## What one item is worth to a desk, as a small bar.
+##
+## The catalogue used to describe every item with the same four words --
+## "helps a little, close by" -- which made a 40-coin cushion and a 320-coin
+## lab bench read identically. Scaled against the best bonus in the game, so
+## the bar answers "compared to what" rather than being a number with no
+## scale attached.
+func _worth_bar(bonus: float) -> String:
+	var best := 0.001
+	for id: String in Items.order():
+		best = maxf(best, float(Items.get_def(id).get("bonus", 0.0)))
+	var n := clampi(int(round(bonus / best * 5.0)), 1, 5)
+	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
+		C_LESSON, BAR_FULL.repeat(n), BAR_EMPTY.repeat(5 - n)]
 
 
 ## Filled and empty marks rather than "2/3", so a row reads at a glance.
@@ -941,30 +978,136 @@ func _why(s: StudentData) -> String:
 	return ", ".join(bits)
 
 
+## The colours the whole game grades in. One meaning per hue, everywhere:
+## a bar segment, a legend and a breakdown line all use the same blue for
+## "the room", so the colour itself carries the meaning after one reading.
+const C_ROOM := "8ab4f8"       # the room you built
+const C_LESSON := "9fd89f"     # the lesson you taught
+const C_HOMEWORK := "f2c66b"   # homework marked
+const C_KNOW := "d0a3e8"       # knowing your material
+const C_GOOD := "9fd89f"
+const C_BAD := "d08a86"
+const C_COIN := "f2c66b"
+
+## One colour per shop category, so a row's hue says what KIND of thing it
+## is before the name is read -- and the tab strip is the key, because the
+## selected tab is drawn in the same hue as the rows beneath it.
+const CAT_COLOUR := {
+	"seating": "8ab4f8",     # blue
+	"surfaces": "c9a87c",    # wood
+	"learning": "9fd89f",    # green
+	"comfort": "f2a0b5",     # rose
+	"decor": "d0a3e8",       # violet
+}
+
+
+static func cat_colour(cat: String) -> String:
+	return String(CAT_COLOUR.get(cat, "cfcfcf"))
+
+## Bars are drawn with block characters rather than #, because a solid bar
+## reads as a quantity at a glance and a row of hashes reads as text.
+const BAR_FULL := "█"
+const BAR_EMPTY := "░"
+
+
+## One stacked bar, in segments, each in its own colour.
+## `parts` is [[amount 0..1, colour], ...]; the remainder is drawn empty.
+func _stacked_bar(parts: Array, width: int = 30) -> String:
+	var out := ""
+	var used := 0
+	for part: Array in parts:
+		var n: int = clampi(int(round(float(part[0]) * float(width))), 0,
+			width - used)
+		if n > 0:
+			out += "[color=#%s]%s[/color]" % [String(part[1]),
+				BAR_FULL.repeat(n)]
+			used += n
+	if used < width:
+		out += "[color=#3a3a42]%s[/color]" % BAR_EMPTY.repeat(width - used)
+	return out
+
+
+## WHERE TODAY'S GRADE CAME FROM, as one bar the class can be read off.
+##
+## This exists because the grade model is four terms deep and the player was
+## shown only the letter that fell out of the end. "The maths does not make
+## sense" is the correct reaction to a number with no working shown -- so
+## the working is shown.
+func _grade_breakdown() -> Array[String]:
+	Balance.ensure_loaded()
+	var n := maxf(1.0, float(Game.roster.size()))
+	var room := 0.0
+	var lesson := 0.0
+	var hw := 0.0
+	for st: StudentData in Game.roster:
+		room += Game.room_score(st.seat_index)
+		var l: float = st.work_fraction() * Balance.lesson_cap
+		if st.work_state != StudentData.Work.COLLECTED:
+			l *= Balance.uncollected_penalty
+		lesson += l
+		if st.hw_state == StudentData.HW.MARKED:
+			var h: float = Balance.homework_cap * st.hw_true_accuracy
+			if not st.verdict_was_right():
+				h *= Balance.verdict_weight
+			hw += h
+	room /= n
+	lesson /= n
+	hw /= n
+	var know := Game.concept_bonus()
+
+	return [
+		_stacked_bar([[room, C_ROOM], [lesson, C_LESSON],
+			[hw, C_HOMEWORK], [know, C_KNOW]]),
+		"[color=#%s]room %s[/color]  [color=#%s]lesson %s[/color]  [color=#%s]hw %s[/color]  [color=#%s]known %s[/color]" % [
+			C_ROOM, _pct(room), C_LESSON, _pct(lesson),
+			C_HOMEWORK, _pct(hw), C_KNOW, _pct(know)],
+	]
+
+
+func _pct(v: float) -> String:
+	return "%d%%" % int(round(v * 100.0))
+
+
 func show_day_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	_open(Mode.REPORT)
-	# Eleven lines in a five-line panel, once a day had both an arrival and
-	# an event. The average and the days left move to the TITLE -- they are
-	# the two numbers you actually look for -- and each remaining line does
-	# a whole job instead of a third of one.
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+
+	var avg := float(report.get("average", 0.0))
+	var letter := Game.grade_letter(avg)
 	title.text = "DAY %d  -  %s  -  %d LEFT" % [
-		int(report.get("day", 0)),
-		Game.grade_letter(float(report.get("average", 0.0))),
-		int(report.get("days_left", 0))]
-	var lines: Array[String] = [
-		_clip("Earned %d coins, less %d upkeep." % [
-			int(report.get("coins", 0)), int(report.get("upkeep", 0))]),
-		_clip("Homework: %d of %d came back." % [
-			int(report.get("homework_done", 0)), Game.roster.size()]),
-	]
+		int(report.get("day", 0)), letter, int(report.get("days_left", 0))]
+
+	var lines: Array[String] = []
+	lines.append_array(_grade_breakdown())
+	lines.append("")
+
+	var earned: int = int(report.get("coins", 0))
+	var upkeep: int = int(report.get("upkeep", 0))
+	lines.append("[color=#%s]+%d coins[/color]   [color=#%s]-%d upkeep[/color]   = [color=#%s]%d[/color]" % [
+		C_COIN, earned, C_BAD, upkeep,
+		C_GOOD if earned - upkeep >= 0 else C_BAD, earned - upkeep])
+
+	var done: int = int(report.get("homework_done", 0))
+	var of: int = maxi(1, Game.roster.size())
+	lines.append("Homework  %s  [color=#%s]%d of %d[/color]" % [
+		_stacked_bar([[float(done) / float(of), C_HOMEWORK]], 12),
+		C_GOOD if done * 2 >= of else C_BAD, done, of])
+
 	if String(report.get("joined", "")) != "":
-		lines.append(_clip("%s has joined the class." % String(report["joined"])))
+		lines.append("[color=#%s]%s has joined the class.[/color]" % [
+			C_GOOD, String(report["joined"])])
 	if String(report.get("event", "")) != "":
-		lines.append(_clip("Tomorrow: %s" % String(report["event"])))
-		lines.append(_clip(String(report.get("event_blurb", ""))))
-	body.text = "\n".join(lines)
-	hint.text = "E — close"
+		lines.append("[color=#%s]Tomorrow: %s[/color]  %s" % [
+			C_KNOW, String(report["event"]),
+			String(report.get("event_blurb", ""))])
+
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.45)
+	hint.text = "E - close"
 
 
 func open_catalogue() -> void:
@@ -994,6 +1137,12 @@ func _shop_rows() -> Array:
 
 
 func _render_catalogue() -> void:
+	# The shop is a list of five KINDS of thing at four different prices --
+	# exactly what colour is for, and a Label is one colour by definition.
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
 	# The shop grew a blurb line and the staff room lists five perks, so the
 	# default font 10 (about 6 lines in a 128px body) ran under the hint bar.
 	body.add_theme_font_size_override("font_size", 8)
@@ -1005,10 +1154,16 @@ func _render_catalogue() -> void:
 	if _shop == Shop.BUY:
 		var cats := Items.categories()
 		for i in cats.size():
-			# initials for the tabs you are NOT on; the full word only for
-			# the one you are, which is the only one you need to read
+			# Every tab in its own colour, so the strip is the key to the
+			# rows below it. The one you are on gets the full word and the
+			# brackets; the rest get three letters, because they are there
+			# to be aimed at rather than read.
 			var label := Items.category_label(String(cats[i]))
-			tabs += ("[%s]" % label) if i == _cat else (" %s " % label.substr(0, 3))
+			var hue := cat_colour(String(cats[i]))
+			if i == _cat:
+				tabs += "[color=#%s][%s][/color]" % [hue, label]
+			else:
+				tabs += "[color=#%s] %s [/color]" % [hue, label.substr(0, 3)]
 	var heading := "BUY FURNITURE"
 	if _shop == Shop.SELL:
 		heading = "SELL FURNITURE"
@@ -1046,10 +1201,17 @@ func _render_catalogue() -> void:
 		for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
 			var id: String = rows[i]
 			var d := Items.get_def(id)
-			lines.append(_clip("%s %-13s %4d  %-16s%s" % [
-				">" if i == _sel else " ", String(d["name"]), int(d["cost"]),
-				_reach_words(int(d["range"]), float(d["bonus"])),
-				"" if Game.can_afford(int(d["cost"])) else "  too dear"]))
+			var afford: bool = Game.can_afford(int(d["cost"]))
+			var hue := cat_colour(Items.category_of(id))
+			# The price is the thing you are actually deciding on, so it
+			# carries the yes/no colour rather than the name doing it.
+			lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
+				">" if i == _sel else " ", hue if afford else DIM,
+				String(d["name"]).substr(0, 13),
+				C_GOOD if afford else C_BAD, int(d["cost"]),
+				_worth_bar(float(d["bonus"])),
+				"[color=#%s]%s[/color]" % [DIM,
+					_reach_words(int(d["range"]), float(d["bonus"]))]])
 		if lo + LIST_ROWS < rows.size():
 			lines.append("   ...")
 		# The blurb rides on the HINT bar rather than taking a body line. The
@@ -1072,13 +1234,16 @@ func _render_catalogue() -> void:
 		if lo2 + LIST_ROWS < rows.size():
 			lines.append("   ...")
 		lines.append("Selling gives back half. To MOVE one, walk to it.")
-	body.text = "\n".join(lines)
+	rich.text = "\n".join(lines)
+	# NO reveal here. The catalogue re-renders on every keypress, so a
+	# wipe would restart under your fingers each time you moved the
+	# selection. Animate results you are handed, never a list you are
+	# steering.
+	rich.visible_ratio = 1.0
 	var verb := "order"
 	var next_tab := "sell list"
 	if _shop == Shop.BUY:
 		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E order   Esc close"
-		body.text = "
-".join(lines)
 		return
 	if _shop == Shop.SELL:
 		verb = "sell"

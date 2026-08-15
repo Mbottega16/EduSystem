@@ -46,6 +46,8 @@ static var enrol_min_average: float = 0.62
 # --- homework ----------------------------------------------------------
 static var term_days: int = 20
 static var exam_pass: float = 0.62
+## What a fully furnished room is worth ON TOP of a child's own record.
+static var exam_room_bonus: float = 0.08
 static var upkeep_per_item: int = 3
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
@@ -191,6 +193,7 @@ static func apply(d: Dictionary) -> void:
 	var tm: Dictionary = d.get("term", {})
 	term_days = int(tm.get("days", term_days))
 	exam_pass = float(tm.get("exam_pass", exam_pass))
+	exam_room_bonus = float(tm.get("exam_room_bonus", exam_room_bonus))
 
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))

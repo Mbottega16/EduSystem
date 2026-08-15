@@ -59,8 +59,11 @@ func _ready() -> void:
 
 	if screen != "":
 		_open_screen(main, screen)
-		await get_tree().physics_frame
-		await get_tree().physics_frame
+		# Long enough for the reveal to FINISH. Two frames caught the result
+		# screens mid-wipe, which photographs an animation rather than a
+		# layout -- and layout is the only thing these shots are for.
+		for i in 70:
+			await get_tree().physics_frame
 
 	await RenderingServer.frame_post_draw
 

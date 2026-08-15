@@ -317,14 +317,34 @@ func lesson_length() -> float:
 ## student's own record across the term, plus the room you sat them in. This
 ## is what a run is FOR — without it the days just keep coming and nothing
 ## ever resolves.
+## What one child scores in the exam: THEIR OWN RECORD, plus a little for
+## the room you sat them in.
+##
+## It used to be average*0.75 + room*0.35, and that counted the room twice --
+## room_score is already a term inside every single daily grade. The two
+## weights summed to 1.10, corresponded to nothing, and marked down everyone
+## whose average was better than 0.39. A child who averaged an A for twenty
+## days sat the exam in a bare room and came out with a B, which is not a
+## result anybody could explain to themselves.
+##
+## The room's contribution is normalised to what YOU ADDED (room_score above
+## room_base, over the range you can actually buy), so a bare room changes
+## nothing at all and a finished one is worth about half a letter.
+func exam_score_for(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
+	var built: float = clampf(
+		(room_score(s.seat_index) - Balance.room_base) / span, 0.0, 1.0)
+	return clampf(s.average_grade() + built * Balance.exam_room_bonus, 0.0, 1.0)
+
+
 func sit_exam() -> Dictionary:
 	Balance.ensure_loaded()
 	var rows: Array = []
 	var total := 0.0
 	for s: StudentData in roster:
-		var score := clampf(
-			s.average_grade() * 0.75 + room_score(s.seat_index) * 0.35, 0.0, 1.0)
-		total += score
+		total += exam_score_for(s)
+		var score := exam_score_for(s)
 		rows.append({
 			"student": s, "score": score, "letter": grade_letter(score),
 			"passed": score >= Balance.exam_pass,

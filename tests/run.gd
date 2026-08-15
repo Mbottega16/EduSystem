@@ -125,6 +125,7 @@ func _main() -> void:
 	await test_moving_desks()
 	await test_quiz()
 	test_concepts()
+	test_exam_maths()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -1518,6 +1519,56 @@ func test_concepts() -> void:
 	Game.delete_save()
 
 
+func test_exam_maths() -> void:
+	section("THE EXAM ADDS UP")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	# THE BUG. The exam was average*0.75 + room*0.35, which counted the room
+	# TWICE -- room_score is already a term inside every daily grade -- and
+	# so marked down everyone whose record was better than 0.39. A child who
+	# averaged an A for twenty days sat it in a bare room and got a B, which
+	# is not a result anybody could explain to themselves.
+	Game.room_items.clear()
+	s.grades.clear()
+	s.grades.append(0.90)
+	chk("in a bare room the exam IS their record, to the letter",
+		Game.grade_letter(Game.exam_score_for(s)) == Game.grade_letter(0.90),
+		"%.3f vs %.3f" % [Game.exam_score_for(s), 0.90])
+	chk("and to the number", is_equal_approx(Game.exam_score_for(s), 0.90),
+		Game.exam_score_for(s))
+
+	# every band, not just the top one
+	for want: float in [0.90, 0.80, 0.70, 0.62, 0.50, 0.40]:
+		s.grades.clear()
+		s.grades.append(want)
+		chk("a record of %s sits an exam of %s in a bare room" % [
+			Game.grade_letter(want), Game.grade_letter(want)],
+			Game.grade_letter(Game.exam_score_for(s)) == Game.grade_letter(want),
+			"%.2f -> %.3f" % [want, Game.exam_score_for(s)])
+
+	# the room can only ever help, and only by a little
+	s.grades.clear()
+	s.grades.append(0.70)
+	var bare := Game.exam_score_for(s)
+	var guard := 0
+	while Game.room_score(s.seat_index) < Balance.room_cap - 0.001 and guard < 60:
+		Game.room_items.append({"id": Items.order()[guard % Items.order().size()],
+			"tile": Layout.seat(s.seat_index) + Vector2i(0, -1)})
+		guard += 1
+	var furnished := Game.exam_score_for(s)
+	chk("the room you built helps", furnished > bare,
+		"%.3f -> %.3f" % [bare, furnished])
+	chk("but by about half a letter, not by a grade and a half",
+		furnished - bare <= Balance.exam_room_bonus + 0.001,
+		furnished - bare)
+	chk("and it can never make the exam worse than the record",
+		furnished >= s.average_grade() - 0.001)
+
+	Game.new_run(SEED)
+
+
 func test_transcript() -> void:
 	section("A CHILD'S OWN RECORD")
 	Balance.ensure_loaded()
@@ -2055,14 +2106,15 @@ func test_panels_fit() -> void:
 	report["event_blurb"] = "Nobody is going to concentrate today."
 	hud.show_day_report(report)
 	chk("the end-of-day report fits with everything on it",
-		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
+		hud.rich.text.split("\n").size() <= 11,
+		"%d rows" % hud.rich.text.split("\n").size())
 	hud.close()
 
 	Game.cheated = true          # the cheat notice is one more line
 	hud.show_exam(Game.sit_exam())
 	chk("the end-of-term exam fits a full class",
-		_fits(hud.body, PANEL_LINES), _overflow(hud.body, PANEL_LINES))
-	Game.cheated = false
+		hud.rich.text.split("\n").size() <= 11,
+		"%d rows" % hud.rich.text.split("\n").size())
 	hud.close()
 
 	# The two RICH screens are not Labels, so _fits() cannot see them -- they
@@ -2074,25 +2126,19 @@ func test_panels_fit() -> void:
 			.get("id", "")))
 	hud.show_curriculum()
 	chk("the curriculum fits every subject in the panel",
-		hud.rich.text.split("
-").size() <= RICH_ROWS,
-		"%d rows" % hud.rich.text.split("
-").size())
+		hud.rich.text.split("\n").size() <= RICH_ROWS,
+		"%d rows" % hud.rich.text.split("\n").size())
 	chk("and it really is showing all of them",
-		hud.rich.text.split("
-").size() >= Curriculum.lessons.size(),
-		hud.rich.text.split("
-").size())
+		hud.rich.text.split("\n").size() >= Curriculum.lessons.size(),
+		"len=%d  text=%s" % [hud.rich.text.length(), hud.rich.text.substr(0, 220)])
 	hud.close()
 
 	while Game.enrol() != null:
 		pass
 	hud.show_exam(Game.sit_exam())
 	chk("a full class fits on the end-of-term board",
-		hud.rich.text.split("
-").size() <= RICH_ROWS,
-		"%d rows" % hud.rich.text.split("
-").size())
+		hud.rich.text.split("\n").size() <= RICH_ROWS,
+		"%d rows" % hud.rich.text.split("\n").size())
 	chk("and the board says what the term left behind",
 		hud.rich.text.contains("concept") and hud.rich.text.contains("room"),
 		hud.rich.text)
@@ -3215,8 +3261,8 @@ func test_shop() -> void:
 	await tap("menu")
 	chk("Tab switches to the SELL list", hud._shop == hud.Shop.SELL)
 	chk("the sell list shows what is actually in the room",
-		hud.body.text.contains("Bookshelf") and hud.body.text.contains("Potted Plant"),
-		hud.body.text)
+		hud.rich.text.contains("Bookshelf") and hud.rich.text.contains("Potted Plant"),
+		hud.rich.text)
 
 	var coins_before: int = Game.coins
 	var refund: int = Game.sell_value(String(Game.room_items[hud._sel]["id"]))
@@ -4416,13 +4462,13 @@ func test_shop_and_staff() -> void:
 	chk("Tab moves to the sell list", hud._shop == hud.Shop.SELL)
 	await tap("menu")
 	chk("Tab again reaches the staff room", hud._shop == hud.Shop.STAFF)
-	chk("which shows your level", hud.body.text.contains("Level"), hud.body.text)
+	chk("which shows your level", hud.rich.text.contains("Level"), hud.rich.text)
 	chk("and no picture, because there is nothing to look at",
 		not hud.portrait.visible)
 	await tap("menu")
 	chk("Tab again reaches the room itself", hud._shop == hud.Shop.ROOM)
 	chk("which tells you how big your classroom is",
-		hud.body.text.contains("%d by %d" % [Grid.W, Grid.H]), hud.body.text)
+		hud.rich.text.contains("%d by %d" % [Grid.W, Grid.H]), hud.rich.text)
 	await tap("menu")
 	chk("and Tab cycles back round to buying", hud._shop == hud.Shop.BUY)
 
