@@ -266,12 +266,23 @@ func _physics_process(delta: float) -> void:
 		# stuck in a test, because you would not be allowed to go and
 		# unstick them if they did.
 		var roll: RandomNumberGenerator = null if Game.test_active else Game.rng
+		# A test is sat in silence and marks itself: nobody is teaching it,
+		# so it runs at full rate regardless of where the teacher stands.
+		var rate: float = 1.0 if Game.test_active else Game.work_rate()
 		for s: StudentData in Game.roster:
-			if s.tick_work(delta, roll):
+			if s.tick_work(delta, roll, rate):
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
 		Game.tick_class(delta, roll)
 		Game.tick_voice(delta)
+		# Attention is fed by the teacher STANDING at the front, not by a
+		# button press -- holding a key to teach and holding a key to walk
+		# are the same finger, and the room is what you are steering.
+		var at_front := false
+		if player != null and is_instance_valid(player) and not Game.test_active:
+			at_front = Game.can_teach_from(
+				Grid.world_to_tile(player.global_position))
+		Game.tick_attention(delta, at_front)
 		if lesson_left <= 0.0:
 			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
 			#

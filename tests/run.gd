@@ -141,6 +141,7 @@ func _main() -> void:
 	test_save_isolation()
 	await test_bubbles()
 	await test_screens_explain_themselves()
+	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
 	await test_inspection()
@@ -520,7 +521,7 @@ func test_work_loop() -> void:
 		for s: StudentData in Game.roster:
 			if s.is_struggling():
 				s.help()
-			s.tick_work(1.0 / 60.0, Game.rng)
+			s.tick_work(1.0 / 60.0, Game.rng, 1.0)
 	await step(2)
 	var all_done := true
 	for s: StudentData in Game.roster:
@@ -704,6 +705,12 @@ func test_balance() -> void:
 ## student and swung between a C and a B depending only on the seed, which
 ## would have made the contract flaky rather than meaningful.
 func _simulate_lesson(furnish: bool, teach: bool) -> float:
+	# Both contract rows hold TEACHING CONSTANT at perfect -- the teacher is
+	# at the front the whole time, so rate is 1.0. That is deliberate and it
+	# is what keeps these three rows comparable to every reading taken before
+	# active teaching existed: they measure what the ROOM and the HELPING are
+	# worth, with the teaching held still. "Never helped" means never leaving
+	# the front to help, not never teaching.
 	var total := 0.0
 	var runs := 0
 	for seed_offset in 6:
@@ -722,7 +729,7 @@ func _simulate_lesson(furnish: bool, teach: bool) -> float:
 		while t < Balance.lesson_seconds:
 			t += 1.0 / 60.0
 			for s: StudentData in Game.roster:
-				s.tick_work(1.0 / 60.0, Game.rng)
+				s.tick_work(1.0 / 60.0, Game.rng, 1.0)
 				if teach and s.is_struggling():
 					s.help()
 		for s: StudentData in Game.roster:
@@ -1009,7 +1016,7 @@ func test_confusion() -> void:
 	# than at a single moment scheduled up front
 	var guard := 0
 	while not s.is_struggling() and guard < 6000:
-		s.tick_work(1.0 / 60.0, Game.rng)
+		s.tick_work(1.0 / 60.0, Game.rng, 1.0)
 		guard += 1
 	chk("a student gets stuck eventually", s.is_struggling(), guard)
 	chk("they never stall in the first moment of the work",
@@ -1018,7 +1025,7 @@ func test_confusion() -> void:
 	var frozen: float = s.work_timer
 	var frac: float = s.work_fraction()
 	for i in 600:
-		s.tick_work(1.0 / 60.0, Game.rng)
+		s.tick_work(1.0 / 60.0, Game.rng, 1.0)
 	chk("a stuck student's work is completely frozen",
 		is_equal_approx(s.work_timer, frozen))
 	chk("so their work fraction stops rising too",
@@ -1032,7 +1039,7 @@ func test_confusion() -> void:
 	# see it through to the end, helping whenever needed
 	guard = 0
 	while not s.has_work_to_collect() and guard < 20000:
-		s.tick_work(1.0 / 60.0, Game.rng)
+		s.tick_work(1.0 / 60.0, Game.rng, 1.0)
 		if s.is_struggling():
 			s.help()
 		guard += 1
@@ -3445,6 +3452,87 @@ func test_quiz_buff_and_calm() -> void:
 	await step(2)
 	chk("without the perk, standing there changes nothing",
 		is_equal_approx(t.stall_chance(), plain), t.stall_chance())
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_teaching() -> void:
+	section("STANDING AT THE FRONT AND TEACHING")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(40)
+	var p: Actor = world.player
+
+	# THE CHANGE: a lesson used to run itself. Students worked whether or
+	# not a teacher existed, so the whole job was reacting to bubbles and
+	# the time between them was dead.
+	chk("a fresh lesson has nobody's attention",
+		is_equal_approx(Game.attention, 0.0), Game.attention)
+	chk("the front of the room is near the podium",
+		Game.can_teach_from(Layout.PODIUM + Vector2i(0, 1)))
+	chk("and the back of the room is not",
+		not Game.can_teach_from(Vector2i(Grid.W - 2, Grid.H - 2)))
+
+	world.start_lesson()
+	await step(4)
+	var s: StudentData = Game.roster[0]
+	s.trait_id = "steady"
+	s.confusion = 0.0
+
+	# --- nobody teaching: nothing happens ---
+	p.global_position = Grid.tile_to_world(Vector2i(2, Grid.H - 2))
+	await step(60)
+	var idle_left := s.work_timer
+	await step(120)
+	chk("with nobody at the front the work does not move",
+		is_equal_approx(s.work_timer, idle_left),
+		"%.2f -> %.2f" % [idle_left, s.work_timer])
+	chk("and attention has drained to nothing",
+		is_equal_approx(Game.attention, 0.0), Game.attention)
+	chk("the game says so, rather than leaving you to wonder",
+		not Game.teaching)
+
+	# --- teaching: it moves ---
+	p.global_position = Grid.tile_to_world(Layout.PODIUM + Vector2i(0, 1))
+	await step(30)
+	chk("standing at the front IS teaching", Game.teaching)
+	chk("and the class starts paying attention", Game.attention > 0.0,
+		Game.attention)
+	var before := s.work_timer
+	await step(120)
+	chk("now the work moves", s.work_timer < before,
+		"%.2f -> %.2f" % [before, s.work_timer])
+
+	# --- leaving costs, but does not freeze them dead ---
+	# A hard on/off made a two second trip to help one child freeze seven
+	# others, which reads as the game being broken rather than as a choice.
+	await step(90)                      # get attention up to full
+	chk("attention fills", Game.attention > 0.9, Game.attention)
+	p.global_position = Grid.tile_to_world(Vector2i(2, Grid.H - 2))
+	await step(30)                      # half a second away
+	chk("a short trip costs some attention, not all of it",
+		Game.attention > 0.3 and Game.attention < 1.0, Game.attention)
+	await step(300)                     # a long absence
+	chk("but a long absence costs the lot",
+		is_equal_approx(Game.attention, 0.0), Game.attention)
+
+	# --- a test is sat in silence and does not need teaching ---
+	Game.new_run(SEED)
+	await step(40)
+	for i in Balance.test_requires_taught:
+		Game.record_taught(String(Game.lesson.get("id", "")))
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(String(Game.lesson.get("id", "")))
+	p.global_position = Grid.tile_to_world(Vector2i(2, Grid.H - 2))
+	var t: StudentData = Game.roster[0]
+	var t_before := t.work_timer
+	await step(120)
+	chk("a test does not need teaching -- they sit it in silence",
+		t.work_timer < t_before, "%.2f -> %.2f" % [t_before, t.work_timer])
+	world.end_test()
+	_hud().close()
 
 	Game.new_run(SEED)
 	await step(2)

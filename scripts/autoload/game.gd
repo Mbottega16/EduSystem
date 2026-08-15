@@ -125,6 +125,8 @@ func new_run(seed_value: int = 0) -> void:
 	# measures the balance contract in another, so a row that should
 	# have had no quiz in it was quietly reading 0.69 -> 0.73.
 	quiz_focus = false
+	attention = 0.0
+	teaching = false
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -885,6 +887,51 @@ var quiz_done: bool = false
 ## The class has been made to think, and is harder to distract for the rest
 ## of the lesson. Cleared with the lesson, like everything else about it.
 var quiz_focus: bool = false
+
+# --- the class's attention -------------------------------------------
+## 0..1. Filled by standing at the front and teaching, and it drains when
+## you stop. Work advances in proportion to it.
+##
+## THE POINT: a lesson used to run itself. Students worked whether or not
+## the teacher existed, so the entire job was reacting to bubbles and the
+## time between them was dead. Now the room needs you at the front, and
+## every second spent at one child's desk is a second the other seven are
+## not being taught -- which is the trade the whole game is about.
+var attention: float = 0.0
+## Whether the teacher is teaching RIGHT NOW, for the animation and the HUD.
+var teaching: bool = false
+
+signal attention_changed(level: float)
+
+
+## How fast the class works, as a fraction of normal.
+func work_rate() -> float:
+	Balance.ensure_loaded()
+	return maxf(Balance.teach_floor, attention)
+
+
+## Feed or drain the class's attention. `at_front` is whether the teacher is
+## close enough to the front of the room to be teaching them.
+func tick_attention(delta: float, at_front: bool) -> void:
+	Balance.ensure_loaded()
+	teaching = at_front and phase == Phase.LESSON and not test_active
+	var before := attention
+	if teaching:
+		attention = minf(1.0, attention + Balance.teach_fill * delta)
+	else:
+		attention = maxf(0.0, attention - Balance.teach_decay * delta)
+	if not is_equal_approx(before, attention):
+		attention_changed.emit(attention)
+
+
+## Is this tile close enough to the front to teach from?
+##
+## Measured against the PODIUM, which makes the front of the room somewhere
+## you stand rather than somewhere you tap once at the start of the day.
+func can_teach_from(tile: Vector2i) -> bool:
+	Balance.ensure_loaded()
+	return absi(tile.x - Layout.PODIUM.x) + absi(tile.y - Layout.PODIUM.y) \
+		<= Balance.teach_radius
 
 
 ## Sit the whole class down for a quick quiz. Returns a row per student,

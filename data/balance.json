@@ -560,5 +560,13 @@
     "weight_lesson": 0.45,
     "weight_knowledge": 0.2
   },
-  "_flat_note": "'flat' means the item lies on the floor or hangs on the wall, so it gets no contact shadow -- a rug with a shadow under it looks like it is hovering."
+  "_flat_note": "'flat' means the item lies on the floor or hangs on the wall, so it gets no contact shadow -- a rug with a shadow under it looks like it is hovering.",
+  "teaching": {
+    "_note": "Standing at the front and TEACHING. Work only advances while the class is paying attention, and attention only comes from you. Before this a lesson ran itself and the player's whole job was reacting to bubbles -- there was nothing to DO with the time between them.",
+    "_decay_note": "Attention DECAYS rather than switching off. As a hard on/off, a two second trip to help one child froze seven others dead, which reads as the game being broken rather than as a trade-off. Decay means a short trip costs a slice of progress and a long absence costs all of it.",
+    "fill_per_second": 0.85,
+    "decay_per_second": 0.25,
+    "radius_tiles": 6,
+    "floor_rate": 0.0
+  }
 }

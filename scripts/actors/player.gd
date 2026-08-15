@@ -63,6 +63,7 @@ func _physics_process(delta: float) -> void:
 	# against where you were last frame.
 	_repick()
 
+	_teach_anim(delta)
 	if not input_locked:
 		_tick_hold(delta)
 		# The one verb that is not a landmark. It is still about where you
@@ -206,6 +207,24 @@ func _tick_one(action: String, delta: float) -> void:
 
 ## Perks raise the teacher's base speed, so this is expressed as a ratio
 ## against the Actor constant rather than as a flat multiplier.
+## Standing at the front, gesturing at the class.
+##
+## Cycles the two STEP frames while facing the room. There is no dedicated
+## teaching pose in the sheet -- adding a sixth frame would change every
+## character's sheet size and break hframes=5 everywhere -- and the step
+## frames read perfectly well as somebody talking with their hands.
+var _teach_t: float = 0.0
+
+func _teach_anim(delta: float) -> void:
+	if not Game.teaching:
+		_teach_t = 0.0
+		return
+	facing = DIR_DOWN                 # turn and face the room
+	_teach_t += delta
+	var f: int = 1 if fmod(_teach_t, 0.7) < 0.35 else 3
+	_set_frame(f)
+
+
 func speed_scale() -> float:
 	var base: float = Progress.speed(Game.perk_ranks) / SPEED
 	return base * (SPRINT if Input.is_action_pressed("sprint") else 1.0)

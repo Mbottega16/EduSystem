@@ -76,6 +76,14 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- standing at the front and teaching ----------------------------------
+static var teach_fill: float = 0.85
+static var teach_decay: float = 0.25
+static var teach_radius: int = 6
+## What fraction of normal speed an UNATTENDED class works at. Zero means
+## they stop entirely, which is the point.
+static var teach_floor: float = 0.0
+
 # --- being inspected -----------------------------------------------------
 static var insp_grant: int = 420
 static var insp_pass: float = 0.55
@@ -230,6 +238,12 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var tg: Dictionary = d.get("teaching", {})
+	teach_fill = float(tg.get("fill_per_second", teach_fill))
+	teach_decay = float(tg.get("decay_per_second", teach_decay))
+	teach_radius = int(tg.get("radius_tiles", teach_radius))
+	teach_floor = float(tg.get("floor_rate", teach_floor))
 
 	var ins: Dictionary = d.get("inspection", {})
 	insp_grant = int(ins.get("grant", insp_grant))

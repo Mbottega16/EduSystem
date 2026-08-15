@@ -56,6 +56,30 @@ const COLLECTS := {
 const BUYS := {
 	"ideal": true, "good": true, "lazy": true, "nobody": false,
 	"quizzer": true, "shouter": true}
+## Whether they stand at the front and TEACH.
+##
+## Everybody who is doing the job at all teaches -- it is the baseline, not
+## a flourish -- so this separates 'nobody' from the rest. What distinguishes
+## the others is what they LEAVE the front to do.
+## Seconds away from the front for ONE trip to a desk.
+##
+## A constant, and NOT the policy's reaction time. Reaction is how long
+## before they set off; the walk is the walk, and charging reaction for it
+## double-counts. Charging it produced a death spiral -- away time slowed the
+## work, slow work meant longer lessons, longer lessons meant more stalls,
+## more stalls meant more trips -- and 'good' fell from an A to a D while
+## 'ideal', which reacts faster and therefore intervenes LESS in total, sat
+## comfortably above it. A mid-table player should not be punished hardest.
+## Trips do NOT stack. You are either away from the front or you are not;
+## adding them let `away` run to thirty seconds owed, so the most attentive
+## policy taught 5% of the time and the laziest taught 78% -- an inversion
+## of the game's whole thesis, produced entirely by the bookkeeping.
+const TRIP := 1.5
+
+const TEACHES := {
+	"ideal": true, "good": true, "lazy": true, "nobody": false,
+	"quizzer": true, "shouter": true}
+
 ## Whether they shout the room down when several are playing up at once.
 ## 'nobody' never does anything; 'lazy' is not paying enough attention to
 ## notice. The rest use it the way a real player would -- as the answer to
@@ -136,7 +160,7 @@ func _ready() -> void:
 func _run(policy: String, days: int) -> void:
 	Game.new_run(12345)
 	print("\n--- %s ---" % policy.to_upper())
-	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done  noise  shout")
+	print(" day  avg  letter   coins  items  class   stuck-left  hw   work  done  noise  shout  taught")
 
 	var first_enrol := -1
 	var first_buy := -1
@@ -152,13 +176,14 @@ func _run(policy: String, days: int) -> void:
 			first_enrol = Game.day
 
 		if day < 6 or day % 5 == 0 or day == days - 1:
-			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d  %d/%d  %5d" % [
+			print("%4d  %.2f    %s   %5d  %5d  %5d   %9d  %d/%d  %.2f  %d/%d  %d/%d  %5d  %4.0f%%" % [
 				report["day"], report["average"],
 				Game.grade_letter(float(report["average"])),
 				Game.coins, Game.room_items.size(), before,
 				stats["still_stuck"], report["homework_done"], before,
 				stats["work"], stats["finished"], stats["of"],
-				stats["settled"], stats["noisy"], stats["shouted"]])
+				stats["settled"], stats["noisy"], stats["shouted"],
+				float(stats["taught"]) * 100.0])
 
 	print("  first purchase: day %s     first new student: day %s" % [
 		"never" if first_buy < 0 else str(first_buy),
@@ -171,6 +196,11 @@ func _run(policy: String, days: int) -> void:
 ## One lesson, ticked at the real physics rate so the numbers match play.
 func _play_day(policy: String) -> Dictionary:
 	var reaction: float = REACTION[policy]
+	## Seconds still owed to a trip away from the front. Reaction time
+	## already stands in for walking, so a visit to a desk costs exactly that
+	## much time NOT teaching -- which is the trade the mechanic exists for.
+	var away := 0.0
+	var taught := 0.0
 	var stuck_since := {}
 	var flagged_since := {}
 	var noisy_since := {}
@@ -207,6 +237,13 @@ func _play_day(policy: String) -> Dictionary:
 		Game.tick_class(DT, Game.rng)
 		Game.tick_voice(DT)
 
+		# At the front, unless a trip to a desk is still owed.
+		away = maxf(0.0, away - DT)
+		var at_front: bool = TEACHES[policy] and away <= 0.0
+		Game.tick_attention(DT, at_front)
+		if at_front:
+			taught += DT
+
 		# Raising your voice reaches several desks at once, but only the
 		# ones near enough to hear. The simulator has no teacher position --
 		# reaction time stands in for walking -- so the shout is modelled as
@@ -222,7 +259,7 @@ func _play_day(policy: String) -> Dictionary:
 					shouted += 1
 
 		for s: StudentData in Game.roster:
-			s.tick_work(DT, Game.rng)
+			s.tick_work(DT, Game.rng, Game.work_rate())
 			# Settling comes first, as it does at the desk: it is the one
 			# that gets worse while you are dealing with something else.
 			if s.disrupting:
@@ -231,6 +268,7 @@ func _play_day(policy: String) -> Dictionary:
 				elif t - float(noisy_since[s.id]) >= reaction:
 					if s.settle():
 						settled += 1
+					away = maxf(away, TRIP)            # the walk over there and back
 					noisy_since.erase(s.id)
 				continue
 			noisy_since.erase(s.id)
@@ -239,6 +277,7 @@ func _play_day(policy: String) -> Dictionary:
 					stuck_since[s.id] = t
 				elif t - float(stuck_since[s.id]) >= reaction:
 					s.help()
+					away = maxf(away, TRIP)
 					stuck_since.erase(s.id)
 			else:
 				stuck_since.erase(s.id)
@@ -251,6 +290,7 @@ func _play_day(policy: String) -> Dictionary:
 					elif t - float(flagged_since[s.id]) >= reaction:
 						if s.resolve_quiz():
 							resolved += 1
+						away = maxf(away, TRIP)
 						flagged_since.erase(s.id)
 
 	var still := 0
@@ -278,7 +318,8 @@ func _play_day(policy: String) -> Dictionary:
 	return {"still_stuck": still, "flagged": flagged_total, "resolved": resolved,
 		"work": work_total / maxf(1.0, float(Game.roster.size())),
 		"finished": finished, "of": Game.roster.size(),
-		"noisy": noisy, "settled": settled, "shouted": shouted}
+		"noisy": noisy, "settled": settled, "shouted": shouted,
+		"taught": taught / maxf(0.001, lesson_len)}
 
 
 ## Buy the item with the best bonus-per-coin that we can afford and that
@@ -331,6 +372,12 @@ func _contract() -> void:
 ## student's stall luck -- sampling one swung this between a C and a B on
 ## seed alone, which would make the contract meaningless.
 func _one_lesson(furnish: bool, teach: bool) -> float:
+	# Both contract rows hold TEACHING CONSTANT at perfect -- the teacher is
+	# at the front the whole time, so rate is 1.0. That is deliberate and it
+	# is what keeps these three rows comparable to every reading taken before
+	# active teaching existed: they measure what the ROOM and the HELPING are
+	# worth, with the teaching held still. "Never helped" means never leaving
+	# the front to help, not never teaching.
 	var total := 0.0
 	var n := 0
 	for offset in 6:
@@ -349,7 +396,7 @@ func _one_lesson(furnish: bool, teach: bool) -> float:
 		while t < Balance.lesson_seconds:
 			t += DT
 			for s: StudentData in Game.roster:
-				s.tick_work(DT, Game.rng)
+				s.tick_work(DT, Game.rng, 1.0)
 				if teach and s.is_struggling():
 					s.help()
 		for s: StudentData in Game.roster:

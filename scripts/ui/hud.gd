@@ -151,6 +151,12 @@ func _update_status() -> void:
 		if room != null:
 			bits.append("%ds" % int(ceil(room.lesson_left)))
 		if not Game.test_active:
+			# Attention first: it is the difference between a lesson
+			# happening and a lesson not happening, so it outranks the rest.
+			var att := int(round(Game.attention * 5.0))
+			bits.append("%steaching %s%s" % [
+				"" if Game.teaching else "NOT ",
+				"|".repeat(att), ".".repeat(5 - att)])
 			var pips := int(round(Game.voice * 4.0))
 			bits.append("voice %s%s" % ["|".repeat(pips), ".".repeat(4 - pips)])
 		# A buff you cannot see is a buff you do not believe in.

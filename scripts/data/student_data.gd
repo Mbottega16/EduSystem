@@ -305,7 +305,11 @@ func work_fraction() -> float:
 ## The old version rolled a single stall moment in assign_work and cleared
 ## it when it fired, so a student could get stuck at most once per lesson —
 ## which quietly made the teacher's whole contribution a one-shot.
-func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
+## `rate` is how fast the class is working, 0..1, which is the teacher's
+## attention. At zero the timer does not move at all: the lesson does not
+## happen unless somebody teaches it.
+func tick_work(delta: float, rng: RandomNumberGenerator = null,
+		rate: float = 1.0) -> bool:
 	Balance.ensure_loaded()
 	if work_state != Work.WORKING:
 		return false
@@ -318,7 +322,7 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null) -> bool:
 		_hidden_for += delta
 		return false                      # frozen until someone helps
 
-	work_timer -= delta
+	work_timer -= delta * rate
 	if work_timer <= 0.0:
 		work_timer = 0.0
 		work_state = Work.DONE
