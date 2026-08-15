@@ -904,6 +904,31 @@ var teaching: bool = false
 signal attention_changed(level: float)
 
 
+## How hard today's lesson is for the child in `seat_index`, as a pair of
+## multipliers: how much longer the work takes, and how much more often they
+## get stuck on it.
+##
+## Difficulty 3 is neutral. Furniture takes the edge off -- a well-equipped
+## desk makes the work EASIER, which is what a player expects it to do and
+## what room_score conspicuously did not do before: it fed the grade and
+## nothing else, so a bookshelf was worth points and changed nothing you
+## could watch happen.
+func difficulty_mults(seat_index: int) -> Array:
+	Balance.ensure_loaded()
+	var steps: float = float(Curriculum.difficulty(lesson) - 3)
+	if steps > 0.0:
+		# only the EXTRA difficulty is relieved; an easy lesson is not made
+		# easier still by a room full of furniture
+		var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
+		var built: float = clampf(
+			(room_score(seat_index) - Balance.room_base) / span, 0.0, 1.0)
+		steps *= 1.0 - built * Balance.diff_furniture_relief
+	return [
+		maxf(0.25, 1.0 + steps * Balance.diff_per_step_work),
+		maxf(0.25, 1.0 + steps * Balance.diff_per_step_stall),
+	]
+
+
 ## How fast the class works, as a fraction of normal.
 func work_rate() -> float:
 	Balance.ensure_loaded()

@@ -141,6 +141,8 @@ func _main() -> void:
 	test_save_isolation()
 	await test_bubbles()
 	await test_screens_explain_themselves()
+	await test_no_raw_colour_codes()
+	await test_difficulty()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -507,7 +509,13 @@ func test_work_loop() -> void:
 	# Work takes Balance.work_seconds of UNSTUCK time, and they now stall
 	# repeatedly, so getting the class finished means actually unsticking
 	# them — which is the point.
-	var short_of_it := int(Balance.work_seconds * 60.0) - 5
+	# The shortest sheet anyone was given -- work length is per-student now
+	# that lessons have a difficulty, so a single global constant cannot
+	# answer "how long until somebody could possibly be finished".
+	var shortest := 9999.0
+	for st: StudentData in Game.roster:
+		shortest = minf(shortest, st.work_total)
+	var short_of_it := int(shortest * 60.0) - 5
 	for i in short_of_it:
 		for s: StudentData in Game.roster:
 			s.tick_work(1.0 / 60.0, null)
@@ -1005,6 +1013,7 @@ func test_confusion() -> void:
 	section("GETTING STUCK")
 	Balance.ensure_loaded()
 	Game.new_run(SEED)
+	_neutral_lesson()
 	var s := StudentData.new()
 	s.aptitude = 0.5
 
@@ -1188,6 +1197,22 @@ func _same_within(a: Variant, b: Variant, tol: float) -> bool:
 
 
 # ============================================== overlays, driven by real input
+
+## Pin today's lesson to a NEUTRAL difficulty.
+##
+## Lessons have a difficulty now, and new_run() picks one at random. Any
+## test measuring the work model itself -- how long a sheet takes, whether a
+## child stalls, whether a copier can catch up -- was silently at the mercy
+## of that roll: on an easy lesson the work finishes before anyone can get
+## stuck, so "a student gets stuck eventually" simply stopped being true.
+## Difficulty 3 is the neutral middle, where every multiplier is 1.0.
+func _neutral_lesson() -> void:
+	for l: Dictionary in Curriculum.lessons:
+		if Curriculum.difficulty(l) == 3:
+			Game.lesson = l
+			Game.subject = String(l.get("name", ""))
+			return
+
 
 func _hud() -> Control:
 	return world.get_parent().get_node("UI/HUD")
@@ -1376,7 +1401,7 @@ func test_quiz() -> void:
 	world.start_lesson()
 	await step(4)
 	var s1: StudentData = Game.roster[0]
-	s1.work_timer = Balance.work_seconds
+	s1.work_timer = s1.work_total
 	s1.take_quiz(Game.rng, Game.lesson_strand())
 	chk("being asked is itself a little bit of learning, for everyone",
 		s1.work_timer < Balance.work_seconds,
@@ -2763,6 +2788,7 @@ func test_disruption() -> void:
 
 	# --- copying looks like the problem solving itself ---
 	Game.new_run(SEED)
+	_neutral_lesson()
 	_seat_in_a_row(2, 4)
 	var cheat: StudentData = Game.roster[0]
 	var source: StudentData = Game.roster[1]
@@ -3000,10 +3026,14 @@ func test_inspection() -> void:
 
 	# the lesson they watched
 	Game.new_run(SEED)
+	_neutral_lesson()
 	Game.event = DayEvent.by_id("inspector")
 	for st: StudentData in Game.roster:
-		st.work_state = StudentData.Work.WORKING
-		st.work_timer = Balance.work_seconds       # nothing done at all
+		# through assign_work(), so work_total is the real length of the
+		# sheet -- setting work_timer by hand leaves it zero, and a zero
+		# total reads as 100% finished rather than 0%
+		st.reset_lesson()
+		st.assign_work()
 	var nothing_done := Game.inspect()
 	for st: StudentData in Game.roster:
 		st.work_state = StudentData.Work.COLLECTED
@@ -3043,7 +3073,7 @@ func test_inspection() -> void:
 	Game.coins = 0
 	for st: StudentData in Game.roster:
 		st.work_state = StudentData.Work.WORKING
-		st.work_timer = Balance.work_seconds
+		st.work_timer = st.work_total
 	var failed := Game.inspect()
 	chk("a bad inspection pays nothing", int(failed["grant"]) == 0)
 	chk("and says so", not bool(failed["passed"]))
@@ -3536,6 +3566,146 @@ func test_teaching() -> void:
 
 	Game.new_run(SEED)
 	await step(2)
+
+
+
+func test_difficulty() -> void:
+	section("HOW HARD A LESSON IS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# Difficulty did not exist at all: work_seconds was a flat 20 for every
+	# lesson, and grep over the whole project found the word only in prose.
+	chk("every lesson says how hard it is", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			var v := Curriculum.difficulty(l)
+			if v < 1 or v > 5:
+				return false
+		return true).call())
+	chk("and they are not all the same", (func() -> bool:
+		var seen := {}
+		for l: Dictionary in Curriculum.lessons:
+			seen[Curriculum.difficulty(l)] = true
+		return seen.size() >= 3).call())
+
+	var easy: Dictionary = {}
+	var hard: Dictionary = {}
+	for l: Dictionary in Curriculum.lessons:
+		if Curriculum.difficulty(l) <= 1:
+			easy = l
+		if Curriculum.difficulty(l) >= 4:
+			hard = l
+
+	# --- a hard lesson is longer work ---
+	Game.room_items.clear()
+	var s := StudentData.new()
+	s.aptitude = 0.5
+	Game.lesson = easy
+	s.assign_work()
+	var easy_len := s.work_total
+	s.reset_lesson()
+	Game.lesson = hard
+	s.assign_work()
+	var hard_len := s.work_total
+	chk("a hard lesson is longer work than an easy one", hard_len > easy_len,
+		"%.1fs vs %.1fs" % [hard_len, easy_len])
+
+	# --- and they get stuck on it more ---
+	var t: StudentData = Game.roster[0]
+	t.trait_id = "steady"
+	Game.lesson = easy
+	var easy_stall := t.stall_chance()
+	Game.lesson = hard
+	var hard_stall := t.stall_chance()
+	chk("and they get stuck on it more often", hard_stall > easy_stall,
+		"%.4f vs %.4f" % [hard_stall, easy_stall])
+
+	# --- furniture takes the edge off ---
+	# room_score used to feed the GRADE and nothing else, so a bookshelf was
+	# worth points and changed nothing you could watch happen.
+	var bare := t.stall_chance()
+	var guard := 0
+	while Game.room_score(t.seat_index) < Balance.room_cap - 0.001 and guard < 60:
+		Game.room_items.append({"id": Items.order()[guard % Items.order().size()],
+			"tile": Layout.seat(t.seat_index) + Vector2i(0, -1)})
+		guard += 1
+	chk("a furnished desk makes a hard lesson easier to sit",
+		t.stall_chance() < bare, "%.4f -> %.4f" % [bare, t.stall_chance()])
+
+	var u := StudentData.new()
+	u.seat_index = t.seat_index
+	u.assign_work()
+	chk("and shortens the work on it", u.work_total < hard_len,
+		"%.1fs vs %.1fs" % [u.work_total, hard_len])
+
+	# ...but it does not make an EASY lesson easier still, because only the
+	# extra difficulty is relieved.
+	Game.lesson = easy
+	var v := StudentData.new()
+	v.seat_index = t.seat_index
+	v.assign_work()
+	var w := StudentData.new()
+	w.seat_index = -1
+	w.assign_work()
+	chk("an easy lesson is not made easier still by furniture",
+		is_equal_approx(v.work_total, w.work_total),
+		"%.2f vs %.2f" % [v.work_total, w.work_total])
+
+	# --- the player can SEE it before committing ---
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	hud.show_curriculum()
+	chk("the curriculum page shows how hard each lesson is",
+		hud.rich.text.contains(hud.BAR_FULL), hud.rich.text)
+	hud.close()
+	Game.set_phase(Game.Phase.MORNING)
+	hud._update_status()
+	chk("and the strip says how hard today's is",
+		hud.status.text.contains("*"), hud.status.text)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+## No screen may print a raw colour code as TEXT.
+##
+## A blanket string edit put BAR_TRACK at the FRONT of two format arg lists
+## instead of replacing the second colour, so the hue was printed as words
+## and a row of blocks was used as a colour: the curriculum and the shop both
+## shipped reading "Reading 9fd89f you know it well". Every existing
+## assertion passed, because they all check .contains() rather than what the
+## screen actually looks like.
+func test_no_raw_colour_codes() -> void:
+	section("NO COLOUR CODES PRINTED AS TEXT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	var rx := RegEx.new()
+	# a 6-hex token that is NOT preceded by the "#" of a colour tag
+	rx.compile("(?<![#0-9a-fA-F])[0-9a-f]{6}(?![0-9a-fA-F])")
+
+	Game.add_coins(5000)
+	for i in 12:
+		Game.record_taught(String(Curriculum.lessons[i % Curriculum.lessons.size()]
+			.get("id", "")))
+	Game.room_items.append({"id": "bookshelf", "tile": Vector2i(9, 6)})
+
+	var screens := {
+		"curriculum": func() -> void: hud.show_curriculum(),
+		"the shop": func() -> void: hud.open_catalogue(),
+		"the exam": func() -> void: hud.show_exam(Game.sit_exam()),
+		"the day report": func() -> void: hud.show_day_report(Game.advance_day()),
+	}
+	for name: String in screens.keys():
+		(screens[name] as Callable).call()
+		var shown: String = hud.rich.text if hud.rich.visible else hud.body.text
+		chk("%s prints no raw colour codes" % name,
+			rx.search(shown) == null,
+			rx.search(shown).get_string() if rx.search(shown) != null else "")
+		hud.close()
 
 
 

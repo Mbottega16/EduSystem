@@ -76,6 +76,12 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- how hard a lesson is ------------------------------------------------
+static var diff_per_step_work: float = 0.18
+static var diff_per_step_stall: float = 0.22
+## How much of a lesson's extra difficulty a fully furnished desk removes.
+static var diff_furniture_relief: float = 0.45
+
 # --- standing at the front and teaching ----------------------------------
 static var teach_fill: float = 0.85
 static var teach_decay: float = 0.25
@@ -238,6 +244,11 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var df: Dictionary = d.get("difficulty", {})
+	diff_per_step_work = float(df.get("per_step_work", diff_per_step_work))
+	diff_per_step_stall = float(df.get("per_step_stall", diff_per_step_stall))
+	diff_furniture_relief = float(df.get("furniture_relief", diff_furniture_relief))
 
 	var tg: Dictionary = d.get("teaching", {})
 	teach_fill = float(tg.get("fill_per_second", teach_fill))

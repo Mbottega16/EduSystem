@@ -568,5 +568,12 @@
     "decay_per_second": 0.25,
     "radius_tiles": 6,
     "floor_rate": 0.0
+  },
+  "difficulty": {
+    "_note": "How much a lesson's difficulty rating actually moves. Difficulty 3 is the neutral middle: work_mult and stall_mult are 1.0 there, and each step away from it scales by these amounts. A 1 is noticeably easier to get a class through than a 5, without either being a different game.",
+    "_furniture_note": "A furnished desk makes the work EASIER, not just better-marked. room_score used to feed the grade and nothing else, so a bookshelf was worth points and changed nothing you could watch. It now takes the edge off difficulty for whoever sits near it -- which is what the player expects a well-equipped desk to do.",
+    "per_step_work": 0.18,
+    "per_step_stall": 0.22,
+    "furniture_relief": 0.45
   }
 }

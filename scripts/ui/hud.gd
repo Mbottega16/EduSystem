@@ -163,7 +163,8 @@ func _update_status() -> void:
 		if Game.quiz_focus:
 			bits.append("FOCUSED")
 	else:
-		bits.append(Curriculum.short_name(Game.lesson))
+		bits.append("%s %s" % [Curriculum.short_name(Game.lesson),
+			"*".repeat(Curriculum.difficulty(Game.lesson))])
 		bits.append("%d coins" % Game.coins)
 		# What you are actually playing towards. It used to appear for the
 		# first time on the screen that judged you by it.
@@ -980,10 +981,11 @@ func show_curriculum() -> void:
 				got += 1
 		var hue := strand_colour(String(l.get("strand", "")))
 		var taught: bool = Game.times_taught(lid) > 0
-		lines.append("%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
+		lines.append("%s [color=#%s]%s[/color] %s %s [color=#%s]%s[/color]" % [
 			">" if i == _sel else " ",
 			hue if taught else DIM,
 			Curriculum.short_name(l).rpad(13),
+			_difficulty_bar(Curriculum.difficulty(l)),
 			_mastery_bar(got, total, hue),
 			DIM, _mastery_words(l, got, total)])
 
@@ -1006,6 +1008,22 @@ func _next_concept_line(l: Dictionary) -> String:
 			var more: int = maxi(1, int(c.get("at", 1)) - times)
 			return "%d more unlocks \"%s\"" % [more, String(c.get("name", ""))]
 	return "nothing left to learn here"
+
+
+## How hard a lesson is, on a scale you can see BEFORE you commit to
+## teaching it. A difficulty you only discover afterwards is a trap rather
+## than a decision.
+##
+## Warm at the hard end and cool at the easy end, so the column reads as a
+## temperature down the list rather than as five identical bars.
+func _difficulty_bar(level: int) -> String:
+	var hue := C_GOOD
+	if level >= 4:
+		hue = C_BAD
+	elif level == 3:
+		hue = C_HOMEWORK
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
+		hue, BAR_FULL.repeat(level), BAR_TRACK, BAR_EMPTY.repeat(5 - level)]
 
 
 ## How well you know a subject, as a ladder of states that actually differ.
@@ -1033,8 +1051,8 @@ func _mastery_bar(got: int, total: int, hue: String) -> String:
 		return ""
 	var width := 5
 	var n := int(round(float(got) / float(total) * float(width)))
-	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [BAR_TRACK, 
-		hue, BAR_FULL.repeat(n), BAR_EMPTY.repeat(width - n)]
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
+		hue, BAR_FULL.repeat(n), BAR_TRACK, BAR_EMPTY.repeat(width - n)]
 
 
 ## Wipe the rich body on, left to right.
@@ -1066,8 +1084,8 @@ func _worth_bar(bonus: float) -> String:
 	for id: String in Items.order():
 		best = maxf(best, float(Items.get_def(id).get("bonus", 0.0)))
 	var n := clampi(int(round(bonus / best * 5.0)), 1, 5)
-	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [BAR_TRACK, 
-		C_LESSON, BAR_FULL.repeat(n), BAR_EMPTY.repeat(5 - n)]
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
+		C_LESSON, BAR_FULL.repeat(n), BAR_TRACK, BAR_EMPTY.repeat(5 - n)]
 
 
 

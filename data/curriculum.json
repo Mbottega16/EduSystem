@@ -39,7 +39,8 @@
           "source": "Maryland CCR Standards for ELA (2025), p23",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 1
     },
     {
       "id": "basic_arithmetic",
@@ -72,7 +73,8 @@
           "source": "Maryland CCR Standards for Mathematics (2025), p47",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 1
     },
     {
       "id": "handwriting_grammar",
@@ -105,7 +107,8 @@
           "source": "Maryland CCR Standards for ELA (2025), p80",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 2
     },
     {
       "id": "science_basics",
@@ -138,7 +141,8 @@
           "source": "Maryland Science Standards (NGSS)",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 2
     },
     {
       "id": "map_geography",
@@ -171,7 +175,8 @@
           "source": "Maryland Social Studies Framework (June 2025)",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 2
     },
     {
       "id": "pre-algebra",
@@ -204,7 +209,8 @@
           "source": "Maryland CCR Standards for Mathematics (2025), p105",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 4
     },
     {
       "id": "essay_writing",
@@ -237,7 +243,8 @@
           "source": "Maryland CCR Standards for ELA (2025), p1106",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 4
     },
     {
       "id": "earth_life_science",
@@ -270,7 +277,8 @@
           "source": "Maryland Science Standards (NGSS)",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 4
     },
     {
       "id": "world_history",
@@ -303,7 +311,8 @@
           "source": "Maryland Social Studies Framework (June 2025)",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 3
     },
     {
       "id": "speaking_listening",
@@ -336,8 +345,10 @@
           "source": "Maryland CCR Standards for ELA (2025), p885",
           "at": 6
         }
-      ]
+      ],
+      "difficulty": 3
     }
   ],
-  "_concepts_note": "Concepts are COMPONENTS of their lesson's standard, and each one cites that same real code rather than a code of its own. Inventing a plausible-looking identifier for a sub-skill would be a fabricated citation, which is worse than no citation at all -- see the header of scripts/data/curriculum.gd. 'at' is how many times that lesson must have been taught before the concept is unlocked."
+  "_concepts_note": "Concepts are COMPONENTS of their lesson's standard, and each one cites that same real code rather than a code of its own. Inventing a plausible-looking identifier for a sub-skill would be a fabricated citation, which is worse than no citation at all -- see the header of scripts/data/curriculum.gd. 'at' is how many times that lesson must have been taught before the concept is unlocked.",
+  "_difficulty_note": "1 to 5. It scales how long the work takes and how often a child gets stuck on it, so a hard lesson is genuinely harder to get a class through -- and it is shown on the curriculum page, because a difficulty you cannot see before you commit is a trap rather than a choice."
 }

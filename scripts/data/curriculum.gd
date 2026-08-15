@@ -69,6 +69,11 @@ static func strands() -> Array[String]:
 	return out
 
 
+## How hard this lesson is, 1..5. Three is the neutral middle.
+static func difficulty(lesson: Dictionary) -> int:
+	return clampi(int(lesson.get("difficulty", 3)), 1, 5)
+
+
 static func strand_label(strand: String) -> String:
 	match strand:
 		"ela": return "English"

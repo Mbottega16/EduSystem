@@ -47,6 +47,11 @@ var _hidden_for: float = 0.0
 # --- per-lesson, reset by reset_lesson() ------------------------------
 var work_state: int = Work.NONE
 var work_timer: float = 0.0        ## seconds of UNSTUCK work still needed
+## How long the sheet they were given actually was. A hard lesson is longer
+## work, so progress has to be measured against THIS rather than against the
+## global work_seconds -- otherwise a hard lesson could never reach 100% and
+## an easy one would sail past it.
+var work_total: float = 0.0
 var confusion: float = 0.0
 var helps_received: int = 0        ## for the report; not a grade input
 
@@ -169,6 +174,7 @@ func average_grade() -> float:
 func reset_lesson() -> void:
 	work_state = Work.NONE
 	work_timer = 0.0
+	work_total = 0.0
 	confusion = 0.0
 	helps_received = 0
 	quiz_score = -1.0
@@ -279,8 +285,12 @@ func assign_work() -> bool:
 	Balance.ensure_loaded()
 	if work_state != Work.NONE:
 		return false
+	# A hard lesson is longer work. Read once, when the work is handed out,
+	# so moving a desk mid-lesson cannot retroactively change how long the
+	# sheet in front of them was.
 	work_state = Work.WORKING
-	work_timer = Balance.work_seconds
+	work_total = Balance.work_seconds * float(Game.difficulty_mults(seat_index)[0])
+	work_timer = work_total
 	_since_stall = 0.0
 	confusion = 0.0
 	return true
@@ -295,7 +305,13 @@ func work_fraction() -> float:
 		return 0.0
 	if work_state != Work.WORKING:
 		return 1.0
-	return clampf(1.0 - work_timer / Balance.work_seconds, 0.0, 1.0)
+	# Falls back to the global length when work_total was never set, which
+	# is any state built by hand rather than by assign_work(). Without the
+	# fallback such a student reads as 0% done forever, and anything keyed
+	# off progress -- a copier looking for somebody further ahead, an
+	# inspector judging the lesson -- silently stops working.
+	var total: float = work_total if work_total > 0.0 else Balance.work_seconds
+	return clampf(1.0 - work_timer / maxf(0.01, total), 0.0, 1.0)
 
 
 ## Advance their work by `delta`. Returns true on the single frame they
@@ -349,6 +365,9 @@ func stall_chance() -> float:
 	if favourite != "" and favourite == Game.lesson_strand():
 		c *= (1.0 - Balance.affinity_bonus)      # on a good day for them
 	c *= Game.event_stall_multiplier()
+	# ...and a hard lesson trips them up more often, less so at a desk with
+	# something useful within reach.
+	c *= float(Game.difficulty_mults(seat_index)[1])
 	c *= Traits.value(trait_id, "stall_mult", 1.0)
 	# Just been made to think. This is what a quiz BUYS, and the reason it
 	# is worth eleven seconds of a forty-five second lesson.
