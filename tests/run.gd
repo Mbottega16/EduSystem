@@ -119,6 +119,7 @@ func _main() -> void:
 	await test_shop_and_staff()
 	await test_bio_actions()
 	test_catalogue()
+	test_every_asset_loads()
 	test_curator()
 	test_cheats()
 	await test_moving_desks()
@@ -4518,6 +4519,35 @@ func test_catalogue() -> void:
 				return false
 			seen[n] = true
 		return true).call())
+
+
+func test_every_asset_loads() -> void:
+	section("EVERY ASSET ACTUALLY LOADS")
+	# EXISTING ON DISK IS NOT ENOUGH. Godot cannot load a texture it has not
+	# imported, and tools/make_art.py writes PNGs without importing them --
+	# so a brand-new sprite is on disk, passes any file-exists check, and
+	# then fails at load() in the running game.
+	#
+	# That is exactly how the inspector shipped invisible: art/inspector.png
+	# was right there, and every asset check was green, while the room threw
+	# a resource error every time an inspection day came round.
+	var checked := 0
+	var broken: Array[String] = []
+	var da := DirAccess.open("res://art")
+	if da != null:
+		da.list_dir_begin()
+		var n := da.get_next()
+		while n != "":
+			if n.ends_with(".png"):
+				checked += 1
+				var path := "res://art/%s" % n
+				if not ResourceLoader.exists(path) or load(path) == null:
+					broken.append(n)
+			n = da.get_next()
+		da.list_dir_end()
+	chk("there is art to check", checked > 0, checked)
+	chk("and every single piece of it loads", broken.is_empty(),
+		"%d of %d fail to load: %s" % [broken.size(), checked, broken])
 
 
 func test_curator() -> void:

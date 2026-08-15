@@ -900,3 +900,19 @@ if __name__ == "__main__":
     pieces = make_room_tiles()
     print("art/tile_*.png       %d room pieces, for rooms built at runtime"
           % len(pieces))
+
+    # A PNG on disk is NOT yet a texture Godot can load. Anything new needs
+    # importing, and until it is, load() returns null in the running game
+    # while every file-exists check stays green -- which is precisely how
+    # the inspector shipped invisible.
+    missing = [f for f in sorted(os.listdir(OUT))
+               if f.endswith(".png")
+               and not os.path.exists(os.path.join(OUT, f + ".import"))]
+    if missing:
+        print("")
+        print("  %d NEW file(s) are not imported yet:" % len(missing))
+        for f in missing:
+            print("      art/%s" % f)
+        print("  Godot cannot load these until you run:")
+        print("      godot --headless --path . --import")
+        print("  (or just open the project in the editor once).")

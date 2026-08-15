@@ -1,0 +1,161 @@
+extends Node
+
+## Play a WHOLE TERM through the real buttons, and see if the game ends.
+##
+## playtrace.gd proves one day can be played. Nothing has ever checked that
+## the twenty of them reach the exam -- which is the only thing in the game
+## that resolves anything, and would be a poor thing to discover is broken
+## on day twenty of a real run.
+##
+## Every day is driven the way a player drives it: walk to the podium, start
+## the lesson, teach for a bit, end it, close the report, walk to the bell,
+## ring it. Nothing calls end_day() behind the game's back.
+##
+##   godot --path . res://tools/playterm.tscn
+
+const MAIN := preload("res://scenes/main.tscn")
+## Seconds of each lesson actually taught. The lesson is ended early on
+## purpose -- twenty full-length lessons is fifteen minutes of waiting, and
+## ending early is a thing players do constantly anyway.
+const TEACH_SECONDS := 1.2
+
+var main: Node = null
+var world: Node = null
+var hud: Node = null
+var player: Node = null
+
+
+func _ready() -> void:
+	Balance.ensure_loaded()
+	Game.new_run(777)
+	main = MAIN.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	world = main.get_node("World")
+	hud = main.get_node("UI/HUD")
+	player = world.player
+	await _play()
+	get_tree().quit()
+
+
+func frames(n: int) -> void:
+	for i in n:
+		await get_tree().physics_frame
+
+
+func walk_to(tile: Vector2i, limit: int = 900) -> bool:
+	var target := Grid.tile_to_world(tile)
+	for i in limit:
+		var d: Vector2 = target - player.global_position
+		if d.length() < 5.0:
+			_release()
+			await frames(3)
+			return true
+		_release()
+		if absf(d.x) > 3.0:
+			Input.action_press("move_right" if d.x > 0.0 else "move_left")
+		if absf(d.y) > 3.0:
+			Input.action_press("move_down" if d.y > 0.0 else "move_up")
+		await get_tree().physics_frame
+	_release()
+	return false
+
+
+func _release() -> void:
+	for a in ["move_left", "move_right", "move_up", "move_down"]:
+		Input.action_release(a)
+
+
+func tap(action: String) -> void:
+	Input.action_press(action)
+	await frames(3)
+	Input.action_release(action)
+	await frames(3)
+
+
+func hold(action: String, seconds: float) -> void:
+	Input.action_press(action)
+	await frames(int(seconds * 60.0) + 8)
+	Input.action_release(action)
+	await frames(4)
+
+
+## Close whatever is on screen, however many screens deep it goes.
+func clear_screens(limit: int = 6) -> void:
+	for i in limit:
+		if hud.mode == hud.Mode.NONE:
+			return
+		await tap("interact")
+	if hud.mode != hud.Mode.NONE:
+		hud.close()
+		await frames(2)
+
+
+func _play() -> void:
+	print("\n============== A WHOLE TERM ==============")
+	await frames(60)
+	var last_day := 0
+
+	for attempt in Balance.term_days * 3:
+		if Game.term_over:
+			break
+		var day: int = Game.day
+
+		if not await walk_to(Layout.PODIUM + Vector2i(0, 1)):
+			print("!! day %d: could not reach the podium" % day)
+			break
+		if Game.phase == Game.Phase.MORNING:
+			await tap("manage")
+		if Game.phase != Game.Phase.LESSON:
+			print("!! day %d: the lesson would not start (phase %d, F=[%s])"
+				% [day, Game.phase, _offer("manage")])
+			break
+
+		await frames(int(TEACH_SECONDS * 60.0))
+		await hold("manage", 0.8)               # end the lesson early
+		await clear_screens()
+
+		if Game.phase != Game.Phase.AFTERNOON:
+			print("!! day %d: the lesson would not end (phase %d)"
+				% [day, Game.phase])
+			break
+
+		if not await walk_to(Layout.BELL + Vector2i(0, 1)):
+			print("!! day %d: could not reach the bell" % day)
+			break
+		await hold("manage", 0.9)
+
+		if Game.day == day and not Game.term_over:
+			print("!! day %d: the bell did not ring (F=[%s])"
+				% [day, _offer("manage")])
+			break
+		if Game.day != last_day:
+			last_day = Game.day
+			if Game.day % 5 == 0 or Game.term_over:
+				print("   day %-3d coins %-5d class %d  avg %s" % [
+					day, Game.coins, Game.roster.size(),
+					Game.grade_letter(Game.class_average())])
+		await clear_screens()
+		await frames(30)                        # the class files back in
+
+	print("\n-- how it finished --")
+	print("   term_over   : %s" % Game.term_over)
+	print("   day reached : %d of %d" % [Game.day, Balance.term_days])
+	print("   exam result : %s" % (
+		"%s, %d of %d passed" % [
+			String(Game.exam_result.get("letter", "?")),
+			int(Game.exam_result.get("passed", 0)),
+			(Game.exam_result.get("rows", []) as Array).size()]
+		if not Game.exam_result.is_empty() else "NONE — the term never resolved"))
+	print("   concepts    : %d of %d" % [
+		Game.concepts.size(), Curriculum.concept_count()])
+	print("   graduated   : %d" % Game.graduated.size())
+	print("==========================================\n")
+
+
+func _offer(action: String) -> String:
+	var t: Variant = player.targets.get(action)
+	if t == null or not is_instance_valid(t):
+		return "-"
+	var it := t as Interactable
+	return it.prompt_text() if it.can_interact() else "-"
