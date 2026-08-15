@@ -23,7 +23,9 @@ func _ready() -> void:
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
 	world.lesson_auto_ended.connect(_on_lesson_ended)
-	world.inspected.connect(hud.show_inspection)
+	world.inspected.connect(func(r: Dictionary) -> void:
+		_bump(3.0 if not bool(r.get("passed", false)) else 1.5)
+		hud.show_inspection(r))
 	world.test_auto_ended.connect(hud.show_test_report)
 	world.room_rebuilt.connect(_wire_room)
 	_wire_room()
@@ -56,12 +58,25 @@ func _on_lesson_ended(results: Array) -> void:
 	hud.show_lesson_report(results)
 
 
+## The bell and the exam get a bump. These are the two moments a day and a
+## term actually resolve, and a shake reserved for them keeps meaning "that
+## mattered" -- one fired on every event would mean nothing.
+func _on_day_ended(report: Dictionary) -> void:
+	_bump(1.5)
+	hud.show_day_report(report)
+
+
+func _on_term_ended(result: Dictionary) -> void:
+	_bump(3.5)
+	hud.show_exam(result)
+
+
 func _wire_room() -> void:
 	var pairs := [
 		[world.podium, "lesson_ended", _on_lesson_ended],
 		[world.podium, "test_ended", hud.show_test_report],
-		[world.bell, "day_ended", hud.show_day_report],
-		[world.bell, "term_ended", hud.show_exam],
+		[world.bell, "day_ended", _on_day_ended],
+		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
 		[world.teacher_desk, "marking_requested", hud.open_marking],
 	]
@@ -80,12 +95,25 @@ func _start_placing(id: String) -> void:
 	placement.begin(id, world.grid, Grid.world_to_tile(world.player.global_position))
 
 
+## Squash-and-settle on whatever was just put down, once the room has
+## rebuilt around it. Deferred because the node does not exist yet at the
+## moment the placement is confirmed -- Game.add_item() triggers the rebuild.
+func _land_at(tile: Vector2i) -> void:
+	await get_tree().process_frame
+	for n in get_tree().get_nodes_in_group("purchased"):
+		if n is Node2D and Grid.world_to_tile((n as Node2D).global_position) == tile:
+			Fx.land(n)
+			Fx.puff(world, (n as Node2D).global_position, Color(1, 1, 1, 0.7), 4)
+			return
+
+
 func _finish_placing(id: String, tile: Vector2i) -> void:
 	if _moving_from == NOWHERE:
 		Game.place_item(id, tile)          # a new purchase, so it costs
 	else:
 		Game.add_item(id, tile)            # already owned, just relocated
 		_moving_from = NOWHERE
+	_land_at(tile)
 	_unlock()
 
 
@@ -103,6 +131,13 @@ func _start_moving(id: String, tile: Vector2i) -> void:
 	Game.remove_item(_moving_from)
 	world.player.input_locked = true
 	placement.begin(id, world.grid, _moving_from)
+
+
+## The three moments worth a bump: the bell, an inspection, the exam. Not
+## every event -- a shake that fires often stops meaning "this mattered".
+func _bump(strength: float = 2.0) -> void:
+	if world != null and world.camera != null:
+		Fx.shake(world.camera, strength)
 
 
 func _run_quiz() -> void:

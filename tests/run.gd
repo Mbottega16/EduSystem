@@ -119,6 +119,7 @@ func _main() -> void:
 	await test_shop_and_staff()
 	await test_bio_actions()
 	test_catalogue()
+	test_global_classes_registered()
 	test_every_asset_loads()
 	test_curator()
 	test_cheats()
@@ -4990,6 +4991,35 @@ func test_catalogue() -> void:
 				return false
 			seen[n] = true
 		return true).call())
+
+
+## Every global class the game relies on is actually REGISTERED.
+##
+## A brand-new class_name is not in Godot's registry until the project is
+## rescanned, and until then every file referencing it fails to PARSE. That
+## does not fail an assertion -- it silently removes whole sections from the
+## run, and the only symptom is the assertion count dropping. It has happened
+## twice: Version took hud.gd down (724 -> 560) and Fx took four files down
+## (828 -> 708), both reporting ALL PASSED.
+##
+## The fix is `godot --headless --path . --import` after adding one. This
+## test at least turns the silence into a named failure.
+func test_global_classes_registered() -> void:
+	section("GLOBAL CLASSES ARE REGISTERED")
+	for cls: String in ["Fx", "Floater", "Items", "Traits", "Curriculum",
+			"Balance", "Layout", "Grid", "Progress", "StudentData",
+			"Interactable", "Placement", "RoomBuilder", "DayEvent"]:
+		chk("%s is a registered global class" % cls,
+			ClassDB.class_exists(cls) or _gdscript_class_exists(cls), cls)
+
+
+## Godot keeps script classes in the ProjectSettings list rather than in
+## ClassDB, so a registered GDScript class has to be looked for there.
+func _gdscript_class_exists(name: String) -> bool:
+	for entry: Dictionary in ProjectSettings.get_global_class_list():
+		if String(entry.get("class", "")) == name:
+			return true
+	return false
 
 
 func test_every_asset_loads() -> void:

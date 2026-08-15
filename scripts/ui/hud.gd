@@ -243,15 +243,31 @@ func _update_prompt() -> void:
 	prompt.visible = showing
 	prompt_box.visible = showing
 	if showing:
-		# Clip each half to its OWN budget rather than clipping the joined
-		# line. Clipping the whole thing lopped the tail off the second
-		# prompt, so a hold bar could end up on screen with no words after
-		# it -- a progress meter for an action the bar never named.
+		# Fit BOTH halves, taking the room from whichever is longer.
+		#
+		# Clipping the joined line lopped the tail off the second prompt, so
+		# a hold meter could appear with no words after it. Splitting the
+		# budget evenly then over-clipped: "E - Quick quiz" needs 14 of its
+		# 22 and "hold F [......] End the lesson early" needs 36, and an
+		# even split turned the second into "End t.". So the short one keeps
+		# what it needs and the long one gets the rest.
 		if parts.size() > 1:
-			var each: int = (LINE_CHARS - 3) / parts.size()
-			for i in parts.size():
-				if parts[i].length() > each:
-					parts[i] = parts[i].substr(0, each - 1) + "."
+			var budget: int = LINE_CHARS - 3
+			var total := 0
+			for part: String in parts:
+				total += part.length()
+			while total > budget:
+				var longest := 0
+				for i in parts.size():
+					if parts[i].length() > parts[longest].length():
+						longest = i
+				var over: int = total - budget
+				var trim: int = mini(over, parts[longest].length() - 8)
+				if trim <= 0:
+					break
+				parts[longest] = parts[longest].substr(
+					0, parts[longest].length() - trim - 1) + "."
+				total -= trim
 		prompt.text = _clip("   ".join(parts))
 
 

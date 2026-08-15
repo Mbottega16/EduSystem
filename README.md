@@ -278,7 +278,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            801 assertions
+Run Tests.bat            842 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
@@ -307,6 +307,26 @@ sourced. To add art without touching code, drop a text file in
 
 Every gameplay number lives in `data/balance.json`. Nothing tunable is a
 constant in a script.
+
+### After adding a `class_name` or new art
+
+    godot --headless --path . --import
+
+A brand-new global class is not in Godot's registry, and a brand-new PNG is
+not a loadable texture, until the project is rescanned. Until then every file
+referencing them fails to PARSE — which does not fail an assertion, it
+silently removes whole sections from the test run. Read the assertion COUNT,
+never the word PASSED. It has caught this twice (724 to 560, 828 to 708).
+
+### When the game disagrees with the tests
+
+    Trace a Day.bat      walks one real day and prints what is on offer
+    Audit the Room.bat   stands at every landmark in every phase
+
+The suite teleports the player and presses keys straight into the InputMap.
+That proves the logic and nothing about whether the game can be played —
+these two walk it. They have found three bugs the suite could not see,
+including one that made the game unplayable.
 
 ## Why the simulator exists
 
