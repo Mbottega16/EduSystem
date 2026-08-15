@@ -12,7 +12,8 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## adequate, it is more legible than real controls would be, and it keeps
 ## the whole UI layer to one script.
 
-enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT }
+enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
+	CURRICULUM }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -893,72 +894,113 @@ static func strand_colour(strand: String) -> String:
 	return String(STRAND_COLOUR.get(strand, "cfcfcf"))
 
 
+## How many subjects the panel lists at once, leaving room for the heading
+## and the two detail lines under it.
+const CURRIC_ROWS := 7
+
+
+## WHAT YOU CAN TEACH.
+##
+## This screen used to be ten rows of "Reading  RF4  ***  next after 1 more".
+## Every one of those columns is meaningful to somebody who wrote the game and
+## meaningless to somebody playing it: RF4 is a citation, the stars had no
+## label, and the one sentence saying why any of it mattered was on the hint
+## bar where nobody reads it.
+##
+## It is a list with a cursor now. Each row says, in words, how well you know
+## that subject. The citation and the objective belong to whichever row is
+## selected and sit underneath, where they read as provenance rather than as
+## noise. Nothing was removed -- it stopped being the loudest thing on screen.
 func show_curriculum() -> void:
-	_open(Mode.REPORT)
-	# this is the one screen that is a list of four different SUBJECTS, so
-	# it gets the rich body rather than the plain one
+	_open(Mode.CURRICULUM)
 	body.visible = false
 	rich.visible = true
-	# Ten subjects plus a key is eleven lines. At the default spacing that
-	# runs off the bottom and silently drops the last three subjects -- on a
-	# screen whose whole job is "what have I not taught yet", the worst
-	# possible thing to lose.
-	# A RichTextLabel's line box is taller than its font size, so eleven rows
-	# at font 10 do not fit 128px however tight the separation. Font 8 does,
-	# and this screen is a scannable list rather than prose.
-	rich.add_theme_constant_override("line_separation", 1)
+	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 8)
-	# Ten subjects plus a key is eleven lines. At the default spacing that
-	# runs off the bottom and silently loses the last three subjects, which
-	# on a screen whose whole job is "what have I not taught yet" is the
-	# worst possible thing to drop.
-	rich.add_theme_constant_override("line_separation", 1)
 
-	var known: int = Game.concepts.size()
-	title.text = "CURRICULUM  %d/%d" % [known, Curriculum.concept_count()]
+	var lessons := Curriculum.lessons
+	if lessons.is_empty():
+		return
+	_sel = clampi(_sel, 0, lessons.size() - 1)
+	title.text = "WHAT YOU CAN TEACH"
 
-	# Grouped by lesson, because that is how they unlock: teach a lesson
-	# again and the next one down its list opens.
 	var lines: Array[String] = []
-	for l: Dictionary in Curriculum.lessons:
+	# The point of the screen, in the player's terms, at the top where it is
+	# read first rather than on the hint bar where it is read never.
+	var known: int = Game.concepts.size()
+	if known == 0:
+		lines.append("[color=#%s]Teach a subject and you get better at teaching it.[/color]"
+			% C_LESSON)
+	else:
+		lines.append("[color=#%s]Knowing your subjects is worth +%.0f%% to every grade.[/color]" % [
+			C_LESSON, Game.concept_bonus() * 100.0])
+
+	var lo := _window_start(lessons.size(), CURRIC_ROWS)
+	for i in range(lo, mini(lessons.size(), lo + CURRIC_ROWS)):
+		var l: Dictionary = lessons[i]
 		var lid := String(l.get("id", ""))
-		var times := Game.times_taught(lid)
 		var total: int = Curriculum.concepts_of(lid).size()
 		var got := 0
-		var next_at := -1
 		for c: Dictionary in Curriculum.concepts_of(lid):
 			if Game.knows_concept(String(c.get("id", ""))):
 				got += 1
-			elif next_at < 0:
-				next_at = int(c.get("at", 1))
-
 		var hue := strand_colour(String(l.get("strand", "")))
-		# A lesson you have never touched is dimmed rather than hidden: what
-		# you have NOT taught is half the information on this screen.
-		var name_hue := hue if times > 0 else DIM
-		var tail := "[color=#%s]all learned[/color]" % hue
-		if next_at >= 0:
-			tail = "[color=#%s]next after %d more[/color]" % [
-				DIM, maxi(1, next_at - times)]
-		lines.append("[color=#%s]%s[/color] %s  %s  %s" % [
-			name_hue, Curriculum.short_name(l).rpad(13),
-			String(l.get("standard", "")).rpad(9),
-			_pips(got, total, hue), tail])
+		var taught: bool = Game.times_taught(lid) > 0
+		lines.append("%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
+			">" if i == _sel else " ",
+			hue if taught else DIM,
+			Curriculum.short_name(l).rpad(13),
+			_mastery_bar(got, total, hue),
+			DIM, _mastery_words(l, got, total)])
 
-	# No colour key. Ten subjects fill the panel exactly, and every row
-	# already NAMES its own subject -- the colour groups them (all four
-	# English rows green, both maths rows blue) rather than being the only
-	# thing carrying the meaning. A key would cost a subject to explain
-	# something the screen already says in words.
 	rich.text = "\n".join(lines)
-	_reveal_rich(0.35)
-	if known == 0:
-		hint.text = "E - close.   Teach a lesson and you start to learn it too."
-	else:
-		hint.text = _clip("E - close.   +%.0f%% to every grade%s" % [
-			Game.concept_bonus() * 100.0,
-			" (capped)" if Game.concept_bonus()
-				>= Balance.concept_bonus_cap - 0.0001 else ""])
+	_reveal_rich(0.3)
+
+	# The selected subject, and what teaching it AGAIN would buy you. Naming
+	# the next concept is worth more than restating the objective: it is the
+	# thing the player is deciding about.
+	hint.text = _clip("%s   %s" % [
+		String(lessons[_sel].get("standard", "")), _next_concept_line(lessons[_sel])])
+
+
+## What one more lesson in this subject unlocks, by name.
+func _next_concept_line(l: Dictionary) -> String:
+	var lid := String(l.get("id", ""))
+	var times := Game.times_taught(lid)
+	for c: Dictionary in Curriculum.concepts_of(lid):
+		if not Game.knows_concept(String(c.get("id", ""))):
+			var more: int = maxi(1, int(c.get("at", 1)) - times)
+			return "%d more unlocks \"%s\"" % [more, String(c.get("name", ""))]
+	return "nothing left to learn here"
+
+
+## How well you know a subject, as a ladder of states that actually differ.
+##
+## The first draft printed "N more lessons to learn more" on nearly every
+## row, which is a countdown wearing the costume of a description -- seven
+## rows saying almost the same thing is a wall of text again. The countdown
+## is genuinely useful, so it moved to the detail line for the row you have
+## selected, where it is about the decision in front of you.
+func _mastery_words(l: Dictionary, got: int, total: int) -> String:
+	if Game.times_taught(String(l.get("id", ""))) == 0:
+		return "never taught it"
+	if total > 0 and got >= total:
+		return "you know it inside out"
+	if got == 0:
+		return "just started it"
+	if got * 2 >= total:
+		return "you know it well"
+	return "getting the hang of it"
+
+
+## A bar rather than pips. Pips need a legend; a bar does not.
+func _mastery_bar(got: int, total: int, hue: String) -> String:
+	if total <= 0:
+		return ""
+	var width := 5
+	var n := int(round(float(got) / float(total) * float(width)))
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [BAR_TRACK, 
+		hue, BAR_FULL.repeat(n), BAR_EMPTY.repeat(width - n)]
 
 
 ## Wipe the rich body on, left to right.
@@ -990,14 +1032,9 @@ func _worth_bar(bonus: float) -> String:
 	for id: String in Items.order():
 		best = maxf(best, float(Items.get_def(id).get("bonus", 0.0)))
 	var n := clampi(int(round(bonus / best * 5.0)), 1, 5)
-	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [BAR_TRACK, 
 		C_LESSON, BAR_FULL.repeat(n), BAR_EMPTY.repeat(5 - n)]
 
-
-## Filled and empty marks rather than "2/3", so a row reads at a glance.
-func _pips(got: int, total: int, hue: String) -> String:
-	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
-		hue, "*".repeat(got), DIM, "-".repeat(maxi(0, total - got))]
 
 
 
@@ -1114,6 +1151,11 @@ static func cat_colour(cat: String) -> String:
 
 ## Bars are drawn with block characters rather than #, because a solid bar
 ## reads as a quantity at a glance and a row of hashes reads as text.
+## The empty part of a bar. Light enough to SEE: at #3a3a42 a row with a
+## value of zero drew nothing at all, which reads as a rendering fault
+## rather than as "this was worth nothing today" -- and on a panel whose job
+## is explaining a grade, the zero rows are the important ones.
+const BAR_TRACK := "5a5a66"
 const BAR_FULL := "█"
 const BAR_EMPTY := "░"
 
@@ -1131,49 +1173,85 @@ func _stacked_bar(parts: Array, width: int = 30) -> String:
 				BAR_FULL.repeat(n)]
 			used += n
 	if used < width:
-		out += "[color=#3a3a42]%s[/color]" % BAR_EMPTY.repeat(width - used)
+		out += "[color=#%s]%s[/color]" % [BAR_TRACK, BAR_EMPTY.repeat(width - used)]
 	return out
 
 
-## WHERE TODAY'S GRADE CAME FROM, as one bar the class can be read off.
+## WHERE TODAY'S GRADE CAME FROM, and what to do about it.
 ##
-## This exists because the grade model is four terms deep and the player was
-## shown only the letter that fell out of the end. "The maths does not make
-## sense" is the correct reaction to a number with no working shown -- so
-## the working is shown.
-func _grade_breakdown() -> Array[String]:
+## The first version of this screen printed "room 40%  lesson 0%  hw 3%".
+## Every one of those is a percentage of a maximum it never mentioned, so 40
+## could not be judged and none of it suggested an action. It showed the
+## working and still explained nothing.
+##
+## Each part is now measured against the most it COULD have been, carries an
+## arrow for which way it moved since yesterday, and the panel ends with one
+## sentence naming the weakest part and what to do about it.
+func _grade_rows(split: Dictionary, before: Dictionary) -> Array[String]:
 	Balance.ensure_loaded()
-	var n := maxf(1.0, float(Game.roster.size()))
-	var room := 0.0
-	var lesson := 0.0
-	var hw := 0.0
-	for st: StudentData in Game.roster:
-		room += Game.room_score(st.seat_index)
-		var l: float = st.work_fraction() * Balance.lesson_cap
-		if st.work_state != StudentData.Work.COLLECTED:
-			l *= Balance.uncollected_penalty
-		lesson += l
-		if st.hw_state == StudentData.HW.MARKED:
-			var h: float = Balance.homework_cap * st.hw_true_accuracy
-			if not st.verdict_was_right():
-				h *= Balance.verdict_weight
-			hw += h
-	room /= n
-	lesson /= n
-	hw /= n
-	var know := Game.concept_bonus()
+	var room := float(split.get("room", 0.0))
+	var lesson := float(split.get("lesson", 0.0))
+	var hw := float(split.get("homework", 0.0))
+	var know := float(split.get("known", 0.0))
 
-	return [
-		_stacked_bar([[room, C_ROOM], [lesson, C_LESSON],
-			[hw, C_HOMEWORK], [know, C_KNOW]]),
-		"[color=#%s]room %s[/color]  [color=#%s]lesson %s[/color]  [color=#%s]hw %s[/color]  [color=#%s]known %s[/color]" % [
-			C_ROOM, _pct(room), C_LESSON, _pct(lesson),
-			C_HOMEWORK, _pct(hw), C_KNOW, _pct(know)],
+	var out: Array[String] = []
+	out.append(_stacked_bar([[room, C_ROOM], [lesson, C_LESSON],
+		[hw, C_HOMEWORK], [know, C_KNOW]]))
+	out.append(_part_line("the room", room, Balance.room_cap, C_ROOM, before, "room"))
+	out.append(_part_line("the lesson", lesson, Balance.lesson_cap, C_LESSON,
+		before, "lesson"))
+	out.append(_part_line("homework", hw, Balance.homework_cap, C_HOMEWORK,
+		before, "homework"))
+	out.append(_part_line("what you know", know, Balance.concept_bonus_cap,
+		C_KNOW, before, "known"))
+	return out
+
+
+## One part of the grade: what it was worth, out of what it could have been.
+func _part_line(label: String, got: float, ceiling: float, hue: String,
+		before: Dictionary, key: String) -> String:
+	var share: float = 0.0 if ceiling <= 0.0 else clampf(got / ceiling, 0.0, 1.0)
+	var arrow := ""
+	if before.has(key):
+		var was := float(before[key])
+		if got > was + 0.005:
+			arrow = "[color=#%s] up[/color]" % C_GOOD
+		elif got < was - 0.005:
+			arrow = "[color=#%s] down[/color]" % C_BAD
+	return "[color=#%s]%s[/color] %s [color=#%s]%d of %d[/color]%s" % [
+		hue, label.rpad(14), _stacked_bar([[share, hue]], 10),
+		DIM, int(round(got * 100.0)), int(round(ceiling * 100.0)), arrow]
+
+
+## The one sentence the screen exists for: what is holding the class back,
+## and the thing to do about it tomorrow.
+func _diagnosis(split: Dictionary) -> String:
+	Balance.ensure_loaded()
+	var parts := [
+		["the lesson", float(split.get("lesson", 0.0)), Balance.lesson_cap,
+			"Teach for longer, and collect the work."],
+		["the room", float(split.get("room", 0.0)), Balance.room_cap,
+			"Buy furniture and put it NEAR the desks."],
+		["homework", float(split.get("homework", 0.0)), Balance.homework_cap,
+			"Set homework, then mark it at your desk."],
+		["what you know", float(split.get("known", 0.0)),
+			Balance.concept_bonus_cap, "Teach more subjects to learn them."],
 	]
-
-
-func _pct(v: float) -> String:
-	return "%d%%" % int(round(v * 100.0))
+	var worst := ""
+	var advice := ""
+	var worst_share := 2.0
+	for part: Array in parts:
+		var ceiling := float(part[2])
+		if ceiling <= 0.0:
+			continue
+		var share: float = float(part[1]) / ceiling
+		if share < worst_share:
+			worst_share = share
+			worst = String(part[0])
+			advice = String(part[3])
+	if worst_share >= 0.9:
+		return "[color=#%s]Nothing is holding them back. That is as good as it gets.[/color]" % C_GOOD
+	return "[color=#%s]Weakest: %s.[/color] %s" % [C_BAD, worst, advice]
 
 
 func show_day_report(report: Dictionary) -> void:
@@ -1181,35 +1259,34 @@ func show_day_report(report: Dictionary) -> void:
 	_open(Mode.REPORT)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_constant_override("line_separation", 1)
 	rich.add_theme_font_size_override("normal_font_size", 8)
 
 	var avg := float(report.get("average", 0.0))
-	var letter := Game.grade_letter(avg)
 	title.text = "DAY %d  -  %s  -  %d LEFT" % [
-		int(report.get("day", 0)), letter, int(report.get("days_left", 0))]
+		int(report.get("day", 0)), Game.grade_letter(avg),
+		int(report.get("days_left", 0))]
+
+	var split: Dictionary = report.get("split", Game.grade_split())
+	var before: Dictionary = report.get("split_before", {})
 
 	var lines: Array[String] = []
-	lines.append_array(_grade_breakdown())
-	lines.append("")
+	lines.append_array(_grade_rows(split, before))
+	lines.append(_diagnosis(split))
 
 	var earned: int = int(report.get("coins", 0))
 	var upkeep: int = int(report.get("upkeep", 0))
-	lines.append("[color=#%s]+%d coins[/color]   [color=#%s]-%d upkeep[/color]   = [color=#%s]%d[/color]" % [
-		C_COIN, earned, C_BAD, upkeep,
-		C_GOOD if earned - upkeep >= 0 else C_BAD, earned - upkeep])
-
 	var done: int = int(report.get("homework_done", 0))
 	var of: int = maxi(1, Game.roster.size())
-	lines.append("Homework  %s  [color=#%s]%d of %d[/color]" % [
-		_stacked_bar([[float(done) / float(of), C_HOMEWORK]], 12),
+	lines.append("[color=#%s]+%d coins[/color] [color=#%s]-%d upkeep[/color]   homework [color=#%s]%d of %d[/color]" % [
+		C_COIN, earned, C_BAD, upkeep,
 		C_GOOD if done * 2 >= of else C_BAD, done, of])
 
 	if String(report.get("joined", "")) != "":
 		lines.append("[color=#%s]%s has joined the class.[/color]" % [
 			C_GOOD, String(report["joined"])])
 	if String(report.get("event", "")) != "":
-		lines.append("[color=#%s]Tomorrow: %s[/color]  %s" % [
+		lines.append("[color=#%s]Tomorrow: %s[/color] %s" % [
 			C_KNOW, String(report["event"]),
 			String(report.get("event_blurb", ""))])
 
@@ -1543,6 +1620,21 @@ func _verdict(pass_it: bool) -> void:
 func _handle_input() -> void:
 	if mode == Mode.PAUSE:
 		return
+	if mode == Mode.CURRICULUM:
+		var n: int = Curriculum.lessons.size()
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			close()
+		elif n > 0 and Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % n
+			Sfx.play("blip")
+			show_curriculum()
+		elif n > 0 and Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + n) % n
+			Sfx.play("blip")
+			show_curriculum()
+		return
+
 	if mode == Mode.REPORT or mode == Mode.TITLE:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("confirm")

@@ -58,6 +58,10 @@ var run_over: bool = false
 
 signal term_began(term: int)
 var exam_result: Dictionary = {}
+## Yesterday's grade split, so the day report can show which way each part
+## moved. A number with no yesterday beside it cannot tell you whether what
+## you changed helped.
+var last_split: Dictionary = {}
 
 # --- the teacher's own progression ---------------------------------
 var teacher_xp: int = 0
@@ -119,6 +123,7 @@ func new_run(seed_value: int = 0) -> void:
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
+	last_split = {}
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -936,8 +941,40 @@ func can_afford(amount: int) -> bool:
 
 ## Pay out, roll overnight homework, and move to tomorrow.
 ## Returns a small report for the end-of-day screen.
+## Where the class's grade came from today, part by part.
+##
+## The same four terms grade_for() adds up, averaged over the class, so the
+## day report can show the working rather than only the total. Kept here
+## rather than in the HUD because it is the grade model's own arithmetic and
+## it must not be able to drift from it.
+func grade_split() -> Dictionary:
+	Balance.ensure_loaded()
+	var n := maxf(1.0, float(roster.size()))
+	var room := 0.0
+	var lesson := 0.0
+	var hw := 0.0
+	for s: StudentData in roster:
+		room += room_score(s.seat_index)
+		var l: float = s.work_fraction() * Balance.lesson_cap
+		if s.work_state != StudentData.Work.COLLECTED:
+			l *= Balance.uncollected_penalty
+		lesson += l
+		if s.hw_state == StudentData.HW.MARKED:
+			var h: float = Balance.homework_cap * s.hw_true_accuracy
+			if not s.verdict_was_right():
+				h *= Balance.verdict_weight
+			hw += h
+	return {
+		"room": room / n, "lesson": lesson / n, "homework": hw / n,
+		"known": concept_bonus(),
+	}
+
+
 func advance_day() -> Dictionary:
 	Balance.ensure_loaded()
+	var before: Dictionary = last_split.duplicate()
+	var split := grade_split()
+	last_split = split
 	var avg := class_average()
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
 		* DayEvent.multiplier(event, "coin_mult")))
@@ -1001,7 +1038,8 @@ func advance_day() -> Dictionary:
 		"teacher_xp": teacher_xp, "perk_ranks": perk_ranks,
 		"cheated": cheated,
 		"graduated": graduated,
-			"days_left": maxi(0, Balance.term_days - day + 1)}
+			"days_left": maxi(0, Balance.term_days - day + 1),
+			"split": split, "split_before": before}
 
 
 ## Set tonight's homework. Only meaningful once per day.

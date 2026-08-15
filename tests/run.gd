@@ -139,6 +139,7 @@ func _main() -> void:
 	test_traits()
 	test_save_isolation()
 	await test_bubbles()
+	await test_screens_explain_themselves()
 	await test_voice()
 	await test_inspection()
 	await test_disruption()
@@ -2130,9 +2131,36 @@ func test_panels_fit() -> void:
 	chk("the curriculum fits every subject in the panel",
 		hud.rich.text.split("\n").size() <= RICH_ROWS,
 		"%d rows" % hud.rich.text.split("\n").size())
-	chk("and it really is showing all of them",
-		hud.rich.text.split("\n").size() >= Curriculum.lessons.size(),
-		"len=%d  text=%s" % [hud.rich.text.length(), hud.rich.text.substr(0, 220)])
+	# It WINDOWS now rather than dumping all ten, because it is a list with a
+	# cursor. What matters is that the cursor can reach every subject, not
+	# that every subject is on screen at once.
+	chk("it shows a windowful of subjects",
+		hud.rich.text.split("\n").size() > 1,
+		hud.rich.text.split("\n").size())
+	chk("and the cursor reaches every one of them", (func() -> bool:
+		for i in Curriculum.lessons.size():
+			hud._sel = i
+			hud.show_curriculum()
+			if not hud.rich.text.contains(
+					Curriculum.short_name(Curriculum.lessons[i])):
+				return false
+		return true).call())
+	hud._sel = 0
+	hud.show_curriculum()
+	# The citation is still on screen -- it just stopped being the loudest
+	# thing on it. It belongs to whichever subject is selected.
+	chk("the standard for the selected subject is still shown",
+		hud.hint.text.contains(String(Curriculum.lessons[0].get("standard", ""))),
+		hud.hint.text)
+	chk("and the rows themselves are free of citation codes",
+		not hud.rich.text.contains(String(Curriculum.lessons[0].get("standard", ""))),
+		hud.rich.text)
+	chk("every row says in WORDS how well you know it", (func() -> bool:
+		for line: String in hud.rich.text.split("\n"):
+			if line.contains("never taught it") or line.contains("inside out") 						or line.contains("just started it") or line.contains("you know it well") 						or line.contains("getting the hang of it") or line.contains("worth +") 						or line.contains("better at teaching it"):
+				continue
+			return false
+		return true).call(), hud.rich.text)
 	hud.close()
 
 	while Game.enrol() != null:
@@ -3238,6 +3266,78 @@ func test_term_target() -> void:
 
 
 
+func test_screens_explain_themselves() -> void:
+	section("SCREENS THAT EXPLAIN THEMSELVES")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var hud := _hud()
+	await step(2)
+
+	# --- the end of day ---
+	# It used to print "room 40%  lesson 0%  hw 3%": percentages of a maximum
+	# it never mentioned, so 40 could not be judged, and nothing on the
+	# screen suggested an action.
+	for st: StudentData in Game.roster:
+		st.work_state = StudentData.Work.COLLECTED
+	var report := Game.advance_day()
+	hud.show_day_report(report)
+
+	chk("the day report shows each part against its ceiling",
+		hud.rich.text.contains(" of %d" % int(round(Balance.room_cap * 100.0))),
+		hud.rich.text)
+	chk("and names the parts in words, not in field names", (func() -> bool:
+		for want: String in ["the room", "the lesson", "homework", "what you know"]:
+			if not hud.rich.text.contains(want):
+				return false
+		return true).call(), hud.rich.text)
+	chk("and ends with something to DO about it",
+		hud.rich.text.contains("Weakest:")
+		or hud.rich.text.contains("as good as it gets"), hud.rich.text)
+	chk("the day report still fits",
+		hud.rich.text.split("\n").size() <= 11,
+		"%d rows" % hud.rich.text.split("\n").size())
+	hud.close()
+
+	# the arrow only appears once there IS a yesterday to compare against
+	chk("no arrows on the first day", not Game.last_split.is_empty())
+	var r2 := Game.advance_day()
+	chk("the report carries yesterday's split too",
+		(r2.get("split_before", {}) as Dictionary).has("room"),
+		r2.get("split_before", {}))
+
+	# the split must agree with the grade model rather than drift from it
+	var split := Game.grade_split()
+	var sum: float = float(split["room"]) + float(split["lesson"]) 		+ float(split["homework"]) + float(split["known"])
+	var avg := 0.0
+	for st2: StudentData in Game.roster:
+		avg += Game.grade_for(st2)
+	avg /= maxf(1.0, float(Game.roster.size()))
+	chk("the parts add up to the grade they are explaining",
+		absf(sum - avg) < 0.01, "%.3f vs %.3f" % [sum, avg])
+
+	# --- the curriculum ---
+	Game.new_run(SEED)
+	await step(2)
+	hud.show_curriculum()
+	chk("a subject you have never taught says so plainly",
+		hud.rich.text.contains("never taught it"), hud.rich.text)
+	chk("and the screen says what the whole thing is FOR",
+		hud.rich.text.contains("better at teaching it")
+		or hud.rich.text.contains("worth +"), hud.rich.text)
+	chk("the citation is not shouting over the rows", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			if hud.rich.text.contains(String(l.get("standard", ""))):
+				return false
+		return true).call(), hud.rich.text)
+	chk("but it is still on screen for the subject you are looking at",
+		hud.hint.text.contains(String(Curriculum.lessons[0].get("standard", ""))),
+		hud.hint.text)
+	chk("and the detail line names what teaching it again would unlock",
+		hud.hint.text.contains("unlocks"), hud.hint.text)
+	hud.close()
+
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -3264,7 +3364,7 @@ func test_overlays() -> void:
 	chk("pressing the USE button does NOT open the shop",
 		hud.mode != hud.Mode.CATALOGUE, hud.mode)
 	chk("it opens the curriculum instead, which costs you nothing",
-		hud.title.text.begins_with("CURRICULUM"), hud.title.text)
+		hud.title.text.begins_with("WHAT YOU CAN TEACH"), hud.title.text)
 	# Closed directly rather than with a key: a REPORT closes on E, and
 	# tapping E while standing at the board would simply reopen it.
 	hud.close()
