@@ -2227,14 +2227,37 @@ func test_panels_fit() -> void:
 	chk("both buttons are named at the noticeboard",
 		hud.prompt.text.contains("Curriculum") and hud.prompt.text.contains("shop"),
 		hud.prompt.text)
+	# Both keys must still be NAMED when the line is tight -- clipping the
+	# joined line used to leave a hold bar with no words after it.
+	Game.set_phase(Game.Phase.LESSON)
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	hud._update_prompt()
+	chk("a crowded prompt bar still names both buttons",
+		hud.prompt.text.contains("E") and hud.prompt.text.contains("F"),
+		hud.prompt.text)
+	chk("and neither half is left as a bare progress bar",
+		not hud.prompt.text.ends_with("]"), hud.prompt.text)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	hud._update_prompt()
+
 	chk("and the prompt bar fits on its line",
 		hud.prompt.text.length() <= hud.LINE_CHARS,
 		"%d: %s" % [hud.prompt.text.length(), hud.prompt.text])
 
 	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	# Area2D overlap updates a physics frame behind a teleport, so the
+	# picker needs a tick before it can have noticed the move.
+	await step(3)
 	hud._update_prompt()
-	chk("and the bell is named at the bell, not the curriculum",
-		hud.prompt.text.contains("bell"), hud.prompt.text)
+	# Assert what the PICKER chose, not what the bar happens to be showing:
+	# a timed hint owns the prompt bar while it is up, so the rendered text
+	# can legitimately be a second behind the decision.
+	chk("and the bell is what MANAGE points at, not the curriculum board",
+		(func() -> bool:
+			var t: Interactable = world.player.targets["manage"]
+			return t != null and t.prompt_text().contains("bell")).call(),
+		world.player.zone.get_overlapping_areas().size())
 
 	# The status strip is a Label too, and it runs off the right-hand edge
 	# the moment a lesson adds a clock, a voice meter and three counters.

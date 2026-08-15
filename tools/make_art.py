@@ -614,6 +614,35 @@ def door_tile(top):
 FLOOR_VARIANTS = 4
 
 
+def make_contact_shadow():
+    """The one shadow the RUNTIME uses, as its own sprite.
+
+    Every other shadow in this file is painted INTO the sprite it belongs to,
+    which was right while sprites never moved relative to their own feet. Two
+    things broke that: the seated idle-bob lifts a character 0.6px, taking its
+    baked shadow up with it so the shadow floats off the floor, and bought
+    furniture only got one if its text grid happened to declare `shadow: yes`.
+
+    A separate sprite parented under each actor and prop -- and deliberately
+    NOT under the bobbing Sprite2D -- stays on the ground where a shadow
+    belongs, and costs nothing to give to every prop at once.
+    """
+    w, h = 16, 6
+    im = Image.new("RGBA", (w, h))
+    cx, cy = w / 2.0, h / 2.0
+    for y in range(h):
+        for x in range(w):
+            dx = (x + 0.5 - cx) / (w / 2.0)
+            dy = (y + 0.5 - cy) / (h / 2.0)
+            d = dx * dx + dy * dy
+            if d <= 1.0:
+                # softer at the rim, so it reads as contact rather than a decal
+                a = int(70 * (1.0 - d * 0.65))
+                im.putpixel((x, y), (0, 0, 0, max(0, a)))
+    im.save(os.path.join(OUT, "shadow.png"))
+    return im.size
+
+
 def make_room_tiles():
     """The room, in pieces, so it can be rebuilt at ANY size at runtime.
 
@@ -897,6 +926,9 @@ if __name__ == "__main__":
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
     make_grid_sprites()
+    sh = make_contact_shadow()
+    print("art/%-18s %3dx%-3d (the runtime contact shadow)"
+          % ("shadow.png", sh[0], sh[1]))
     pieces = make_room_tiles()
     print("art/tile_*.png       %d room pieces, for rooms built at runtime"
           % len(pieces))

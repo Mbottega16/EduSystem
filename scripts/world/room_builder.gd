@@ -16,6 +16,7 @@ const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
 const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
+const SHADOW_TEX := preload("res://art/shadow.png")
 
 const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
 const DESK_MOVER_SCRIPT := preload("res://scripts/interact/desk_mover.gd")
@@ -42,11 +43,23 @@ static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
 ## otherwise resolves by tree order — silently order-dependent and miserable
 ## to debug.
 static func add_prop(parent: Node2D, tex: Texture2D, at: Vector2,
-		block: Vector2, sort_bias: float = 0.0) -> StaticBody2D:
+		block: Vector2, sort_bias: float = 0.0,
+		with_shadow: bool = true) -> StaticBody2D:
 	var body := StaticBody2D.new()
 	body.position = at + Vector2(0, sort_bias)
 	body.collision_layer = 1     # world
 	body.collision_mask = 0
+
+	# A contact shadow, added FIRST so it draws under the prop. Doing it here
+	# rather than painting it into each sprite means everything standing on
+	# the floor gets one -- including furniture the player buys, which
+	# previously only had a shadow if its text grid remembered to ask.
+	if with_shadow:
+		var shade := Sprite2D.new()
+		shade.texture = SHADOW_TEX
+		shade.position = Vector2(0, -2)
+		shade.scale = Vector2(maxf(1.0, tex.get_width() / 16.0), 1.0)
+		body.add_child(shade)
 
 	var spr := Sprite2D.new()
 	spr.texture = tex
@@ -312,7 +325,8 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		var anchor := Layout.span_anchor(tiles)
 		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
 		var body := add_prop(parent, tex, anchor,
-			Vector2(Items.width(id) * 16 - 2, 8))
+			Vector2(Items.width(id) * 16 - 2, 8), 0.0,
+			not Items.is_flat(id))
 		body.add_to_group("purchased")
 
 		# every bought item can be picked up again

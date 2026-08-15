@@ -216,7 +216,8 @@
       "w": 2,
       "range": 4,
       "bonus": 0.04,
-      "blurb": "Small thing. Fewer arguments."
+      "blurb": "Small thing. Fewer arguments.",
+      "flat": true
     },
     "water_cooler": {
       "name": "Water Cooler",
@@ -256,7 +257,8 @@
       "w": 1,
       "range": 5,
       "bonus": 0.03,
-      "blurb": "They will watch it. Everyone does."
+      "blurb": "They will watch it. Everyone does.",
+      "flat": true
     },
     "class_banner": {
       "name": "Class Banner",
@@ -266,7 +268,8 @@
       "w": 2,
       "range": 5,
       "bonus": 0.04,
-      "blurb": "This is OUR classroom."
+      "blurb": "This is OUR classroom.",
+      "flat": true
     },
     "alphabet_frieze": {
       "name": "Alphabet Frieze",
@@ -276,7 +279,8 @@
       "w": 2,
       "range": 6,
       "bonus": 0.04,
-      "blurb": "Round the top of the wall, where it belongs."
+      "blurb": "Round the top of the wall, where it belongs.",
+      "flat": true
     },
     "fish_tank": {
       "name": "Fish Tank",
@@ -327,7 +331,8 @@
       "range": 6,
       "bonus": 0.07,
       "blurb": "Weak up close, but it reaches the whole room.",
-      "cat": "comfort"
+      "cat": "comfort",
+      "flat": true
     },
     "lab_bench": {
       "name": "Lab Bench",
@@ -552,5 +557,6 @@
     "weight_room": 0.35,
     "weight_lesson": 0.45,
     "weight_knowledge": 0.2
-  }
+  },
+  "_flat_note": "'flat' means the item lies on the floor or hangs on the wall, so it gets no contact shadow -- a rug with a shadow under it looks like it is hovering."
 }

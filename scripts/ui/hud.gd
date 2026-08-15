@@ -240,6 +240,15 @@ func _update_prompt() -> void:
 	prompt.visible = showing
 	prompt_box.visible = showing
 	if showing:
+		# Clip each half to its OWN budget rather than clipping the joined
+		# line. Clipping the whole thing lopped the tail off the second
+		# prompt, so a hold bar could end up on screen with no words after
+		# it -- a progress meter for an action the bar never named.
+		if parts.size() > 1:
+			var each: int = (LINE_CHARS - 3) / parts.size()
+			for i in parts.size():
+				if parts[i].length() > each:
+					parts[i] = parts[i].substr(0, each - 1) + "."
 		prompt.text = _clip("   ".join(parts))
 
 

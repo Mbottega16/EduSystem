@@ -38,6 +38,12 @@ static func in_category(cat: String) -> Array:
 	return out
 
 
+## Lies on the floor or hangs on a wall, so it casts no contact shadow --
+## a rug with a shadow under it looks like it is hovering.
+static func is_flat(id: String) -> bool:
+	return bool(get_def(id).get("flat", false))
+
+
 static func category_of(id: String) -> String:
 	return String(get_def(id).get("cat", ""))
 
