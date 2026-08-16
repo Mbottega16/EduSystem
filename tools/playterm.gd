@@ -14,10 +14,27 @@ extends Node
 ##   godot --path . res://tools/playterm.tscn
 
 const MAIN := preload("res://scenes/main.tscn")
-## Seconds of each lesson actually taught. The lesson is ended early on
-## purpose -- twenty full-length lessons is fifteen minutes of waiting, and
-## ending early is a thing players do constantly anyway.
-const TEACH_SECONDS := 1.2
+## Seconds actually spent at the front before ending the lesson early.
+##
+## This was 1.2, which taught almost nothing -- so the trace failed every
+## term's target, the run ended, and it silently started a NEW one. Four
+## restarts in a row read as "the term never resolves" when the game was
+## working exactly as designed. A walkthrough has to play well enough to
+## reach the thing it is meant to be checking.
+const TEACH_SECONDS := 14.0
+
+## Run the whole thing faster than real time.
+##
+## Engine.time_scale makes each physics frame worth more SIMULATED seconds,
+## so a properly-taught twenty-day term fits in a couple of minutes instead
+## of running past any sensible timeout. Every duration below is therefore
+## divided by it -- the game still thinks in seconds, this file thinks in
+## frames, and the two only agree if the conversion is done in one place.
+const SPEED := 6.0
+
+
+func secs(seconds: float) -> int:
+	return maxi(1, int(seconds * 60.0 / SPEED))
 
 var main: Node = null
 var world: Node = null
@@ -27,6 +44,7 @@ var player: Node = null
 
 func _ready() -> void:
 	Balance.ensure_loaded()
+	Engine.time_scale = SPEED
 	Game.new_run(777)
 	main = MAIN.instantiate()
 	add_child(main)
@@ -75,7 +93,7 @@ func tap(action: String) -> void:
 
 func hold(action: String, seconds: float) -> void:
 	Input.action_press(action)
-	await frames(int(seconds * 60.0) + 8)
+	await frames(secs(seconds) + 8)
 	Input.action_release(action)
 	await frames(4)
 
@@ -93,7 +111,7 @@ func clear_screens(limit: int = 6) -> void:
 
 func _play() -> void:
 	print("\n============== A WHOLE TERM ==============")
-	await frames(60)
+	await frames(secs(1.0))
 	var last_day := 0
 
 	# TWO terms, not one. The end of term is a doorway now -- closing the
@@ -102,6 +120,13 @@ func _play() -> void:
 	# term_over cannot be the loop guard any more: next_term() clears it.
 	for attempt in Balance.term_days * 4:
 		if Game.term > 2:
+			break
+		# Missing a target ends the run and the next press starts a fresh
+		# one. Without noticing that, the loop quietly replays term one over
+		# and over and the report reads as if nothing ever resolved.
+		if Game.run_over:
+			print("!! the run ended: a term missed its target of %d"
+				% Game.term_target())
 			break
 		var day: int = Game.day
 
@@ -119,13 +144,15 @@ func _play() -> void:
 				% [day, Game.phase, _offer("manage")])
 			break
 
-		await frames(int(TEACH_SECONDS * 60.0))
+		await frames(secs(TEACH_SECONDS))
 		await hold("manage", 0.8)               # end the lesson early
 		await clear_screens()
 
 		if Game.phase != Game.Phase.AFTERNOON:
-			print("!! day %d: the lesson would not end (phase %d)"
-				% [day, Game.phase])
+			print("!! day %d: the lesson would not end (phase %d, hud %d, locked %s, E=[%s] F=[%s], at %s)"
+				% [day, Game.phase, hud.mode, player.input_locked,
+					_offer("interact"), _offer("manage"),
+					Grid.world_to_tile(player.global_position)])
 			break
 
 		if not await walk_to(Layout.BELL + Vector2i(0, 1)):
@@ -144,7 +171,7 @@ func _play() -> void:
 					day, Game.coins, Game.roster.size(),
 					Game.grade_letter(Game.class_average())])
 		await clear_screens()
-		await frames(30)                        # the class files back in
+		await frames(secs(0.5))                 # the class files back in
 
 	print("\n-- how it finished --")
 	print("   term        : %d" % Game.term)

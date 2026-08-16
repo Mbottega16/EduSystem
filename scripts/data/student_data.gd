@@ -407,6 +407,25 @@ func stuck_seconds() -> float:
 	return _hidden_for
 
 
+## Does this child need the teacher at their desk right now?
+##
+## The same priority the desk itself uses, so autopilot walks you to the
+## thing you would have chosen: settle first (it spreads), then unstick
+## (their work is frozen), then the quiz flag, then collect.
+##
+## Zero means they are fine. Lower is more urgent.
+func attention_rank() -> int:
+	if disrupting:
+		return 1
+	if is_visibly_struggling():
+		return 2
+	if quiz_flagged:
+		return 3
+	if has_work_to_collect():
+		return 4
+	return 0
+
+
 func is_visibly_struggling() -> bool:
 	if not is_struggling():
 		return false

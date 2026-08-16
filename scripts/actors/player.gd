@@ -33,6 +33,64 @@ var carrying_hw: int = 0     ## homework collected, waiting to be marked
 ## behind the catalogue.
 var input_locked: bool = false
 
+## Walk me to whoever needs me next, and back to the front when nobody does.
+##
+## It moves your FEET and never presses your buttons. What to do once you
+## arrive is still a judgement, and so is the decision to leave the front at
+## all -- which is the trade the whole lesson is built on. Crossing a room
+## you can already see is simply not the interesting part.
+var autopilot: bool = false
+signal autopilot_changed(on: bool)
+
+
+## Where autopilot is currently heading, for the HUD. Empty when idle.
+var auto_target_name: String = ""
+
+
+## The desk that most needs the teacher, by the same priority the desk
+## itself uses. Null when the room is calm.
+func _who_needs_me() -> StudentData:
+	var best: StudentData = null
+	var best_rank := 99
+	var best_dist := 99999.0
+	for s: StudentData in Game.roster:
+		var rank := s.attention_rank()
+		if rank == 0 or s.seat_index < 0:
+			continue
+		var d: float = global_position.distance_to(
+			Grid.tile_to_world(Layout.seat(s.seat_index)))
+		# more urgent first; among equals, whoever is nearest
+		if rank < best_rank or (rank == best_rank and d < best_dist):
+			best = s
+			best_rank = rank
+			best_dist = d
+	return best
+
+
+## The direction autopilot wants to walk, or ZERO to stand still.
+func _auto_direction() -> Vector2:
+	Balance.ensure_loaded()
+	auto_target_name = ""
+	if Game.phase != Game.Phase.LESSON or Game.test_active:
+		return Vector2.ZERO
+
+	var who := _who_needs_me()
+	var goal: Vector2
+	if who != null:
+		auto_target_name = who.first_name()
+		goal = Grid.tile_to_world(Layout.seat(who.seat_index) + Vector2i(0, 1))
+	else:
+		# nobody needs you, so go and do the job: back to the front
+		if Game.can_teach_from(Grid.world_to_tile(global_position)):
+			return Vector2.ZERO
+		auto_target_name = "the front"
+		goal = Grid.tile_to_world(Layout.PODIUM + Vector2i(0, 1))
+
+	var to: Vector2 = goal - global_position
+	if to.length() <= float(Balance.auto_arrive) * Grid.TILE:
+		return Vector2.ZERO
+	return to.normalized()
+
 
 func _ready() -> void:
 	_apply_reach()
@@ -50,6 +108,15 @@ func _physics_process(delta: float) -> void:
 			Input.get_axis("move_left", "move_right"),
 			Input.get_axis("move_up", "move_down")
 		)
+		if Game.claim_action("autopilot"):
+			autopilot = not autopilot
+			Sfx.play("blip")
+			autopilot_changed.emit(autopilot)
+		# Steering by hand always wins. Autopilot is a chauffeur, not a lock:
+		# the instant you touch a movement key it stands aside for that frame,
+		# so it can never fight you for the wheel.
+		if autopilot and dir == Vector2.ZERO:
+			dir = _auto_direction()
 	walk(dir, delta)
 
 	# The thing you were standing at can be destroyed under you — sell a
@@ -231,6 +298,8 @@ func _teach_anim(delta: float) -> void:
 
 func speed_scale() -> float:
 	var base: float = Progress.speed(Game.perk_ranks) / SPEED
+	if autopilot and auto_target_name != "":
+		base *= Balance.auto_speed
 	return base * (SPRINT if Input.is_action_pressed("sprint") else 1.0)
 
 

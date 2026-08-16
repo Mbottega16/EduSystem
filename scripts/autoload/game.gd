@@ -181,6 +181,8 @@ func new_run(seed_value: int = 0) -> void:
 	quiz_focus = false
 	attention = 0.0
 	teaching = false
+	has_aide = false
+	_aide_timer = 0.0
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -970,6 +972,16 @@ var quiz_focus: bool = false
 ## time between them was dead. Now the room needs you at the front, and
 ## every second spent at one child's desk is a second the other seven are
 ## not being taught -- which is the trade the whole game is about.
+## Have you hired an aide? They collect finished work so you can stay at
+## the front. They never help, settle or mark -- collecting is legwork and
+## helping is a judgement, and hiring out the judgement would be hiring
+## somebody to play the game for you.
+var has_aide: bool = false
+## Seconds until the aide reaches the next finished desk.
+var _aide_timer: float = 0.0
+
+signal aide_hired(on: bool)
+
 var attention: float = 0.0
 ## Whether the teacher is teaching RIGHT NOW, for the animation and the HUD.
 var teaching: bool = false
@@ -1026,6 +1038,40 @@ func difficulty_mults(seat_index: int) -> Array:
 func work_rate() -> float:
 	Balance.ensure_loaded()
 	return maxf(Balance.teach_floor, attention)
+
+
+## Hire, or let go. Returns "" on success or why not.
+func set_aide(on: bool) -> String:
+	Balance.ensure_loaded()
+	if on == has_aide:
+		return "Nothing to change."
+	if on:
+		if not spend(Balance.aide_cost):
+			return "You cannot afford an aide."
+	has_aide = on
+	_aide_timer = 0.0
+	aide_hired.emit(has_aide)
+	return ""
+
+
+## The aide works the room while you teach.
+##
+## They take one finished sheet at a time, on a timer, and they do it whether
+## or not you are watching -- which is the whole point. It frees the ONE
+## thing that was pure legwork without touching anything that was a decision.
+func tick_aide(delta: float) -> StudentData:
+	Balance.ensure_loaded()
+	if not has_aide or phase != Phase.LESSON or test_active:
+		return null
+	_aide_timer -= delta
+	if _aide_timer > 0.0:
+		return null
+	_aide_timer = Balance.aide_collect
+	for s: StudentData in roster:
+		if s.has_work_to_collect():
+			s.collect_work()
+			return s
+	return null
 
 
 ## Feed or drain the class's attention. `at_front` is whether the teacher is
@@ -1176,6 +1222,10 @@ func advance_day() -> Dictionary:
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
 	# with nothing to spend them on once the room was capped.
 	var upkeep := room_items.size() * Balance.upkeep_per_item
+	# An aide is paid every day, so keeping one is a standing decision
+	# rather than a purchase you make once and forget about.
+	if has_aide:
+		upkeep += Balance.aide_wage
 	coins = maxi(0, coins - upkeep)
 	coins_changed.emit(coins)
 
@@ -1455,6 +1505,7 @@ func to_dict() -> Dictionary:
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
+		"has_aide": has_aide,
 		"chosen_lesson": chosen_lesson,
 		"assignment": assignment,
 		"term_history": term_history,
@@ -1489,6 +1540,7 @@ func from_dict(d: Dictionary) -> void:
 	expansions = int(d.get("expansions", 0))
 	term = int(d.get("term", 1))
 	specialism = String(d.get("specialism", ""))
+	has_aide = bool(d.get("has_aide", false))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))

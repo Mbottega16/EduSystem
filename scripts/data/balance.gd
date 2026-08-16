@@ -76,6 +76,15 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- the teacher's aide --------------------------------------------------
+static var aide_cost: int = 260
+static var aide_wage: int = 18
+static var aide_collect: float = 2.2
+
+# --- autopilot -----------------------------------------------------------
+static var auto_speed: float = 1.35
+static var auto_arrive: int = 1
+
 # --- the paper you set ---------------------------------------------------
 static var assign_hand_size: int = 3
 static var assign_rarities: Array = []
@@ -254,6 +263,15 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var ai: Dictionary = d.get("aide", {})
+	aide_cost = int(ai.get("hire_cost", aide_cost))
+	aide_wage = int(ai.get("daily_wage", aide_wage))
+	aide_collect = float(ai.get("collect_seconds", aide_collect))
+
+	var ap: Dictionary = d.get("autopilot", {})
+	auto_speed = float(ap.get("speed_multiplier", auto_speed))
+	auto_arrive = int(ap.get("arrive_tiles", auto_arrive))
 
 	var asg: Dictionary = d.get("assignments", {})
 	assign_hand_size = int(asg.get("hand_size", assign_hand_size))

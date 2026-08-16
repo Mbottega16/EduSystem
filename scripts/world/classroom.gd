@@ -275,6 +275,15 @@ func _physics_process(delta: float) -> void:
 		# who is sitting next to whom, and who has started playing up
 		Game.tick_class(delta, roll)
 		Game.tick_voice(delta)
+		# The aide works the room while you teach.
+		var taken := Game.tick_aide(delta)
+		if taken != null:
+			var st := station(taken.seat_index)
+			if st != null:
+				st.show_paper(false)
+			Floater.pop(self, Grid.tile_to_world(
+				Layout.seat(taken.seat_index)) + Vector2(0, -20),
+				"aide", Color(0.72, 0.86, 1.0))
 		# Attention is fed by the teacher STANDING at the front, not by a
 		# button press -- holding a key to teach and holding a key to walk
 		# are the same finger, and the room is what you are steering.

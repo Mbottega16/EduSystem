@@ -146,6 +146,9 @@ func _main() -> void:
 	await test_specialism_and_choice()
 	await test_build_mode()
 	await test_assignment_cards()
+	test_a_term_can_be_won()
+	await test_autopilot_and_aide()
+	await test_lesson_plan_folder()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -4078,6 +4081,246 @@ func test_assignment_cards() -> void:
 
 
 
+func test_a_term_can_be_won() -> void:
+	section("A WELL-TAUGHT TERM IS WINNABLE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# THE QUESTION NOTHING WAS ASKING. Every part of this game has been
+	# tested in isolation and the simulator reports letter grades, but
+	# nothing has ever checked the only thing that actually matters to a
+	# player: play well for twenty days, and do you keep the job?
+	#
+	# Played COMPETENTLY, which here means the three things the game asks
+	# for: teach at the front, unstick whoever freezes, and collect the work.
+	var target := Game.term_target()
+	chk("term one asks for a few of them", target > 0, target)
+
+	for day in Balance.term_days:
+		for st: StudentData in Game.roster:
+			st.reset_lesson()
+			st.assign_work()
+		var t := 0.0
+		while t < Balance.lesson_seconds:
+			t += 1.0 / 60.0
+			for st: StudentData in Game.roster:
+				# at the front the whole time, so attention is full
+				st.tick_work(1.0 / 60.0, Game.rng, 1.0)
+				if st.is_struggling():
+					st.help()
+		for st: StudentData in Game.roster:
+			st.collect_work()
+		Game.grade_class()
+		Game.assign_homework()
+		# homework comes back and is marked honestly
+		for st: StudentData in Game.roster:
+			if st.hw_state == StudentData.HW.ASSIGNED:
+				st.hw_state = StudentData.HW.MARKED
+				st.hw_player_verdict = 1 if Questions.sheet_is_good(st.hw_sheet) else 0
+
+	var avg := Game.class_average()
+	chk("a term taught properly averages a real grade",
+		avg >= 0.62, "%.2f (%s)" % [avg, Game.grade_letter(avg)])
+
+	var result := Game.sit_exam()
+	var passed: int = int(result["passed"])
+	chk("and enough of them pass the exam", passed >= target,
+		"%d passed, needed %d, class of %d" % [passed, target,
+			Game.roster.size()])
+	chk("so the job is kept", Game.met_target(passed))
+
+	# and the opposite: a term nobody taught must NOT squeak through, or the
+	# target is decoration
+	Game.new_run(SEED)
+	for day in Balance.term_days:
+		for st: StudentData in Game.roster:
+			st.reset_lesson()
+			st.assign_work()
+		Game.grade_class()
+	var idle := Game.sit_exam()
+	chk("a term nobody taught does not keep the job",
+		not Game.met_target(int(idle["passed"])),
+		"%d passed, needed %d" % [int(idle["passed"]), Game.term_target()])
+
+	Game.new_run(SEED)
+
+
+
+func test_autopilot_and_aide() -> void:
+	section("AUTOPILOT, AND THE AIDE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(40)
+	var p: Actor = world.player
+
+	# --- autopilot ---
+	chk("it is a real, rebindable action", InputMap.has_action("autopilot"))
+	chk("and it is offered in the controls screen", (func() -> bool:
+		for row: Dictionary in Settings.ACTIONS:
+			if String(row["action"]) == "autopilot":
+				return true
+		return false).call())
+	chk("it starts off", not p.autopilot)
+
+	# priority is the same one the desk itself uses, so it walks you to the
+	# thing you would have chosen
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	a.work_state = StudentData.Work.DONE          # rank 4, collect
+	b.disrupting = true                           # rank 1, settle
+	chk("messing about outranks a finished sheet",
+		b.attention_rank() < a.attention_rank(),
+		"%d vs %d" % [b.attention_rank(), a.attention_rank()])
+	b.disrupting = false
+	b.confusion = 1.0
+	b.trait_id = "steady"
+	chk("and being stuck outranks it too",
+		b.attention_rank() < a.attention_rank())
+	chk("a child who is fine does not want you at all", (func() -> bool:
+		var c := StudentData.new()
+		return c.attention_rank() == 0).call())
+
+	# it moves your feet and never presses your buttons
+	#
+	# A new run opens the "what do you teach" screen, and that locks the
+	# player -- so this has to answer it first, exactly as a player does.
+	# Setting the PHASE to LESSON is not the same as STARTING one: the clock
+	# is still zero, so it times out on the very next frame, auto-ends, and
+	# opens a report that locks the player. Start it properly.
+	Game.specialism = "math"
+	_hud().close()
+	await step(2)
+	world.start_lesson()
+	await step(4)
+	b.trait_id = "steady"
+	b.confusion = 1.0
+	p.autopilot = true
+	var helps_before: int = b.helps_total
+	await step(120)
+	chk("autopilot walks you somewhere", p.auto_target_name != "",
+		"target=[%s] locked=%s hud=%d phase=%d stuck=%s rank=%d" % [
+			p.auto_target_name, p.input_locked, _hud().mode, Game.phase,
+			b.is_visibly_struggling(), b.attention_rank()])
+	chk("but it never acts for you", b.helps_total == helps_before,
+		"%d -> %d" % [helps_before, b.helps_total])
+	p.autopilot = false
+	b.confusion = 0.0
+	a.work_state = StudentData.Work.NONE
+
+	# --- the aide ---
+	Game.new_run(SEED)
+	await step(2)
+	chk("you start without one", not Game.has_aide)
+	Game.coins = 0
+	chk("and cannot afford one on nothing", Game.set_aide(true) != "")
+	Game.coins = Balance.aide_cost + 10
+	chk("hiring works", Game.set_aide(true) == "")
+	chk("they are hired", Game.has_aide)
+	chk("and it cost what it says", Game.coins == 10, Game.coins)
+
+	# they do the CHORE and never the judgement
+	Game.set_phase(Game.Phase.LESSON)
+	var c1: StudentData = Game.roster[0]
+	c1.assign_work()
+	c1.work_state = StudentData.Work.DONE
+	var stuck: StudentData = Game.roster[1]
+	stuck.trait_id = "steady"
+	stuck.confusion = 1.0
+	var stuck_helps: int = stuck.helps_total
+	for i in 400:
+		Game.tick_aide(1.0 / 60.0)
+	chk("the aide collects finished work",
+		c1.work_state == StudentData.Work.COLLECTED, c1.work_state)
+	chk("but never unsticks anybody -- that is a judgement, not legwork",
+		stuck.is_struggling() and stuck.helps_total == stuck_helps)
+
+	# and they are paid every day, so keeping one is a standing decision
+	Game.set_phase(Game.Phase.AFTERNOON)
+	Game.coins = 5000
+	var before_day: int = Game.coins
+	var report := Game.advance_day()
+	chk("their wage is in the day's upkeep",
+		int(report["upkeep"]) >= Balance.aide_wage, report["upkeep"])
+
+	Game.set_aide(false)
+	chk("and you can let them go", not Game.has_aide)
+
+	Game.save_game()
+	Game.set_aide(true)
+	Game.load_game()
+	chk("whether you have one survives a save", not Game.has_aide)
+	Game.delete_save()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+func test_lesson_plan_folder() -> void:
+	section("THE LESSON-PLAN FOLDER")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	Game.hand = [
+		{"rarity": "common", "form": "Worksheet", "difficulty": 1,
+			"subject": "Arithmetic", "lesson": "basic_arithmetic"},
+		{"rarity": "excellent", "form": "Problem Set", "difficulty": 3,
+			"subject": "Chemistry", "lesson": "chemistry"},
+		{"rarity": "legendary", "form": "Project", "difficulty": 5,
+			"subject": "Civics", "lesson": "civics"},
+	]
+	hud.show_hand()
+	chk("the folder is open", hud.mode == hud.Mode.HAND)
+
+	# ONE page at a time. A list of three reads as a menu; a page reads as a
+	# plan, with room for what it actually asks of the class.
+	chk("it shows one plan, not all of them", (func() -> bool:
+		var shown := 0
+		for c: Dictionary in Game.hand:
+			if hud.rich.text.contains(Assignments.title(c)):
+				shown += 1
+		return shown == 1).call(), hud.rich.text)
+	chk("and says which page you are on",
+		hud.title.text.contains("1 of %d" % Game.hand.size()), hud.title.text)
+	chk("the plan carries the objective it comes from", (func() -> bool:
+		var l := Curriculum.by_id(String(Game.hand[0].get("lesson", "")))
+		var obj := String(l.get("objective", ""))
+		return obj == "" or hud.rich.text.contains(obj.substr(0, 20))).call(),
+		hud.rich.text)
+
+	var first: String = hud.rich.text
+	hud._sel = 1
+	hud.show_hand()
+	chk("turning the page shows a different plan", hud.rich.text != first)
+	chk("and says so", hud.title.text.contains("2 of"), hud.title.text)
+
+	# the wheel is an EVENT, so it is read in _input rather than polled
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	hud._input(wheel)
+	chk("the scroll wheel turns it", hud._sel == 2, hud._sel)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_WHEEL_UP
+	up.pressed = true
+	hud._input(up)
+	chk("and turns it back", hud._sel == 1, hud._sel)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	hud._input(click)
+	chk("clicking the page turns it too", hud._sel == 2, hud._sel)
+
+	chk("it fits", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
 func test_overlays() -> void:
 	section("OVERLAYS")
 	var hud := _hud()
@@ -5526,9 +5769,21 @@ func test_shop_and_staff() -> void:
 	Game.add_teacher_xp(Balance.teacher_xp_per_level * 3)
 	await tap("menu")
 	await tap("menu")
+	# THE AIDE is row 0 of the staff room now, so the perks start at row 1.
+	Game.coins = 5000
+	var coins_before: int = Game.coins
+	chk("the staff room opens on the aide", hud._sel == 0, hud._sel)
+	await tap("interact")
+	chk("E hires them", Game.has_aide)
+	chk("and it costs what it says", Game.coins == coins_before - Balance.aide_cost,
+		"%d -> %d" % [coins_before, Game.coins])
+	await tap("interact")
+	chk("E again lets them go", not Game.has_aide)
+
+	await tap("move_down")
 	var spent_before: int = Game.perk_points_spent()
 	await tap("interact")
-	chk("E in the staff room spends a point",
+	chk("E on a perk row still spends a point",
 		Game.perk_points_spent() == spent_before + 1,
 		Game.perk_points_spent())
 	await tap("cancel")

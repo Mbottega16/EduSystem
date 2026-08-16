@@ -646,5 +646,17 @@
         "difficulty": 5
       }
     ]
+  },
+  "autopilot": {
+    "_note": "Walks you to whoever needs you next, and back to the front when nobody does. It moves your feet and NEVER presses your buttons -- the judgement of what to do at the desk stays yours, and so does the decision to stop teaching in order to go. It exists because crossing a room you can already see is not the interesting part of this game.",
+    "speed_multiplier": 1.35,
+    "arrive_tiles": 1
+  },
+  "aide": {
+    "_note": "A teacher's aide, hired in the staff room and paid every day. They walk the room COLLECTING FINISHED WORK -- the chore -- and they never help, settle or mark. That line is deliberate: collecting is legwork, and helping is a judgement about a particular child. Hiring somebody to do the judgement would be hiring somebody to play the game.",
+    "_cost_note": "The wage is per DAY, so an aide is a standing decision rather than a purchase you make once and forget. In a bad term they are the thing you let go.",
+    "hire_cost": 260,
+    "daily_wage": 18,
+    "collect_seconds": 2.2
   }
 }

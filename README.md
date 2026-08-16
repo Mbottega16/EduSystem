@@ -130,9 +130,27 @@ because you were told the night before:
 A pass pays a grant. Everything judged is something the game already
 tracked, and every verdict is a sentence rather than a decimal.
 
+## Three things that carry the load for you
+
+**Autopilot (R)** walks you to whoever needs you next — settling outranks
+unsticking, which outranks the quiz flag, which outranks collecting, the
+same priority the desk itself uses. It moves your **feet** and never presses
+your buttons: what to do when you arrive is still a judgement, and so is the
+decision to leave the front at all. Touch a movement key and it stands aside
+instantly.
+
+**A teacher's aide**, hired in the staff room and paid every day, walks the
+room collecting finished work. They never help, settle or mark. That line is
+deliberate — collecting is legwork, helping is a judgement about a
+particular child, and hiring out the judgement would be hiring somebody to
+play the game. The daily wage makes keeping one a standing decision rather
+than a purchase you forget.
+
 ## Setting work is a hand of cards
 
-The podium deals **three papers** and you set one. Two axes, rolled
+The podium deals **three papers** and you go through them one at a time,
+the way a teacher at a desk goes through lesson plans — turn the page with
+the scroll wheel, a click, or Up/Down. Two axes, rolled
 separately and then correlated:
 
 | | |
@@ -331,7 +349,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            925 assertions
+Run Tests.bat            962 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

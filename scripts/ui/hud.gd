@@ -123,6 +123,34 @@ func _process(_delta: float) -> void:
 ## and missed by the other — which is exactly what happened: Tab opened the
 ## class list in play but never in a test, because the test drives the
 ## physics tick.
+## The wheel and the mouse, for the one screen that is a folder of pages.
+##
+## _input rather than the physics poll because a wheel notch is an EVENT --
+## it has no held state to sample, so polling would miss it entirely.
+func _input(e: InputEvent) -> void:
+	if mode != Mode.HAND or Game.hand.is_empty():
+		return
+	var n: int = Game.hand.size()
+	if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
+		var b := (e as InputEventMouseButton).button_index
+		if b == MOUSE_BUTTON_WHEEL_DOWN:
+			_sel = (_sel + 1) % n
+			Sfx.play_varied("paper")
+			show_hand()
+			accept_event()
+		elif b == MOUSE_BUTTON_WHEEL_UP:
+			_sel = (_sel - 1 + n) % n
+			Sfx.play_varied("paper")
+			show_hand()
+			accept_event()
+		elif b == MOUSE_BUTTON_LEFT:
+			# clicking the page turns it, the way you would nudge a corner
+			_sel = (_sel + 1) % n
+			Sfx.play_varied("paper")
+			show_hand()
+			accept_event()
+
+
 func _physics_process(_delta: float) -> void:
 	if mode == Mode.NONE:
 		if Input.is_action_just_pressed("menu"):
@@ -157,6 +185,10 @@ func _update_status() -> void:
 		if not Game.assignment.is_empty():
 			bits.append(Assignments.rarity_name(
 				String(Game.assignment.get("rarity", "common"))))
+		# A mode you cannot see is a mode you forget is on.
+		if _player != null and is_instance_valid(_player) and _player.autopilot:
+			bits.append("AUTO%s" % ("" if _player.auto_target_name == ""
+				else " " + _player.auto_target_name))
 		if not Game.test_active:
 			# Attention first: it is the difference between a lesson
 			# happening and a lesson not happening, so it outranks the rest.
@@ -877,33 +909,62 @@ func show_run_over(info: Dictionary) -> void:
 ## actually finish this". Work you never collect counts for half, so a
 ## Legendary Project nobody completes is worth less than a Common Worksheet
 ## everybody hands in.
+## THE LESSON-PLAN FOLDER. One page at a time, the way a teacher at a desk
+## actually goes through them.
+##
+## The hand used to be a list of three rows, which reads as a menu. A page
+## reads as a PLAN: room for the objective, the standard it comes from, what
+## it asks of the class and what it pays. The same three cards, but you meet
+## them one at a time and have to turn to see the next.
+##
+## Turned with the scroll wheel, a click, or Up/Down -- whichever your hand
+## is already on.
 func show_hand() -> void:
 	_open(Mode.HAND)
 	body.visible = false
 	rich.visible = true
-	# Three cards are two lines each, so the footer gets ONE line, not two.
-	# At separation 3 the second was landing under the hint bar.
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 8)
-	title.text = "WHAT ARE THEY DOING TODAY?"
 
-	_sel = clampi(_sel, 0, maxi(0, Game.hand.size() - 1))
+	var n: int = Game.hand.size()
+	if n == 0:
+		close()
+		return
+	_sel = clampi(_sel, 0, n - 1)
+	var card: Dictionary = Game.hand[_sel]
+	var rid := String(card.get("rarity", "common"))
+	var hue := Assignments.rarity_colour(rid)
+	var lesson := Curriculum.by_id(String(card.get("lesson", "")))
+
+	title.text = "LESSON PLANS  -  %d of %d" % [_sel + 1, n]
+
 	var lines: Array[String] = []
-	for i in Game.hand.size():
-		var card: Dictionary = Game.hand[i]
-		var rid := String(card.get("rarity", "common"))
-		var hue := Assignments.rarity_colour(rid)
-		lines.append("%s [color=#%s]%-11s[/color] [color=#%s]%-20s[/color]" % [
-			">" if i == _sel else " ", hue, Assignments.rarity_name(rid),
-			hue, Assignments.title(card)])
-		lines.append("    %s  [color=#%s]pays x%.2f[/color]" % [
-			_difficulty_bar(int(card.get("difficulty", 1))),
-			C_COIN, Assignments.pay(rid)])
+	# the page's own heading, in the rarity's colour
+	lines.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
+	lines.append("[color=#%s]%s[/color]   [color=#%s]%s[/color]" % [
+		hue, Assignments.rarity_name(rid), DIM,
+		String(lesson.get("standard", "")) if String(lesson.get("standard", "")) != ""
+			else "no citation"])
 	lines.append("")
-	lines.append("[color=#%s]Longer papers pay more. Work you never collect is worth half.[/color]" % DIM)
+	# what it actually asks of them
+	lines.append("[color=#%s]Length[/color]  %s   [color=#%s]pays x%.2f[/color]" % [
+		DIM, _difficulty_bar(int(card.get("difficulty", 1))),
+		C_COIN, Assignments.pay(rid)])
+	var obj := String(lesson.get("objective", ""))
+	if obj != "":
+		lines.append("[color=#%s]%s[/color]" % [DIM, _wrap(obj, 52, 2)])
+	lines.append("")
+	# the page edge, so it is obvious there ARE more
+	var edge := ""
+	for i in n:
+		edge += "[color=#%s]%s[/color]" % [
+			Assignments.rarity_colour(String(Game.hand[i].get("rarity", "common"))),
+			BAR_FULL if i == _sel else BAR_EMPTY]
+	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, DIM])
+
 	rich.text = "\n".join(lines)
-	_reveal_rich(0.3)
-	hint.text = "Up/Down choose    E - set this one"
+	_reveal_rich(0.22)
+	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
 
 
 ## What kind of teacher are you?
@@ -1460,7 +1521,12 @@ func _shop_rows() -> Array:
 		# open the shop, and there is no useful action attached to it.
 		return Items.available_in_category(String(cats[_cat]))
 	if _shop == Shop.STAFF:
-		return Progress.perk_order()
+		# The aide sits at the top of the same list as the perks, so the
+		# screen keeps ONE cursor. A second selection model on one screen is
+		# how a UI starts needing a diagram.
+		var staff: Array = ["aide"]
+		staff.append_array(Progress.perk_order())
+		return staff
 	if _shop == Shop.ROOM:
 		return ROOM_ROWS.duplicate()
 	return Game.room_items.duplicate()
@@ -1635,23 +1701,39 @@ func _reach_words(reach: int, bonus: float) -> String:
 
 ## The staff-room board: what you have learned to do better.
 func _render_staff() -> Array[String]:
+	Balance.ensure_loaded()
 	var lines: Array[String] = []
-	lines.append("Level %d    %d point%s to spend" % [
-		Game.teacher_level, Game.perk_points_free(),
+	lines.append("[color=#%s]Level %d[/color]    %d point%s to spend" % [
+		C_KNOW, Game.teacher_level, Game.perk_points_free(),
 		"" if Game.perk_points_free() == 1 else "s"])
 	lines.append("")
+
+	# row 0: the aide
+	var hired: bool = Game.has_aide
+	lines.append("%s [color=#%s]%-17s[/color] [color=#%s]%s[/color]" % [
+		">" if _sel == 0 else " ", C_ROOM, "Teacher's aide",
+		C_GOOD if hired else C_COIN,
+		"hired, %d/day" % Balance.aide_wage if hired
+			else "%d coins" % Balance.aide_cost])
+
 	var order := Progress.perk_order()
 	for i in order.size():
 		var id: String = order[i]
 		var d := Progress.perk_def(id)
 		var have := Game.perk_rank(id)
 		var cap := Progress.max_rank(id)
-		lines.append("%s %-17s %s" % [
-			">" if i == _sel else " ", String(d.get("name", id)),
-			"#".repeat(have) + ".".repeat(cap - have)])
+		lines.append("%s %-17s [color=#%s]%s[/color]" % [
+			">" if i + 1 == _sel else " ", String(d.get("name", id)),
+			C_LESSON if have > 0 else DIM,
+			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
 	lines.append("")
-	if not order.is_empty():
-		lines.append(String(Progress.perk_def(order[_sel]).get("blurb", "")))
+	if _sel == 0:
+		lines.append("[color=#%s]%s[/color]" % [DIM,
+			"They collect finished work so you can stay at the front."
+			if not hired else "E again to let them go."])
+	elif not order.is_empty():
+		lines.append("[color=#%s]%s[/color]" % [DIM,
+			String(Progress.perk_def(order[_sel - 1]).get("blurb", ""))])
 	return lines
 
 
@@ -1774,11 +1856,11 @@ func _handle_input() -> void:
 			close()
 		elif Input.is_action_just_pressed("move_down"):
 			_sel = (_sel + 1) % n
-			Sfx.play("blip")
+			Sfx.play_varied("paper")
 			show_hand()
 		elif Input.is_action_just_pressed("move_up"):
 			_sel = (_sel - 1 + n) % n
-			Sfx.play("blip")
+			Sfx.play_varied("paper")
 			show_hand()
 		elif Game.claim_interact():
 			Sfx.play("confirm")
@@ -1940,10 +2022,15 @@ func _handle_input() -> void:
 				Sfx.play("deny" if e != "" else "coins")
 				_render_catalogue()
 			elif _shop == Shop.STAFF:
-				var err := Game.buy_perk(String(rows[_sel]))
-				Sfx.play("deny" if err != "" else "confirm")
-				if err == "":
-					perk_bought.emit()
+				if _sel == 0:
+					# hiring, or letting them go
+					var ae := Game.set_aide(not Game.has_aide)
+					Sfx.play("deny" if ae != "" else "coins")
+				else:
+					var err := Game.buy_perk(String(rows[_sel]))
+					Sfx.play("deny" if err != "" else "confirm")
+					if err == "":
+						perk_bought.emit()
 				_render_catalogue()
 			elif _shop == Shop.BUY:
 				var id: String = rows[_sel]
