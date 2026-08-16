@@ -144,6 +144,7 @@ func _main() -> void:
 	await test_no_raw_colour_codes()
 	await test_difficulty()
 	await test_specialism_and_choice()
+	await test_build_mode()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -3808,6 +3809,106 @@ func test_specialism_and_choice() -> void:
 	chk("and what you had lined up to teach",
 		Game.chosen_lesson == "chemistry")
 	Game.delete_save()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_build_mode() -> void:
+	section("REARRANGING THE ROOM")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	Game.add_coins(4000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+	var p: Actor = world.player
+	# `main` is the parent of the world, the way the other tests reach it
+	var main: Node = world.get_parent()
+
+	chk("build is a real, rebindable action", InputMap.has_action("build"))
+	chk("and it is offered in the controls screen", (func() -> bool:
+		for row: Dictionary in Settings.ACTIONS:
+			if String(row["action"]) == "build":
+				return true
+		return false).call())
+
+	# Editing the room used to mean walking to every item in turn. The
+	# cursor roams the WHOLE room now.
+	Game.room_items.clear()
+	Game.add_item("bookshelf", Vector2i(4, 6))
+	Game.add_item("plant", Vector2i(14, 8))
+	await step(3)
+	p.global_position = Grid.tile_to_world(Vector2i(9, 3))
+
+	main._toggle_build()
+	await step(2)
+	chk("build mode opens a cursor", main.placement.active
+		and main.placement.browsing)
+	chk("and it locks you where you stand rather than making you walk",
+		p.input_locked)
+
+	# reach the far corner without moving the teacher
+	main.placement.tile = Vector2i(14, 8)
+	main.placement._refresh()
+	chk("the cursor reaches furniture across the room",
+		not Game.item_at(main.placement.tile).is_empty())
+
+	# --- pick up from under the CURSOR, not from under your feet ---
+	var before: int = Game.room_items.size()
+	main.placement.picked_up.emit("plant", Vector2i(14, 8))
+	await step(3)
+	chk("picking it up takes it off the floor",
+		Game.room_items.size() == before - 1, Game.room_items.size())
+	chk("and puts it in your hands", main.placement.active
+		and main.placement.item_id == "plant")
+	main.placement.tile = Vector2i(12, 8)
+	main.placement._refresh()
+	main.placement.placed.emit("plant", Vector2i(12, 8))
+	await step(3)
+	chk("and it goes back down where you put it",
+		not Game.item_at(Vector2i(12, 8)).is_empty())
+
+	# --- selling from the cursor ---
+	main._toggle_build()
+	await step(2)
+	var coins_before: int = Game.coins
+	var items_before: int = Game.room_items.size()
+	main.placement.sold.emit(Vector2i(4, 6))
+	await step(3)
+	chk("selling from the cursor removes it",
+		Game.room_items.size() == items_before - 1)
+	chk("and pays you back", Game.coins > coins_before,
+		"%d -> %d" % [coins_before, Game.coins])
+
+	# --- the rule every other way of moving furniture already follows ---
+	main.placement.finish()
+	Game.set_phase(Game.Phase.LESSON)
+	main._toggle_build()
+	await step(2)
+	chk("you cannot rearrange the room mid-lesson",
+		not main.placement.active)
+	Game.set_phase(Game.Phase.AFTERNOON)
+
+	# --- and it still refuses to trap anybody ---
+	# The aisle-safety check is the same one, which is the whole reason
+	# build mode reuses Placement rather than reimplementing it.
+	main._toggle_build()
+	await step(2)
+	main.placement.browsing = false
+	main.placement.item_id = "bookshelf"
+	main.placement.tile = Layout.desk_tile(0)
+	main.placement._refresh()
+	chk("dropping something inside a desk is still refused",
+		not main.placement.is_valid())
+	main.placement.tile = Vector2i(0, 0)
+	main.placement._refresh()
+	chk("and so is dropping it inside a wall", not main.placement.is_valid())
+	main.placement.tile = Vector2i(9, 6)
+	main.placement._refresh()
+	chk("but a clear tile is fine", main.placement.is_valid())
+	main.placement.finish()
+	main._unlock()
 
 	Game.new_run(SEED)
 	await step(2)

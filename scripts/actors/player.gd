@@ -68,6 +68,10 @@ func _physics_process(delta: float) -> void:
 		_tick_hold(delta)
 		# The one verb that is not a landmark. It is still about where you
 		# are standing -- only the desks within earshot hear it.
+		if Game.claim_action("build"):
+			var m := get_tree().get_first_node_in_group("main_wiring")
+			if m != null and m.has_method("_toggle_build"):
+				m._toggle_build()
 		if Game.claim_action("voice"):
 			var room := get_tree().get_first_node_in_group("classroom")
 			if room != null and room.has_method("raise_voice"):

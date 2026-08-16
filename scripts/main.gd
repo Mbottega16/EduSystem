@@ -33,12 +33,16 @@ func _ready() -> void:
 	hud.item_chosen.connect(_start_placing)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
 	world.add_to_group("classroom")
+	add_to_group("main_wiring")
 	placement.set_process(true)
 	world.item_move_requested.connect(_start_moving)
 	world.desk_move_requested.connect(_start_moving_desk)
 	placement.placed.connect(_finish_placing)
 	placement.desk_placed.connect(_finish_moving_desk)
 	placement.cancelled.connect(_unlock)
+	placement.picked_up.connect(_start_moving)
+	placement.sold.connect(func(tile: Vector2i) -> void:
+		Game.sell_item(tile))
 
 
 ## The fixed props are NEW NODES after the room is rebuilt at a bigger size,
@@ -138,6 +142,25 @@ func _start_moving(id: String, tile: Vector2i) -> void:
 func _bump(strength: float = 2.0) -> void:
 	if world != null and world.camera != null:
 		Fx.shake(world.camera, strength)
+
+
+## Build mode. A cursor over the WHOLE room, so rearranging is not a series
+## of walks to individual pieces of furniture.
+##
+## Deliberately not available mid-lesson, which is the rule every other way
+## of moving furniture already follows: sliding desks about while the class
+## works would dodge the point of planning the room in advance.
+func _toggle_build() -> void:
+	if placement.active:
+		placement.finish()
+		_unlock()
+		return
+	if Game.phase == Game.Phase.LESSON:
+		hud.hint_once("build_lesson", "Not while the class is working.")
+		return
+	world.player.input_locked = true
+	placement.begin_browse(world.grid,
+		Grid.world_to_tile(world.player.global_position))
 
 
 func _run_quiz() -> void:

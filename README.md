@@ -16,6 +16,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | **E** / Space | **help, collect, hand in, call a quiz, sit a test** | yes |
 | **F** | **start or end a lesson, ring the bell, open the shop, move a desk** | yes |
 | **Q** | **settle the room within earshot** | yes |
+| **B** | **rearrange the room from a free cursor** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
 | P | pause | yes |
@@ -128,6 +129,32 @@ because you were told the night before:
 
 A pass pays a grant. Everything judged is something the game already
 tracked, and every verdict is a sentence rather than a decimal.
+
+## You have to actually teach
+
+Work only advances while the class is paying attention, and attention only
+comes from **you standing at the front**, near the podium. Walk away and it
+drains; come back and it fills.
+
+Which means every second at one child's desk is a second the other seven are
+not being taught. That is the trade the whole game is about — and the term
+simulator agrees: a policy that reacts to every twitch in half a second ends
+on a **B**, while one that waits four seconds and teaches steadily gets an
+**A**. Hovering costs you the room.
+
+## Choose your subject, choose your lessons
+
+Twenty lessons across English, Maths, Science and Humanities, each rated
+**1 to 5 for difficulty** — which scales how long the work takes and how
+often a child gets stuck on it. You can see the rating before you commit.
+
+A run asks what kind of teacher you are, once. Your own subject is a step
+easier and pays 25% more; everything else is a step harder. A lean, not a
+cage — you can still teach all twenty, and a class that only ever sees one
+subject learns one subject.
+
+And **furniture now makes the work easier**, not just better-marked: a
+well-equipped desk takes the edge off a hard lesson for whoever sits at it.
 
 ## A term is a chapter, and you can lose
 
@@ -278,7 +305,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            842 assertions
+Run Tests.bat            900 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

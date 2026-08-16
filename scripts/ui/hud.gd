@@ -232,11 +232,18 @@ func _update_prompt() -> void:
 	# became impossible to end.
 	#
 	# One target per button was already true. The bar simply was not saying so.
+	# Through offers(), NOT by reading targets directly. Reading a freed node
+	# into a typed variable throws "Trying to assign invalid previously freed
+	# instance" -- the same fault that once killed every button in the game,
+	# reappearing here the moment build mode started selling furniture out
+	# from under the cursor. It threw every single frame and buried the test
+	# log. offers() is the player's own safe accessor; there is no reason for
+	# anything else to reach into targets.
 	var parts: Array[String] = []
-	for action: String in ["interact", "manage"]:
-		var t: Interactable = _player.targets.get(action)
-		if t == null or not is_instance_valid(t) or not t.can_interact():
+	for t: Interactable in _player.offers():
+		if not t.can_interact():
 			continue
+		var action: String = t.action_name()
 		var key: String = t.key_hint()
 		if t.hold_time > 0.0:
 			var held: float = _player.hold_progress if _player._holding == action else 0.0

@@ -7,6 +7,20 @@ extends Node2D
 ## the teacher happens to face, which is charming for about a minute and then
 ## makes the far corners of the room miserable to reach.
 
+## Build mode: pick something up from anywhere, put it down anywhere.
+##
+## Editing the room used to mean walking to each item in turn, pressing E to
+## lift it, moving a ghost, and walking to the next one. That is fine for one
+## bookshelf and miserable for a room, which is what "confusing to edit and
+## move things around" meant.
+##
+## The cursor already roams freely and the placement rules -- the footprint
+## check, the aisle-safety check that refuses to cut a seat off from the door
+## -- are the same ones. All build mode adds is being able to PICK UP from
+## under the cursor rather than from under your feet.
+signal picked_up(id: String, tile: Vector2i)
+signal sold(tile: Vector2i)
+
 signal placed(id: String, tile: Vector2i)
 signal desk_placed(seat_index: int, tile: Vector2i)
 signal cancelled()
@@ -22,6 +36,9 @@ var tile: Vector2i = Vector2i(9, 5)
 ## is not a catalogue entry: it occupies a PAIR of tiles (the seat and the
 ## desk below it) and it has an identity, because a child is sitting in it.
 var desk_index: int = -1
+
+## Roaming the room with nothing in hand, looking for something to move.
+var browsing: bool = false
 
 ## Colours for the range overlay.
 const REACH_FILL := Color(0.45, 0.95, 0.55, 0.55)
@@ -62,7 +79,26 @@ func begin_desk(index: int, grid: Grid) -> void:
 	_refresh()
 
 
+## Enter build mode empty-handed: a cursor over the whole room.
+func begin_browse(grid: Grid, start: Vector2i) -> void:
+	z_index = 100
+	add_to_group("placement")
+	item_id = ""
+	desk_index = -1
+	browsing = true
+	_grid = grid
+	tile = start
+	active = true
+	visible = true
+	if _ghost == null:
+		_ghost = Sprite2D.new()
+		add_child(_ghost)
+	_ghost.texture = null
+	_refresh()
+
+
 func begin(id: String, grid: Grid, start: Vector2i) -> void:
+	browsing = false
 	desk_index = -1
 	# Draw above the room. This node lives in the y-sorted world at y=0, so
 	# without this the range highlights sort to the very back and every
@@ -84,6 +120,7 @@ func begin(id: String, grid: Grid, start: Vector2i) -> void:
 
 
 func finish() -> void:
+	browsing = false
 	active = false
 	visible = false
 	desk_index = -1
@@ -205,6 +242,12 @@ func _would_trap_anyone() -> bool:
 func _refresh() -> void:
 	if _ghost == null:
 		return
+	if browsing:
+		# nothing in hand: the cursor is just a marker over whatever is here
+		_ghost.texture = null
+		_reached.clear()
+		queue_redraw()
+		return
 	if desk_index >= 0:
 		# anchored on the DESK tile, so the ghost sits where the desk will
 		_ghost.position = Layout.span_anchor([tile + Layout.DESK_OFFSET]) \
@@ -228,6 +271,12 @@ func _refresh() -> void:
 ## the tile was legal.
 func _draw() -> void:
 	if not active:
+		return
+	if browsing:
+		var r := Rect2(Vector2(tile) * Grid.TILE, Vector2(Grid.TILE, Grid.TILE))
+		var on_something: bool = not Game.item_at(tile).is_empty()
+		draw_rect(r, REACH_FILL if on_something else Color(1, 1, 1, 0.12))
+		draw_rect(r, REACH_EDGE if on_something else Color(1, 1, 1, 0.5), false, 1.0)
 		return
 	for i in Layout.seat_count():
 		var occupied := Game.student_in_seat(i) != null
@@ -274,6 +323,26 @@ func _process(delta: float) -> void:
 ## Polled, not event-driven — see the note in scripts/ui/hud.gd. This is
 ## also why the ghost is driven from _process rather than from input events.
 func _handle_input() -> void:
+	if browsing:
+		if Input.is_action_just_pressed("cancel") 				or Input.is_action_just_pressed("build"):
+			finish()
+			cancelled.emit()
+		elif Game.claim_interact():
+			var here := Game.item_at(tile)
+			if here.is_empty():
+				Sfx.play("deny")
+			else:
+				Sfx.play("confirm")
+				picked_up.emit(String(here["id"]), here["tile"])
+		elif Game.claim_action("manage"):
+			var here2 := Game.item_at(tile)
+			if here2.is_empty():
+				Sfx.play("deny")
+			else:
+				Sfx.play("confirm")
+				sold.emit(here2["tile"])
+		return
+
 	if Input.is_action_just_pressed("cancel"):
 		finish()
 		cancelled.emit()
