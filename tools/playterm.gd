@@ -110,6 +110,10 @@ func _play() -> void:
 			break
 		if Game.phase == Game.Phase.MORNING:
 			await tap("manage")
+			# take whichever paper is on top of the hand
+			if hud.mode == hud.Mode.HAND:
+				await tap("interact")
+				await frames(4)
 		if Game.phase != Game.Phase.LESSON:
 			print("!! day %d: the lesson would not start (phase %d, F=[%s])"
 				% [day, Game.phase, _offer("manage")])

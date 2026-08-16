@@ -125,7 +125,12 @@ func _trace() -> void:
 	say("at podium: " + state())
 
 	await tap("manage")
-	say("tapped F: " + state())
+	# The podium draws a hand of papers now; the lesson starts when you
+	# take one. Two presses, not one.
+	if hud.mode == hud.Mode.HAND:
+		await tap("interact")
+		await frames(4)
+	say("tapped F, took a paper: " + state())
 
 	# let the clock run all the way out, the way an idle player would
 	var guard := 0

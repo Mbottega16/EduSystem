@@ -8,6 +8,8 @@ extends Interactable
 ## the room.
 
 signal lesson_started(assigned: int)
+## Setting work is a CHOICE now: three papers are drawn and you pick one.
+signal hand_requested()
 
 func _init() -> void:
 	super()
@@ -59,8 +61,10 @@ func interact(by: Node) -> void:
 	if room == null:
 		return
 	if Game.phase == Game.Phase.MORNING:
-		Sfx.play("start")
-		lesson_started.emit(room.start_lesson())
+		# The hand comes first. The lesson does not begin until a paper has
+		# been chosen, because the paper is what the lesson IS.
+		Sfx.play("blip")
+		hand_requested.emit()
 	elif Game.phase == Game.Phase.LESSON:
 		if Game.test_active:
 			test_ended.emit(room.end_test())

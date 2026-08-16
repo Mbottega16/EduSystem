@@ -581,5 +581,70 @@
     "difficulty_relief": 1.0,
     "out_of_field_penalty": 0.7,
     "coin_bonus": 1.25
+  },
+  "assignments": {
+    "_note": "The paper you set. Three are drawn at the podium and you pick one, so setting work is a decision instead of a formality. RARITY pays -- coins and the experience the children get -- and DIFFICULTY is how long the paper takes. They are rolled separately and then correlated, so a Legendary is usually demanding: the question is whether this class, on this day, can actually finish it. Work you never collect counts for half.",
+    "_colour_note": "Grey, green, blue, violet, gold -- the ladder every looter has trained players to read without a legend. The names are yours; the order of the colours is the one people already know.",
+    "_grade_note": "Rarity deliberately pays COINS and XP, never grade. The three-row balance contract is measured from work completion, and a multiplier on the lesson term would move the pillar by luck rather than by play.",
+    "hand_size": 3,
+    "rarities": [
+      {
+        "id": "common",
+        "name": "Common",
+        "weight": 58,
+        "colour": "b9b4a8",
+        "pay": 1.0
+      },
+      {
+        "id": "rare",
+        "name": "Rare",
+        "weight": 22,
+        "colour": "9fd89f",
+        "pay": 1.25
+      },
+      {
+        "id": "excellent",
+        "name": "Excellent",
+        "weight": 12,
+        "colour": "8ab4f8",
+        "pay": 1.55
+      },
+      {
+        "id": "epic",
+        "name": "Epic",
+        "weight": 6,
+        "colour": "d0a3e8",
+        "pay": 2.0
+      },
+      {
+        "id": "legendary",
+        "name": "Legendary",
+        "weight": 2,
+        "colour": "f2c66b",
+        "pay": 2.8
+      }
+    ],
+    "forms": [
+      {
+        "name": "Worksheet",
+        "difficulty": 1
+      },
+      {
+        "name": "Exercises",
+        "difficulty": 2
+      },
+      {
+        "name": "Problem Set",
+        "difficulty": 3
+      },
+      {
+        "name": "Investigation",
+        "difficulty": 4
+      },
+      {
+        "name": "Project",
+        "difficulty": 5
+      }
+    ]
   }
 }

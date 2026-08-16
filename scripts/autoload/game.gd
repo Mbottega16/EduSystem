@@ -73,6 +73,50 @@ var specialism: String = ""
 ## which is what it always used to do.
 var chosen_lesson: String = ""
 
+# --- the paper you set ------------------------------------------------
+## The three cards drawn at the podium, and the one you picked.
+##
+## Setting work used to be a formality -- tap the podium, everyone gets the
+## same anonymous sheet. Drawing a hand makes the first thing you do each
+## morning a decision, and it is the decision the rest of the day is spent
+## living with.
+var hand: Array = []
+var assignment: Dictionary = {}
+
+signal hand_drawn(cards: Array)
+
+
+func draw_hand() -> Array:
+	hand = Assignments.draw(rng, lesson)
+	hand_drawn.emit(hand)
+	return hand
+
+
+func choose_assignment(i: int) -> Dictionary:
+	if i < 0 or i >= hand.size():
+		return {}
+	assignment = (hand[i] as Dictionary).duplicate()
+	hand.clear()
+	return assignment
+
+
+## What the paper on the desks is worth, as a multiplier on coins and on the
+## experience finishing it gives a child. Never on the grade -- see the note
+## in data/balance.json.
+func assignment_pay() -> float:
+	if assignment.is_empty():
+		return 1.0
+	return Assignments.pay(String(assignment.get("rarity", "common")))
+
+
+## How long the paper is, 1..5. The LESSON's difficulty says how confusing
+## the subject is; the PAPER's says how much of it there is. Keeping them
+## apart is what lets an easy subject carry a long project.
+func assignment_difficulty() -> int:
+	if assignment.is_empty():
+		return 3
+	return clampi(int(assignment.get("difficulty", 3)), 1, 5)
+
 # --- the teacher's own progression ---------------------------------
 var teacher_xp: int = 0
 var teacher_level: int = 1
@@ -143,6 +187,8 @@ func new_run(seed_value: int = 0) -> void:
 	last_split = {}
 	specialism = ""
 	chosen_lesson = ""
+	hand.clear()
+	assignment = {}
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -942,21 +988,37 @@ signal attention_changed(level: float)
 ## could watch happen.
 func difficulty_mults(seat_index: int) -> Array:
 	Balance.ensure_loaded()
-	var steps: float = float(Curriculum.difficulty(lesson) - 3)
-	# your own subject is a step easier; anything else is a step harder
+	# TWO different questions, and they deserve two different answers.
+	#
+	#   the PAPER   how much work there is       -> how long it takes
+	#   the SUBJECT how confusing the material is -> how often they stall
+	#
+	# Keeping them apart is what lets an easy subject carry a long project,
+	# and a hard subject carry a short worksheet. Before a paper is chosen
+	# both fall back to the lesson, which is how it behaved before cards.
+	var subject_steps: float = float(Curriculum.difficulty(lesson) - 3)
+	var paper_steps: float = subject_steps if assignment.is_empty() 		else float(assignment_difficulty() - 3)
+
 	if specialism != "":
-		steps += (-Balance.spec_relief if lesson_strand() == specialism
+		var lean: float = (-Balance.spec_relief if lesson_strand() == specialism
 			else Balance.spec_penalty)
-	if steps > 0.0:
-		# only the EXTRA difficulty is relieved; an easy lesson is not made
-		# easier still by a room full of furniture
-		var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
-		var built: float = clampf(
-			(room_score(seat_index) - Balance.room_base) / span, 0.0, 1.0)
-		steps *= 1.0 - built * Balance.diff_furniture_relief
+		subject_steps += lean
+		paper_steps += lean
+
+	# Furniture takes the edge off the EXTRA difficulty only -- an easy
+	# lesson is not made easier still by a room full of shelves.
+	var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
+	var built: float = clampf(
+		(room_score(seat_index) - Balance.room_base) / span, 0.0, 1.0)
+	var relief: float = 1.0 - built * Balance.diff_furniture_relief
+	if subject_steps > 0.0:
+		subject_steps *= relief
+	if paper_steps > 0.0:
+		paper_steps *= relief
+
 	return [
-		maxf(0.25, 1.0 + steps * Balance.diff_per_step_work),
-		maxf(0.25, 1.0 + steps * Balance.diff_per_step_stall),
+		maxf(0.25, 1.0 + paper_steps * Balance.diff_per_step_work),
+		maxf(0.25, 1.0 + subject_steps * Balance.diff_per_step_stall),
 	]
 
 
@@ -1394,6 +1456,7 @@ func to_dict() -> Dictionary:
 		"term": term,
 		"specialism": specialism,
 		"chosen_lesson": chosen_lesson,
+		"assignment": assignment,
 		"term_history": term_history,
 		"run_over": run_over,
 		"taught": taught,
@@ -1427,6 +1490,7 @@ func from_dict(d: Dictionary) -> void:
 	term = int(d.get("term", 1))
 	specialism = String(d.get("specialism", ""))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
+	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()

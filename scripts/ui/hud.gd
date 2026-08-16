@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM }
+	CURRICULUM, SPECIALISM, HAND }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -22,6 +22,8 @@ const ROOM_ROWS := ["wide", "tall"]
 enum Act { TUITION, PARENTS, GRADUATE, COUNT }
 
 signal item_chosen(id: String)
+## Which of the drawn papers the player took.
+signal assignment_chosen(index: int)
 ## Long Reach changes the size of the player's pick zone, so it has to
 ## be rebuilt when a perk is bought.
 signal perk_bought()
@@ -150,6 +152,11 @@ func _update_status() -> void:
 		var room := get_tree().get_first_node_in_group("classroom")
 		if room != null:
 			bits.append("%ds" % int(ceil(room.lesson_left)))
+		# What paper is on the desks. In WORDS: the strip is a Label, so it
+		# cannot carry the rarity's colour the way the card screen does.
+		if not Game.assignment.is_empty():
+			bits.append(Assignments.rarity_name(
+				String(Game.assignment.get("rarity", "common"))))
 		if not Game.test_active:
 			# Attention first: it is the difference between a lesson
 			# happening and a lesson not happening, so it outranks the rest.
@@ -860,6 +867,43 @@ func show_run_over(info: Dictionary) -> void:
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.6)
 	hint.text = "E - start again"
+
+
+## THE HAND. Three papers, drawn at the podium, and you set one of them.
+##
+## Rarity is what it PAYS and difficulty is how LONG it is, and they are
+## correlated -- so the rare ones are usually demanding and the question is
+## not "which is best" but "can this class, today, in the room I have built,
+## actually finish this". Work you never collect counts for half, so a
+## Legendary Project nobody completes is worth less than a Common Worksheet
+## everybody hands in.
+func show_hand() -> void:
+	_open(Mode.HAND)
+	body.visible = false
+	rich.visible = true
+	# Three cards are two lines each, so the footer gets ONE line, not two.
+	# At separation 3 the second was landing under the hint bar.
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "WHAT ARE THEY DOING TODAY?"
+
+	_sel = clampi(_sel, 0, maxi(0, Game.hand.size() - 1))
+	var lines: Array[String] = []
+	for i in Game.hand.size():
+		var card: Dictionary = Game.hand[i]
+		var rid := String(card.get("rarity", "common"))
+		var hue := Assignments.rarity_colour(rid)
+		lines.append("%s [color=#%s]%-11s[/color] [color=#%s]%-20s[/color]" % [
+			">" if i == _sel else " ", hue, Assignments.rarity_name(rid),
+			hue, Assignments.title(card)])
+		lines.append("    %s  [color=#%s]pays x%.2f[/color]" % [
+			_difficulty_bar(int(card.get("difficulty", 1))),
+			C_COIN, Assignments.pay(rid)])
+	lines.append("")
+	lines.append("[color=#%s]Longer papers pay more. Work you never collect is worth half.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.3)
+	hint.text = "Up/Down choose    E - set this one"
 
 
 ## What kind of teacher are you?
@@ -1721,6 +1765,28 @@ func _verdict(pass_it: bool) -> void:
 func _handle_input() -> void:
 	if mode == Mode.PAUSE:
 		return
+	if mode == Mode.HAND:
+		var n: int = Game.hand.size()
+		if n == 0:
+			close()
+		elif Input.is_action_just_pressed("cancel"):
+			Sfx.play("blip")
+			close()
+		elif Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % n
+			Sfx.play("blip")
+			show_hand()
+		elif Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + n) % n
+			Sfx.play("blip")
+			show_hand()
+		elif Game.claim_interact():
+			Sfx.play("confirm")
+			var picked := _sel
+			close()
+			assignment_chosen.emit(picked)
+		return
+
 	if mode == Mode.SPECIALISM:
 		var strands := Curriculum.strands()
 		if strands.is_empty():

@@ -86,6 +86,18 @@ func _open_screen(main: Node, screen: String) -> void:
 		"specialism":
 			Game.specialism = ""
 			hud.show_specialism()
+		"hand":
+			# a hand with one of each of the top rarities, so the colours
+			# can be compared side by side
+			Game.hand = [
+				{"rarity": "common", "form": "Worksheet", "difficulty": 1,
+					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
+				{"rarity": "excellent", "form": "Problem Set", "difficulty": 3,
+					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
+				{"rarity": "legendary", "form": "Project", "difficulty": 5,
+					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
+			]
+			hud.show_hand()
 		"curriculum":
 			for l: Dictionary in Curriculum.lessons:
 				for i in 4:

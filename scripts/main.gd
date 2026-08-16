@@ -31,6 +31,7 @@ func _ready() -> void:
 	_wire_room()
 
 	hud.item_chosen.connect(_start_placing)
+	hud.assignment_chosen.connect(_start_chosen_lesson)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
 	world.add_to_group("classroom")
 	add_to_group("main_wiring")
@@ -77,6 +78,7 @@ func _on_term_ended(result: Dictionary) -> void:
 
 func _wire_room() -> void:
 	var pairs := [
+		[world.podium, "hand_requested", _offer_hand],
 		[world.podium, "lesson_ended", _on_lesson_ended],
 		[world.podium, "test_ended", hud.show_test_report],
 		[world.bell, "day_ended", _on_day_ended],
@@ -161,6 +163,18 @@ func _toggle_build() -> void:
 	world.player.input_locked = true
 	placement.begin_browse(world.grid,
 		Grid.world_to_tile(world.player.global_position))
+
+
+## Draw three papers and let the player pick one; the lesson starts with
+## whichever they took.
+func _offer_hand() -> void:
+	Game.draw_hand()
+	hud.show_hand()
+
+
+func _start_chosen_lesson(i: int) -> void:
+	Game.choose_assignment(i)
+	world.podium.lesson_started.emit(world.start_lesson())
 
 
 func _run_quiz() -> void:

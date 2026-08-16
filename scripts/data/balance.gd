@@ -76,6 +76,11 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- the paper you set ---------------------------------------------------
+static var assign_hand_size: int = 3
+static var assign_rarities: Array = []
+static var assign_forms: Array = []
+
 # --- the subject you trained in ------------------------------------------
 static var spec_relief: float = 1.0
 static var spec_penalty: float = 0.7
@@ -249,6 +254,11 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var asg: Dictionary = d.get("assignments", {})
+	assign_hand_size = int(asg.get("hand_size", assign_hand_size))
+	assign_rarities = asg.get("rarities", assign_rarities)
+	assign_forms = asg.get("forms", assign_forms)
 
 	var sp: Dictionary = d.get("specialism", {})
 	spec_relief = float(sp.get("difficulty_relief", spec_relief))

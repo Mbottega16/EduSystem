@@ -145,6 +145,7 @@ func _main() -> void:
 	await test_difficulty()
 	await test_specialism_and_choice()
 	await test_build_mode()
+	await test_assignment_cards()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -1209,6 +1210,16 @@ func _same_within(a: Variant, b: Variant, tol: float) -> bool:
 ## of that roll: on an easy lesson the work finishes before anyone can get
 ## stuck, so "a student gets stuck eventually" simply stopped being true.
 ## Difficulty 3 is the neutral middle, where every multiplier is 1.0.
+## Setting work is a hand of cards now, so starting a lesson through the
+## real buttons takes TWO presses: one at the podium to draw, one on the
+## paper you want. Anything driving the real input has to do both.
+func _take_a_paper() -> void:
+	var hud := _hud()
+	if hud.mode == hud.Mode.HAND:
+		await tap("interact")
+		await step(3)
+
+
 func _neutral_lesson() -> void:
 	for l: Dictionary in Curriculum.lessons:
 		if Curriculum.difficulty(l) == 3:
@@ -2453,6 +2464,7 @@ func test_a_whole_day() -> void:
 			return t != null and t.prompt_text().begins_with("Teach")).call(),
 		p.targets["manage"])
 	await tap("manage")
+	await _take_a_paper()
 	chk("and it really starts", Game.phase == Game.Phase.LESSON, Game.phase)
 
 	# whoever was still walking gets their paper when they sit
@@ -2486,8 +2498,12 @@ func test_a_whole_day() -> void:
 		return t != null and t.prompt_text().begins_with("Teach")).call(),
 		p.targets["manage"])
 	await tap("manage")
-	chk("tapping manage starts the lesson", Game.phase == Game.Phase.LESSON,
+	chk("the podium offers a choice of paper first",
+		_hud().mode == _hud().Mode.HAND, _hud().mode)
+	await _take_a_paper()
+	chk("and taking one starts the lesson", Game.phase == Game.Phase.LESSON,
 		Game.phase)
+	chk("with that paper on the desks", not Game.assignment.is_empty())
 
 	# --- let the clock run all the way out ---
 	var guard := 0
@@ -3909,6 +3925,153 @@ func test_build_mode() -> void:
 	chk("but a clear tile is fine", main.placement.is_valid())
 	main.placement.finish()
 	main._unlock()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_assignment_cards() -> void:
+	section("THE PAPER YOU SET")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	# --- the ladder ---
+	chk("there are five rarities", Assignments.rarities().size() == 5,
+		Assignments.rarities().size())
+	chk("named the way you named them", (func() -> bool:
+		var want := ["Common", "Rare", "Excellent", "Epic", "Legendary"]
+		for i in want.size():
+			var got := Assignments.rarity_name(
+				String(Assignments.rarities()[i]["id"]))
+			if got != want[i]:
+				return false
+		return true).call())
+	chk("each is rarer than the last", (func() -> bool:
+		var last := 99999.0
+		for r: Dictionary in Assignments.rarities():
+			if float(r["weight"]) > last:
+				return false
+			last = float(r["weight"])
+		return true).call())
+	chk("and each pays more than the last", (func() -> bool:
+		var last := 0.0
+		for r: Dictionary in Assignments.rarities():
+			if float(r["pay"]) <= last:
+				return false
+			last = float(r["pay"])
+		return true).call())
+	chk("every one has its own colour", (func() -> bool:
+		var seen := {}
+		for r: Dictionary in Assignments.rarities():
+			seen[String(r["colour"])] = true
+		return seen.size() == Assignments.rarities().size()).call())
+
+	# --- mostly common, which is what makes a Legendary worth something ---
+	var counts := {}
+	for i in 4000:
+		var c := Assignments.roll(Game.rng, Game.lesson)
+		counts[c["rarity"]] = int(counts.get(c["rarity"], 0)) + 1
+	chk("most papers are Common", int(counts.get("common", 0)) > 2000, counts)
+	chk("and Legendaries are genuinely rare",
+		int(counts.get("legendary", 0)) < 200
+		and int(counts.get("legendary", 0)) > 0, counts)
+	chk("but every rarity does turn up", counts.size() == 5, counts)
+
+	# rarity is correlated with LENGTH, so a rare card is not a free lunch
+	var common_diff := 0.0
+	var common_n := 0
+	var legend_diff := 0.0
+	var legend_n := 0
+	for i in 4000:
+		var c2 := Assignments.roll(Game.rng, Game.lesson)
+		if String(c2["rarity"]) == "common":
+			common_diff += float(c2["difficulty"])
+			common_n += 1
+		elif String(c2["rarity"]) == "legendary":
+			legend_diff += float(c2["difficulty"])
+			legend_n += 1
+	if legend_n > 0:
+		chk("a rarer paper is usually a longer one",
+			legend_diff / float(legend_n) > common_diff / maxf(1.0, float(common_n)),
+			"%.1f vs %.1f" % [legend_diff / float(legend_n),
+				common_diff / maxf(1.0, float(common_n))])
+	else:
+		chk("SKIPPED: no legendary in this sample", true)
+
+	# --- drawing and choosing ---
+	Game.new_run(SEED)
+	var hand := Game.draw_hand()
+	chk("the podium deals a hand", hand.size() == Balance.assign_hand_size,
+		hand.size())
+	chk("nothing is set until you pick", Game.assignment.is_empty())
+	Game.choose_assignment(1)
+	chk("choosing sets the paper", not Game.assignment.is_empty())
+	chk("and the hand is spent", Game.hand.is_empty())
+
+	# --- what it changes ---
+	Game.room_items.clear()
+	Game.assignment = {"rarity": "common", "form": "Worksheet",
+		"difficulty": 1, "subject": "x", "lesson": ""}
+	var short := StudentData.new()
+	short.assign_work()
+	Game.assignment = {"rarity": "legendary", "form": "Project",
+		"difficulty": 5, "subject": "x", "lesson": ""}
+	var long_one := StudentData.new()
+	long_one.assign_work()
+	chk("a Project is longer work than a Worksheet",
+		long_one.work_total > short.work_total,
+		"%.1fs vs %.1fs" % [long_one.work_total, short.work_total])
+
+	chk("a Legendary pays more", Game.assignment_pay() > 1.0,
+		Game.assignment_pay())
+	Game.assignment = {"rarity": "common", "difficulty": 1}
+	chk("and a Common pays the usual",
+		is_equal_approx(Game.assignment_pay(), 1.0))
+
+	# THE LINE THAT KEEPS THE CONTRACT SAFE: rarity pays coins and XP, never
+	# grade. A multiplier on the lesson term would move the design pillar by
+	# LUCK rather than by play.
+	var s2: StudentData = Game.roster[0]
+	s2.work_state = StudentData.Work.COLLECTED
+	Game.assignment = {"rarity": "common", "difficulty": 3}
+	var plain := Game.grade_for(s2)
+	Game.assignment = {"rarity": "legendary", "difficulty": 3}
+	chk("but rarity never touches the grade",
+		is_equal_approx(Game.grade_for(s2), plain),
+		"%.3f vs %.3f" % [Game.grade_for(s2), plain])
+
+	# --- it survives the night ---
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run has no paper set", Game.assignment.is_empty())
+	Game.load_game()
+	chk("but a saved one remembers what the class is doing",
+		String(Game.assignment.get("rarity", "")) == "legendary")
+	Game.delete_save()
+
+	# --- the screen ---
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	Game.draw_hand()
+	hud.show_hand()
+	chk("the hand is on screen", hud.mode == hud.Mode.HAND)
+	chk("and names every paper it dealt", (func() -> bool:
+		for c3: Dictionary in Game.hand:
+			if not hud.rich.text.contains(Assignments.title(c3)):
+				return false
+		return true).call(), hud.rich.text)
+	chk("in its rarity's colour", (func() -> bool:
+		for c4: Dictionary in Game.hand:
+			if not hud.rich.text.contains(
+					Assignments.rarity_colour(String(c4["rarity"]))):
+				return false
+		return true).call())
+	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	hud.close()
 
 	Game.new_run(SEED)
 	await step(2)

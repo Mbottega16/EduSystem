@@ -130,6 +130,32 @@ because you were told the night before:
 A pass pays a grant. Everything judged is something the game already
 tracked, and every verdict is a sentence rather than a decimal.
 
+## Setting work is a hand of cards
+
+The podium deals **three papers** and you set one. Two axes, rolled
+separately and then correlated:
+
+| | |
+|---|---|
+| **Rarity** | what it PAYS — coins, and what finishing it is worth to a child |
+| **Difficulty** | how LONG the paper is |
+
+**Common · Rare · Excellent · Epic · Legendary**, in the grey/green/blue/
+violet/gold ladder every looter has trained players to read without a
+legend. Most papers are Common; a Legendary turns up about one time in
+fifty.
+
+They are correlated on purpose, so a Legendary is usually a demanding piece
+of work — which makes the hand a decision rather than a ranking. The
+question is not "which is best" but **"can this class, today, in the room I
+have built, actually finish this"** — because work you never collect is
+worth half. A Legendary Project nobody completes is worth less than a Common
+Worksheet everybody hands in.
+
+Rarity pays coins and experience and **never grade**. The three-row balance
+contract is measured from work completion, and a multiplier on the lesson
+term would move the design pillar by luck instead of by play.
+
 ## You have to actually teach
 
 Work only advances while the class is paying attention, and attention only
@@ -305,7 +331,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            900 assertions
+Run Tests.bat            925 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
