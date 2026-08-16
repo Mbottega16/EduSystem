@@ -516,8 +516,14 @@ func end_lesson() -> Array:
 
 ## The bell. Pays out, rolls overnight homework, and starts tomorrow with the
 ## class filing back in.
+## The bell. Pays out, rolls overnight homework, and starts tomorrow.
+##
+## Milestones are checked HERE because the end of the day is the one moment
+## the player is already reading a screen. Firing one mid-lesson would be an
+## interruption; firing it here is a line on a report they wanted anyway.
 func end_day() -> Dictionary:
 	var report := Game.advance_day()
+	report["milestones"] = Game.check_milestones()
 	if player != null:
 		player.drop_all_work()
 		player.drop_all_homework()

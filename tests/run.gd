@@ -149,6 +149,7 @@ func _main() -> void:
 	test_a_term_can_be_won()
 	await test_autopilot_and_aide()
 	await test_lesson_plan_folder()
+	await test_milestones()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -4312,6 +4313,110 @@ func test_lesson_plan_folder() -> void:
 	hud._input(click)
 	chk("clicking the page turns it too", hud._sel == 2, hud._sel)
 
+	chk("it fits", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_milestones() -> void:
+	section("SOMETHING TO AIM AT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# WHY THESE EXIST: the game is endless by design, and a player who
+	# reaches term five with nothing named to aim at stops. A milestone is
+	# authored progress without an authored ending.
+	chk("there are milestones", Milestones.count() > 0, Milestones.count())
+	chk("every one has a name and a line to show", (func() -> bool:
+		for m: Dictionary in Milestones.all():
+			if String(m.get("name", "")) == "" or String(m.get("blurb", "")) == "":
+				return false
+		return true).call())
+	chk("every id is unique", (func() -> bool:
+		var seen := {}
+		for m: Dictionary in Milestones.all():
+			if seen.has(String(m["id"])):
+				return false
+			seen[String(m["id"])] = true
+		return true).call())
+
+	chk("a new run has earned none", Game.milestones.is_empty())
+
+	# --- they gate nothing and pay nothing ---
+	# The moment IS the reward. A milestone that paid coins would be a
+	# quest, and a quest in an endless game is a treadmill.
+	var coins_before: int = Game.coins
+	Game.graduated.append({"name": "Someone", "level": 5})
+	var fresh := Game.check_milestones()
+	chk("sending a child up earns one", fresh.has("first_up"), fresh)
+	chk("and it pays nothing at all", Game.coins == coins_before,
+		"%d -> %d" % [coins_before, Game.coins])
+
+	# --- and never twice ---
+	var again := Game.check_milestones()
+	chk("the same one never fires twice", not again.has("first_up"), again)
+	chk("but it is remembered", Game.milestones.has("first_up"))
+
+	# --- each is checked against real state ---
+	Game.new_run(SEED)
+	Game.coins = 5000
+	Game.check_milestones()
+	chk("money you have earns the money one", Game.milestones.has("rich"))
+
+	Game.new_run(SEED)
+	for i in 25:
+		Game.room_items.append({"id": "plant", "tile": Vector2i(9, 6)})
+	Game.check_milestones()
+	chk("a furnished room earns the furnishing one",
+		Game.milestones.has("furnished"))
+
+	Game.new_run(SEED)
+	for l: Dictionary in Curriculum.lessons:
+		for i in 10:
+			Game.record_taught(String(l.get("id", "")))
+	Game.check_milestones()
+	chk("knowing the whole curriculum earns the big one",
+		Game.milestones.has("polymath"))
+	chk("and knowing one subject earns the smaller one",
+		Game.milestones.has("specialist"))
+
+	# a term where every child passed, read from the RECORD so it survives
+	# a reload rather than depending on the moment it happened
+	Game.new_run(SEED)
+	Game.term_history.append({"term": 1, "letter": "A", "passed": 6,
+		"total": 6, "moved_up": 6, "target": 2, "met": true})
+	Game.check_milestones()
+	chk("a whole class passing earns one", Game.milestones.has("full_house"))
+	chk("and surviving a term earns one", Game.milestones.has("first_term"))
+
+	# --- they survive the night ---
+	Game.save_game()
+	var had := Game.milestones.size()
+	Game.new_run(1)
+	chk("a new run starts with none again", Game.milestones.is_empty())
+	Game.load_game()
+	chk("but a saved career remembers them",
+		Game.milestones.size() == had, Game.milestones.size())
+	Game.delete_save()
+
+	# --- the screen ---
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	Game.milestones.append("first_up")
+	hud.show_career()
+	chk("the career page opens", hud.mode == hud.Mode.CAREER)
+	chk("it names what you HAVE done",
+		hud.rich.text.contains(String(Milestones.by_id("first_up")["name"])),
+		hud.rich.text)
+	# The unearned ones are the point: a list of what you have done is a
+	# trophy cabinet, one that shows what is left is a map.
+	chk("and hides the ones you have not, without hiding that they exist",
+		hud.rich.text.contains("- - -"), hud.rich.text)
 	chk("it fits", hud.rich.text.split("\n").size() <= 11,
 		hud.rich.text.split("\n").size())
 	hud.close()

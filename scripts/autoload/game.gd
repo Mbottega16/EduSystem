@@ -56,6 +56,26 @@ var term_history: Array = []
 ## only means the exam has been sat.
 var run_over: bool = false
 
+## Milestones already announced. Named things to aim at in a game that never
+## ends -- see scripts/data/milestones.gd for why an endless game needs them.
+## They gate nothing and pay nothing: the moment is the reward.
+var milestones: Array = []
+
+signal milestone_earned(ids: Array)
+
+
+## Check for anything newly earned, announce it, and remember it was told.
+## Called at the end of a day, which is the only moment the player is
+## reading a screen anyway.
+func check_milestones() -> Array:
+	var fresh := Milestones.newly_earned(milestones)
+	if fresh.is_empty():
+		return []
+	for id: String in fresh:
+		milestones.append(id)
+	milestone_earned.emit(fresh)
+	return fresh
+
 signal term_began(term: int)
 var exam_result: Dictionary = {}
 ## Yesterday's grade split, so the day report can show which way each part
@@ -164,6 +184,7 @@ func new_run(seed_value: int = 0) -> void:
 	term = 1
 	term_history.clear()
 	run_over = false
+	milestones.clear()
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
@@ -1510,6 +1531,7 @@ func to_dict() -> Dictionary:
 		"assignment": assignment,
 		"term_history": term_history,
 		"run_over": run_over,
+		"milestones": milestones,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -1544,6 +1566,7 @@ func from_dict(d: Dictionary) -> void:
 	chosen_lesson = String(d.get("chosen_lesson", ""))
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
+	milestones = d.get("milestones", []).duplicate()
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()

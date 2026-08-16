@@ -98,6 +98,12 @@ func _open_screen(main: Node, screen: String) -> void:
 					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
 			]
 			hud.show_hand()
+		"career":
+			for m: Dictionary in Milestones.all():
+				if Game.milestones.size() >= 5:
+					break
+				Game.milestones.append(String(m["id"]))
+			hud.show_career()
 		"curriculum":
 			for l: Dictionary in Curriculum.lessons:
 				for i in 4:

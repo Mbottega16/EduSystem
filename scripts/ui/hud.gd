@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND }
+	CURRICULUM, SPECIALISM, HAND, CAREER }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -395,7 +395,8 @@ func show_pause() -> void:
 
 func _render_pause() -> void:
 	title.text = "PAUSED"
-	var rows := ["Resume", "Sound  %s" % _vol_bar(), "Quit to title"]
+	var rows := ["Resume", "Your career  %d/%d" % [Game.milestones.size(),
+		Milestones.count()], "Sound  %s" % _vol_bar(), "Quit to title"]
 	var lines: Array[String] = ["", ""]
 	for i in rows.size():
 		lines.append("      %s %s" % [">" if i == _pause_sel else " ", rows[i]])
@@ -412,13 +413,13 @@ func _vol_bar() -> String:
 
 func _pause_input() -> void:
 	if Input.is_action_just_pressed("move_down"):
-		_pause_sel = (_pause_sel + 1) % 3
+		_pause_sel = (_pause_sel + 1) % 4
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_up"):
-		_pause_sel = (_pause_sel + 2) % 3
+		_pause_sel = (_pause_sel + 3) % 4
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
-		if _pause_sel == 1:
+		if _pause_sel == 2:
 			var d := 0.1 if Input.is_action_just_pressed("move_right") else -0.1
 			Settings.sfx_volume = clampf(Settings.sfx_volume + d, 0.0, 1.0)
 			Settings.apply_audio()
@@ -431,7 +432,11 @@ func _pause_input() -> void:
 		if _pause_sel == 0:
 			close()
 			return
-		elif _pause_sel == 2:
+		elif _pause_sel == 1:
+			_sel = 0
+			show_career()
+			return
+		elif _pause_sel == 3:
 			Game.save_game()
 			close()
 			get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
@@ -967,6 +972,41 @@ func show_hand() -> void:
 	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
 
 
+## YOUR CAREER: every milestone, earned and unearned.
+##
+## The UNEARNED ones are the point. A list of what you have done is a trophy
+## cabinet; a list that also shows what there is to do is a map, and a game
+## with no ending needs the map far more than the cabinet.
+func show_career() -> void:
+	_open(Mode.CAREER)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 1)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+
+	var all := Milestones.all()
+	title.text = "YOUR CAREER  %d/%d" % [Game.milestones.size(), all.size()]
+
+	# a window, because there are more milestones than the panel holds
+	_sel = clampi(_sel, 0, maxi(0, all.size() - 1))
+	var lo := _window_start(all.size(), 9)
+	var lines: Array[String] = []
+	for i in range(lo, mini(all.size(), lo + 9)):
+		var m: Dictionary = all[i]
+		var id := String(m.get("id", ""))
+		var have: bool = Game.milestones.has(id)
+		lines.append("%s [color=#%s]%s[/color]" % [
+			">" if i == _sel else " ", C_COIN if have else DIM,
+			String(m.get("name", id)) if have else "- - -"])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.25)
+
+	var sel: Dictionary = all[_sel] if _sel < all.size() else {}
+	var earned: bool = Game.milestones.has(String(sel.get("id", "")))
+	hint.text = _clip("Esc - close.   %s%s" % [
+		"" if earned else "Not yet: ", String(sel.get("blurb", ""))])
+
+
 ## What kind of teacher are you?
 ##
 ## Asked once, at the start of a run. Your own subject is a step easier to
@@ -1491,6 +1531,12 @@ func show_day_report(report: Dictionary) -> void:
 	if String(report.get("joined", "")) != "":
 		lines.append("[color=#%s]%s has joined the class.[/color]" % [
 			C_GOOD, String(report["joined"])])
+	# A milestone is the one thing on this screen that is not a number, so
+	# it goes last and it goes in gold.
+	for id: String in report.get("milestones", []):
+		var m := Milestones.by_id(id)
+		lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+			C_COIN, String(m.get("name", id)), DIM, String(m.get("blurb", ""))])
 	if String(report.get("event", "")) != "":
 		lines.append("[color=#%s]Tomorrow: %s[/color] %s" % [
 			C_KNOW, String(report["event"]),
@@ -1867,6 +1913,21 @@ func _handle_input() -> void:
 			var picked := _sel
 			close()
 			assignment_chosen.emit(picked)
+		return
+
+	if mode == Mode.CAREER:
+		var n: int = Milestones.count()
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			close()
+		elif Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % n
+			Sfx.play("blip")
+			show_career()
+		elif Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + n) % n
+			Sfx.play("blip")
+			show_career()
 		return
 
 	if mode == Mode.SPECIALISM:
