@@ -143,6 +143,7 @@ func _main() -> void:
 	await test_screens_explain_themselves()
 	await test_no_raw_colour_codes()
 	await test_difficulty()
+	await test_specialism_and_choice()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -698,6 +699,7 @@ func test_balance() -> void:
 	# The old model rolled ONE stall moment per lesson and cleared it when it
 	# fired, so the teacher could only ever matter once. Averaged over runs
 	# so this doesn't hinge on a single unlucky seed.
+	_neutral_lesson()
 	var total_stalls := 0
 	for i in 20:
 		total_stalls += _count_stalls(0.3)
@@ -1449,11 +1451,13 @@ func test_concepts() -> void:
 	# fabricated citation, which is worse than none -- and no test would ever
 	# catch that by itself, because a made-up code looks exactly like a real
 	# one. What CAN be checked is that no new code was minted here.
-	chk("every concept carries a standard code", (func() -> bool:
-		for c: Dictionary in Curriculum.concepts():
-			if String(c.get("standard", "")) == "":
-				return false
-		return true).call())
+	chk("every concept carries its parent's code, or its parent's silence",
+		(func() -> bool:
+			for c: Dictionary in Curriculum.concepts():
+				var parent := Curriculum.by_id(String(c["lesson"]))
+				if String(c.get("standard", "")) != String(parent.get("standard", "")):
+					return false
+			return true).call())
 	chk("and it is its own lesson's code, never a newly minted one",
 		(func() -> bool:
 			for c: Dictionary in Curriculum.concepts():
@@ -2191,7 +2195,7 @@ func test_panels_fit() -> void:
 		hud.rich.text)
 	chk("every row says in WORDS how well you know it", (func() -> bool:
 		for line: String in hud.rich.text.split("\n"):
-			if line.contains("never taught it") or line.contains("inside out") 						or line.contains("just started it") or line.contains("you know it well") 						or line.contains("getting the hang of it") or line.contains("worth +") 						or line.contains("better at teaching it"):
+			if line.contains("never taught it") or line.contains("inside out") 						or line.contains("just started it") or line.contains("you know it well") 						or line.contains("getting the hang of it") or line.contains("worth +") 						or line.contains("better at teaching it") 						or line.contains("You teach"):
 				continue
 			return false
 		return true).call(), hud.rich.text)
@@ -3394,8 +3398,10 @@ func test_screens_explain_themselves() -> void:
 	chk("but it is still on screen for the subject you are looking at",
 		hud.hint.text.contains(String(Curriculum.lessons[0].get("standard", ""))),
 		hud.hint.text)
-	chk("and the detail line names what teaching it again would unlock",
-		hud.hint.text.contains("unlocks"), hud.hint.text)
+	# The screen ACTS now, so its hint offers the action rather than
+	# restating what the next concept would be.
+	chk("and the detail line offers to teach it",
+		hud.hint.text.contains("teach this next"), hud.hint.text)
 	hud.close()
 
 
@@ -3706,6 +3712,105 @@ func test_no_raw_colour_codes() -> void:
 			rx.search(shown) == null,
 			rx.search(shown).get_string() if rx.search(shown) != null else "")
 		hud.close()
+
+
+
+func test_specialism_and_choice() -> void:
+	section("WHAT YOU TEACH, AND WHAT YOU TRAINED IN")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	# --- enough lessons to specialise INTO ---
+	# Ten across four strands was too thin: picking Maths would have meant a
+	# choice of two, which is a punishment rather than an identity.
+	chk("there are lessons enough to specialise into", (func() -> bool:
+		var per := {}
+		for l: Dictionary in Curriculum.lessons:
+			var st := String(l.get("strand", ""))
+			per[st] = int(per.get(st, 0)) + 1
+		for st: String in per.keys():
+			if int(per[st]) < 4:
+				return false
+		return per.size() >= 4).call())
+
+	# --- choosing the lesson ---
+	chk("a run starts with nothing chosen", Game.chosen_lesson == "")
+	Game.chosen_lesson = "chemistry"
+	Game.subject = Game.pick_subject()
+	chk("choosing a lesson makes it the one you teach",
+		String(Game.lesson.get("id", "")) == "chemistry",
+		Game.lesson.get("id", ""))
+	chk("and the choice is spent, not sticky", Game.chosen_lesson == "")
+	Game.subject = Game.pick_subject()
+	chk("so the next day rolls one again unless you choose",
+		Game.lesson.has("id"))
+
+	# --- specialism changes how hard it is ---
+	Game.room_items.clear()
+	Game.specialism = ""
+	Game.lesson = Curriculum.by_id("chemistry")       # science, difficulty 5
+	var neutral: Array = Game.difficulty_mults(-1)
+
+	Game.specialism = "science"
+	var mine: Array = Game.difficulty_mults(-1)
+	chk("your own subject is easier to get a class through",
+		float(mine[0]) < float(neutral[0]),
+		"%.2f vs %.2f" % [mine[0], neutral[0]])
+	chk("and they get stuck on it less", float(mine[1]) < float(neutral[1]))
+
+	Game.specialism = "ela"
+	var theirs: Array = Game.difficulty_mults(-1)
+	chk("somebody else's subject is harder", float(theirs[0]) > float(neutral[0]),
+		"%.2f vs %.2f" % [theirs[0], neutral[0]])
+
+	# --- and what it pays ---
+	Game.specialism = "science"
+	chk("teaching your own subject pays more",
+		Game.lesson_pay_multiplier() > 1.0, Game.lesson_pay_multiplier())
+	Game.specialism = "ela"
+	chk("teaching out of field pays the usual",
+		is_equal_approx(Game.lesson_pay_multiplier(), 1.0))
+
+	# It is a LEAN, not a cage: everything is still teachable.
+	chk("every lesson is still teachable whatever you trained in",
+		Curriculum.lessons.size() == 20, Curriculum.lessons.size())
+
+	# --- the screens ---
+	var hud := _hud()
+	Game.specialism = "math"
+	hud.show_curriculum()
+	chk("the curriculum names what you teach next",
+		hud.rich.text.contains("You teach"), hud.rich.text)
+	chk("and what you trained in",
+		hud.rich.text.contains("trained in"), hud.rich.text)
+	hud.close()
+
+	Game.specialism = ""
+	hud.show_specialism()
+	chk("a run asks what kind of teacher you are",
+		hud.title.text.contains("WHAT DO YOU TEACH"), hud.title.text)
+	chk("and offers every subject", (func() -> bool:
+		for st: String in Curriculum.strands():
+			if not hud.rich.text.contains(Curriculum.strand_label(st)):
+				return false
+		return true).call(), hud.rich.text)
+	hud.close()
+
+	# --- it survives the night ---
+	Game.specialism = "science"
+	Game.chosen_lesson = "chemistry"
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run has no speciality", Game.specialism == "")
+	Game.load_game()
+	chk("but a saved one remembers it", Game.specialism == "science")
+	chk("and what you had lined up to teach",
+		Game.chosen_lesson == "chemistry")
+	Game.delete_save()
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 
@@ -4030,8 +4135,9 @@ func test_progress_bar() -> void:
 	var later: float = s.work_fraction()
 	chk("it fills as they work", later > at_start,
 		"%.2f -> %.2f" % [at_start, later])
-	chk("two seconds in it is about 2s worth of the work",
-		absf(later - 2.0 / Balance.work_seconds) < 0.05, "%.2f" % later)
+	chk("two seconds in it is about 2s worth of THAT sheet",
+		absf(later - 2.0 / s.work_total) < 0.05,
+		"%.2f, sheet is %.1fs" % [later, s.work_total])
 
 	s.confusion = 1.0
 	var frozen: float = s.work_fraction()
@@ -4512,25 +4618,54 @@ func test_curriculum() -> void:
 
 	var seen_std := {}
 	var ok := true
+	# Lessons that carry NO citation, on purpose.
+	#
+	# The rule at the top of curriculum.gd is that a fabricated citation is
+	# worse than none at all, so an uncited lesson has to be ALLOWED -- but
+	# only deliberately. Naming them here means an accidental omission still
+	# fails while a considered one does not have to be papered over with a
+	# plausible-looking code.
+	var uncited: Array[String] = ["using_sources"]
+
 	var bad: Array = []
 	for l: Dictionary in Curriculum.lessons:
-		for key: String in ["id", "name", "short", "strand", "standard", "source", "objective"]:
+		var deliberate: bool = uncited.has(String(l.get("id", "")))
+		for key: String in ["id", "name", "short", "strand", "objective"]:
 			if String(l.get(key, "")).strip_edges() == "":
 				ok = false
 				bad.append("%s missing %s" % [l.get("name", "?"), key])
+		var has_std: bool = String(l.get("standard", "")).strip_edges() != ""
+		var has_src: bool = String(l.get("source", "")).strip_edges() != ""
+		# Half a citation is the one thing that is never right: a code with
+		# no document, or a document with no code.
+		if has_std != has_src:
+			ok = false
+			bad.append("%s is half-cited" % l.get("name", "?"))
+		if deliberate and has_std:
+			bad.append("%s was meant to be uncited" % l.get("name", "?"))
+			ok = false
+		elif not deliberate and not has_std:
+			bad.append("%s lost its citation" % l.get("name", "?"))
+			ok = false
 		# a fabricated citation is worse than none, so every lesson must
 		# carry a real code AND say which document it came from
 		if not String(l.get("source", "")).findn("maryland") >= 0 \
 				and not String(l.get("source", "")).findn("ngss") >= 0:
 			pass
-		seen_std[String(l.get("standard", ""))] = true
-	chk("every lesson has a name, a standard, a source and an objective", ok, bad)
+		if has_std:
+			seen_std[String(l.get("standard", ""))] = true
+	chk("every lesson is fully cited, or deliberately not cited at all",
+		ok, bad)
 	chk("no two lessons share a standard code",
-		seen_std.size() == Curriculum.count(), seen_std.size())
+		seen_std.size() == Curriculum.count() - uncited.size(),
+		"%d codes for %d cited lessons" % [
+			seen_std.size(), Curriculum.count() - uncited.size()])
 
-	chk("every source names a real document", (func() -> bool:
+	chk("every source that exists names a real document", (func() -> bool:
 		for l: Dictionary in Curriculum.lessons:
 			var src := String(l.get("source", "")).to_lower()
+			if src == "":
+				continue            # deliberately uncited, checked above
 			if src.find("maryland") < 0:
 				return false
 		return true).call())

@@ -76,6 +76,11 @@ static var stu_diligence_step: float = 0.02
 static var stu_ready_level: int = 5
 static var stu_hold_grace: int = 2
 
+# --- the subject you trained in ------------------------------------------
+static var spec_relief: float = 1.0
+static var spec_penalty: float = 0.7
+static var spec_coins: float = 1.25
+
 # --- how hard a lesson is ------------------------------------------------
 static var diff_per_step_work: float = 0.18
 static var diff_per_step_stall: float = 0.22
@@ -244,6 +249,11 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	var sp: Dictionary = d.get("specialism", {})
+	spec_relief = float(sp.get("difficulty_relief", spec_relief))
+	spec_penalty = float(sp.get("out_of_field_penalty", spec_penalty))
+	spec_coins = float(sp.get("coin_bonus", spec_coins))
 
 	var df: Dictionary = d.get("difficulty", {})
 	diff_per_step_work = float(df.get("per_step_work", diff_per_step_work))

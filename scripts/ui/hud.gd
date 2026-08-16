@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM }
+	CURRICULUM, SPECIALISM }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -855,6 +855,40 @@ func show_run_over(info: Dictionary) -> void:
 	hint.text = "E - start again"
 
 
+## What kind of teacher are you?
+##
+## Asked once, at the start of a run. Your own subject is a step easier to
+## get a class through and pays better; everything else is a step harder.
+## It is a lean rather than a cage -- a class that only ever sees one
+## subject learns one subject, so you will teach out of field sometimes.
+func show_specialism() -> void:
+	_open(Mode.SPECIALISM)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 3)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "WHAT DO YOU TEACH?"
+
+	var strands := Curriculum.strands()
+	_sel = clampi(_sel, 0, maxi(0, strands.size() - 1))
+	var lines: Array[String] = []
+	for i in strands.size():
+		var st := String(strands[i])
+		var count := 0
+		for l: Dictionary in Curriculum.lessons:
+			if String(l.get("strand", "")) == st:
+				count += 1
+		lines.append("%s [color=#%s]%-12s[/color] [color=#%s]%d lessons[/color]" % [
+			">" if i == _sel else " ", strand_colour(st),
+			Curriculum.strand_label(st), DIM, count])
+	lines.append("")
+	lines.append("[color=#%s]Your own subject is easier to teach and pays more.[/color]" % DIM)
+	lines.append("[color=#%s]The rest are harder. You can still teach them.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.35)
+	hint.text = "Up/Down choose    E - this is my subject"
+
+
 ## A new term. Who left, who stayed, who is new.
 ##
 ## This screen is the reward for the one before it: it names what you KEEP.
@@ -960,8 +994,13 @@ func show_curriculum() -> void:
 	title.text = "WHAT YOU CAN TEACH"
 
 	var lines: Array[String] = []
-	# The point of the screen, in the player's terms, at the top where it is
-	# read first rather than on the hint bar where it is read never.
+	# What you are teaching next, and what you trained in -- the two things
+	# this screen is now FOR.
+	var next_id := Game.chosen_lesson if Game.chosen_lesson != "" 		else String(Game.lesson.get("id", ""))
+	lines.append("[color=#%s]You teach %s[/color]   [color=#%s]%s[/color]" % [
+		C_LESSON, Curriculum.short_name(Curriculum.by_id(next_id)),
+		DIM, "trained in %s" % Curriculum.strand_label(Game.specialism)
+			if Game.specialism != "" else "no speciality"])
 	var known: int = Game.concepts.size()
 	if known == 0:
 		lines.append("[color=#%s]Teach a subject and you get better at teaching it.[/color]"
@@ -981,10 +1020,12 @@ func show_curriculum() -> void:
 				got += 1
 		var hue := strand_colour(String(l.get("strand", "")))
 		var taught: bool = Game.times_taught(lid) > 0
-		lines.append("%s [color=#%s]%s[/color] %s %s [color=#%s]%s[/color]" % [
+		var mine: bool = Game.specialism != "" 			and String(l.get("strand", "")) == Game.specialism
+		lines.append("%s%s [color=#%s]%s[/color] %s %s [color=#%s]%s[/color]" % [
+			"*" if mine else " ",
 			">" if i == _sel else " ",
 			hue if taught else DIM,
-			Curriculum.short_name(l).rpad(13),
+			Curriculum.short_name(l).rpad(11),
 			_difficulty_bar(Curriculum.difficulty(l)),
 			_mastery_bar(got, total, hue),
 			DIM, _mastery_words(l, got, total)])
@@ -995,8 +1036,9 @@ func show_curriculum() -> void:
 	# The selected subject, and what teaching it AGAIN would buy you. Naming
 	# the next concept is worth more than restating the objective: it is the
 	# thing the player is deciding about.
-	hint.text = _clip("%s   %s" % [
-		String(lessons[_sel].get("standard", "")), _next_concept_line(lessons[_sel])])
+	var std := String(lessons[_sel].get("standard", ""))
+	hint.text = _clip("%s%s   E - teach this next" % [
+		std, "" if std == "" else "  "])
 
 
 ## What one more lesson in this subject unlocks, by name.
@@ -1672,11 +1714,38 @@ func _verdict(pass_it: bool) -> void:
 func _handle_input() -> void:
 	if mode == Mode.PAUSE:
 		return
+	if mode == Mode.SPECIALISM:
+		var strands := Curriculum.strands()
+		if strands.is_empty():
+			close()
+		elif Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % strands.size()
+			Sfx.play("blip")
+			show_specialism()
+		elif Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + strands.size()) % strands.size()
+			Sfx.play("blip")
+			show_specialism()
+		elif Game.claim_interact():
+			Game.specialism = String(strands[_sel])
+			Sfx.play("confirm")
+			close()
+		return
+
 	if mode == Mode.CURRICULUM:
 		var n: int = Curriculum.lessons.size()
-		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+		if Input.is_action_just_pressed("cancel"):
 			Sfx.play("blip")
 			close()
+		elif Game.claim_interact():
+			# The screen DOES something now. It was a list you could only
+			# read, which is most of why it felt inert.
+			if n > 0:
+				Game.chosen_lesson = String(Curriculum.lessons[_sel].get("id", ""))
+				if Game.phase == Game.Phase.MORNING:
+					Game.subject = Game.pick_subject()
+				Sfx.play("confirm")
+				show_curriculum()
 		elif n > 0 and Input.is_action_just_pressed("move_down"):
 			_sel = (_sel + 1) % n
 			Sfx.play("blip")
@@ -1685,6 +1754,18 @@ func _handle_input() -> void:
 			_sel = (_sel - 1 + n) % n
 			Sfx.play("blip")
 			show_curriculum()
+		return
+
+	if mode == Mode.TITLE and Game.claim_interact():
+		# Leaving the title is where a run actually begins for a human --
+		# new_run() itself is called by the tests and the simulator
+		# constantly, and an overlay appearing there blocks everything.
+		Sfx.play("confirm")
+		if Game.specialism == "":
+			_sel = 0
+			show_specialism()
+		else:
+			close()
 		return
 
 	if mode == Mode.REPORT or mode == Mode.TITLE:

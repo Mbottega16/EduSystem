@@ -63,6 +63,16 @@ var exam_result: Dictionary = {}
 ## you changed helped.
 var last_split: Dictionary = {}
 
+## The subject you trained in, as a strand id. Empty until you have chosen.
+##
+## A lean rather than a cage: your own subject is a step easier and pays
+## better, everything else is a step harder, and you can still teach all of
+## it. A class that only ever sees one subject learns one subject.
+var specialism: String = ""
+## Which lesson you have chosen to teach next. Empty means the game picks,
+## which is what it always used to do.
+var chosen_lesson: String = ""
+
 # --- the teacher's own progression ---------------------------------
 var teacher_xp: int = 0
 var teacher_level: int = 1
@@ -131,6 +141,8 @@ func new_run(seed_value: int = 0) -> void:
 	voice = 1.0
 	last_inspection = {}
 	last_split = {}
+	specialism = ""
+	chosen_lesson = ""
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -316,8 +328,23 @@ func claim_action(action: String) -> bool:
 ## data/curriculum.json rather than from a list of subject words.
 ## `subject` stays as the display name because a lot of UI reads it.
 func pick_subject() -> String:
-	lesson = Curriculum.pick(rng)
+	# A CHOICE now, not a dice roll. Today's lesson was rolled at random
+	# every morning, which is exactly why the curriculum screen read as
+	# inert: it was a list you could not act on.
+	if chosen_lesson != "":
+		lesson = Curriculum.by_id(chosen_lesson)
+		chosen_lesson = ""
+	else:
+		lesson = Curriculum.pick(rng)
 	return String(lesson.get("name", "Lesson"))
+
+
+## Teaching your own subject pays better.
+func lesson_pay_multiplier() -> float:
+	Balance.ensure_loaded()
+	if specialism == "" or lesson_strand() != specialism:
+		return 1.0
+	return Balance.spec_coins
 
 
 ## Which strand today's lesson belongs to (math / ela / science /
@@ -916,6 +943,10 @@ signal attention_changed(level: float)
 func difficulty_mults(seat_index: int) -> Array:
 	Balance.ensure_loaded()
 	var steps: float = float(Curriculum.difficulty(lesson) - 3)
+	# your own subject is a step easier; anything else is a step harder
+	if specialism != "":
+		steps += (-Balance.spec_relief if lesson_strand() == specialism
+			else Balance.spec_penalty)
 	if steps > 0.0:
 		# only the EXTRA difficulty is relieved; an easy lesson is not made
 		# easier still by a room full of furniture
@@ -1078,7 +1109,7 @@ func advance_day() -> Dictionary:
 	last_split = split
 	var avg := class_average()
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
-		* DayEvent.multiplier(event, "coin_mult")))
+		* DayEvent.multiplier(event, "coin_mult") * lesson_pay_multiplier()))
 	add_coins(earned)
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
 	# with nothing to spend them on once the room was capped.
@@ -1361,6 +1392,8 @@ func to_dict() -> Dictionary:
 		"cheated": cheated,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
+		"specialism": specialism,
+		"chosen_lesson": chosen_lesson,
 		"term_history": term_history,
 		"run_over": run_over,
 		"taught": taught,
@@ -1392,6 +1425,8 @@ func from_dict(d: Dictionary) -> void:
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))
 	term = int(d.get("term", 1))
+	specialism = String(d.get("specialism", ""))
+	chosen_lesson = String(d.get("chosen_lesson", ""))
 	run_over = bool(d.get("run_over", false))
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()

@@ -347,6 +347,346 @@
         }
       ],
       "difficulty": 3
+    },
+    {
+      "id": "place_value",
+      "name": "Place Value & Addition",
+      "short": "Place Value",
+      "icon": "",
+      "strand": "math",
+      "standard": "3.NBT.A.2",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Fluently add and subtract within 1000 using strategies and algorithms based on place value, properties of operations, and/or the relationship between addition and subtraction.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "place_value.regrouping",
+          "name": "Carrying and borrowing",
+          "standard": "3.NBT.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "place_value.estimate",
+          "name": "Estimating first",
+          "standard": "3.NBT.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "place_value.mental",
+          "name": "Adding in your head",
+          "standard": "3.NBT.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "fractions",
+      "name": "Fractions",
+      "short": "Fractions",
+      "icon": "",
+      "strand": "math",
+      "standard": "4.NF.A.1",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Explain why a fraction a/b is equivalent to a fraction (n x a)/(n x b) by using visual fraction models.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "fractions.equivalent",
+          "name": "Equivalent fractions",
+          "standard": "4.NF.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "fractions.compare",
+          "name": "Comparing fractions",
+          "standard": "4.NF.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "fractions.models",
+          "name": "Fraction models",
+          "standard": "4.NF.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "algebra_one",
+      "name": "Algebra I",
+      "short": "Algebra I",
+      "icon": "",
+      "strand": "math",
+      "standard": "A-REI.B.3",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Solve linear equations and inequalities in one variable, including equations with coefficients represented by letters.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "algebra_one.isolate",
+          "name": "Isolating the unknown",
+          "standard": "A-REI.B.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "algebra_one.inequalities",
+          "name": "Inequalities",
+          "standard": "A-REI.B.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "algebra_one.check",
+          "name": "Checking a solution",
+          "standard": "A-REI.B.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "vocabulary",
+      "name": "Vocabulary",
+      "short": "Vocabulary",
+      "icon": "",
+      "strand": "ela",
+      "standard": "L.4.4",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Determine or clarify the meaning of unknown and multiple-meaning words and phrases, choosing flexibly from a range of strategies.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "vocabulary.context",
+          "name": "Meaning from context",
+          "standard": "L.4.4",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "vocabulary.roots",
+          "name": "Word roots",
+          "standard": "L.4.4",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "vocabulary.dictionary",
+          "name": "Using a dictionary",
+          "standard": "L.4.4",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "life_cycles",
+      "name": "Life Cycles",
+      "short": "Life Cycles",
+      "icon": "",
+      "strand": "science",
+      "standard": "3-LS1-1",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Develop models to describe that organisms have unique and diverse life cycles but all have in common birth, growth, reproduction, and death.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "life_cycles.stages",
+          "name": "Stages of a life cycle",
+          "standard": "3-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "life_cycles.diversity",
+          "name": "Different creatures",
+          "standard": "3-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "life_cycles.modelling",
+          "name": "Drawing a model",
+          "standard": "3-LS1-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "chemistry",
+      "name": "Chemistry",
+      "short": "Chemistry",
+      "icon": "",
+      "strand": "science",
+      "standard": "MS-PS1-2",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Analyze and interpret data on the properties of substances before and after the substances interact to determine if a chemical reaction has occurred.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "chemistry.properties",
+          "name": "Properties of a substance",
+          "standard": "MS-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "chemistry.reactions",
+          "name": "Reactions",
+          "standard": "MS-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "chemistry.evidence",
+          "name": "Evidence of change",
+          "standard": "MS-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "ecosystems",
+      "name": "Ecosystems",
+      "short": "Ecosystems",
+      "icon": "",
+      "strand": "science",
+      "standard": "MS-LS2-3",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Develop a model to describe the cycling of matter and flow of energy among living and nonliving parts of an ecosystem.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "ecosystems.food_webs",
+          "name": "Food webs",
+          "standard": "MS-LS2-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "ecosystems.energy",
+          "name": "Energy flow",
+          "standard": "MS-LS2-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "ecosystems.cycles",
+          "name": "Matter cycles",
+          "standard": "MS-LS2-3",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "civics",
+      "name": "Civics",
+      "short": "Civics",
+      "icon": "",
+      "strand": "social",
+      "standard": "Standard 1.0",
+      "source": "Maryland Social Studies Framework (June 2025)",
+      "objective": "Inquire about the structures and principles of government and the rights and responsibilities of citizens.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "civics.government",
+          "name": "How government works",
+          "standard": "Standard 1.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 1
+        },
+        {
+          "id": "civics.rights",
+          "name": "Rights and duties",
+          "standard": "Standard 1.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 3
+        },
+        {
+          "id": "civics.taking_part",
+          "name": "Taking part",
+          "standard": "Standard 1.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "economics",
+      "name": "Economics",
+      "short": "Economics",
+      "icon": "",
+      "strand": "social",
+      "standard": "Standard 4.0",
+      "source": "Maryland Social Studies Framework (June 2025)",
+      "objective": "Inquire about how scarcity, choice, and economic systems affect individuals, groups, and societies.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "economics.scarcity",
+          "name": "Scarcity and choice",
+          "standard": "Standard 4.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 1
+        },
+        {
+          "id": "economics.trade",
+          "name": "Trade",
+          "standard": "Standard 4.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 3
+        },
+        {
+          "id": "economics.money",
+          "name": "Money and value",
+          "standard": "Standard 4.0",
+          "source": "Maryland Social Studies Framework (June 2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "using_sources",
+      "name": "Using Sources",
+      "short": "Sources",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Weigh where a piece of information came from, and what that means for how far to trust it.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "using_sources.who_wrote",
+          "name": "Who wrote it",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "using_sources.why",
+          "name": "Why they wrote it",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "using_sources.corroborate",
+          "name": "Checking it twice",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
     }
   ],
   "_concepts_note": "Concepts are COMPONENTS of their lesson's standard, and each one cites that same real code rather than a code of its own. Inventing a plausible-looking identifier for a sub-skill would be a fabricated citation, which is worse than no citation at all -- see the header of scripts/data/curriculum.gd. 'at' is how many times that lesson must have been taught before the concept is unlocked.",

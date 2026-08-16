@@ -83,6 +83,9 @@ func _open_screen(main: Node, screen: String) -> void:
 		"quiz":
 			world.start_lesson()
 			hud.show_quiz_report(world.run_quiz())
+		"specialism":
+			Game.specialism = ""
+			hud.show_specialism()
 		"curriculum":
 			for l: Dictionary in Curriculum.lessons:
 				for i in 4:
