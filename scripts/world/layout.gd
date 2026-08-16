@@ -73,7 +73,7 @@ const PODIUM: Vector2i = Vector2i(9, 2)
 const TEACHER_DESK: Array[Vector2i] = [Vector2i(2, 2), Vector2i(3, 2)]
 
 ## Ends the day. Deliberately across the room from the podium so ending the
-## day is a walk, not a reflex. (Not built yet — Phase 2.)
+## day is a walk, not a reflex.
 const BELL: Vector2i = Vector2i(18, 2)
 
 ## The furniture catalogue.

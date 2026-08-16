@@ -1,3 +1,25 @@
+> # SUPERSEDED — see `docs/GDD.md`
+>
+> **Parts 1-3 of this document are BUILT and shipped** (August 2026). The
+> shop shows its items and describes them in prose; teacher levels, perks,
+> student levels, coaching, graduation and readiness all exist. The line
+> below saying "nothing here is built" has been wrong for some time.
+>
+> **Part 4 — the five-tier system — is still unbuilt, and is still the best
+> design in this repo for what year groups should be.** It is folded into
+> the GDD as the content plan for room types (§11), where a school with five
+> year groups finally gives it the frame it was waiting for.
+>
+> Its open questions have since been answered in code: "grade quicker"
+> became *fewer sheets* (`Progress.sheets_skipped`), student levelling is
+> automatic and spendable via coaching, and the term kept its exam alongside
+> graduation. Its note that "353 assertions assume the T2 loop" is stale —
+> there are 962 now.
+>
+> Kept for the Part 4 design. Do not plan from Parts 1-3.
+
+---
+
 # Plan: a shop you can see, levels, graduation, and five ways to teach
 
 Nothing here is built. This is a proposal covering:
