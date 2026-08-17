@@ -112,36 +112,76 @@ Currently 20 lessons, 5 per strand, 60 concepts.
 ```json
 "microscope": {
   "name": "Microscope", "art": "microscope", "cost": 280,
-  "range": 2, "bonus": 0.05, "w": 1, "cat": "learning",
-  "blurb": "Real specimens. Science stops being a picture in a book.",
+  "range": 3, "bonus": 0.13, "w": 1, "cat": "learning",
+  "blurb": "The first time a child sees a cell is worth the price.",
   "teaches": "earth_life_science.cells"
 }
 ```
 
+*(Copied verbatim from `data/balance.json`. If you change this example,
+copy the new one from the file — a worked example with invented numbers
+once produced 22 items at half the correct strength.)*
+
 - `cat` is one of `seating` `surfaces` `learning` `comfort` `decor`.
-- `range` in tiles, `bonus` is what it adds to a desk's grade floor.
+- `range` in tiles (2–6), `bonus` is what it adds to a desk's grade floor
+  (0.02–0.15).
 - `w` is width in tiles (1 or 2). `flat: true` for wall/floor items that
-  cast no shadow.
+  cast no shadow — a clock, a banner, a rug. Omit it otherwise.
 - Optional `teaches` (a concept id it unlocks outright) or `needs` (a
   concept id that must be known before it is on sale).
-- `blurb` ≤ 60 characters, plain, says what it is *for*.
-- Currently 29 items. Keep the price/benefit ratio roughly linear.
+- `blurb` ≤ 60 characters. See the voice rule below.
+- Currently 29 items.
+
+**The two balance rules, both derived from the real 29:**
+
+1. **Value density.** `cost ÷ (bonus × range)` lands between **360 and
+   840** for every one of the 29 existing items — the real spread is
+   367 (`wall_clock`) to 833 (`bench`). Anything outside that is a trap
+   or a bargain.
+2. **Reach trades against strength.** High bonus means short range; wide
+   range means weak bonus. `lab_bench` is 0.15 at range 3; `rug` is 0.07
+   at range 6. Never scale bonus *and* range together with cost — that
+   deletes the decision and makes expensive items strictly better.
+
+**The blurb voice.** Dry, British, observational — a teacher's aside, not
+a supplier's catalogue. Real ones: *"Half of them work."* (pot of pens),
+*"Nobody sits up straight in one, and that is fine."* (beanbag),
+*"Everything has a place, in theory."* (cabinet), *"They will use any
+excuse to visit it."* (water cooler). A blurb that merely restates the
+name adds nothing a player cannot read off the label.
 
 ### A trait — `data/balance.json` → `traits`
 
 ```json
 "chatty": {
   "name": "Chatty",
-  "blurb": "Drags whoever sits next to them off task.",
-  "stall_mult": 1.0, "neighbour_stall_mult": 1.6, "help_bonus": 0.0
+  "blurb": "Talks to whoever is sitting next to them.",
+  "neighbour_stall_mult": 1.5
 }
 ```
 
+*(Copied verbatim from `data/balance.json`.)* A trait carries **only the
+hooks it actually uses** — it does not list the others at neutral values.
+
+**These six hooks are the complete set the engine reads.** Anything else
+is silently ignored, so a trait built on an invented field is decoration
+that looks like mechanics:
+
+| Hook | Type | Effect |
+|---|---|---|
+| `stall_mult` | float | Multiplies how often *they* get stuck. |
+| `neighbour_stall_mult` | float | Multiplies how often the children **either side of them** get stuck. |
+| `hide_seconds` | float | Seconds their stuck state stays invisible to the player. |
+| `help_xp_mult` | float | Multiplies the XP they give when you help them. |
+| `copy_from_neighbour` | bool | They get unstuck off a neighbour, without understanding it. |
+| `helps_neighbour` | float | They lift the child next to them by this much. |
+
 **The rule:** it must hook into the work model or the seating. A trait that
-only prints a sentence is rejected. Existing six: Quiet (hides that they are
-stuck), Curious (stalls more, gains more from help), Chatty (disrupts
-neighbours), Steady (reliable), Copies (gets unstuck off a neighbour without
-understanding), Bright spark (finishes early, helps the next desk).
+only prints a sentence is rejected. The existing six, and the hook each
+one uses: Quiet (`hide_seconds` 6.0), Curious (`stall_mult` 1.35 +
+`help_xp_mult` 2.0), Chatty (`neighbour_stall_mult` 1.5), Steady
+(`stall_mult` 0.7), Copies (`copy_from_neighbour`), Bright spark
+(`helps_neighbour` 0.35).
 
 ### A day event — `scripts/data/events.gd` → `TABLE`
 
