@@ -207,7 +207,7 @@ children who passed move up and out.
 
 ## 5. Systems reference
 
-*Measured 2026-08-16. 20,069 lines across scripts, tests, tools and data.*
+*Measured 2026-08-17. ~21,000 lines across scripts, tests, tools and data.*
 
 ### Run state — `scripts/autoload/game.gd`
 Seeded RNG · day phases · roster and enrolment · neighbour model (reads live
@@ -254,7 +254,7 @@ cursor, build mode, aisle-safety check).
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 11 modes |
 | Input actions | 13 (12 rebindable) |
-| Tests | **962 assertions** across **71 sections** |
+| Tests | **1033 assertions** across **75 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -283,9 +283,15 @@ phase. This is the systems-of-record for the verb list.*
 
 ---
 
-## 6. The school layer ***(to build)***
+## 6. The school layer ***(Phase 1 built, Phase 2 to build)***
 
-Everything in this section is design, not description.
+**Built:** rooms you buy, staff you hire, wages that land daily, furniture
+bought as a level, delegated days resolved by running the lesson, and the
+school board. See §7.
+
+**Not built:** choosing which room to spend your day IN. Today you always
+play your own room and the rest resolve. That is Phase 2 and it is the
+manager altitude's actual core.
 
 ### What a room is
 A room is a **classroom instance**: a grid, a set of desks, a class of
@@ -351,12 +357,19 @@ in a bad term they are what you let go.
 
 Three layers, each doing a different job.
 
-### Reputation ***(to build)*** — the gate
-One standing figure. Rises with exam results and inspections, falls with
-missed targets. **Gates** new rooms, better staff and harder intakes. It is
-the number that decides what the game will let you attempt.
+### Reputation ***(built — no UI yet)*** — the gate
+One standing figure, 0..100. Moves on what every room did that day — your
+own class included — and drifts back toward the middle, so one glorious term
+does not carry a school forever. **Gates** how many rooms your standing will
+stretch to and how good the applicants are; below 5 the school is finished.
 
-### School size ***(to build)*** — the growth
+It deliberately GATES rather than pays: a bonus would just be more money in
+a game that already has enough.
+
+**It has no UI yet.** It moves and it gates, and the player cannot see it —
+which by this project's own standards makes it half-built.
+
+### School size ***(built)*** — the growth
 Rooms, staff, pupils on roll. The visible, satisfying number that goes up.
 This is what a screenshot shows.
 
@@ -365,14 +378,18 @@ This is what a screenshot shows.
 and career screens. Lifetime count of pupils you saw all the way to passing.
 The humane score: *the good you did*.
 
-### Milestones ***(to build)*** — the missing piece
+### Milestones ***(built)*** — the punctuation
 An endless game on a store page needs authored progress or it reads as
 unfinished. Milestones are named, one-off achievements against the three
 layers above — *"a second room"*, *"a hundred children"*, *"an outstanding
 inspection"*, *"a term where every child passed"* — that give a run
 punctuation without giving it an ending.
 
-**This is a gap. It does not exist and the design needs it.**
+Fifteen of them, on the career page off the pause menu. They gate nothing
+and pay nothing — the moment is the reward, and a test asserts one leaves
+your coins untouched. Unearned ones show as `- - -` rather than hiding,
+because a list of what you have done is a trophy cabinet and one that shows
+what is left is a map.
 
 ---
 
