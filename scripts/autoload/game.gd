@@ -90,6 +90,76 @@ var rooms: Array = []
 ## Teachers currently looking for work. Redrawn each term.
 var applicants: Array = []
 
+## What the school is thought of, 0..100.
+##
+## The only thing a badly run room actually costs you. Rooms earn more than
+## they pay in wages -- the simulator says so -- so without this, opening one
+## is free money and staffing it properly is optional. Reputation makes a
+## room you cannot run into a liability.
+##
+## It GATES rather than pays: how many rooms you may open, and how good the
+## applicants are. A bonus would just be more money in a game that already
+## has enough of it.
+var reputation: float = 50.0
+
+signal reputation_changed(value: float)
+
+
+## A day's worth of reputation, from what every room did today.
+##
+## Drifts toward the middle on its own, so one glorious term does not carry
+## a school forever and one bad week does not sink it. What moves it is the
+## gap between what your rooms scored and a pass.
+func tick_reputation(room_results: Array) -> void:
+	Balance.ensure_loaded()
+	var before := reputation
+	# your own class counts too -- you are one of the teachers
+	var scores: Array[float] = [class_average()]
+	for r: Dictionary in room_results:
+		scores.append(float(r.get("average", 0.0)))
+	var total := 0.0
+	for v: float in scores:
+		total += v - Balance.exam_pass
+	reputation += total * Balance.rep_per_grade_point / float(maxi(1, scores.size()))
+	# and back toward the middle, slowly
+	reputation += signf(Balance.rep_drift_to - reputation) * Balance.rep_drift
+	reputation = clampf(reputation, 0.0, 100.0)
+	if not is_equal_approx(before, reputation):
+		reputation_changed.emit(reputation)
+
+
+func nudge_reputation(by: float) -> void:
+	Balance.ensure_loaded()
+	reputation = clampf(reputation + by, 0.0, 100.0)
+	reputation_changed.emit(reputation)
+
+
+## In words. The player is never shown a decimal.
+func reputation_words() -> String:
+	if reputation >= 85.0:
+		return "outstanding"
+	if reputation >= 68.0:
+		return "well thought of"
+	if reputation >= 45.0:
+		return "steady"
+	if reputation >= 25.0:
+		return "under a cloud"
+	if reputation >= Balance.rep_closes_below:
+		return "in special measures"
+	return "finished"
+
+
+## How many rooms your standing allows. This is the gate.
+func rooms_allowed() -> int:
+	Balance.ensure_loaded()
+	return 1 + int(floor(reputation / float(maxi(1, Balance.rep_per_room))))
+
+
+## The school shuts when nobody will send their children to it.
+func school_is_finished() -> bool:
+	Balance.ensure_loaded()
+	return reputation < float(Balance.rep_closes_below)
+
 signal school_changed()
 
 
@@ -101,7 +171,11 @@ func room_cost() -> int:
 
 func can_open_room() -> bool:
 	Balance.ensure_loaded()
-	return rooms.size() < Balance.max_rooms - 1     # the player holds one
+	if rooms.size() >= Balance.max_rooms - 1:       # the player holds one
+		return false
+	# and your standing has to allow it. A school nobody thinks well of is
+	# not given another room to run badly.
+	return rooms.size() + 1 < rooms_allowed()
 
 
 ## Open a room. It arrives empty and unstaffed -- an unstaffed room teaches
@@ -109,7 +183,9 @@ func can_open_room() -> bool:
 func open_room() -> String:
 	Balance.ensure_loaded()
 	if not can_open_room():
-		return "There is no space for another room."
+		if rooms.size() >= Balance.max_rooms - 1:
+			return "There is no space for another room."
+		return "Your standing will not stretch to another room."
 	var cost := room_cost()
 	if not spend(cost):
 		return "You cannot afford another room."
@@ -167,9 +243,12 @@ func furnish_room(i: int) -> String:
 	return ""
 
 
+## Who applies. A well thought-of school attracts better people, which is
+## the second thing reputation buys and the reason it is worth defending.
 func draw_applicants() -> Array:
 	Balance.ensure_loaded()
-	applicants = Staff.applicants(rng, Balance.applicant_count)
+	applicants = Staff.applicants(rng, Balance.applicant_count,
+		reputation / 100.0)
 	return applicants
 
 
@@ -320,6 +399,7 @@ func new_run(seed_value: int = 0) -> void:
 	milestones.clear()
 	rooms.clear()
 	applicants.clear()
+	reputation = float(Balance.rep_start)
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
@@ -1794,6 +1874,7 @@ func to_dict() -> Dictionary:
 					func(s: StudentData) -> Dictionary: return s.to_dict()),
 			}),
 		"applicants": applicants,
+		"reputation": reputation,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -1842,6 +1923,7 @@ func from_dict(d: Dictionary) -> void:
 			"roster": roster_in,
 		})
 	applicants = d.get("applicants", []).duplicate()
+	reputation = float(d.get("reputation", Balance.rep_start))
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()

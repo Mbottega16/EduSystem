@@ -90,6 +90,17 @@ static var aide_collect: float = 2.2
 static var auto_speed: float = 1.35
 static var auto_arrive: int = 1
 
+# --- what the school is thought of ---------------------------------------
+static var rep_start: int = 50
+static var rep_per_grade_point: float = 6.0
+static var rep_drift_to: float = 50.0
+static var rep_drift: float = 0.35
+static var rep_target_hit: int = 8
+static var rep_target_missed: int = 14
+static var rep_inspection: int = 6
+static var rep_per_room: int = 20
+static var rep_closes_below: int = 5
+
 # --- rooms you do not stand in -------------------------------------------
 static var room_cost: int = 900
 static var room_cost_growth: float = 1.6
@@ -289,6 +300,17 @@ static func apply(d: Dictionary) -> void:
 	var ap: Dictionary = d.get("autopilot", {})
 	auto_speed = float(ap.get("speed_multiplier", auto_speed))
 	auto_arrive = int(ap.get("arrive_tiles", auto_arrive))
+
+	var rp: Dictionary = d.get("reputation", {})
+	rep_start = int(rp.get("start", rep_start))
+	rep_per_grade_point = float(rp.get("per_room_grade_point", rep_per_grade_point))
+	rep_drift_to = float(rp.get("drift_to", rep_drift_to))
+	rep_drift = float(rp.get("drift_per_day", rep_drift))
+	rep_target_hit = int(rp.get("target_hit", rep_target_hit))
+	rep_target_missed = int(rp.get("target_missed", rep_target_missed))
+	rep_inspection = int(rp.get("inspection_pass", rep_inspection))
+	rep_per_room = int(rp.get("room_per_open", rep_per_room))
+	rep_closes_below = int(rp.get("closes_below", rep_closes_below))
 
 	var sc: Dictionary = d.get("school", {})
 	room_cost = int(sc.get("room_cost", room_cost))

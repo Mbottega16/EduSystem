@@ -673,5 +673,18 @@
     "furniture_step_cost": 240,
     "furniture_steps": 5,
     "applicants": 4
+  },
+  "reputation": {
+    "_note": "What the school is thought of, 0..100. It is the ONLY thing a badly run room costs you. The simulator showed rooms are straightforwardly profitable -- each one earns more than its wages -- so without this, 'open another room' has an obvious yes and staffing it properly is optional. Reputation is what makes a room you cannot run a liability rather than free money.",
+    "_gate_note": "It GATES rather than pays: how many rooms you may open, and how good the applicants are. A gate is a better shape than a bonus here -- a bonus would just be more money in a game that already has enough.",
+    "start": 50,
+    "per_room_grade_point": 6.0,
+    "drift_to": 50.0,
+    "drift_per_day": 0.35,
+    "target_hit": 8,
+    "target_missed": 14,
+    "inspection_pass": 6,
+    "room_per_open": 20,
+    "closes_below": 5
   }
 }

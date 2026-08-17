@@ -94,13 +94,24 @@ static func roll(rng: RandomNumberGenerator) -> Dictionary:
 
 
 ## A pool of applicants to choose between.
-static func applicants(rng: RandomNumberGenerator, n: int) -> Array:
+## `standing` is 0..1 -- the school's reputation. A well thought-of school
+## draws from the better half of the market; a struggling one gets whoever
+## is going. Modelled as extra rolls with the best kept, so a bad school
+## can still get lucky and a good one is not guaranteed a Veteran.
+static func applicants(rng: RandomNumberGenerator, n: int,
+		standing: float = 0.5) -> Array:
 	var out: Array = []
 	var seen := {}
 	var guard := 0
 	while out.size() < n and guard < 60:
 		guard += 1
 		var t := roll(rng)
+		# the better the school, the more chances at a good one
+		var tries: int = 1 + int(round(standing * 2.0))
+		for i in tries:
+			var other := roll(rng)
+			if float(other.get("wage", 0)) > float(t.get("wage", 0)):
+				t = other
 		if seen.has(String(t["name"])):
 			continue
 		seen[String(t["name"])] = true

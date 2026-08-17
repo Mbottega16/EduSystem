@@ -30,6 +30,7 @@ func _ready() -> void:
 
 	_by_archetype()
 	_a_term()
+	_the_money()
 
 	print("==================================================\n")
 	get_tree().quit()
@@ -102,6 +103,47 @@ func _a_term() -> void:
 	print("   letters seen across the term: %s" % [seen])
 	print("   wage bill: %d/day" % Game.wage_bill())
 	Game.delete_save()
+
+
+## GDD RISK 3: "the economy is tuned for one room. Six rooms multiply every
+## sink and leave income per room flat."
+##
+## So this runs a term of a growing school and prints the money. A school
+## that cannot pay its own wages is not a difficulty curve, it is a wall.
+func _the_money() -> void:
+	print("-- can a school pay for itself? --")
+	print("   %-6s %-7s %-7s %-7s %-8s %s" % [
+		"rooms", "wages", "upkeep", "earned", "balance", "verdict"])
+	for n in range(0, 5):
+		Game.new_run(5150)
+		Game.coins = 100000
+		for i in n:
+			Game.open_room()
+		# staff every room with the middle of the market
+		for i in Game.rooms.size():
+			Game.applicants = [Staff.archetype("steady").duplicate()]
+			Game.applicants[0]["name"] = "Mr Test %d" % i
+			Game.hire(i, 0)
+			Game.furnish_room(i)
+			Game.furnish_room(i)
+
+		# what a day pays, across the whole school
+		var earned := 0.0
+		for day in 10:
+			Game.lesson = Curriculum.pick(Game.rng)
+			var rows := Game.resolve_rooms()
+			for r: Dictionary in rows:
+				# the same rate the player's own class is paid at
+				earned += float(r["average"]) * Balance.coins_per_grade_point 					* float(Balance.school_class_size)
+		earned /= 10.0
+
+		var wages := Game.wage_bill()
+		var upkeep := Game.room_items.size() * Balance.upkeep_per_item
+		var balance := int(earned) - wages - upkeep
+		print("   %-6d %-7d %-7d %-7d %-8d %s" % [
+			n + 1, wages, upkeep, int(earned), balance,
+			"solvent" if balance > 0 else "LOSES MONEY"])
+	print("")
 
 
 func _class_of(n: int, seed_value: int) -> Array:

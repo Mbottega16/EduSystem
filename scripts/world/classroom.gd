@@ -524,6 +524,8 @@ func end_lesson() -> Array:
 func end_day() -> Dictionary:
 	var report := Game.advance_day()
 	report["rooms"] = Game.resolve_rooms()
+	Game.tick_reputation(report["rooms"])
+	report["reputation"] = Game.reputation
 	report["milestones"] = Game.check_milestones()
 	if player != null:
 		player.drop_all_work()
