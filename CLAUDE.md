@@ -35,7 +35,8 @@ repeatedly by edits that seemed obviously right:
   seeded. Global `randi()`/`randf()` are banned project-wide. Without this,
   none of the balance testing can exist.
 - **Numbers do not live in code.** Every tunable is in `data/balance.json`
-  (30 sections, 114 values). Nothing tunable may be a `const` in a `.gd`.
+  (32 sections, 122 values outside the item and trait tables). Nothing
+  tunable may be a `const` in a `.gd`.
 - **The balance contract must hold.** Three rows, measured from *simulated*
   play, asserted by the suite:
 
@@ -106,11 +107,12 @@ If you add a system, add checks to `tests/run.gd`.
 | `scripts/ui/hud.gd` | Every screen. 13 modes; ten of them share `REPORT`. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 20 lessons, 60 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1033 assertions, 75 sections |
+| `tests/run.gd` | The suite — 1033 assertions, 74 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
 | `docs/TASK_PACK.md` | Copy-paste prompts for Gemini/ChatGPT |
+| `docs/SALVAGE.md` | What to take from EduSystems and what to refuse. Idea banks; the trait calibration set |
 
 ---
 

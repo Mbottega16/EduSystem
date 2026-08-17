@@ -14,7 +14,7 @@
 > became *fewer sheets* (`Progress.sheets_skipped`), student levelling is
 > automatic and spendable via coaching, and the term kept its exam alongside
 > graduation. Its note that "353 assertions assume the T2 loop" is stale —
-> there are 962 now.
+> there are 1033 now.
 >
 > Kept for the Part 4 design. Do not plan from Parts 1-3.
 

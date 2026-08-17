@@ -111,7 +111,8 @@ One seeded `RandomNumberGenerator` on `Game.rng`. Global `randi()`/`randf()`
 are banned project-wide. Without it, none of the balance testing could exist.
 
 ### Numbers do not live in code
-`data/balance.json` is the single table — **30 sections**, 114 tunables.
+`data/balance.json` is the single table — **32 sections**, 122 tunables
+(counting numbers directly in a section, not the item and trait tables).
 Nothing tunable is a `const` in a `.gd` file.
 
 ### A dev tool must never destroy the thing it tests
@@ -219,7 +220,7 @@ assignment hand · specialism · difficulty · economy · homework · items ·
 input arbitration (`claim_action`) · save/load · the cheat flag.
 
 ### Data — `scripts/data/`
-`balance.gd` (114 tunables, static so it works with no SceneTree) ·
+`balance.gd` (122 tunables, static so it works with no SceneTree) ·
 `student_data.gd` (one child's whole record) · `curriculum.gd` ·
 `items.gd` · `assignments.gd` · `traits.gd` · `events.gd` · `progress.gd`
 (every perk effect funnelled through one place) · `questions.gd` (four
@@ -254,7 +255,7 @@ cursor, build mode, aisle-safety check).
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 11 modes |
 | Input actions | 13 (12 rebindable) |
-| Tests | **1033 assertions** across **75 sections** |
+| Tests | **1033 assertions** across **74 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
