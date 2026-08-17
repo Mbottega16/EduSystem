@@ -125,3 +125,102 @@ keep and what to leave, and recommended this document.
 That is the whole thesis of the delegation pack in one experiment: an
 outside model is only as good as the brief attached to it. Attach the
 briefing. Every time.
+
+---
+
+## The idea banks — read off disk, not recalled
+
+Three further analyses were asked to recover EduSystems' item catalogue
+and student traits from memory. One admitted it could not and invented a
+replacement; one produced a categorised list presented as extracted from
+the archive; one honestly refused to fabricate the missing entries.
+
+**None of that was necessary.** `EduSystems/game_template.html` is still on
+disk. The real data was extracted directly:
+
+- **338 `it()` rows, 331 unique item names**, across the old AUT/COM/DEC/
+  KIN/LIN/LOG/SAF/SPA categories.
+- **Exactly 12 student traits.** Not 20 — that figure appears in old
+  documentation and is wrong against the live code.
+- Ten item names already appear in PixelRoom: Art Easel, Coat Hooks,
+  Floor Cushion, Microscope, Reading Lamp, Supply Cabinet, Wall Clock,
+  Whiteboard, Wooden Stool, World Globe.
+
+**The standing rule: when the archive is on disk, read it. A recollection
+of a data file is not the data file**, and a plausible catalogue is harder
+to spot than an obviously wrong one.
+
+### The 12 real traits — a calibration set of what FAILS the bar
+
+This is the whole of `TRAITS` in the live EduSystems code:
+
+```js
+{id:"curious",  spd:1.12, aff:"LOG"}   {id:"shy",      spd:0.94, aff:"COM"}
+{id:"artistic", spd:1.08, aff:"SPA"}   {id:"restless", spd:0.90, aff:"KIN"}
+{id:"bookworm", spd:1.10, aff:"LIN"}   {id:"dreamer",  spd:0.96, aff:"SPA"}
+{id:"athletic", spd:1.06, aff:"KIN"}   {id:"diligent", spd:1.09, aff:null}
+{id:"social",   spd:1.05, aff:"COM"}   {id:"playful",  spd:1.02, aff:"KIN"}
+{id:"focused",  spd:1.15, aff:null}    {id:"gifted",   spd:1.20, aff:null}
+```
+
+A learning-speed multiplier and a category tag. **That is the entire
+mechanism.** Not one of the twelve changes what the player *does* — they
+change a number attached to a child and nothing else. `gifted` is
+`spd:1.20` and no more.
+
+This is the single most useful thing in the archive, because it is the
+negative example. PixelRoom's rule — *a trait must hook into the work
+model or the seating* — was written against exactly this. Compare
+`copier`, which gets a child unstuck off a neighbour so the work visibly
+recovers and the later quiz exposes that they never understood it. That is
+a trait. `spd:1.12` is a stat.
+
+**Use these twelve as the calibration set for Task 3**: if a proposed trait
+could be expressed as a single multiplier on that child, it has failed.
+
+### Furniture idea bank
+
+Curated from the real 331. Removed: everything already in PixelRoom, the
+university and district tier (Nobel Laureate Wall, Quantum Computer,
+Endowment Plaque, Superintendent's Nameplate), the gym and lab buildings
+(Rowing Machine, Fume Hood, Radiation Monitor), the old economy's
+non-objects (Private Tutor Package, Focus Tonic, Maintenance Contract) and
+generated placeholders (Decor Accent S, Reading Set 143).
+
+What remains is objects that could plausibly stand in one primary
+classroom. **Ideas only — no costs, no categories, no schema.** Anything
+taken from here gets written from PixelRoom's rules.
+
+**Seating** — Couch, Rest Mat, Kids Chair, Folding Chair, Step Stool, Soft
+Play Steps, Crawl Tunnel, Ball Pit, Lounge Ottoman, Padded Bench, Scooter
+Board.
+
+**Surfaces** — Kids Table, Round Table, Sand Table, Water Table, Sensory
+Table, Supply Trolley, Wall Cabinet, Toy Chest, Cubby Shelf, Open Cubby,
+Assignment Tray, Sorting Tray, Art Caddy, Book Bin, Bin Shelf, Portfolio
+Rack, Wardrobe Cabinet, File Drawer, Teacher's Desk.
+
+**Learning** — Chalkboard, Cork Board, Letter Board, Shape Board, Magnetic
+Letters, Alphabet Rug, Storybook Shelf, Puppet Theater, Listening Station,
+Typewriter, Newspaper Stand, Counting Beads, Shape Sorter, Stacking
+Pyramid, Logic Puzzle Shelf, Anatomy Model, Desk Globe, Science Supply
+Table, Lab Sink, Circuit Rack, Coding Terminal, Overhead Projector,
+Pull-Down Screen, Podium, Lectern, Debate Timer, Vocabulary Wall, Rhyme
+Chart, Reading Log Chart, Math Mobile, Music Stands, Peg Board, Clay
+Station, Pottery Wheel, Printmaking Press, Canvas Easel, 3D Model Shelf,
+Tripod Camera, Writing Desk, Drafting Desk.
+
+**Comfort** — Wash Basin, Umbrella Stand, Hamster Cage (a class pet),
+Potted Fern, Bonsai Tree, Zen Sand Garden, Coat Tree, Snack Tray,
+Grandfather Clock.
+
+**Decor** — Welcome Banner, Student Art Wall, Display Case, Trophy Cabinet,
+Mural Panel, World Map Poster, Butterfly Display, Mascot Statue, Marble
+Bust, Framed Portrait, Event Posters, Bulletin Board, School Logo Sign,
+Achievement Plaque, Hall of Fame Board, Star Chart, Behaviour Chart, Hall
+Pass Board, Framed Mirror, Safety Rules Poster, Exit Sign, Fire
+Extinguisher, First-Aid Kit, Sanitizer Station, Recycling Bin, Trash Can.
+
+**50 items is a design target, not a quota.** EduSystems went from ~49
+planned to 353 cataloged, then deleted 59 in one art review. If item 47 is
+worse than something already in the shop, PixelRoom does not need item 47.
