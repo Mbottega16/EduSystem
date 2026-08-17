@@ -523,6 +523,7 @@ func end_lesson() -> Array:
 ## interruption; firing it here is a line on a report they wanted anyway.
 func end_day() -> Dictionary:
 	var report := Game.advance_day()
+	report["rooms"] = Game.resolve_rooms()
 	report["milestones"] = Game.check_milestones()
 	if player != null:
 		player.drop_all_work()

@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -97,6 +97,10 @@ var _showing_exam: bool = false
 ## The run itself has ended. Closing this one starts a new run rather than
 ## a new term.
 var _showing_run_over: bool = false
+## The school screen is showing the hiring list rather than the rooms.
+var _hiring: bool = false
+## Which room a hire is FOR.
+var _hiring_for: int = 0
 
 
 func _ready() -> void:
@@ -341,6 +345,7 @@ func _open(m: int) -> void:
 	# flag can only ever be true for the screen that set it.
 	_showing_exam = false
 	_showing_run_over = false
+	_hiring = false
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
@@ -395,8 +400,10 @@ func show_pause() -> void:
 
 func _render_pause() -> void:
 	title.text = "PAUSED"
-	var rows := ["Resume", "Your career  %d/%d" % [Game.milestones.size(),
-		Milestones.count()], "Sound  %s" % _vol_bar(), "Quit to title"]
+	var rows := ["Resume", "The school  %d room%s" % [Game.rooms.size() + 1,
+		"" if Game.rooms.is_empty() else "s"],
+		"Your career  %d/%d" % [Game.milestones.size(), Milestones.count()],
+		"Sound  %s" % _vol_bar(), "Quit to title"]
 	var lines: Array[String] = ["", ""]
 	for i in rows.size():
 		lines.append("      %s %s" % [">" if i == _pause_sel else " ", rows[i]])
@@ -413,13 +420,13 @@ func _vol_bar() -> String:
 
 func _pause_input() -> void:
 	if Input.is_action_just_pressed("move_down"):
-		_pause_sel = (_pause_sel + 1) % 4
+		_pause_sel = (_pause_sel + 1) % 5
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_up"):
-		_pause_sel = (_pause_sel + 3) % 4
+		_pause_sel = (_pause_sel + 4) % 5
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
-		if _pause_sel == 2:
+		if _pause_sel == 3:
 			var d := 0.1 if Input.is_action_just_pressed("move_right") else -0.1
 			Settings.sfx_volume = clampf(Settings.sfx_volume + d, 0.0, 1.0)
 			Settings.apply_audio()
@@ -434,9 +441,13 @@ func _pause_input() -> void:
 			return
 		elif _pause_sel == 1:
 			_sel = 0
+			show_school()
+			return
+		elif _pause_sel == 2:
+			_sel = 0
 			show_career()
 			return
-		elif _pause_sel == 3:
+		elif _pause_sel == 4:
 			Game.save_game()
 			close()
 			get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
@@ -970,6 +981,100 @@ func show_hand() -> void:
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.22)
 	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
+
+
+## THE SCHOOL: every room, and how it did.
+##
+## This is the manager altitude's whole screen. A delegated room is resolved
+## by RUNNING its lesson with its teacher's policy, so every letter here was
+## earned by the same model the player is subject to -- which is what makes
+## a bad row worth walking into tomorrow rather than a number to shrug at.
+##
+## Your own room is the first line and is marked as yours: it is played, not
+## resolved, and the point of the screen is the comparison.
+func show_school() -> void:
+	_open(Mode.SCHOOL)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "THE SCHOOL  -  %d room%s" % [
+		Game.rooms.size() + 1, "" if Game.rooms.is_empty() else "s"]
+
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%-9s %-13s %s[/color]" % [
+		DIM, "YOURS", "you", Game.grade_letter(Game.class_average())])
+
+	for i in Game.rooms.size():
+		var r: Dictionary = Game.rooms[i]
+		var t: Dictionary = r.get("teacher", {})
+		var last: Dictionary = r.get("last", {})
+		var letter := String(last.get("letter", "-"))
+		var staffed: bool = not t.is_empty()
+		# An unstaffed room is the loudest thing on this screen, because it
+		# is costing you a room and teaching nobody.
+		var hue := C_BAD if not staffed else (
+			C_GOOD if letter in ["A", "B"] else (DIM if letter == "-" else C_HOMEWORK))
+		lines.append("%s [color=#%s]%-9s %-13s %s[/color]" % [
+			">" if i == _sel else " ", hue, String(r.get("name", "Room")),
+			String(t.get("name", "NOBODY")).substr(0, 13), letter])
+
+	lines.append("")
+	if Game.rooms.is_empty():
+		lines.append("[color=#%s]One room, and it is yours. Open another and[/color]" % DIM)
+		lines.append("[color=#%s]somebody else will have to teach it.[/color]" % DIM)
+	else:
+		var sel: Dictionary = Game.rooms[_sel] if _sel < Game.rooms.size() else {}
+		var t2: Dictionary = sel.get("teacher", {})
+		if t2.is_empty():
+			lines.append("[color=#%s]Nobody is teaching it. The children sit there.[/color]" % C_BAD)
+		else:
+			lines.append("[color=#%s]%s[/color]  [color=#%s]but %s[/color]" % [
+				C_GOOD, Staff.strengths(t2), C_BAD, Staff.weakness(t2)])
+		lines.append("[color=#%s]furniture %s   %d/day in wages[/color]" % [
+			DIM, _furniture_bar(int(sel.get("furniture", 0))), Game.wage_bill()])
+
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.3)
+	hint.text = _clip("Up/Down room   E hire   F furnish   N new room (%d)   Esc" % [
+		Game.room_cost()])
+
+
+func _furniture_bar(level: int) -> String:
+	Balance.ensure_loaded()
+	var n: int = clampi(level, 0, Balance.furniture_steps)
+	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
+		C_ROOM, BAR_FULL.repeat(n),
+		BAR_EMPTY.repeat(Balance.furniture_steps - n)]
+
+
+## Who is going. Prose, never numbers -- the same rule the rest of the game
+## follows, and the reason a hire reads as a person rather than a stat line.
+func show_hiring() -> void:
+	_open(Mode.SCHOOL)
+	_hiring = true
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "WHO WILL TEACH IT?"
+
+	if Game.applicants.is_empty():
+		Game.draw_applicants()
+	_sel = clampi(_sel, 0, maxi(0, Game.applicants.size() - 1))
+	var lines: Array[String] = []
+	for i in Game.applicants.size():
+		var t: Dictionary = Game.applicants[i]
+		lines.append("%s [color=#%s]%-15s[/color] [color=#%s]%d/day[/color]" % [
+			">" if i == _sel else " ", C_LESSON, String(t.get("name", "")),
+			C_COIN, int(t.get("wage", 0))])
+		lines.append("    [color=#%s]%s[/color]" % [
+			DIM, String(t.get("blurb", ""))])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.25)
+	var sel: Dictionary = Game.applicants[_sel] if _sel < Game.applicants.size() else {}
+	hint.text = _clip("E hire   Esc back.   %s, but %s" % [
+		Staff.strengths(sel), Staff.weakness(sel)])
 
 
 ## YOUR CAREER: every milestone, earned and unearned.
@@ -1915,6 +2020,55 @@ func _handle_input() -> void:
 			var picked := _sel
 			close()
 			assignment_chosen.emit(picked)
+		return
+
+	if mode == Mode.SCHOOL:
+		if _hiring:
+			var na: int = Game.applicants.size()
+			if Input.is_action_just_pressed("cancel"):
+				_hiring = false
+				show_school()
+			elif na > 0 and Input.is_action_just_pressed("move_down"):
+				_sel = (_sel + 1) % na
+				Sfx.play("blip")
+				show_hiring()
+			elif na > 0 and Input.is_action_just_pressed("move_up"):
+				_sel = (_sel - 1 + na) % na
+				Sfx.play("blip")
+				show_hiring()
+			elif na > 0 and Game.claim_interact():
+				var err := Game.hire(_hiring_for, _sel)
+				Sfx.play("deny" if err != "" else "confirm")
+				_hiring = false
+				_sel = _hiring_for
+				show_school()
+			return
+
+		var n: int = Game.rooms.size()
+		if Input.is_action_just_pressed("cancel"):
+			Sfx.play("blip")
+			close()
+		elif n > 0 and Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % n
+			Sfx.play("blip")
+			show_school()
+		elif n > 0 and Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + n) % n
+			Sfx.play("blip")
+			show_school()
+		elif Input.is_action_just_pressed("build"):
+			# N is taken; the build key opens a new room from this screen
+			var err2 := Game.open_room()
+			Sfx.play("deny" if err2 != "" else "confirm")
+			show_school()
+		elif n > 0 and Game.claim_action("manage"):
+			var err3 := Game.furnish_room(_sel)
+			Sfx.play("deny" if err3 != "" else "confirm")
+			show_school()
+		elif n > 0 and Game.claim_interact():
+			_hiring_for = _sel
+			_sel = 0
+			show_hiring()
 		return
 
 	if mode == Mode.CAREER:

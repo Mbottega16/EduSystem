@@ -77,6 +77,139 @@ func check_milestones() -> Array:
 	return fresh
 
 signal term_began(term: int)
+
+# --- the school ------------------------------------------------------
+## Rooms you do not stand in. Each has its own children, its own teacher and
+## its own furniture, and is resolved every day by RUNNING THE LESSON with
+## that teacher's policy -- see scripts/data/room_sim.gd for why it is not a
+## formula.
+##
+## The player's own room is NOT in here. It is the room they are standing
+## in, and it is played rather than resolved.
+var rooms: Array = []
+## Teachers currently looking for work. Redrawn each term.
+var applicants: Array = []
+
+signal school_changed()
+
+
+func room_cost() -> int:
+	Balance.ensure_loaded()
+	return int(round(float(Balance.room_cost)
+		* pow(Balance.room_cost_growth, float(rooms.size()))))
+
+
+func can_open_room() -> bool:
+	Balance.ensure_loaded()
+	return rooms.size() < Balance.max_rooms - 1     # the player holds one
+
+
+## Open a room. It arrives empty and unstaffed -- an unstaffed room teaches
+## nobody, which is the cost of opening one you cannot afford to run.
+func open_room() -> String:
+	Balance.ensure_loaded()
+	if not can_open_room():
+		return "There is no space for another room."
+	var cost := room_cost()
+	if not spend(cost):
+		return "You cannot afford another room."
+	var r := {
+		"name": "Room %d" % (rooms.size() + 2),
+		"teacher": {}, "furniture": 0, "roster": [], "last": {},
+	}
+	for i in Balance.school_class_size:
+		var s := StudentData.new()
+		s.id = _next_id
+		_next_id += 1
+		s.display_name = Names.unique_name(rng, _taken_names())
+		s.joined_day = day
+		s.art = Names.ART[(s.id - 1) % Names.ART.size()]
+		s.aptitude = rng.randf_range(0.25, 0.85)
+		s.diligence = rng.randf_range(0.25, 0.85)
+		var strands := Curriculum.strands()
+		s.favourite = strands[rng.randi_range(0, strands.size() - 1)] 			if not strands.is_empty() else "math"
+		s.trait_id = Traits.roll(rng)
+		s.seat_index = i
+		(r["roster"] as Array).append(s)
+	rooms.append(r)
+	school_changed.emit()
+	return ""
+
+
+## What a delegated room's furniture is worth to a desk in it.
+##
+## Bought as a LEVEL rather than placed. Placing furniture is a spatial
+## puzzle about range, and that puzzle is only interesting in a room you can
+## actually see -- so a room you never enter buys the outcome instead, and
+## is honest about doing so.
+func room_value(r: Dictionary) -> float:
+	Balance.ensure_loaded()
+	var step: float = (Balance.room_cap - Balance.room_base) 		/ float(maxi(1, Balance.furniture_steps))
+	return Balance.room_base + step * float(int(r.get("furniture", 0)))
+
+
+func furnish_cost(r: Dictionary) -> int:
+	Balance.ensure_loaded()
+	return Balance.furniture_step_cost * (int(r.get("furniture", 0)) + 1)
+
+
+func furnish_room(i: int) -> String:
+	Balance.ensure_loaded()
+	if i < 0 or i >= rooms.size():
+		return "No such room."
+	var r: Dictionary = rooms[i]
+	if int(r.get("furniture", 0)) >= Balance.furniture_steps:
+		return "That room is fully furnished."
+	if not spend(furnish_cost(r)):
+		return "You cannot afford that."
+	r["furniture"] = int(r.get("furniture", 0)) + 1
+	school_changed.emit()
+	return ""
+
+
+func draw_applicants() -> Array:
+	Balance.ensure_loaded()
+	applicants = Staff.applicants(rng, Balance.applicant_count)
+	return applicants
+
+
+func hire(room_index: int, applicant_index: int) -> String:
+	if room_index < 0 or room_index >= rooms.size():
+		return "No such room."
+	if applicant_index < 0 or applicant_index >= applicants.size():
+		return "Nobody by that name."
+	var t: Dictionary = applicants[applicant_index]
+	(rooms[room_index] as Dictionary)["teacher"] = t.duplicate()
+	applicants.remove_at(applicant_index)
+	school_changed.emit()
+	return ""
+
+
+## Every delegated room's day, resolved. Called at the bell.
+##
+## A room with no teacher is not taught: the children sit there and the
+## grade is the room alone. That is the cost of opening a room you cannot
+## staff, and it is why an empty room is worse than no room.
+func resolve_rooms() -> Array:
+	Balance.ensure_loaded()
+	var out: Array = []
+	for r: Dictionary in rooms:
+		var teacher: Dictionary = r.get("teacher", {})
+		var result: Dictionary = RoomSim.play_day(
+			r.get("roster", []), teacher, room_value(r), lesson, rng)
+		result["room"] = String(r.get("name", "Room"))
+		result["teacher"] = String(teacher.get("name", "")) 			if not teacher.is_empty() else ""
+		r["last"] = result
+		out.append(result)
+	return out
+
+
+## What the staff cost you, per day.
+func wage_bill() -> int:
+	var total := 0
+	for r: Dictionary in rooms:
+		total += int((r.get("teacher", {}) as Dictionary).get("wage", 0))
+	return total
 var exam_result: Dictionary = {}
 ## Yesterday's grade split, so the day report can show which way each part
 ## moved. A number with no yesterday beside it cannot tell you whether what
@@ -185,6 +318,8 @@ func new_run(seed_value: int = 0) -> void:
 	term_history.clear()
 	run_over = false
 	milestones.clear()
+	rooms.clear()
+	applicants.clear()
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
@@ -1364,6 +1499,8 @@ func advance_day() -> Dictionary:
 	# rather than a purchase you make once and forget about.
 	if has_aide:
 		upkeep += Balance.aide_wage
+	# every teacher you employ, every day, taught or not
+	upkeep += wage_bill()
 	coins = maxi(0, coins - upkeep)
 	coins_changed.emit(coins)
 
@@ -1649,6 +1786,14 @@ func to_dict() -> Dictionary:
 		"term_history": term_history,
 		"run_over": run_over,
 		"milestones": milestones,
+		"rooms": rooms.map(func(r: Dictionary) -> Dictionary:
+			return {
+				"name": r.get("name", ""), "teacher": r.get("teacher", {}),
+				"furniture": r.get("furniture", 0), "last": r.get("last", {}),
+				"roster": (r.get("roster", []) as Array).map(
+					func(s: StudentData) -> Dictionary: return s.to_dict()),
+			}),
+		"applicants": applicants,
 		"taught": taught,
 		"concepts": concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
@@ -1684,6 +1829,19 @@ func from_dict(d: Dictionary) -> void:
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()
+	rooms.clear()
+	for rd: Dictionary in d.get("rooms", []):
+		var roster_in: Array = []
+		for sd: Dictionary in rd.get("roster", []):
+			roster_in.append(StudentData.from_dict(sd))
+		rooms.append({
+			"name": String(rd.get("name", "Room")),
+			"teacher": rd.get("teacher", {}).duplicate(),
+			"furniture": int(rd.get("furniture", 0)),
+			"last": rd.get("last", {}).duplicate(),
+			"roster": roster_in,
+		})
+	applicants = d.get("applicants", []).duplicate()
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()

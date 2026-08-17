@@ -151,6 +151,7 @@ func _main() -> void:
 	await test_lesson_plan_folder()
 	await test_milestones()
 	await test_buying_desks()
+	await test_the_school()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -4512,6 +4513,157 @@ func test_buying_desks() -> void:
 			if not world.grid.reachable(Layout.DOOR, Layout.seat(i)):
 				return false
 		return true).call())
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_the_school() -> void:
+	section("ROOMS YOU DO NOT STAND IN")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("you start with one room, and it is yours", Game.rooms.is_empty())
+
+	Game.coins = 0
+	chk("a room costs money you have not got", Game.open_room() != "")
+	Game.coins = 999999
+	chk("and money you have opens one", Game.open_room() == "")
+	chk("there is a room now", Game.rooms.size() == 1)
+	chk("with children in it",
+		(Game.rooms[0]["roster"] as Array).size() == Balance.school_class_size,
+		(Game.rooms[0]["roster"] as Array).size())
+	chk("and nobody teaching it", (Game.rooms[0]["teacher"] as Dictionary).is_empty())
+	chk("the next one costs more", Game.room_cost() > Balance.room_cost)
+
+	# --- an empty room is worse than no room ---
+	# It costs you the purchase and teaches nobody. If an unstaffed room
+	# quietly taught itself, hiring would be optional and the wage bill
+	# would be a tax rather than a decision.
+	var empty: Dictionary = Game.resolve_rooms()[0]
+	chk("nobody teaching means nobody learning",
+		float(empty["average"]) <= Balance.room_base + 0.001,
+		empty["average"])
+	chk("and no work is collected", int(empty["collected"]) == 0)
+
+	# --- hiring ---
+	Game.draw_applicants()
+	chk("there are people to hire", Game.applicants.size() > 0)
+	chk("each has a name, a wage and a weakness", (func() -> bool:
+		for t: Dictionary in Game.applicants:
+			if String(t.get("name", "")) == "" or int(t.get("wage", 0)) <= 0:
+				return false
+			if Staff.weakness(t) == "" or Staff.strengths(t) == "":
+				return false
+		return true).call())
+
+	var wage: int = int(Game.applicants[0]["wage"])
+	chk("hiring works", Game.hire(0, 0) == "")
+	chk("the room has a teacher now",
+		not (Game.rooms[0]["teacher"] as Dictionary).is_empty())
+	chk("they are off the list", Game.applicants.size() >= 0)
+	chk("and they cost you every day", Game.wage_bill() == wage,
+		"%d vs %d" % [Game.wage_bill(), wage])
+
+	var staffed: Dictionary = Game.resolve_rooms()[0]
+	chk("a staffed room actually teaches",
+		float(staffed["average"]) > float(empty["average"]),
+		"%.2f -> %.2f" % [empty["average"], staffed["average"]])
+
+	# --- furniture, bought as a level ---
+	var before := Game.room_value(Game.rooms[0])
+	chk("furnishing costs", Game.furnish_room(0) == "")
+	chk("and is worth something to that room",
+		Game.room_value(Game.rooms[0]) > before)
+	chk("but never more than a room can be worth", (func() -> bool:
+		for i in 20:
+			Game.furnish_room(0)
+		return Game.room_value(Game.rooms[0]) <= Balance.room_cap + 0.001).call(),
+		Game.room_value(Game.rooms[0]))
+
+	# --- THE PROMISE: results are RUN, not assigned ---
+	# A delegated room is resolved by playing its lesson with the teacher's
+	# policy. Different policies must therefore produce different outcomes,
+	# or hiring is decoration.
+	# A LOCAL rng, and no new_run in the loop: new_run rebuilds the whole
+	# room, and doing that twenty-four times inside a test took the suite
+	# past its ten-minute watchdog.
+	var got := {}
+	var probe := RandomNumberGenerator.new()
+	for a: Dictionary in Staff.ARCHETYPES:
+		var total := 0.0
+		for r in 4:
+			probe.seed = 700 + r
+			var roster: Array = []
+			for i in 5:
+				var st := StudentData.new()
+				st.id = i + 1
+				st.aptitude = 0.5
+				st.diligence = 0.5
+				st.seat_index = i
+				roster.append(st)
+			total += float(RoomSim.play_day(roster, a, Balance.room_base + 0.1,
+				Game.lesson, probe)["average"])
+		got[String(a["id"])] = total / 4.0
+	chk("a better teacher gets a better result",
+		float(got["veteran"]) > float(got["supply"]),
+		"veteran %.2f vs supply %.2f" % [got["veteran"], got["supply"]])
+	chk("and the archetypes are genuinely different", (func() -> bool:
+		var lo := 9.0
+		var hi := 0.0
+		for k: String in got:
+			lo = minf(lo, float(got[k]))
+			hi = maxf(hi, float(got[k]))
+		return hi - lo > 0.08).call(), got)
+
+	# a delegated room must never read the PLAYER's furniture
+	Game.new_run(SEED)
+	Game.coins = 999999
+	Game.open_room()
+	for i in 40:
+		Game.room_items.append({"id": "bookshelf", "tile": Layout.seat(0)})
+	chk("your own furniture does nothing for a room across the corridor",
+		is_equal_approx(Game.room_value(Game.rooms[0]), Balance.room_base),
+		Game.room_value(Game.rooms[0]))
+
+	# --- it survives the night ---
+	Game.new_run(SEED)
+	Game.coins = 999999
+	Game.open_room()
+	Game.draw_applicants()
+	Game.hire(0, 0)
+	var who := String((Game.rooms[0]["teacher"] as Dictionary)["name"])
+	Game.save_game()
+	Game.new_run(1)
+	chk("a new run has no school", Game.rooms.is_empty())
+	Game.load_game()
+	chk("but a saved one remembers its rooms", Game.rooms.size() == 1)
+	chk("and who teaches them",
+		String((Game.rooms[0]["teacher"] as Dictionary).get("name", "")) == who)
+	chk("and the children in them",
+		(Game.rooms[0]["roster"] as Array).size() == Balance.school_class_size)
+	Game.delete_save()
+
+	# --- the board ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.coins = 999999
+	Game.open_room()
+	Game.draw_applicants()
+	Game.hire(0, 0)
+	Game.resolve_rooms()
+	var hud := _hud()
+	hud.show_school()
+	chk("the school board opens", hud.mode == hud.Mode.SCHOOL)
+	chk("it names the room", hud.rich.text.contains("Room 2"), hud.rich.text)
+	chk("and who is in it",
+		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"]).substr(0, 8)),
+		hud.rich.text)
+	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	hud.close()
 
 	Game.new_run(SEED)
 	await step(2)

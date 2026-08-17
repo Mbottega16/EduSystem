@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-16**, against build `b26`, with **962 assertions
+> **Measured on 2026-08-17**, against build `b29`, with **1033 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -577,11 +577,33 @@ the core loop. Phase 0 is deliberately not "start the school".
 
 ### Risks
 
-**1. The two altitudes may not both be fun.**
-The whole design rests on a delegated room being interesting to *read*. It
-might just be a table of letters.
-→ *Mitigation:* Phase 1 exists to answer exactly this, before anything is
-built on top of it.
+**1. ~~The two altitudes may not both be fun.~~ — ANSWERED, 2026-08-17.**
+The gate has been run. `tools/schoolsim.gd` (`Simulate the School.bat`)
+plays a term of delegated rooms and prints the evening board:
+
+```
+   day  Room 2      Room 3      Room 4
+   1    B           E !         F !
+   7    D           F !         F !
+   13   B           E !         F !
+   20   B           E           F
+```
+
+Room 2 is a Veteran with furniture, Room 3 a Supply teacher with none,
+Room 4 nobody at all. Three visibly different rooms; the board moves day to
+day; and an unstaffed room is a flat wall of F that reads as a problem you
+have to go and solve. Across the six archetypes the same class scores
+**0.47 (E) to 0.71 (C)** with different failure modes — one leaves work
+uncollected, another loses the room, another never spots who is behind.
+
+**Hiring is a decision and the board is worth reading.** Phase 2 is clear
+to proceed.
+
+It also caught two real bugs in its first run, both of which would have made
+delegation meaningless: attention was computed from cumulative sums rather
+than ticked as state (so a Supply teacher was indistinguishable from an
+empty room), and an empty teacher record defaulted `teaches` to true (so an
+unstaffed room quietly taught itself).
 
 **2. An endless game needs milestones or it reads as unfinished.**
 A Steam player who reaches term 5 with nothing named to aim at will stop.

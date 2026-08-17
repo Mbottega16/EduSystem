@@ -98,6 +98,26 @@ func _open_screen(main: Node, screen: String) -> void:
 					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
 			]
 			hud.show_hand()
+		"school":
+			Game.coins = 999999
+			for ri in 3:
+				Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate(),
+				Staff.archetype("supply").duplicate()]
+			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.applicants[1]["name"] = "Mr Petrov"
+			Game.hire(0, 0)
+			Game.hire(1, 0)
+			Game.furnish_room(0)
+			Game.furnish_room(0)
+			Game.resolve_rooms()
+			hud.show_school()
+		"hiring":
+			Game.coins = 999999
+			Game.open_room()
+			Game.draw_applicants()
+			hud._hiring_for = 0
+			hud.show_hiring()
 		"career":
 			for m: Dictionary in Milestones.all():
 				if Game.milestones.size() >= 5:

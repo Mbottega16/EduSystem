@@ -90,6 +90,15 @@ static var aide_collect: float = 2.2
 static var auto_speed: float = 1.35
 static var auto_arrive: int = 1
 
+# --- rooms you do not stand in -------------------------------------------
+static var room_cost: int = 900
+static var room_cost_growth: float = 1.6
+static var max_rooms: int = 6
+static var school_class_size: int = 6
+static var furniture_step_cost: int = 240
+static var furniture_steps: int = 5
+static var applicant_count: int = 4
+
 # --- the paper you set ---------------------------------------------------
 static var assign_hand_size: int = 3
 static var assign_rarities: Array = []
@@ -280,6 +289,15 @@ static func apply(d: Dictionary) -> void:
 	var ap: Dictionary = d.get("autopilot", {})
 	auto_speed = float(ap.get("speed_multiplier", auto_speed))
 	auto_arrive = int(ap.get("arrive_tiles", auto_arrive))
+
+	var sc: Dictionary = d.get("school", {})
+	room_cost = int(sc.get("room_cost", room_cost))
+	room_cost_growth = float(sc.get("room_cost_growth", room_cost_growth))
+	max_rooms = int(sc.get("max_rooms", max_rooms))
+	school_class_size = int(sc.get("class_size", school_class_size))
+	furniture_step_cost = int(sc.get("furniture_step_cost", furniture_step_cost))
+	furniture_steps = int(sc.get("furniture_steps", furniture_steps))
+	applicant_count = int(sc.get("applicants", applicant_count))
 
 	var asg: Dictionary = d.get("assignments", {})
 	assign_hand_size = int(asg.get("hand_size", assign_hand_size))
