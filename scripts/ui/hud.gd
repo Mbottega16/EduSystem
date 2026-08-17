@@ -17,7 +17,7 @@ enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
-const ROOM_ROWS := ["wide", "tall"]
+const ROOM_ROWS := ["wide", "tall", "desk"]
 ## Actions offered on a student's own file.
 enum Act { TUITION, PARENTS, GRADUATE, COUNT }
 
@@ -1712,12 +1712,14 @@ func _render_room() -> Array[String]:
 	out.append("")
 	for i in ROOM_ROWS.size():
 		var axis := String(ROOM_ROWS[i])
-		var label := "One column wider" if axis == "wide" else "One row longer"
+		var label := ""
 		var tail := ""
-		if not Game.can_expand(axis):
-			tail = "at its limit"
+		if axis == "desk":
+			label = "Another desk  (%d now)" % Layout.seat_count()
+			tail = "%d coins" % Game.desk_cost() if Game.can_buy_desk() 				else "at its limit"
 		else:
-			tail = "%d coins" % Game.expand_cost(axis)
+			label = "One column wider" if axis == "wide" else "One row longer"
+			tail = "%d coins" % Game.expand_cost(axis) if Game.can_expand(axis) 				else "at its limit"
 		out.append("%s %-22s %s" % [">" if i == _sel else " ", label, tail])
 	out.append("")
 	if Grid.W > Grid.BASE_W or Grid.H > Grid.BASE_H:
@@ -2079,7 +2081,8 @@ func _handle_input() -> void:
 			_render_catalogue()
 		elif Game.claim_interact() and not rows.is_empty():
 			if _shop == Shop.ROOM:
-				var e := Game.expand_room(String(rows[_sel]))
+				var axis := String(rows[_sel])
+				var e := Game.buy_desk() if axis == "desk" 					else Game.expand_room(axis)
 				Sfx.play("deny" if e != "" else "coins")
 				_render_catalogue()
 			elif _shop == Shop.STAFF:

@@ -267,9 +267,126 @@ func _taken_names() -> Array:
 ## How many children the room can hold: the desks that exist, but never more
 ## than the class cap. Desks can be moved (and later bought), so the cap is a
 ## ceiling on enrolment rather than a fact about the room.
+## What the next desk costs. Rises with every one you own, so a big class
+## is a long-term project rather than a purchase.
+func desk_cost() -> int:
+	Balance.ensure_loaded()
+	var bought: int = maxi(0, Layout.seat_count() - Balance.class_cap)
+	return int(round(float(Balance.desk_cost)
+		* pow(Balance.desk_cost_growth, float(bought))))
+
+
+func can_buy_desk() -> bool:
+	Balance.ensure_loaded()
+	return Layout.seat_count() < Balance.class_hard_cap
+
+
+## Buy a desk. Returns "" or why not.
+##
+## The FLOOR is the real cost. A desk needs two free tiles with an aisle
+## back to the door, so past a certain point the answer is to buy a bigger
+## room -- which is what ties the class size to the room rather than to a
+## number in a table.
+func buy_desk() -> String:
+	Balance.ensure_loaded()
+	if not can_buy_desk():
+		return "There is no room for another desk."
+	var spot := _free_desk_spot()
+	if spot.x < 0:
+		return "Nowhere to put it. Try a bigger room."
+	var cost := desk_cost()
+	if not spend(cost):
+		return "You cannot afford a desk."
+	if Layout.add_seat(spot) < 0:
+		add_coins(cost)          # refund; something took the tile
+		return "Nowhere to put it."
+	room_resized.emit()          # the room rebuilds its desks
+	roster_changed.emit()
+	return ""
+
+
+## Somewhere a desk and its chair both fit, leaving the aisles walkable.
+func _free_desk_spot() -> Vector2i:
+	var taken := {}
+	for s: Vector2i in Layout.seats():
+		taken[s] = true
+		taken[s + Layout.DESK_OFFSET] = true
+	for p: Dictionary in room_items:
+		for t: Vector2i in Items.footprint(String(p["id"]), p["tile"]):
+			taken[t] = true
+	for t: Vector2i in [Layout.PODIUM, Layout.BELL, Layout.BOARD]:
+		taken[t] = true
+	for t: Vector2i in Layout.TEACHER_DESK:
+		taken[t] = true
+	var floor_rect := Layout.floor_rect()
+	# leave the row nearest the door clear so the class can still file in
+	for y in range(floor_rect.position.y + 1, floor_rect.end.y - 1):
+		for x in range(floor_rect.position.x + 1, floor_rect.end.x):
+			var seat := Vector2i(x, y)
+			var desk := seat + Layout.DESK_OFFSET
+			if taken.has(seat) or taken.has(desk):
+				continue
+			if not Grid.in_bounds(desk):
+				continue
+			# AISLES. A desk pair is two tiles tall, so packing them
+			# directly under one another fills the room with furniture and
+			# no way to walk between it -- 24 desks in the starting room,
+			# none of them reachable from the front. Requiring the tile
+			# below the desk to be clear forces a walking row between rows,
+			# which is what makes FLOOR the real limit on a class rather
+			# than a number in a table.
+			var below := desk + Layout.DESK_OFFSET
+			if taken.has(below):
+				continue
+			# and a side aisle: no desk immediately to the left, so they go
+			# in alternate columns the way a real classroom does. Without
+			# this the starting room swallows the entire hard cap and the
+			# floor never binds -- the room stops being what limits a class.
+			if taken.has(seat + Vector2i(-1, 0)):
+				continue
+			# AND IT MUST NOT TRAP ANYBODY. Aisle rules are local; whether
+			# the room is still walkable is not. Placement has always run
+			# this check for bought furniture, and a desk is furniture that
+			# a child has to be able to reach -- without it you can buy a
+			# desk that walls another one off and the child assigned to it
+			# can never sit down.
+			if _desk_would_trap(seat):
+				continue
+			return seat
+	return Vector2i(-1, -1)
+
+
+## Simulate a desk at `seat` on the real grid and check every seat is still
+## reachable from the door, then put the grid back.
+func _desk_would_trap(seat: Vector2i) -> bool:
+	var room := get_tree().get_first_node_in_group("classroom") if is_inside_tree() else null
+	if room == null or not room.has_method("student_node"):
+		return false          # no world to check against; nothing to trap
+	var grid = room.grid
+	var desk := seat + Layout.DESK_OFFSET
+	var was_seat: int = grid.get_cell(seat)
+	var was_desk: int = grid.get_cell(desk)
+	grid.set_cell(seat, Grid.Cell.SEAT)
+	grid.set_cell(desk, Grid.Cell.BLOCKED)
+
+	var trapped := false
+	for i in Layout.seat_count():
+		if not grid.reachable(Layout.DOOR, Layout.seat(i)):
+			trapped = true
+			break
+	if not trapped and not grid.reachable(Layout.DOOR, seat):
+		trapped = true
+
+	grid.set_cell(seat, was_seat)
+	grid.set_cell(desk, was_desk)
+	return trapped
+
+
 func seat_capacity() -> int:
 	Balance.ensure_loaded()
-	return mini(Balance.class_cap, Layout.seat_count())
+	# The DESKS decide, not the table. class_cap is the number you start
+	# with; buying more raises it, up to the hard cap.
+	return mini(Balance.class_hard_cap, Layout.seat_count())
 
 
 func _lowest_free_seat() -> int:

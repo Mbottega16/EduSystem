@@ -40,6 +40,11 @@ static var start_coins: int = 80
 # --- class -------------------------------------------------------------
 static var class_start: int = 4
 static var class_cap: int = 8
+## A desk you bought. `class_cap` is now the STARTING number of desks, and
+## `class_hard_cap` is the ceiling however many you buy.
+static var desk_cost: int = 180
+static var desk_cost_growth: float = 1.3
+static var class_hard_cap: int = 24
 static var enrol_every_days: int = 3
 static var enrol_min_average: float = 0.62
 
@@ -227,6 +232,9 @@ static func apply(d: Dictionary) -> void:
 	var c: Dictionary = d.get("class", {})
 	class_start = int(c.get("start_size", class_start))
 	class_cap = int(c.get("cap", class_cap))
+	desk_cost = int(c.get("desk_cost", desk_cost))
+	desk_cost_growth = float(c.get("desk_cost_growth", desk_cost_growth))
+	class_hard_cap = int(c.get("hard_cap", class_hard_cap))
 	enrol_every_days = int(c.get("enrol_every_days", enrol_every_days))
 	enrol_min_average = float(c.get("enrol_min_average", enrol_min_average))
 

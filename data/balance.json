@@ -34,7 +34,11 @@
     "start_size": 4,
     "cap": 8,
     "enrol_every_days": 3,
-    "enrol_min_average": 0.62
+    "enrol_min_average": 0.62,
+    "_desk_note": "A desk is a SEAT you bought, and the class grows into it. The cap was hard-wired at 8 from the beginning -- eight desks in a 20x11 room, and no way to have more. Buying one costs coins AND floor: a desk needs two free tiles with an aisle to the door, so a bigger room is what makes a bigger class possible rather than a number in a table.",
+    "desk_cost": 180,
+    "desk_cost_growth": 1.3,
+    "hard_cap": 24
   },
   "homework": {
     "_note": "not_done_forgiveness: a student who misses homework is asked again the next night rather than being locked out forever.",

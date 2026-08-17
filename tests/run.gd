@@ -150,6 +150,7 @@ func _main() -> void:
 	await test_autopilot_and_aide()
 	await test_lesson_plan_folder()
 	await test_milestones()
+	await test_buying_desks()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -4420,6 +4421,97 @@ func test_milestones() -> void:
 	chk("it fits", hud.rich.text.split("\n").size() <= 11,
 		hud.rich.text.split("\n").size())
 	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+
+func test_buying_desks() -> void:
+	section("BUYING A DESK")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	# The class cap was hard-wired at 8 from the beginning: eight desks in
+	# a 20x11 room and no way to have more, so the class could never grow
+	# past it however well you taught.
+	var start := Layout.seat_count()
+	chk("you start with the desks the room came with",
+		start == Balance.class_cap, start)
+	chk("and the class can only be as big as the desks",
+		Game.seat_capacity() == start, Game.seat_capacity())
+
+	Game.coins = 0
+	chk("you cannot buy one on nothing", Game.buy_desk() != "")
+	chk("and nothing changed", Layout.seat_count() == start)
+
+	Game.coins = 99999
+	var cost := Game.desk_cost()
+	chk("buying one works", Game.buy_desk() == "")
+	chk("there is a desk more", Layout.seat_count() == start + 1,
+		Layout.seat_count())
+	chk("it cost what it said", Game.coins == 99999 - cost,
+		"%d, cost %d" % [Game.coins, cost])
+	chk("and the class can now be bigger", Game.seat_capacity() == start + 1)
+
+	# the price rises, so a big class is a project rather than a purchase
+	chk("the next one costs more", Game.desk_cost() > cost,
+		"%d -> %d" % [cost, Game.desk_cost()])
+
+	# every desk is a real seat: reachable, unique, and it gets a chair
+	chk("no two desks share a tile", (func() -> bool:
+		var seen := {}
+		for t: Vector2i in Layout.seats():
+			if seen.has(t):
+				return false
+			seen[t] = true
+		return true).call())
+	await step(4)
+	chk("the room actually built it", (func() -> bool:
+		var chairs := 0
+		for n in get_tree().get_nodes_in_group("desk_part"):
+			chairs += 1
+		return chairs >= Layout.seat_count() * 2).call())
+	chk("and a child can walk to it", world.grid.reachable(
+		Layout.DOOR, Layout.seat(Layout.seat_count() - 1)))
+
+	# a class actually grows into it
+	Game.new_run(SEED)
+	Game.coins = 99999
+	while Game.enrol() != null:
+		pass
+	var full := Game.roster.size()
+	chk("the class fills the desks it has", full == Layout.seat_count(), full)
+	chk("and cannot grow further", Game.enrol() == null)
+	Game.buy_desk()
+	chk("buying a desk makes room for one more", Game.enrol() != null)
+	chk("who is a real child", Game.roster.size() == full + 1)
+
+	# THE TWO THINGS THAT MUST HOLD: the cap is real, and a room with
+	# nowhere to put a desk says so rather than failing silently.
+	Game.new_run(SEED)
+	Game.coins = 9999999
+	var bought := 0
+	while Game.buy_desk() == "" and bought < 60:
+		bought += 1
+	chk("buying stops somewhere", bought < 60, bought)
+	chk("and never past the hard cap",
+		Layout.seat_count() <= Balance.class_hard_cap,
+		"%d desks, hard cap %d" % [Layout.seat_count(), Balance.class_hard_cap])
+	chk("with a reason, not a silent refusal", Game.buy_desk() != "",
+		Game.buy_desk())
+	chk("and desks keep their aisles -- no two side by side", (func() -> bool:
+		for a: Vector2i in Layout.seats():
+			for b: Vector2i in Layout.seats():
+				if a != b and a.y == b.y and absi(a.x - b.x) == 1:
+					return false
+		return true).call())
+	chk("every desk is still reachable from the door", (func() -> bool:
+		for i in Layout.seat_count():
+			if not world.grid.reachable(Layout.DOOR, Layout.seat(i)):
+				return false
+		return true).call())
 
 	Game.new_run(SEED)
 	await step(2)

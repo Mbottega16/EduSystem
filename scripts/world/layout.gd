@@ -52,6 +52,31 @@ static func reset_seats() -> void:
 
 ## Move one desk (and therefore its chair, and whoever is sitting in it).
 ## Returns false if the tile is already somebody else's seat.
+## Add a desk. Returns its new index, or -1 if that tile is taken.
+##
+## Seats are run state, so this is just an append -- everything that reads
+## the seating (enrolment, pathing, the room builder, autopilot) already
+## goes through seats() and picks it up with no further work.
+static func add_seat(at: Vector2i) -> int:
+	var s := seats().duplicate()
+	for existing: Vector2i in s:
+		if existing == at or existing + DESK_OFFSET == at:
+			return -1
+	s.append(at)
+	_seats = s
+	return s.size() - 1
+
+
+## Take a desk away. Refuses the last one -- a class needs somewhere to sit.
+static func remove_seat(seat_index: int) -> bool:
+	var s := seats().duplicate()
+	if seat_index < 0 or seat_index >= s.size() or s.size() <= 1:
+		return false
+	s.remove_at(seat_index)
+	_seats = s
+	return true
+
+
 static func move_seat(seat_index: int, to: Vector2i) -> bool:
 	var s := seats().duplicate()
 	if seat_index < 0 or seat_index >= s.size():
