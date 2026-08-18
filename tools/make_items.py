@@ -4,7 +4,7 @@
 Split out of make_art.py because the catalogue went from 5 items to two
 dozen, and that file was already 900 lines of characters, tiles and room.
 
-    python tools/make_items.py        (make_art.py also calls this)
+    python tools/make_items.py        (make_art.py calls this too)
 
 Every item here must have a matching row in data/balance.json under
 "items", and the browser (Browse Art.bat) will flag either half if the two
@@ -14,7 +14,8 @@ import os
 
 from PIL import Image
 
-from make_art import LINE, WOOD, WOOD_L, WOOD_D, outline, px, rect, shadow
+from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, px, rect, shadow,
+                      hand_edited)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -320,13 +321,27 @@ ITEMS = {
 }
 
 
-def make_all():
+def make_all(hand=None):
+    """Draw every item. `hand` is the set of names a text source owns.
+
+    A hand-edited sprite wins: it is drawn from tools/sprites/<name>.txt by
+    make_art.make_grid_sprites(), and redrawing it here would silently undo
+    the edit. Passed in rather than recomputed so one run reads the folder
+    once.
+    """
     os.makedirs(OUT, exist_ok=True)
+    if hand is None:
+        hand = hand_edited()
+    drawn = 0
     for name, fn in ITEMS.items():
+        if name in hand:
+            print("art/%-20s hand-edited, not redrawn" % (name + ".png"))
+            continue
         img = fn()
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-20s %3dx%-3d" % (name + ".png", img.width, img.height))
-    return len(ITEMS)
+        drawn += 1
+    return drawn
 
 
 if __name__ == "__main__":

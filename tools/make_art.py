@@ -296,7 +296,7 @@ def make_character(name, pal):
     for d in range(DIRS):
         for f in range(FRAMES):
             sheet.alpha_composite(draw_char(d, f, pal), (f * CW, d * CH))
-    sheet.save(os.path.join(OUT, "%s.png" % name))
+    save_png(sheet, name)
     return sheet.size
 
 
@@ -639,7 +639,7 @@ def make_contact_shadow():
                 # softer at the rim, so it reads as contact rather than a decal
                 a = int(70 * (1.0 - d * 0.65))
                 im.putpixel((x, y), (0, 0, 0, max(0, a)))
-    im.save(os.path.join(OUT, "shadow.png"))
+    save_png(im, "shadow")
     return im.size
 
 
@@ -652,7 +652,7 @@ def make_room_tiles():
     out = []
 
     def save(img, name):
-        img.save(os.path.join(OUT, "%s.png" % name))
+        save_png(img, name)
         out.append(name)
 
     for i in range(FLOOR_VARIANTS):
@@ -709,6 +709,36 @@ def make_room():
 # Python. See tools/sprites/README.md.
 
 SPRITE_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sprites")
+
+
+def hand_edited():
+    """Names that have a tools/sprites/*.txt source.
+
+    THE RULE: a hand edit wins, and is recorded. A sprite drawn by hand --
+    in the gallery, or by writing the grid out yourself -- lands here as a
+    text source, and the procedural version below stands down for it.
+
+    Before this existed there were three ways a sprite could be produced
+    and nothing arbitrated between them, so hand-editing a generated sprite
+    was silently undone by the next run of this script.
+    """
+    if not os.path.isdir(SPRITE_SRC):
+        return set()
+    return {os.path.splitext(f)[0] for f in os.listdir(SPRITE_SRC)
+            if f.endswith(".txt")}
+
+
+_HAND = set()
+_STOOD_DOWN = []
+
+
+def save_png(img, name):
+    """Save unless a hand-edited source owns this name. -> was it written?"""
+    if name in _HAND:
+        _STOOD_DOWN.append(name)
+        return False
+    img.save(os.path.join(OUT, "%s.png" % name))
+    return True
 
 
 def parse_grid_sprite(path):
@@ -916,6 +946,8 @@ TITLE_ART = {"logo": draw_logo, "title_bg": draw_title_bg, "dust": draw_dust}
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
+    # Read the hand-edited set ONCE, before anything is drawn.
+    _HAND = hand_edited()
     for name, pal in CHARACTERS.items():
         size = make_character(name, pal)
         print("art/%-18s %3dx%-3d (%d facings x %d frames of %dx%d)"
@@ -923,8 +955,14 @@ if __name__ == "__main__":
     for name, fn in (list(FURNITURE.items()) + list(ITEM_ART.items())
                      + list(TITLE_ART.items())):
         img = fn()
-        img.save(os.path.join(OUT, "%s.png" % name))
-        print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+        if save_png(img, name):
+            print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+    # The furniture lives in its own file because the catalogue outgrew this
+    # one. It was never actually called from here despite the docstring
+    # saying so, which meant this script rebuilt the characters and left
+    # every purchasable item untouched.
+    import make_items
+    make_items.make_all(_HAND)
     make_grid_sprites()
     sh = make_contact_shadow()
     print("art/%-18s %3dx%-3d (the runtime contact shadow)"
@@ -932,6 +970,13 @@ if __name__ == "__main__":
     pieces = make_room_tiles()
     print("art/tile_*.png       %d room pieces, for rooms built at runtime"
           % len(pieces))
+
+    if _STOOD_DOWN:
+        print("")
+        print("  %d sprite(s) have a hand-edited source and were NOT redrawn:"
+              % len(_STOOD_DOWN))
+        for f in sorted(_STOOD_DOWN):
+            print("      %-20s <- tools/sprites/%s.txt" % (f, f))
 
     # A PNG on disk is NOT yet a texture Godot can load. Anything new needs
     # importing, and until it is, load() returns null in the running game

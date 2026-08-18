@@ -6593,6 +6593,53 @@ func test_curator() -> void:
 				if not c._referenced.has(f) and not ART_SAMPLES.has(f):
 					orphans.append(f)
 			return orphans).call())
+
+	# THE SOURCE-OF-TRUTH RULE: a hand edit wins, and is recorded.
+	#
+	# A sprite can be produced three ways -- plotted in Python, written as a
+	# text grid in tools/sprites/, or drawn by hand -- and until make_art.py
+	# learned to stand down, nothing arbitrated. Hand-editing a generated
+	# sprite was silently undone by the next run of the script.
+	#
+	# Checked by SIZE rather than by reading the script, because that is the
+	# thing that actually differs: a text grid and its procedural namesake
+	# are almost never the same dimensions, so if the procedural version had
+	# won this comparison would fail.
+	var grids := DirAccess.open("res://tools/sprites")
+	var grid_names: Array[String] = []
+	var mismatched: Array = []
+	if grids != null:
+		grids.list_dir_begin()
+		var g := grids.get_next()
+		while g != "":
+			if g.ends_with(".txt"):
+				var gname := g.get_basename()
+				grid_names.append(gname)
+				var rows := 0
+				var cols := 0
+				var fh := FileAccess.open("res://tools/sprites/%s" % g, FileAccess.READ)
+				if fh != null:
+					while not fh.eof_reached():
+						var line := fh.get_line()
+						if line.begins_with("#") or line.strip_edges() == "":
+							continue
+						rows += 1
+						cols = maxi(cols, line.length())
+					fh.close()
+				var tex: Texture2D = load("res://art/%s.png" % gname)
+				if tex == null:
+					mismatched.append("%s: no loadable PNG" % gname)
+				elif tex.get_width() != cols or tex.get_height() != rows:
+					mismatched.append("%s: grid is %dx%d, PNG is %dx%d -- the "
+						% [gname, cols, rows, tex.get_width(), tex.get_height()]
+						+ "procedural version overwrote the hand-edited one")
+			g = grids.get_next()
+		grids.list_dir_end()
+	chk("there are text-grid sprite sources", not grid_names.is_empty(),
+		grid_names)
+	chk("and a hand-edited source owns its PNG, not the procedural drawing",
+		mismatched.is_empty(), mismatched)
+
 	c.queue_free()
 
 
