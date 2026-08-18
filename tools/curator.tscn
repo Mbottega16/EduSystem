@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://tools/curator.gd" id="1_cur"]
+[ext_resource type="Script" path="res://tools/curator_canvas.gd" id="2_canvas"]
 
 [node name="Curator" type="Control"]
 anchors_preset = 15
@@ -38,3 +39,58 @@ columns = 7
 custom_minimum_size = Vector2(0, 120)
 bbcode_enabled = true
 theme_override_font_sizes/normal_font_size = 12
+
+[node name="Editor" type="VBoxContainer" parent="V"]
+visible = false
+size_flags_vertical = 3
+
+[node name="Toolbar" type="HBoxContainer" parent="V/Editor"]
+
+[node name="Brush" type="Button" parent="V/Editor/Toolbar"]
+text = "Brush (1)"
+toggle_mode = true
+button_pressed = true
+
+[node name="Eraser" type="Button" parent="V/Editor/Toolbar"]
+text = "Eraser (2)"
+toggle_mode = true
+
+[node name="Fill" type="Button" parent="V/Editor/Toolbar"]
+text = "Fill (3)"
+toggle_mode = true
+
+[node name="Eyedrop" type="Button" parent="V/Editor/Toolbar"]
+text = "Eyedrop (4)"
+toggle_mode = true
+
+[node name="Sep1" type="VSeparator" parent="V/Editor/Toolbar"]
+
+[node name="Undo" type="Button" parent="V/Editor/Toolbar"]
+text = "Undo (Ctrl+Z)"
+
+[node name="Redo" type="Button" parent="V/Editor/Toolbar"]
+text = "Redo (Ctrl+Y)"
+
+[node name="Sep2" type="VSeparator" parent="V/Editor/Toolbar"]
+
+[node name="Save" type="Button" parent="V/Editor/Toolbar"]
+text = "Save (Ctrl+S)"
+
+[node name="Cancel" type="Button" parent="V/Editor/Toolbar"]
+text = "Cancel (Esc)"
+
+[node name="SwatchRow" type="HBoxContainer" parent="V/Editor"]
+
+[node name="Status" type="Label" parent="V/Editor"]
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.75, 0.78, 0.82, 1)
+
+[node name="Body" type="HBoxContainer" parent="V/Editor"]
+size_flags_vertical = 3
+
+[node name="CanvasWrap" type="ScrollContainer" parent="V/Editor/Body"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Canvas" type="Control" parent="V/Editor/Body/CanvasWrap"]
+script = ExtResource("2_canvas")
