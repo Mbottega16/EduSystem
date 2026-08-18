@@ -6369,9 +6369,17 @@ func test_shop_and_staff() -> void:
 		var want := String(Items.get_def(Items.order()[hud._sel]).get("art", ""))
 		return hud.portrait.texture != null \
 			and hud.portrait.texture.resource_path.ends_with(want + ".png")).call())
+	# The catalogue renders into `rich`, not `body` -- _render_catalogue()
+	# explicitly sets body.visible = false. This assertion checked body,
+	# which the shop never touches, so it was passing on STALE leftover
+	# text from whichever earlier screen last wrote to body (student bios
+	# also say "helps"). A content change elsewhere shifted which screen
+	# runs last and exposed it: the leftover text stopped containing
+	# "helps" and the assertion failed for a reason that had nothing to do
+	# with the shop. Checking the control the shop actually writes to.
 	chk("effects read as words, not decimals",
-		hud.body.text.contains("helps") and not hud.body.text.contains("+0."),
-		hud.body.text)
+		hud.rich.text.contains("helps") and not hud.rich.text.contains("+0."),
+		hud.rich.text)
 
 	await tap("menu")
 	chk("Tab moves to the sell list", hud._shop == hud.Shop.SELL)

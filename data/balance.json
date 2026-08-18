@@ -540,6 +540,42 @@
       "name": "Bright spark",
       "blurb": "Finishes early and helps the next desk along.",
       "helps_neighbour": 0.35
+    },
+    "loud": {
+      "name": "Loud",
+      "blurb": "Works well enough, but narrates everything they do.",
+      "stall_mult": 0.8,
+      "neighbour_stall_mult": 1.6
+    },
+    "shy": {
+      "name": "Shy",
+      "blurb": "Will sit silently stuck until directly asked.",
+      "hide_seconds": 6.5,
+      "help_xp_mult": 1.6
+    },
+    "restless": {
+      "name": "Restless",
+      "blurb": "Distracts themselves, but happy to share answers.",
+      "stall_mult": 1.5,
+      "helps_neighbour": 0.3
+    },
+    "panics": {
+      "name": "Panics",
+      "blurb": "Grabs the nearest answer when the pressure hits.",
+      "copy_from_neighbour": true,
+      "neighbour_stall_mult": 1.3
+    },
+    "anchor": {
+      "name": "Anchor",
+      "blurb": "Solid and dependable, but keeps their head down.",
+      "helps_neighbour": 0.5,
+      "help_xp_mult": 0.3
+    },
+    "ghost": {
+      "name": "Ghost",
+      "blurb": "Flies under the radar by borrowing heavily.",
+      "hide_seconds": 5.0,
+      "copy_from_neighbour": true
     }
   },
   "disruption": {

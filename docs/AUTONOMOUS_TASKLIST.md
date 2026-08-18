@@ -53,10 +53,12 @@ These are not optional work; they are the queue. Prompts live in
       360–840 density window, a near-duplicate of the existing 29, a
       blurb that reads like a catalogue, or a concept link that does not
       make sense. Then art, then a screenshot of the shop.
-- [ ] **A2. Integrate task 3 — 6 student traits.** The bar is in
-      `docs/SALVAGE.md`: if the trait can be expressed as one multiplier
-      on that child, it has failed. Each needs a real hook into the work
-      model or the seating, and an assertion proving the hook fires.
+- [x] **A2. Integrate task 3 — 6 student traits.** *(Done Aug 2026.)*
+      Loud, Shy, Restless, Panics, Anchor, Ghost — 6 to 12. Every one
+      carries two hooks in tension rather than one bare multiplier: Ghost
+      hides AND self-resolves by copying, so a player may never learn
+      there is a gap until a test exposes it. `tools/check_traits.py`
+      validates future submissions against the real hook set.
 - [ ] **A3. Integrate task 7 — 11 day events.** Weights must still total
       roughly 100 and "an ordinary day" must stay the most common outcome
       by a wide margin.

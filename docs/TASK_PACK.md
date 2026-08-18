@@ -398,7 +398,16 @@ No other commentary.
 
 ---
 
-## Task 3 — Six more student traits ⭐
+## Task 3 — Six more student traits ✅ DONE (August 2026)
+
+**Integrated.** Traits are now 12: Loud, Shy, Restless, Panics, Anchor,
+Ghost joined the original six. Every new one carries two hooks that pull
+against each other rather than one bare multiplier - Ghost hides AND
+copies, so a player may never learn there is a gap until a test exposes
+it. **Do not re-send this prompt.**
+
+<details>
+<summary>The prompt as sent</summary>
 
 **Attach:** `data/balance.json`
 
@@ -495,6 +504,8 @@ OUTPUT
 One JSON object keyed by trait id in a single code block, then the six
 paragraphs. No other commentary.
 ```
+
+</details>
 
 ---
 

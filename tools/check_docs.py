@@ -90,7 +90,7 @@ for iid, (cost, bonus, rng) in quoted.items():
 # ---- 3. counts ----
 check("item count", len(items),
       int(re.search(r"Currently (\d+) items", brief).group(1)))
-check("trait count", len(traits), 6)
+check("trait count", len(traits), 12)
 check("lesson count", len(curric["lessons"]),
       int(re.search(r"Currently (\d+) lessons", brief).group(1)))
 check("concept count", sum(len(l["concepts"]) for l in curric["lessons"]),
