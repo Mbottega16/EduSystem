@@ -167,7 +167,57 @@ func _main() -> void:
 		print("ALL PIXELROOM CHECKS PASSED  (%d assertions)" % passed)
 	else:
 		print("FAILURES: %d of %d" % [failed, passed + failed])
-	get_tree().quit(0 if failed == 0 else 1)
+	# The baseline check only means anything on a run that PASSED: a run
+	# with failures already exits nonzero and its count is not a baseline.
+	get_tree().quit(_check_baseline() if failed == 0 else 1)
+
+
+## The assertion count, remembered, so a human does not have to.
+##
+## CLAUDE.md and README.md both tell a reader to "read the COUNT, not the
+## word PASSED", and record three real regressions caught that way
+## (724 to 560, 828 to 708). Nothing stored the previous number: the human
+## WAS the baseline database, and that is not a job a person should have.
+##
+## A count that falls means checks stopped running -- usually a script that
+## no longer compiles, which removes whole sections silently while the run
+## still reports success.
+const COUNT_FILE := "res://tests/assertion_count.txt"
+
+
+func _check_baseline() -> int:
+	var before := -1
+	if FileAccess.file_exists(COUNT_FILE):
+		var r := FileAccess.open(COUNT_FILE, FileAccess.READ)
+		if r != null:
+			before = int(r.get_line().strip_edges())
+			r.close()
+
+	if before < 0:
+		_write_baseline()
+		print("baseline set at %d assertions." % passed)
+		return 0
+
+	if passed < before:
+		print("")
+		print("  COUNT DROPPED: %d -> %d. %d check(s) stopped running."
+			% [before, passed, before - passed])
+		print("  Nothing failed, which is what makes this dangerous -- a")
+		print("  section that no longer compiles is silently skipped.")
+		print("  If the drop is deliberate, edit tests/assertion_count.txt.")
+		return 1
+
+	if passed > before:
+		print("count %d -> %d." % [before, passed])
+	_write_baseline()
+	return 0
+
+
+func _write_baseline() -> void:
+	var w := FileAccess.open(COUNT_FILE, FileAccess.WRITE)
+	if w != null:
+		w.store_line(str(passed))
+		w.close()
 
 
 # =============================================== tier 1: pure logic, no scene
