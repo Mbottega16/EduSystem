@@ -682,7 +682,7 @@ THE EXISTING FIFTEEN:
   specialist      Knows the subject / Every concept in one subject,
                   learned and taught.
   polymath        Knows the lot / Every concept in the curriculum. All
-                  sixty.
+                  of them.
   ten_up          Ten children on / Ten of them have gone up because of
                   you.
   fifty_up        Fifty children on / Fifty. That is a career, not a
@@ -731,8 +731,14 @@ heading NEEDS NEW STATE rather than inventing a variable - it may be
 worth adding, but that is a decision for the engine, not for you.
 
 THE BLURB - 47 characters maximum. Plain British English, warm but not
-sentimental, and it speaks to the player as "you". No numbers in the
-blurb unless the number IS the story ("All sixty", "Fifty").
+sentimental, and it speaks to the player as "you".
+
+  No number in the blurb unless the number IS the story, AND the
+  threshold is a fixed one that content cannot move. "Fifty children
+  on" is fine: fifty is fifty forever. A blurb counting the curriculum
+  or the shop is NOT fine - one of these read "All sixty" and became a
+  lie the day the curriculum reached 120. If your milestone counts
+  something that grows, say "all of them", never the figure.
 
 OUTPUT
 

@@ -42,8 +42,13 @@ const TABLE := [
 		"blurb": "An inspector watched you teach and could not fault it."},
 	{"id": "specialist", "name": "Knows the subject",
 		"blurb": "Every concept in one subject, learned and taught."},
+	# NO COUNT IN THIS BLURB. It read "All sixty" and was true until a
+	# content batch made the curriculum 120 concepts, at which point the
+	# game was telling the player something false at the proudest moment
+	# it has. Its threshold is Curriculum.concept_count(), so it moves
+	# whenever content lands; the text must not restate it.
 	{"id": "polymath", "name": "Knows the lot",
-		"blurb": "Every concept in the curriculum. All sixty."},
+		"blurb": "Every concept in the curriculum. All of them."},
 
 	# --- a career ---
 	{"id": "ten_up", "name": "Ten children on",

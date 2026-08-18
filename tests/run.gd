@@ -4364,6 +4364,29 @@ func test_milestones() -> void:
 			seen[String(m["id"])] = true
 		return true).call())
 
+	# A milestone whose threshold is DERIVED FROM CONTENT must not state
+	# that number in its blurb.
+	#
+	# `polymath` read "Every concept in the curriculum. All sixty." and was
+	# true right up until a content batch made it 120 -- so the game would
+	# have told the player something false at the proudest moment it has.
+	# Milestones with a fixed literal threshold (ten_up, fifty_up,
+	# five_terms) may name their number, because nothing can move it.
+	var content_derived: Array[String] = ["polymath", "specialist"]
+	var numbered: Array = []
+	for m: Dictionary in Milestones.all():
+		if not content_derived.has(String(m.get("id", ""))):
+			continue
+		var b := String(m.get("blurb", "")).to_lower()
+		for word: String in ["sixty", "thirty", "fifteen", "hundred", "twenty",
+				"forty", "fifty", "ten ", "0", "1", "2", "3", "4", "5",
+				"6", "7", "8", "9"]:
+			if b.find(word) >= 0:
+				numbered.append("%s: %s" % [m.get("id", ""), m.get("blurb", "")])
+				break
+	chk("a milestone counting content does not name the count",
+		numbered.is_empty(), numbered)
+
 	chk("a new run has earned none", Game.milestones.is_empty())
 
 	# --- they gate nothing and pay nothing ---
