@@ -125,7 +125,8 @@ for iid, v in items.items():
         fails.append("value-density claim false: %s = %.0f, prompt says all "
                      "%d sit in %d-%d" % (iid, d, len(items), lo, hi))
 
-# ---- 6. the assertion count agrees across every doc that states it ----
+# ---- 6. the assertion count agrees across every doc, AND against the
+#         real baseline the suite itself writes ----
 counts = set()
 for name, doc in ALL.items():
     for n in re.findall(r"(\d+) assertions", doc):
@@ -136,6 +137,19 @@ checks += 1
 if len(counts) > 1:
     fails.append("docs disagree on the assertion count: %s "
                  "(run Run Tests.bat and sync them)" % sorted(counts))
+
+# tests/assertion_count.txt is written by the suite itself on every green
+# run (see tests/run.gd _write_baseline()). Comparing the DOCS against it
+# closes the gap the check above cannot: all the docs could agree with
+# each other and STILL be stale against what the suite actually reports.
+baseline_path = os.path.join(ROOT, "tests", "assertion_count.txt")
+checks += 1
+if os.path.exists(baseline_path):
+    real_count = int(open(baseline_path, encoding="utf-8").read().strip())
+    if counts and counts != {real_count}:
+        fails.append("docs say %s assertions, but tests/assertion_count.txt "
+                     "(written by the suite itself) says %d"
+                     % (sorted(counts), real_count))
 
 # ---- 7. every doc named in CLAUDE.md's file map exists ----
 for rel in re.findall(r"`(docs/[A-Za-z_\-]+\.md)`", claude):

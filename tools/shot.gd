@@ -156,13 +156,11 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
-		"curriculum":
-			for i in 7:
-				Game.record_taught("basic_arithmetic")
-			for i in 4:
-				Game.record_taught("reading_fluency")
-			Game.record_taught("science_basics")
-			hud.show_curriculum()
+		# "curriculum" is handled earlier in this match -- GDScript's match
+		# takes the FIRST arm, so a second "curriculum" case here was dead
+		# code. It taught basic_arithmetic x7, reading_fluency x4 and
+		# science_basics once; the surviving arm teaches all lessons x4,
+		# which is what every "curriculum" screenshot has actually shown.
 		"at_board":
 			# standing at the noticeboard: BOTH buttons must be named
 			Game.set_phase(Game.Phase.AFTERNOON)

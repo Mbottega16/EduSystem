@@ -69,18 +69,35 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1038 assertions — must pass, count must not drop
+Run Tests.bat            1055 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
+Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
 Audit the Room.bat       what both buttons offer at every landmark, every phase
 Simulate the School.bat  delegated rooms: does hiring matter, does the board move
 ```
 
-Then **look at it**: `Take a Screenshot.bat` runs the real scene and saves a
-PNG. Headless proves code does not crash; it never proves anything is on
-screen.
+Or **`Verify.bat`** — the suite, the docs and the contract in one command,
+replacing three of the five double-clicks above.
 
-If you add a system, add checks to `tests/run.gd`.
+Then **look at it**: `Take a Screenshot.bat [screen]` runs the real scene
+and saves a PNG into `shots/` (gitignored). Pass no argument for the title
+screen, or one of the 23 named in the batch file's own comment. Headless
+proves code does not crash; it never proves anything is on screen.
+
+Two more checkers, run the same way as `check_docs.py`:
+
+```
+python tools/check_balance.py    every key in balance.json is read by something
+python tools/check_items.py      validate a task-2 furniture submission
+python tools/check_traits.py     validate a task-3 trait submission
+```
+
+If you add a system, add checks to `tests/run.gd`. To see only one
+section's output while iterating, pass a filter: `Run Tests.bat` still
+runs everything (state carries between sections), but
+`godot --headless --path . res://tests/run.tscn -- CURRICULUM` narrows
+what prints.
 
 ---
 
@@ -107,13 +124,15 @@ If you add a system, add checks to `tests/run.gd`.
 | `scripts/ui/hud.gd` | Every screen. 13 modes; ten of them share `REPORT`. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1038 assertions, 74 sections |
+| `tests/run.gd` | The suite — 1055 assertions, 74 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
 | `docs/TASK_PACK.md` | Copy-paste prompts for Gemini/ChatGPT |
 | `docs/SALVAGE.md` | What to take from EduSystems and what to refuse. Idea banks; the trait calibration set |
 | `tools/check_docs.py` | Verifies every doc claim against live data. A worked example is an INPUT to an outside model, not prose |
+| `tools/check_balance.py`, `check_items.py`, `check_traits.py` | Catch a misspelled tunable before it silently reverts to a built-in default; validate a task-2/task-3 submission before it touches `balance.json` |
+| `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
 | `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 
 ---

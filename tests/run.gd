@@ -29,6 +29,9 @@ func _ready() -> void:
 	# advances hundreds of days -- it was overwriting a real save file every
 	# time anybody ran the tests.
 	Game.save_path = "user://pixelroom_TEST_save.json"
+	var cmd_args := OS.get_cmdline_user_args()
+	if not cmd_args.is_empty():
+		_filter = cmd_args[0]
 	# Never let a broken run hang a terminal.
 	get_tree().create_timer(420.0).timeout.connect(func() -> void:
 		push_error("watchdog: suite exceeded 420s")
@@ -36,17 +39,52 @@ func _ready() -> void:
 	_main()
 
 
+## A section filter, so a single change does not mean scrolling past a
+## thousand [ok] lines to find the ten that matter.
+##
+## Deliberately a PRINT filter, not a skip: most of the 74 test_x()
+## functions depend on Game state a PRIOR function left behind (most start
+## with Game.new_run(SEED), some deliberately do not, to test what
+## survives a reload). Skipping arbitrary ones would risk a false pass or
+## a false fail that has nothing to do with the change under test. Every
+## assertion still runs; only the report is narrowed.
+##
+## Usage: pass the section name (or a substring) as a command-line
+## argument: godot --headless --path . res://tests/run.tscn -- CURRICULUM
+var _filter := ""
+var _section := ""
+var _section_shown := false
+
+
 func chk(label: String, cond: bool, extra: Variant = null) -> void:
 	if cond:
 		passed += 1
-		print("  [ok] %s" % label)
+		if _wants_section():
+			print("  [ok] %s" % label)
 	else:
 		failed += 1
-		print("  [FAIL] %s%s" % [label, "" if extra == null else "  -> %s" % str(extra)])
+		# A failure always prints, even outside the filtered section --
+		# a real break elsewhere should never be swallowed by a filter
+		# aimed at something else.
+		if _wants_section():
+			print("  [FAIL] %s%s" % [label, "" if extra == null else "  -> %s" % str(extra)])
+		else:
+			print("  [FAIL] (%s) %s%s" % [_section, label,
+				"" if extra == null else "  -> %s" % str(extra)])
+
+
+func _wants_section() -> bool:
+	return _filter == "" or _section.to_lower().contains(_filter.to_lower())
 
 
 func section(name: String) -> void:
-	print("\n== %s ==" % name)
+	_section = name
+	if _wants_section():
+		print("\n== %s ==" % name)
+	elif not _section_shown:
+		print(("(filtering to sections matching \"%s\" -- other sections "
+			+ "still run, their output is just not printed)") % _filter)
+		_section_shown = true
 
 
 func step(n: int) -> void:
@@ -169,7 +207,10 @@ func _main() -> void:
 		print("FAILURES: %d of %d" % [failed, passed + failed])
 	# The baseline check only means anything on a run that PASSED: a run
 	# with failures already exits nonzero and its count is not a baseline.
-	get_tree().quit(_check_baseline() if failed == 0 else 1)
+	# A filtered run's count is a fraction of the real total, and comparing
+	# it to the full baseline would always read as a drop. The baseline
+	# only means anything against a complete run.
+	get_tree().quit((_check_baseline() if _filter == "" else 0) if failed == 0 else 1)
 
 
 ## The assertion count, remembered, so a human does not have to.
