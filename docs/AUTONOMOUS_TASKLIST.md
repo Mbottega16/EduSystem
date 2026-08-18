@@ -64,13 +64,19 @@ These are not optional work; they are the queue. Prompts live in
 
 ## B. Real gaps, found by counting — highest value first
 
-- [ ] **B1. 112 of 120 concepts do nothing at the shop.** Only 8 concepts
-      are named by any item's `teaches` or `needs`. The concept↔furniture
-      loop is the game's most distinctive idea and it is currently wired
-      to 7% of the curriculum. Task 2 will help; it will not close it.
-      Decide whether every concept should be linkable, or whether a
-      smaller curated set is the honest design, and write the answer into
-      the GDD before adding more links.
+- [x] **B1. What a concept is for.** *(Decided and implemented Aug 2026.)*
+      The finding was bigger than "112 aren't linked": `concept_bonus`
+      caps at **ten** concepts, so 110 of the 120 move no number at all.
+      Decision — **concepts are texture, not a collection** — is written
+      into `docs/GDD.md`.
+      The cap stays (raising it moves the contract, and row three is
+      already 0.97). The board no longer prints `Curriculum (8/120)`,
+      which promised a completion target and made a teacher's own subject
+      knowledge look like a checklist she was failing. Item links are
+      curated at roughly twenty across 50 items, and task 2's quota rose
+      from 4/3 to 7/5 to close most of that gap.
+      **Still open:** the ~20 target is not reached until task 2 lands.
+      Re-count after integrating it.
 - [x] **B2. The dead `icon` field.** *(Done Aug 2026.)* Nothing in
       `scripts/`, `tools/` or `tests/` read it — zero references. Ten of
       forty held an emoji, which the briefing bans in game text, and the

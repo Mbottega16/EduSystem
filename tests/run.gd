@@ -4387,6 +4387,22 @@ func test_milestones() -> void:
 	chk("a milestone counting content does not name the count",
 		numbered.is_empty(), numbered)
 
+	# Concepts are TEXTURE, not a collection. See docs/GDD.md.
+	#
+	# The board printed "Curriculum (8/120)". concept_bonus caps at ten
+	# concepts, so the hundred and ten after that move no number -- the
+	# fraction promised a completion target the systems do not deliver,
+	# and made a teacher's subject knowledge look like a checklist she was
+	# failing. Nothing may print a concept fraction again.
+	chk("the curriculum board never shows a completion fraction",
+		(func() -> bool:
+			for c in get_tree().get_nodes_in_group("curriculum_board"):
+				if c is Interactable:
+					var t := String(c.prompt_text())
+					if t.contains("/") or t.contains(str(Curriculum.concept_count())):
+						return false
+			return true).call())
+
 	chk("a new run has earned none", Game.milestones.is_empty())
 
 	# --- they gate nothing and pay nothing ---

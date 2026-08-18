@@ -238,6 +238,42 @@ cursor, build mode, aisle-safety check).
 20 of them sharing `REPORT`) · `title.gd` (6 pages) · `debug_panel.gd` ·
 `fx.gd` · `floater.gd` · `sfx.gd` · `settings.gd`.
 
+### Concepts are texture, not a collection
+
+**Decided August 2026, after the curriculum doubled to 120 concepts.**
+
+`concept_bonus` is 0.012 each with a cap of 0.12, so **the cap is reached
+at ten concepts**. The other hundred and ten move no number in the game.
+That is not a bug to be fixed by raising the cap — the bonus being small,
+capped, and worth zero on day one is exactly what holds the three-row
+contract still, and row three already sits at 0.97 with very little
+headroom left in the A band.
+
+So the honest reading is that **concepts are breadth, not currency**. They
+are what you have learned to teach. A hundred and twenty of them describe
+a real curriculum; they were never meant to be a hundred and twenty
+collectibles, and the systems have never treated them as such.
+
+What follows from that:
+
+- **The cap stays where it is.** Anything proposing to raise or remove it
+  is proposing to move the contract, and must say so out loud.
+- **Nothing prints a concept fraction.** The board read
+  `Curriculum (8/120)`, which promised a completion target and made a
+  teacher's own subject knowledge look like a checklist she was failing.
+  It now reads `Curriculum (8 learned)`. Asserted.
+- **Item links are curated, not exhaustive.** Roughly twenty concepts
+  across a fifty-item shop — enough that the concept→furniture loop is
+  visible and legible, not so many that every item is a key to a lock.
+  Chasing one link per concept would make each one meaningless.
+- **A milestone counting concepts must not name the figure.** `polymath`
+  read "All sixty" and became false the day the curriculum grew.
+  Asserted.
+
+The one thing genuinely lost is a reason to learn concept 87. That is
+accepted: the reward for teaching the whole curriculum is the `polymath`
+milestone and having taught it, not a number going up.
+
 ### Content, counted
 
 | | count |

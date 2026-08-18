@@ -147,10 +147,13 @@ def main(path):
                             % (iid, v.get("name"), sorted(shared),
                                oid, ov["name"]))
 
-    if teaches < 4:
-        bad.append("only %d items teach a concept, need at least 4" % teaches)
-    if needs < 3:
-        bad.append("only %d items need a concept, need at least 3" % needs)
+    # Raised from 4/3 once "concepts are texture, not a collection" was
+    # decided: the shop links only 8 concepts and the target is ~20 across
+    # 50 items, so this batch is where most of that gap closes.
+    if teaches < 7:
+        bad.append("only %d items teach a concept, need at least 7" % teaches)
+    if needs < 5:
+        bad.append("only %d items need a concept, need at least 5" % needs)
     for c in sorted(CATS):
         if cats.get(c, 0) < 2:
             bad.append("category %r has %d items, need at least 2"

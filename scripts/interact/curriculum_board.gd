@@ -25,8 +25,22 @@ func _init() -> void:
 	uses_key = Key.USE
 
 
+## NOT "n/120".
+##
+## A fraction against the whole curriculum reads as a completion target,
+## and this game does not have one: concept_bonus caps at ten concepts, so
+## the hundred and ten after that move no number. Printing 8/120 promised
+## a collection the systems never delivered, and made a teacher's subject
+## knowledge look like a checklist she was failing.
+##
+## Concepts are TEXTURE -- what you have learned to teach -- so the board
+## says how much you know, in the same banded prose the rest of the UI
+## uses, and the screen behind it still lists every subject in full.
 func prompt_text() -> String:
-	return "Curriculum (%d/%d)" % [Game.concepts.size(), Curriculum.concept_count()]
+	var n: int = Game.concepts.size()
+	if n == 0:
+		return "Curriculum"
+	return "Curriculum (%d learned)" % n
 
 
 func interact(by: Node) -> void:

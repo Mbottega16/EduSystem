@@ -316,7 +316,11 @@ ecosystems.food_webs, place_value.regrouping, civics.rights,
 vocabulary.roots, chemistry.reactions, world_history.chronology,
 weather_patterns.observe, decimals.compare, phonics.decode.
 
-  - At least 4 items must "teach" a concept; at least 3 must "need" one.
+  - At least 7 items must "teach" a concept; at least 5 must "need" one.
+    The shop currently links only 8 concepts in total, and the design
+    target is roughly twenty across all 50 items - enough that the
+    concept-to-furniture loop is visible, not so many that every item is
+    a key to a lock. Your 21 are where most of that gap gets closed.
   - Copy ids verbatim from the attached file. Never invent or guess one.
   - The link must make sense. A globe may teach map reading; a globe must
     not require fraction models. If you cannot justify the pairing in one
