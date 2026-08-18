@@ -55,7 +55,17 @@ rule a long generation forgets.
 
 ---
 
-## Task 1 — Twenty more lessons ⭐
+## Task 1 — Twenty more lessons ✅ DONE (August 2026)
+
+**Integrated.** The curriculum is now 40 lessons / 120 concepts. Fifteen
+came back with real, verified codes and the source's own wording; five
+social-studies lessons were honestly returned uncited and went in that
+way. **Do not re-send this prompt** — it would collide with everything
+below. Kept for the record, and because its shape is the template for any
+future curriculum task.
+
+<details>
+<summary>The prompt as sent</summary>
 
 **Attach:** `data/curriculum.json`
 
@@ -170,6 +180,17 @@ One JSON array of 20 lesson objects in a single code block. Then the
 UNCITED list. No other commentary.
 ```
 
+</details>
+
+**What the round taught us, for every task below.** Two models answered.
+The one that shipped had checked its own work against the closing
+checklist; the one that was rejected returned all twenty uncited, giving
+"no attached curriculum.json" as its reason — it had misread the citation
+rule as being about the attachment rather than about the code. It also
+shipped a 14-character `short`. **Every prompt below now ends with a
+checklist for exactly that reason: a rule the model does not verify against
+is a rule it will explain away.**
+
 ---
 
 ## Task 2 — Twenty-one more items of furniture ⭐
@@ -282,10 +303,11 @@ No exclamation marks. No emoji. No numbers.
 
 CONCEPTS - use the real ones.
 
-Concept ids live in the attached curriculum.json: three per lesson, 60
+Concept ids live in the attached curriculum.json: three per lesson, 120
 in total, formatted lesson_id.concept_name. Real examples:
 ecosystems.food_webs, place_value.regrouping, civics.rights,
-vocabulary.roots, chemistry.reactions, world_history.chronology.
+vocabulary.roots, chemistry.reactions, world_history.chronology,
+weather_patterns.observe, decimals.compare, phonics.decode.
 
   - At least 4 items must "teach" a concept; at least 3 must "need" one.
   - Copy ids verbatim from the attached file. Never invent or guess one.

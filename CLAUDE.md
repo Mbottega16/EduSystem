@@ -43,7 +43,7 @@ repeatedly by edits that seemed obviously right:
   | | |
   |---|---|
   | bare room, perfect teaching | ~0.63 → C |
-  | full room, never helped | ~0.69 → C |
+  | full room, never helped | ~0.71 → C |
   | full room, perfect teaching | ~0.97 → A |
 
   Neither input alone reaches the top band. **Nothing may quietly move
@@ -69,7 +69,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1033 assertions — must pass, count must not drop
+Run Tests.bat            1038 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Trace a Day.bat          walks a real day through the real buttons
 Audit the Room.bat       what both buttons offer at every landmark, every phase
@@ -106,8 +106,8 @@ If you add a system, add checks to `tests/run.gd`.
 | `scripts/interact/` | one file per landmark verb |
 | `scripts/ui/hud.gd` | Every screen. 13 modes; ten of them share `REPORT`. |
 | `data/balance.json` | **Every tunable number** |
-| `data/curriculum.json` | 20 lessons, 60 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1033 assertions, 74 sections |
+| `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
+| `tests/run.gd` | The suite — 1038 assertions, 74 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -124,8 +124,13 @@ Maryland Social Studies Framework. The rule, from `curriculum.gd`:
 > Do not invent a code for a new lesson. An uncited lesson is more honest
 > than a fabricated citation.
 
-One lesson (`using_sources`) is deliberately uncited and the suite asserts
-it stays that way. If you add uncited content, name it in that list so an
+Six lessons are deliberately uncited and the suite asserts they stay that
+way: `using_sources`, plus the five social-studies lessons of the August
+2026 batch (`community_roles`, `state_symbols`, `transport_history`,
+`constitution`, `industrialisation`). The Maryland Social Studies
+Framework numbers its standards 1.0–6.0 by strand rather than by topic, so
+a per-topic code would have had to be minted — which is the thing the rule
+forbids. If you add uncited content, name it in that list so an
 *accidental* omission still fails.
 
 ---

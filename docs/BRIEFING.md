@@ -105,7 +105,35 @@ acceptable; one filled and one empty is never acceptable.
 - `objective` should be the source document's own wording where you are
   citing one.
 
-Currently 20 lessons, 5 per strand, 60 concepts.
+Currently 40 lessons, 10 per strand, 120 concepts. Six are deliberately
+uncited (`standard` and `source` both empty) — five of them social
+studies, because the Maryland Framework numbers by strand rather than by
+topic. That is allowed and named in the suite; a fabricated code is not.
+
+#### What already exists — do not collide with any of it
+
+**Lesson ids** (40). `algebra_one` `basic_arithmetic` `cell_function`
+`chemistry` `civics` `community_roles` `comparing_genres` `constitution`
+`decimals` `division` `earth_life_science` `earth_systems` `ecosystems`
+`economics` `essay_writing` `fractions` `handwriting_grammar`
+`industrialisation` `informational_text` `inherited_traits` `life_cycles`
+`map_geography` `material_properties` `measuring_length`
+`opinion_writing` `phonics` `place_value` `pre-algebra` `reading_fluency`
+`retelling` `science_basics` `shapes` `speaking_listening` `state_symbols`
+`statistics` `transport_history` `using_sources` `vocabulary`
+`weather_patterns` `world_history`
+
+**Standard codes in use** (34). `1.MD.A.1` `2-PS1-2` `3-LS1-1` `3-LS3-2`
+`3.NBT.A.2` `3.OA.A.2` `3.OA.C.7` `4.NF.A.1` `5-ESS2-1` `5-PS1-3`
+`5.NBT.A.3` `6.SP.A.1` `7.EE.B.4` `A-REI.B.3` `K-ESS2-1` `K.G.A.1`
+`L.3.1` `L.4.4` `MS-LS1-1` `MS-LS1-2` `MS-LS2-3` `MS-PS1-2` `RF.K.3`
+`RF4` `RI.3.1` `RL.1.2` `RL.6.9` `SL.8.4` `Standard 1.0` `Standard 2.0`
+`Standard 3.0` `Standard 4.0` `W.4.1` `W.7.1`
+
+**The four source strings**, used verbatim — `Maryland CCR Standards for
+Mathematics (2025)`, `Maryland CCR Standards for ELA (2025)`,
+`Maryland Science Standards (NGSS)`,
+`Maryland Social Studies Framework (June 2025)`.
 
 ### An item — `data/balance.json` → `items`
 

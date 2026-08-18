@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-17**, against build `b29`, with **1033 assertions
+> **Measured on 2026-08-17**, against build `b29`, with **1038 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -49,7 +49,7 @@ coherent, and the thing to check any new feature against.
 | | measured |
 |---|---|
 | bare room, perfect teaching | **0.63 → C** |
-| full room, never helped | **0.69 → C** |
+| full room, never helped | **0.71 → C** |
 | full room, perfect teaching | **0.97 → A** |
 
 Neither input alone reaches the top band. Measured from **simulated play**
@@ -242,8 +242,8 @@ cursor, build mode, aisle-safety check).
 
 | | count |
 |---|---|
-| Lessons | **20** (5 per strand, difficulty 1–5) |
-| Concepts | **60** (exactly 3 per lesson) |
+| Lessons | **40** (10 per strand, difficulty 1–5; 6 deliberately uncited) |
+| Concepts | **120** (exactly 3 per lesson) |
 | Strands | 4 — Maths, English, Science, Humanities |
 | Furniture | **29** in 5 categories; 5 teach a concept, 3 are gated behind one |
 | Student traits | **6** — Quiet, Curious, Chatty, Steady, Copies, Bright spark |
@@ -255,7 +255,7 @@ cursor, build mode, aisle-safety check).
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 11 modes |
 | Input actions | 13 (12 rebindable) |
-| Tests | **1033 assertions** across **74 sections** |
+| Tests | **1038 assertions** across **74 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -472,8 +472,9 @@ nothing:
 > may now blur the two"*.
 
 The existing lessons cite genuine Common Core, NGSS and Maryland Social
-Studies codes, and one lesson (`using_sources`) is deliberately uncited
-under the old rule. That honesty is free to keep and impossible to recover
+Studies codes, and six lessons are deliberately uncited under the old rule
+(`using_sources` plus the five social-studies lessons of the August 2026
+batch). That honesty is free to keep and impossible to recover
 once mixed. Suggest a `"cited": true|false` field so the two can never be
 confused, and so a future "real standards" marketing claim stays true.
 
