@@ -113,6 +113,8 @@ If you add a system, add checks to `tests/run.gd`.
 | `docs/BRIEFING.md` | Context pack for external AIs |
 | `docs/TASK_PACK.md` | Copy-paste prompts for Gemini/ChatGPT |
 | `docs/SALVAGE.md` | What to take from EduSystems and what to refuse. Idea banks; the trait calibration set |
+| `tools/check_docs.py` | Verifies every doc claim against live data. A worked example is an INPUT to an outside model, not prose |
+| `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 
 ---
 
