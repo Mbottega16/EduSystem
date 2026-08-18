@@ -37,6 +37,10 @@ func _ready() -> void:
 		hud.hint_once("class_drifted",
 			"Work only moves while you are at the front."))
 
+	Game.work_going_cold.connect(func() -> void:
+		hud.hint_once("uncollected",
+			"Finished work only counts once you collect it."))
+
 	hud.item_chosen.connect(_start_placing)
 	hud.assignment_chosen.connect(_start_chosen_lesson)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())

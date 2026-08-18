@@ -292,6 +292,7 @@ func _physics_process(delta: float) -> void:
 			at_front = Game.can_teach_from(
 				Grid.world_to_tile(player.global_position))
 		Game.tick_attention(delta, at_front)
+		Game.tick_uncollected(delta)
 		if lesson_left <= 0.0:
 			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
 			#

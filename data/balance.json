@@ -20,6 +20,8 @@
     "lesson_seconds": 45.0,
     "stall_chance_per_second": 0.14,
     "stall_grace_seconds": 1.5,
+    "_uncollected_note": "Seconds a finished sheet may sit on a desk before the game says out loud, once per run, that it only counts when collected. Uncollected work HALVES that child's lesson grade at the bell (see grade.uncollected_penalty), and nothing said so. Not instant: the player may already be walking over, and a nudge that fires the moment a child finishes would be noise rather than teaching.",
+    "uncollected_hint_after": 6.0,
     "attention_per_help": 0.06,
     "entry_stagger": 0.35,
     "affinity_bonus": 0.25

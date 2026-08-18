@@ -130,6 +130,7 @@ static var diff_furniture_relief: float = 0.45
 static var teach_fill: float = 0.85
 static var teach_decay: float = 0.25
 static var teach_drift_hint_below: float = 0.35
+static var uncollected_hint_after: float = 6.0
 static var teach_radius: int = 6
 ## What fraction of normal speed an UNATTENDED class works at. Zero means
 ## they stop entirely, which is the point.
@@ -242,6 +243,7 @@ static func apply(d: Dictionary) -> void:
 	stall_chance_per_second = float(l.get("stall_chance_per_second", stall_chance_per_second))
 	stall_grace_seconds = float(l.get("stall_grace_seconds", stall_grace_seconds))
 	attention_per_help = float(l.get("attention_per_help", attention_per_help))
+	uncollected_hint_after = float(l.get("uncollected_hint_after", uncollected_hint_after))
 	entry_stagger = float(l.get("entry_stagger", entry_stagger))
 	affinity_bonus = float(l.get("affinity_bonus", affinity_bonus))
 

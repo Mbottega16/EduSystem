@@ -3600,6 +3600,26 @@ func test_teaching() -> void:
 	p.global_position = Grid.tile_to_world(Layout.PODIUM + Vector2i(0, 1))
 	await step(90)
 	chk("coming back does not fire it again", drifted[0] == 1, drifted[0])
+
+	# ONBOARDING, slice two. Work left uncollected at the bell HALVES that
+	# child's lesson grade, and nothing told the player that collecting was
+	# part of the job rather than tidying up after it.
+	#
+	# Dwelled, not instant: a child finishing is not a mistake, and firing
+	# the moment they put their pen down would be noise while the player is
+	# already walking over.
+	var cold: Array[int] = [0]
+	Game.work_going_cold.connect(func() -> void: cold[0] += 1)
+	var s1: StudentData = Game.roster[0]
+	s1.work_state = StudentData.Work.DONE
+	await step(4)
+	chk("a child finishing is not immediately a telling-off",
+		cold[0] == 0, cold[0])
+	await step(int(Balance.uncollected_hint_after * 60.0) + 30)
+	chk("but work left sitting says why it matters", cold[0] == 1, cold[0])
+	s1.collect_work()
+	await step(30)
+	chk("collecting it stops the clock", cold[0] == 1, cold[0])
 	var hud2 := _hud()
 	hud2.hint_once("class_drifted", "Work only moves while you are at the front.")
 	var first_text: String = hud2.prompt.text

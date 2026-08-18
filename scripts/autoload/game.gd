@@ -1354,6 +1354,20 @@ signal attention_changed(level: float)
 ## explains something they have just seen rather than pre-empting it.
 signal class_drifted()
 
+## A finished sheet has been sitting on a desk long enough to matter.
+##
+## ONBOARDING, slice two. Work left uncollected at the bell HALVES that
+## child's lesson grade (grade.uncollected_penalty), and nothing said so
+## -- a new player could lose half a term's marks without ever being told
+## the collecting was part of the job rather than tidying up after it.
+##
+## Dwelled, not instant: a child finishing is not a mistake, and a nudge
+## fired the moment they put their pen down would be noise while the
+## player is already walking over.
+signal work_going_cold()
+
+var _uncollected_for: float = 0.0
+
 
 ## How hard today's lesson is for the child in `seat_index`, as a pair of
 ## multipliers: how much longer the work takes, and how much more often they
@@ -1442,6 +1456,28 @@ func tick_aide(delta: float) -> StudentData:
 
 ## Feed or drain the class's attention. `at_front` is whether the teacher is
 ## close enough to the front of the room to be teaching them.
+## Watch for finished work nobody has come for. Called beside
+## tick_attention, once a frame, for the same reason: it is a fact about
+## the room right now rather than an event anything emits.
+func tick_uncollected(delta: float) -> void:
+	Balance.ensure_loaded()
+	if phase != Phase.LESSON or test_active:
+		_uncollected_for = 0.0
+		return
+	var waiting := false
+	for s: StudentData in roster:
+		if s.has_work_to_collect():
+			waiting = true
+			break
+	if not waiting:
+		_uncollected_for = 0.0
+		return
+	var before := _uncollected_for
+	_uncollected_for += delta
+	if before < Balance.uncollected_hint_after 			and _uncollected_for >= Balance.uncollected_hint_after:
+		work_going_cold.emit()
+
+
 func tick_attention(delta: float, at_front: bool) -> void:
 	Balance.ensure_loaded()
 	teaching = at_front and phase == Phase.LESSON and not test_active
