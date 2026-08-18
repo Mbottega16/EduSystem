@@ -2213,7 +2213,7 @@ func test_panels_fit() -> void:
 		hud.rich.text)
 	chk("every row says in WORDS how well you know it", (func() -> bool:
 		for line: String in hud.rich.text.split("\n"):
-			if line.contains("never taught it") or line.contains("inside out") 						or line.contains("just started it") or line.contains("you know it well") 						or line.contains("getting the hang of it") or line.contains("worth +") 						or line.contains("better at teaching it") 						or line.contains("You teach"):
+			if line.contains("never taught it") or line.contains("inside out") 						or line.contains("just started it") or line.contains("you know it well") 						or line.contains("getting the hang of it") 						or line.contains("Knowing your subjects") 						or line.contains("better at teaching it") 						or line.contains("You teach"):
 				continue
 			return false
 		return true).call(), hud.rich.text)
@@ -5605,6 +5605,27 @@ func test_curriculum() -> void:
 		counts.sort()
 		return int(counts[-1]) - int(counts[0]) <= 2).call())
 
+	# No dead fields, and no emoji.
+	#
+	# `icon` sat on every lesson and NOTHING read it — ten held an emoji,
+	# thirty were empty, and the empty thirty were an invitation to spend a
+	# cycle filling in a field no screen renders. Deleted. This check stops
+	# it drifting back in with the next content batch, and catches emoji
+	# anywhere in the curriculum, which docs/BRIEFING.md bans in game text.
+	chk("no lesson carries the dead `icon` field", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			if l.has("icon"):
+				return false
+		return true).call())
+
+	chk("no emoji anywhere in the curriculum", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			for key: String in ["name", "short", "objective"]:
+				for c in String(l.get(key, "")):
+					if c.unicode_at(0) > 0x2000:
+						return false
+		return true).call())
+
 	chk("every difficulty from 1 to 5 is represented", (func() -> bool:
 		var seen := {}
 		for l: Dictionary in Curriculum.lessons:
@@ -5832,6 +5853,30 @@ func test_bio() -> void:
 	chk("grades are letters, with a count of lessons",
 		hud.body.text.contains("Averaging a") and hud.body.text.contains("3 lesson"),
 		hud.body.text)
+
+	# The rule was enforced on the STUDENT FILE only, which is how the
+	# curriculum screen came to print "Knowing your subjects is worth +12%
+	# to every grade" and the bookshelf blurb came to read "Helps anyone
+	# sitting within 4 tiles". A rule enforced on one screen is a rule.
+	Game.new_run(SEED)
+	Game.concepts.append("fractions.equivalent")
+	Game.concepts.append("civics.rights")
+	hud.show_curriculum()
+	chk("the curriculum screen states no percentage",
+		not hud.rich.text.contains("%"), hud.rich.text)
+	chk("it says what knowing your subjects is worth, in words",
+		hud.rich.text.contains("Knowing your subjects"), hud.rich.text)
+	hud.close()
+
+	chk("no item blurb states a number", (func() -> bool:
+		for id: String in Items.order():
+			var b := String(Items.get_def(id).get("blurb", ""))
+			for c in b:
+				if c.unicode_at(0) >= 48 and c.unicode_at(0) <= 57:
+					return false
+			if b.findn(" tiles") >= 0:
+				return false
+		return true).call())
 
 	# a brand-new student's file must still read as a sentence
 	var fresh := StudentData.new()

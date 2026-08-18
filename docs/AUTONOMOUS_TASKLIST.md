@@ -71,15 +71,27 @@ These are not optional work; they are the queue. Prompts live in
       Decide whether every concept should be linkable, or whether a
       smaller curated set is the honest design, and write the answer into
       the GDD before adding more links.
-- [ ] **B2. 30 of 40 lessons have an empty `icon`.** The 20 new ones and
-      10 older ones. Check first whether the curriculum screen actually
-      renders the icon — if nothing reads the field, the task is to
-      delete it, not to fill it.
-- [ ] **B3. Numbers in player-facing text.** Two confirmed against the
-      rule in `CLAUDE.md`: the `bookshelf` blurb says *"Helps anyone
-      sitting within 4 tiles"*, and a HUD string reads
-      `"room 40%  lesson 0%  hw 3%"`. Establish whether the HUD one is a
-      deliberate stat readout or a leak; fix the blurb either way.
+- [x] **B2. The dead `icon` field.** *(Done Aug 2026.)* Nothing in
+      `scripts/`, `tools/` or `tests/` read it — zero references. Ten of
+      forty held an emoji, which the briefing bans in game text, and the
+      other thirty were an invitation to spend a cycle filling in a field
+      no screen renders. Deleted, with an assertion so it cannot drift
+      back, and a note in `PLAN-tiers-buffs-shop.md` for whoever builds
+      the icon column later.
+- [x] **B3. Numbers in player-facing text.** *(Done Aug 2026.)* The
+      curriculum screen printed *"Knowing your subjects is worth +12% to
+      every grade"*; it is now banded prose, with the thresholds taken as
+      a ratio of `concept_bonus_cap` so no number moved into code. The
+      `bookshelf` blurb is now *"Reaches further than it looks like it
+      should."*
+      **The rule was only ever enforced on the student file**, which is
+      how both survived — and the row test actually *allowlisted* the
+      violation by accepting any line containing `"worth +"`. Coverage now
+      extends to the curriculum screen and every item blurb.
+      *Correction: the third suspect, `"room 40%  lesson 0%  hw 3%"`,
+      appears only in comments describing what that screen used to print.
+      A false positive in the scan that produced this list — grep the
+      strings, not the file.*
 - [ ] **B4. Onboarding.** Still the biggest gap between what the game is
       and what a player can reach. Nothing tells a new player that
       leaving the podium stops the work, which makes the first lesson

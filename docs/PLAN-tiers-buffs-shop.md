@@ -60,6 +60,12 @@ an `AtlasTexture`, hidden by `_open()`, switched on by the screen that wants
 it. The catalogue points it at `art/<item>.png` and shows the selected row
 large on the right.
 
+> **Note (Aug 2026).** The vestigial `icon` field has been deleted from
+> `data/curriculum.json` — nothing read it, ten of forty held an emoji and
+> the rest were empty. If the icon column below is ever built, re-add the
+> field deliberately at that point; a half-populated field that no screen
+> renders is worse than no field.
+
 **Per-row icons are the expensive half.** A `Label` can't hold images, so an
 icon column means converting the overlays to `RichTextLabel` with `[img]`
 tags. That's a decision about the whole UI layer, not a side effect of this.

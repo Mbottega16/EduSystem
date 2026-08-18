@@ -79,7 +79,6 @@ acceptable; one filled and one empty is never acceptable.
   "id": "fractions",
   "name": "Fractions",
   "short": "Fractions",
-  "icon": "",
   "strand": "math",
   "standard": "4.NF.A.1",
   "source": "Maryland CCR Standards for Mathematics (2025)",

@@ -1263,8 +1263,22 @@ func show_curriculum() -> void:
 		lines.append("[color=#%s]Teach a subject and you get better at teaching it.[/color]"
 			% C_LESSON)
 	else:
-		lines.append("[color=#%s]Knowing your subjects is worth +%.0f%% to every grade.[/color]" % [
-			C_LESSON, Game.concept_bonus() * 100.0])
+		# Prose, never numbers. This printed "+12% to every grade", which
+		# is the one rule the whole UI is meant to keep -- and the test
+		# only covered the student file, so nothing caught it.
+		#
+		# Banded off the RATIO to the cap rather than the raw figure, so
+		# the thresholds stay in balance.json where every tunable lives.
+		var ratio: float = Game.concept_bonus() / maxf(0.0001, Balance.concept_bonus_cap)
+		var worth := "is starting to show"
+		if ratio >= 0.99:
+			worth = "is worth as much as it can be"
+		elif ratio >= 0.66:
+			worth = "lifts every grade you give"
+		elif ratio >= 0.33:
+			worth = "is worth real marks now"
+		lines.append("[color=#%s]Knowing your subjects %s.[/color]" % [
+			C_LESSON, worth])
 
 	var lo := _window_start(lessons.size(), CURRIC_ROWS)
 	for i in range(lo, mini(lessons.size(), lo + CURRIC_ROWS)):
