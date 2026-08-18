@@ -687,6 +687,686 @@
           "at": 6
         }
       ]
+    },
+    {
+      "id": "shapes",
+      "name": "Describing Shapes",
+      "short": "Shapes",
+      "icon": "",
+      "strand": "math",
+      "standard": "K.G.A.1",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Describe objects in the environment using names of shapes, and describe the relative positions of these objects using terms such as above, below, beside, in front of, behind, and next to.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "shapes.names",
+          "name": "Shape names",
+          "standard": "K.G.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "shapes.positions",
+          "name": "Relative positions",
+          "standard": "K.G.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "shapes.describe",
+          "name": "Describe environment",
+          "standard": "K.G.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "measuring_length",
+      "name": "Ordering Length",
+      "short": "Length",
+      "icon": "",
+      "strand": "math",
+      "standard": "1.MD.A.1",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Order three objects by length; compare the lengths of two objects indirectly by using a third object.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "measuring_length.order",
+          "name": "Order objects",
+          "standard": "1.MD.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "measuring_length.compare",
+          "name": "Compare lengths",
+          "standard": "1.MD.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "measuring_length.indirect",
+          "name": "Indirect comparison",
+          "standard": "1.MD.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "division",
+      "name": "Division Concepts",
+      "short": "Division",
+      "icon": "",
+      "strand": "math",
+      "standard": "3.OA.A.2",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Interpret whole-number quotients of whole numbers, e.g., interpret 56 ÷ 8 as the number of objects in each share when 56 objects are partitioned equally into 8 shares, or as a number of shares when 56 objects are partitioned into equal shares of 8 objects each.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "division.quotients",
+          "name": "Whole-number quotients",
+          "standard": "3.OA.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "division.shares",
+          "name": "Equal shares",
+          "standard": "3.OA.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "division.partition",
+          "name": "Partition objects",
+          "standard": "3.OA.A.2",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "decimals",
+      "name": "Comparing Decimals",
+      "short": "Decimals",
+      "icon": "",
+      "strand": "math",
+      "standard": "5.NBT.A.3",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Read, write, and compare decimals to thousandths.",
+      "difficulty": 4,
+      "concepts": [
+        {
+          "id": "decimals.read",
+          "name": "Read decimals",
+          "standard": "5.NBT.A.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "decimals.write",
+          "name": "Write decimals",
+          "standard": "5.NBT.A.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "decimals.compare",
+          "name": "Compare to thousandths",
+          "standard": "5.NBT.A.3",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "statistics",
+      "name": "Statistical Questions",
+      "short": "Statistics",
+      "icon": "",
+      "strand": "math",
+      "standard": "6.SP.A.1",
+      "source": "Maryland CCR Standards for Mathematics (2025)",
+      "objective": "Recognize a statistical question as one that anticipates variability in the data related to the question and accounts for it in the answers.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "statistics.recognise",
+          "name": "Recognise questions",
+          "standard": "6.SP.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 1
+        },
+        {
+          "id": "statistics.variability",
+          "name": "Anticipate variability",
+          "standard": "6.SP.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 3
+        },
+        {
+          "id": "statistics.account",
+          "name": "Account for answers",
+          "standard": "6.SP.A.1",
+          "source": "Maryland CCR Standards for Mathematics (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "phonics",
+      "name": "Basic Phonics",
+      "short": "Phonics",
+      "icon": "",
+      "strand": "ela",
+      "standard": "RF.K.3",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Know and apply grade-level phonics and word analysis skills in decoding words.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "phonics.know",
+          "name": "Know phonics",
+          "standard": "RF.K.3",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "phonics.apply",
+          "name": "Apply skills",
+          "standard": "RF.K.3",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "phonics.decode",
+          "name": "Decode words",
+          "standard": "RF.K.3",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "retelling",
+      "name": "Retelling Stories",
+      "short": "Retelling",
+      "icon": "",
+      "strand": "ela",
+      "standard": "RL.1.2",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Retell stories, including key details, and demonstrate understanding of their central message or lesson.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "retelling.retell",
+          "name": "Retell stories",
+          "standard": "RL.1.2",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "retelling.details",
+          "name": "Key details",
+          "standard": "RL.1.2",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "retelling.message",
+          "name": "Central message",
+          "standard": "RL.1.2",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "informational_text",
+      "name": "Informational Questions",
+      "short": "Questions",
+      "icon": "",
+      "strand": "ela",
+      "standard": "RI.3.1",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Ask and answer questions to demonstrate understanding of a text, referring explicitly to the text as the basis for the answers.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "informational_text.ask",
+          "name": "Ask questions",
+          "standard": "RI.3.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "informational_text.answer",
+          "name": "Answer questions",
+          "standard": "RI.3.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "informational_text.refer",
+          "name": "Refer explicitly",
+          "standard": "RI.3.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "opinion_writing",
+      "name": "Opinion Writing",
+      "short": "Opinion",
+      "icon": "",
+      "strand": "ela",
+      "standard": "W.4.1",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Write opinion pieces on topics or texts, supporting a point of view with reasons and information.",
+      "difficulty": 4,
+      "concepts": [
+        {
+          "id": "opinion_writing.write",
+          "name": "Write pieces",
+          "standard": "W.4.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "opinion_writing.support",
+          "name": "Support view",
+          "standard": "W.4.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "opinion_writing.reasons",
+          "name": "Provide reasons",
+          "standard": "W.4.1",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "comparing_genres",
+      "name": "Comparing Genres",
+      "short": "Comparing",
+      "icon": "",
+      "strand": "ela",
+      "standard": "RL.6.9",
+      "source": "Maryland CCR Standards for ELA (2025)",
+      "objective": "Compare and contrast texts in different forms or genres (e.g., stories and poems; historical novels and fantasy stories) in terms of their approaches to similar themes and topics.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "comparing_genres.forms",
+          "name": "Different forms",
+          "standard": "RL.6.9",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 1
+        },
+        {
+          "id": "comparing_genres.contrast",
+          "name": "Compare and contrast",
+          "standard": "RL.6.9",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 3
+        },
+        {
+          "id": "comparing_genres.themes",
+          "name": "Similar themes",
+          "standard": "RL.6.9",
+          "source": "Maryland CCR Standards for ELA (2025)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "weather_patterns",
+      "name": "Local Weather",
+      "short": "Weather",
+      "icon": "",
+      "strand": "science",
+      "standard": "K-ESS2-1",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Use and share observations of local weather conditions to describe patterns over time.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "weather_patterns.observe",
+          "name": "Use observations",
+          "standard": "K-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "weather_patterns.share",
+          "name": "Share conditions",
+          "standard": "K-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "weather_patterns.patterns",
+          "name": "Describe patterns",
+          "standard": "K-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "material_properties",
+      "name": "Material Properties",
+      "short": "Properties",
+      "icon": "",
+      "strand": "science",
+      "standard": "2-PS1-2",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Analyze data obtained from testing different materials to determine which materials have the properties that are best suited for an intended purpose.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "material_properties.analyse",
+          "name": "Analyse data",
+          "standard": "2-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "material_properties.test",
+          "name": "Test materials",
+          "standard": "2-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "material_properties.suited",
+          "name": "Intended purpose",
+          "standard": "2-PS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "inherited_traits",
+      "name": "Environmental Traits",
+      "short": "Env Traits",
+      "icon": "",
+      "strand": "science",
+      "standard": "3-LS3-2",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Use evidence to support the explanation that traits can be influenced by the environment.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "inherited_traits.evidence",
+          "name": "Use evidence",
+          "standard": "3-LS3-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "inherited_traits.support",
+          "name": "Support explanation",
+          "standard": "3-LS3-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "inherited_traits.influence",
+          "name": "Environmental influence",
+          "standard": "3-LS3-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "earth_systems",
+      "name": "Earth's Systems",
+      "short": "Earth Systems",
+      "icon": "",
+      "strand": "science",
+      "standard": "5-ESS2-1",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Develop a model using an example to describe ways the geosphere, biosphere, hydrosphere, and/or atmosphere interact.",
+      "difficulty": 4,
+      "concepts": [
+        {
+          "id": "earth_systems.model",
+          "name": "Develop model",
+          "standard": "5-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "earth_systems.describe",
+          "name": "Describe ways",
+          "standard": "5-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "earth_systems.interact",
+          "name": "System interactions",
+          "standard": "5-ESS2-1",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "cell_function",
+      "name": "Cell Functions",
+      "short": "Cells",
+      "icon": "",
+      "strand": "science",
+      "standard": "MS-LS1-2",
+      "source": "Maryland Science Standards (NGSS)",
+      "objective": "Develop and use a model to describe the function of a cell as a whole and ways parts of cells contribute to the function.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "cell_function.model",
+          "name": "Develop model",
+          "standard": "MS-LS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 1
+        },
+        {
+          "id": "cell_function.function",
+          "name": "Cell function",
+          "standard": "MS-LS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 3
+        },
+        {
+          "id": "cell_function.parts",
+          "name": "Parts contribute",
+          "standard": "MS-LS1-2",
+          "source": "Maryland Science Standards (NGSS)",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "community_roles",
+      "name": "Local Community",
+      "short": "Community",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Identify and describe the roles of different people in the local community.",
+      "difficulty": 1,
+      "concepts": [
+        {
+          "id": "community_roles.identify",
+          "name": "Identify roles",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "community_roles.describe",
+          "name": "Describe roles",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "community_roles.people",
+          "name": "Community people",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "state_symbols",
+      "name": "State Symbols",
+      "short": "Symbols",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Recognise and explain the significance of key state symbols and landmarks.",
+      "difficulty": 2,
+      "concepts": [
+        {
+          "id": "state_symbols.recognise",
+          "name": "Recognise symbols",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "state_symbols.explain",
+          "name": "Explain significance",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "state_symbols.landmarks",
+          "name": "State landmarks",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "transport_history",
+      "name": "Transportation",
+      "short": "Transport",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Analyse how changes in transport over time have affected the local region.",
+      "difficulty": 3,
+      "concepts": [
+        {
+          "id": "transport_history.analyse",
+          "name": "Analyse changes",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "transport_history.time",
+          "name": "Changes over time",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "transport_history.region",
+          "name": "Affected region",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "constitution",
+      "name": "US Constitution",
+      "short": "Constitution",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Examine the basic principles of the US Constitution and its role in protecting rights.",
+      "difficulty": 4,
+      "concepts": [
+        {
+          "id": "constitution.examine",
+          "name": "Examine principles",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "constitution.principles",
+          "name": "Basic principles",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "constitution.rights",
+          "name": "Protecting rights",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
+    },
+    {
+      "id": "industrialisation",
+      "name": "Industrialisation",
+      "short": "Industry",
+      "icon": "",
+      "strand": "social",
+      "standard": "",
+      "source": "",
+      "objective": "Evaluate the impact of industrialisation on society, economy, and the environment.",
+      "difficulty": 5,
+      "concepts": [
+        {
+          "id": "industrialisation.impact",
+          "name": "Evaluate impact",
+          "standard": "",
+          "source": "",
+          "at": 1
+        },
+        {
+          "id": "industrialisation.economy",
+          "name": "Economy impact",
+          "standard": "",
+          "source": "",
+          "at": 3
+        },
+        {
+          "id": "industrialisation.environment",
+          "name": "Environment impact",
+          "standard": "",
+          "source": "",
+          "at": 6
+        }
+      ]
     }
   ],
   "_concepts_note": "Concepts are COMPONENTS of their lesson's standard, and each one cites that same real code rather than a code of its own. Inventing a plausible-looking identifier for a sub-skill would be a fabricated citation, which is worse than no citation at all -- see the header of scripts/data/curriculum.gd. 'at' is how many times that lesson must have been taught before the concept is unlocked.",

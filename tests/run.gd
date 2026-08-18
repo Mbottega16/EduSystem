@@ -3796,8 +3796,26 @@ func test_specialism_and_choice() -> void:
 		is_equal_approx(Game.lesson_pay_multiplier(), 1.0))
 
 	# It is a LEAN, not a cage: everything is still teachable.
+	#
+	# This asserted `lessons.size() == 20`, which tested the SIZE of the
+	# curriculum rather than the claim written above it, and broke the
+	# moment a content batch landed. It now checks the actual promise: no
+	# specialism removes a lesson from the pool or makes one unteachable.
 	chk("every lesson is still teachable whatever you trained in",
-		Curriculum.lessons.size() == 20, Curriculum.lessons.size())
+		(func() -> bool:
+			var saved: Dictionary = Game.lesson
+			var every := true
+			for sp: String in ["", "math", "ela", "science", "social"]:
+				Game.specialism = sp
+				if Curriculum.lessons.size() != Curriculum.count():
+					every = false
+				for l: Dictionary in Curriculum.lessons:
+					Game.lesson = l
+					var m: Array = Game.difficulty_mults(-1)
+					if float(m[0]) <= 0.0 or float(m[1]) <= 0.0:
+						every = false
+			Game.lesson = saved
+			return every).call())
 
 	# --- the screens ---
 	var hud := _hud()
@@ -5481,7 +5499,17 @@ func test_curriculum() -> void:
 	# only deliberately. Naming them here means an accidental omission still
 	# fails while a considered one does not have to be papered over with a
 	# plausible-looking code.
-	var uncited: Array[String] = ["using_sources"]
+	#
+	# The five social-studies lessons added in the August 2026 content batch
+	# are here because the writer said, in as many words, that it could not
+	# verify a Maryland Social Studies code for them. That is the rule
+	# working: the Framework numbers its standards 1.0 to 6.0 by strand
+	# rather than by topic, so a per-topic code would have had to be minted.
+	var uncited: Array[String] = [
+		"using_sources",
+		"community_roles", "state_symbols", "transport_history",
+		"constitution", "industrialisation",
+	]
 
 	var bad: Array = []
 	for l: Dictionary in Curriculum.lessons:
@@ -5529,6 +5557,60 @@ func test_curriculum() -> void:
 	chk("objectives are real sentences, not placeholders", (func() -> bool:
 		for l: Dictionary in Curriculum.lessons:
 			if String(l["objective"]).length() < 40:
+				return false
+		return true).call())
+
+	# `short` is a COLUMN on a 320px screen and it clips in silence, which
+	# is the whole reason the budget exists. Nothing checked it until a
+	# content batch arrived with a 14-character one.
+	var too_long: Array = []
+	for l: Dictionary in Curriculum.lessons:
+		if String(l.get("short", "")).length() > 13:
+			too_long.append("%s (%d)" % [
+				l.get("short", ""), String(l.get("short", "")).length()])
+	chk("every lesson's short name fits its column", too_long.is_empty(),
+		too_long)
+
+	# A concept belongs to exactly one lesson, and its id says which. The
+	# gates on furniture read these strings, so a stray prefix is a gate
+	# that can never open.
+	chk("every concept id is prefixed by its own lesson", (func() -> bool:
+		for l: Dictionary in Curriculum.lessons:
+			for c: Dictionary in l.get("concepts", []):
+				if not String(c.get("id", "")).begins_with(
+						String(l.get("id", "")) + "."):
+					return false
+		return true).call())
+
+	chk("every lesson has three concepts, unlocking at 1, 3 and 6",
+		(func() -> bool:
+			for l: Dictionary in Curriculum.lessons:
+				var ats: Array = []
+				for c: Dictionary in l.get("concepts", []):
+					ats.append(int(c.get("at", 0)))
+				if ats != [1, 3, 6]:
+					return false
+			return true).call())
+
+	# The four strands stay level. A curriculum that drifts to nine maths
+	# lessons and three science ones quietly stops being a school.
+	chk("the four strands are evenly stocked", (func() -> bool:
+		var per := {}
+		for l: Dictionary in Curriculum.lessons:
+			var s := String(l.get("strand", ""))
+			per[s] = int(per.get(s, 0)) + 1
+		if per.size() != 4:
+			return false
+		var counts: Array = per.values()
+		counts.sort()
+		return int(counts[-1]) - int(counts[0]) <= 2).call())
+
+	chk("every difficulty from 1 to 5 is represented", (func() -> bool:
+		var seen := {}
+		for l: Dictionary in Curriculum.lessons:
+			seen[int(l.get("difficulty", 0))] = true
+		for d in range(1, 6):
+			if not seen.has(d):
 				return false
 		return true).call())
 
