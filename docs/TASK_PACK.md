@@ -193,9 +193,16 @@ is a rule it will explain away.**
 
 ---
 
-## Task 2 — Twenty-one more items of furniture ⭐
+## Task 2 — Twenty-one more items of furniture ⭐ SEND THIS NEXT
 
 **Attach:** `data/balance.json`, `data/curriculum.json`
+
+> **When it comes back**, save the JSON to a file and run
+> `python tools/check_items.py thatfile.json` before anything else. It
+> enforces every rule below mechanically — the count, the density window,
+> the range and cost bands, concept links that exist and are not already
+> taught, the ladder check, blurb length and voice, and near-duplicates
+> of the existing 29. Round 1 scored 24 rejections against it.
 
 ```text
 You are designing furniture for PixelRoom, a pixel-art classroom
@@ -341,6 +348,21 @@ NO NEAR-DUPLICATES.
       Reading Rug     (there is already a Rug)
   Check every one of your 21 against the list of 29 above and against
   the attached file. Find genuinely new ground instead.
+
+  Here is new ground, if you want it - real classroom objects with no
+  equivalent in the shop yet. Take from this freely, ignore it freely,
+  and you are not limited to it:
+
+    Chalkboard, Cork Board, Letter Board, Magnetic Letters, Storybook
+    Shelf, Puppet Theatre, Listening Station, Counting Beads, Shape
+    Sorter, Anatomy Model, Sand Table, Water Table, Sensory Table,
+    Peg Board, Clay Station, Pottery Wheel, Printmaking Press,
+    Overhead Projector, Pull-Down Screen, Lectern, Vocabulary Wall,
+    Wash Basin, Umbrella Stand, Hamster Cage, Zen Sand Garden,
+    Toy Chest, Cubby Shelf, Assignment Tray, Sorting Tray, Art Caddy,
+    Wall Cabinet, Portfolio Rack, Rest Mat, Step Stool, Crawl Tunnel,
+    Lounge Ottoman, Welcome Banner, Student Art Wall, Display Case,
+    Mural Panel, Butterfly Display, Framed Mirror, Trophy Cabinet.
 
 ART BRIEFS
 
