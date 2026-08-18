@@ -107,7 +107,7 @@
       "blurb": "Somewhere to put the thing you are holding."
     },
     "cabinet": {
-      "name": "Supply Cabinet",
+      "name": "Store Cabinet",
       "cat": "surfaces",
       "cost": 170,
       "art": "cabinet",
@@ -276,7 +276,7 @@
       "flat": true
     },
     "alphabet_frieze": {
-      "name": "Alphabet Frieze",
+      "name": "Letter Frieze",
       "cat": "decor",
       "cost": 100,
       "art": "alphabet_frieze",

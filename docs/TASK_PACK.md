@@ -221,6 +221,12 @@ SCHEMA. One item, copied verbatim from data/balance.json -> "items":
 
   cat     one of: seating surfaces learning comfort decor
   art     same string as the item id
+  name    13 CHARACTERS MAXIMUM. The shop prints it through a 13-wide
+          column and simply cuts anything longer, with no warning. Two
+          shipped items were being truncated before this rule existed,
+          and eight of a twenty-two item batch would have been. Count
+          the characters, spaces included: "Science Station" is 15 and
+          is cut to "Science Stati".
   w       width in tiles, 1 or 2
   cost    30 to 400
   range   how many tiles away it still helps a desk, 2 to 6

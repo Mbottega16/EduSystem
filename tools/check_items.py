@@ -93,6 +93,12 @@ def main(path):
         except (KeyError, ZeroDivisionError, TypeError):
             fail("cannot compute value density")
 
+        # The shop prints the name through substr(0, 13) into a %-13s
+        # column. Longer names are cut on screen with no warning.
+        if len(v.get("name", "")) > 13:
+            fail("name is %d chars, max 13 -- the shop column cuts it to %r"
+                 % (len(v["name"]), v.get("name", "")[:13]))
+
         # the blurb
         b = v.get("blurb", "")
         if len(b) > 60:

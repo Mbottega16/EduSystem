@@ -6415,13 +6415,34 @@ func test_catalogue() -> void:
 			bad.append("%s has an unknown category" % id)
 	chk("every item is complete and in a real category", bad.is_empty(), bad)
 
-	# THE CHECK THE ART BROWSER EXISTS FOR: a missing PNG is a runtime crash
+	# The shop prints the name through substr(0, 13) into a %-13s column,
+	# so anything longer is CUT ON SCREEN and nothing said so. Two shipped
+	# items were already being truncated -- "Alphabet Frieze" rendered as
+	# "Alphabet Frie" -- and eight of a twenty-two item content batch would
+	# have been. Labels clip in silence; this is the silence.
+	var long_names: Array = []
+	for id: String in Items.order():
+		var nm := String(Items.get_def(id).get("name", ""))
+		if nm.length() > 13:
+			long_names.append("%s (%d): %s" % [id, nm.length(), nm])
+	chk("every item name fits the shop column", long_names.is_empty(),
+		long_names)
+
+	# THE CHECK THE ART BROWSER EXISTS FOR: a missing PNG is a runtime crash.
+	#
+	# LOADS, not exists. `art/inspector.png` was on disk and every
+	# file-exists check in the project was green while the running room
+	# threw a resource error, because nothing had imported it. exists()
+	# would have passed that file too.
 	var missing: Array = []
 	for id: String in Items.order():
 		var art := String(Items.get_def(id).get("art", ""))
-		if not ResourceLoader.exists("res://art/%s.png" % art):
-			missing.append("%s -> %s.png" % [id, art])
-	chk("every item's picture actually exists", missing.is_empty(), missing)
+		var path := "res://art/%s.png" % art
+		if not ResourceLoader.exists(path):
+			missing.append("%s -> %s.png MISSING" % [id, art])
+		elif load(path) == null:
+			missing.append("%s -> %s.png WILL NOT LOAD (unimported?)" % [id, art])
+	chk("every item's picture actually loads", missing.is_empty(), missing)
 
 	chk("every category has something in it", (func() -> bool:
 		for c: String in Items.categories():

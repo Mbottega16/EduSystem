@@ -117,26 +117,40 @@ These are not optional work; they are the queue. Prompts live in
 
 ## C. Verification debt
 
-- [ ] **C1. Sweep for more assertions that test a count instead of a
-      claim.** `every lesson is still teachable whatever you trained in`
-      asserted `lessons.size() == 20` and broke when content landed —
-      it tested the size of the curriculum, not the claim in its own
-      comment. Find the others: grep the suite for `== <literal>` against
-      a collection size and judge each one.
-- [ ] **C2. Panel fit-test the screens that grew.** The curriculum screen
-      now lists 40 lessons and the shop will list 50 items. Screenshot
-      every mode and check nothing clips; labels clip in silence.
-- [ ] **C3. Assert the art contract.** Every item's `art` string resolves
-      to a PNG that actually *loads* (currently 71 on disk, 0 missing —
-      keep it that way as items are added). Loading, not existing:
-      `art/inspector.png` once existed and could not be loaded because
-      nothing had imported it.
+- [x] **C1. Assertions that test a count instead of a claim.** *(Swept
+      Aug 2026.)* Automated the sweep — extract every `size() == <int>` /
+      `count() == <int>` literal from the suite and cross-reference it
+      against the ten live content counts. **No remaining matches.** The
+      one real instance (`lessons.size() == 20`) was found and fixed
+      during the task-1 integration; everything else compares against
+      state the test itself created, which is legitimate. Re-run the
+      sweep after any content batch.
+- [x] **C2. Panel fit-test the screens that grew.** *(Done Aug 2026, and
+      it found a live bug.)* The curriculum screen and the shop both
+      **window** their lists with `...` markers, so 40 lessons and 50
+      items do not clip. But the shop prints an item name through
+      `substr(0, 13)` into a `%-13s` column and **cuts anything longer
+      with no warning** — and nothing constrained the field.
+      Two shipped items were already truncated: *Alphabet Frieze* rendered
+      as "Alphabet Frie", *Supply Cabinet* as "Supply Cabine". Renamed to
+      **Letter Frieze** and **Store Cabinet**. Eight of round one's
+      twenty-two would have been cut. Now asserted, in the task-2 prompt,
+      and in `check_items.py`.
+- [x] **C3. Assert the art contract.** *(Done Aug 2026.)* The per-item
+      check used `ResourceLoader.exists()`; it now also `load()`s, because
+      `art/inspector.png` once existed, passed every file-exists check in
+      the project, and still threw at runtime because nothing had imported
+      it. The directory sweep already loaded every PNG and covers all 71
+      (no subdirectories).
 
 ## D. Housekeeping
 
-- [ ] **D1. `.godot/` and OneDrive.** The repo now lives inside OneDrive.
-      `.godot/` is a rebuildable cache; syncing it invites conflicts.
-      Add it to `.gitignore` and exclude it from sync.
+- [~] **D1. `.godot/` and OneDrive.** Git half was **already done** —
+      `.godot/` is in `.gitignore` and zero files under it are tracked.
+      **The OneDrive half needs the user**: excluding a folder from sync
+      is a setting in the OneDrive client, not something a script can set
+      reliably. Right-click `.godot` in Explorer → *Always keep on this
+      device* off, or move the repo outside OneDrive.
 - [ ] **D2. Run `/deep_update` after any batch integration.** Counts move
       in six documents at once and disagreement is worse than staleness.
 
