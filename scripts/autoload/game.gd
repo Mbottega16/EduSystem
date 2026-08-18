@@ -1341,6 +1341,19 @@ var teaching: bool = false
 
 signal attention_changed(level: float)
 
+## The class has drifted far enough that the absence has cost something.
+##
+## ONBOARDING, and the smallest version of it that works. Nothing told a
+## new player that the work only advances while they are at the front, so
+## the first lesson read as broken rather than as the central mechanic.
+##
+## It fires on the DOWNWARD crossing only, and not the moment you step
+## away: walking to a stuck child is the game, and a nudge fired then
+## would read as "do not do that". By the time attention has fallen this
+## far the player has already watched the work slow, so the sentence
+## explains something they have just seen rather than pre-empting it.
+signal class_drifted()
+
 
 ## How hard today's lesson is for the child in `seat_index`, as a pair of
 ## multipliers: how much longer the work takes, and how much more often they
@@ -1439,6 +1452,10 @@ func tick_attention(delta: float, at_front: bool) -> void:
 		attention = maxf(0.0, attention - Balance.teach_decay * delta)
 	if not is_equal_approx(before, attention):
 		attention_changed.emit(attention)
+	# Downward crossing only, so it cannot fire repeatedly while the player
+	# stands at a desk, and cannot fire at all on the way back up.
+	if phase == Phase.LESSON and not teaching 			and before >= Balance.teach_drift_hint_below 			and attention < Balance.teach_drift_hint_below:
+		class_drifted.emit()
 
 
 ## Is this tile close enough to the front to teach from?

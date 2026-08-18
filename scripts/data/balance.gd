@@ -129,6 +129,7 @@ static var diff_furniture_relief: float = 0.45
 # --- standing at the front and teaching ----------------------------------
 static var teach_fill: float = 0.85
 static var teach_decay: float = 0.25
+static var teach_drift_hint_below: float = 0.35
 static var teach_radius: int = 6
 ## What fraction of normal speed an UNATTENDED class works at. Zero means
 ## they stop entirely, which is the point.
@@ -341,6 +342,7 @@ static func apply(d: Dictionary) -> void:
 	teach_decay = float(tg.get("decay_per_second", teach_decay))
 	teach_radius = int(tg.get("radius_tiles", teach_radius))
 	teach_floor = float(tg.get("floor_rate", teach_floor))
+	teach_drift_hint_below = float(tg.get("drift_hint_below", teach_drift_hint_below))
 
 	var ins: Dictionary = d.get("inspection", {})
 	insp_grant = int(ins.get("grant", insp_grant))

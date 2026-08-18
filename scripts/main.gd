@@ -30,6 +30,13 @@ func _ready() -> void:
 	world.room_rebuilt.connect(_wire_room)
 	_wire_room()
 
+	# Onboarding, in one sentence at the moment it explains something the
+	# player has just watched happen. Game owns the threshold; hint_once
+	# owns the "only say it once" and respects Settings.show_hints.
+	Game.class_drifted.connect(func() -> void:
+		hud.hint_once("class_drifted",
+			"Work only moves while you are at the front."))
+
 	hud.item_chosen.connect(_start_placing)
 	hud.assignment_chosen.connect(_start_chosen_lesson)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())

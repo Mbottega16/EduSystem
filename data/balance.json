@@ -568,10 +568,12 @@
   "teaching": {
     "_note": "Standing at the front and TEACHING. Work only advances while the class is paying attention, and attention only comes from you. Before this a lesson ran itself and the player's whole job was reacting to bubbles -- there was nothing to DO with the time between them.",
     "_decay_note": "Attention DECAYS rather than switching off. As a hard on/off, a two second trip to help one child froze seven others dead, which reads as the game being broken rather than as a trade-off. Decay means a short trip costs a slice of progress and a long absence costs all of it.",
+    "_drift_note": "How far attention has to fall before the game says out loud, once per run, that work only moves while you are at the front. Deliberately NOT the moment you step away -- walking to a stuck child is the game, and a nudge fired then would read as 'do not do that'. It fires once the absence has actually cost something, which is when the sentence means anything.",
     "fill_per_second": 0.85,
     "decay_per_second": 0.25,
     "radius_tiles": 6,
-    "floor_rate": 0.0
+    "floor_rate": 0.0,
+    "drift_hint_below": 0.35
   },
   "difficulty": {
     "_note": "How much a lesson's difficulty rating actually moves. Difficulty 3 is the neutral middle: work_mult and stall_mult are 1.0 there, and each step away from it scales by these amounts. A 1 is noticeably easier to get a class through than a 5, without either being a different game.",

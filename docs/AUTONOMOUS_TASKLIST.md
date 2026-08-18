@@ -98,11 +98,22 @@ These are not optional work; they are the queue. Prompts live in
       appears only in comments describing what that screen used to print.
       A false positive in the scan that produced this list — grep the
       strings, not the file.*
-- [ ] **B4. Onboarding.** Still the biggest gap between what the game is
-      and what a player can reach. Nothing tells a new player that
-      leaving the podium stops the work, which makes the first lesson
-      read as broken rather than as the central mechanic. Smallest useful
-      version first — one line at the right moment beats a tutorial.
+- [x] **B4. Onboarding — first slice.** *(Done Aug 2026.)* One sentence,
+      at the moment it explains something the player has just watched:
+      *"Work only moves while you are at the front."*
+      It fires on the **downward crossing** of an attention threshold, not
+      when you step away — walking to a stuck child *is* the game, and a
+      nudge fired then would read as "do not do that". By the time
+      attention has fallen that far the player has already seen the work
+      slow, so the line explains rather than pre-empts.
+      The threshold is `teaching.drift_hint_below` in `balance.json`,
+      because numbers do not live in code. `hint_once()` already existed
+      and was used exactly once in the whole game; this is the second
+      caller.
+      **Still open:** this is one line, not onboarding. Nothing yet
+      teaches collecting, marking, the shop, or what the term target
+      means. Next slice should come from watching a real first run, not
+      from a list.
 
 ## C. Verification debt
 

@@ -3569,6 +3569,43 @@ func test_teaching() -> void:
 	# others, which reads as the game being broken rather than as a choice.
 	await step(90)                      # get attention up to full
 	chk("attention fills", Game.attention > 0.9, Game.attention)
+
+	# ONBOARDING. Nothing told a new player that work only advances while
+	# they are at the front, which made the first lesson read as broken
+	# rather than as the central mechanic.
+	#
+	# It must NOT fire the instant they step away -- walking to a stuck
+	# child is the game, and a nudge fired then would read as "do not do
+	# that". It fires once the absence has actually cost something.
+	# An Array as a counter, not an int: GDScript lambdas capture locals by
+	# VALUE, so `var n := 0` incremented inside the closure only ever moves
+	# the closure's own copy and the assertion reads 0 forever.
+	var drifted: Array[int] = [0]
+	Game.class_drifted.connect(func() -> void: drifted[0] += 1)
+
+	p.global_position = Grid.tile_to_world(Vector2i(2, Grid.H - 2))
+	await step(6)
+	chk("stepping away does not immediately lecture the player",
+		drifted[0] == 0 and Game.attention > Balance.teach_drift_hint_below,
+		"%d at %.2f" % [drifted[0], Game.attention])
+
+	await step(240)                     # stay away until it actually bites
+	chk("but a long absence says why the work stopped",
+		drifted[0] == 1 and Game.attention < Balance.teach_drift_hint_below,
+		"%d at %.2f" % [drifted[0], Game.attention])
+
+	# Back to the front and away again: the signal is per crossing, and
+	# hint_once is what makes it once per RUN -- so the sentence cannot
+	# start nagging a player who already knows.
+	p.global_position = Grid.tile_to_world(Layout.PODIUM + Vector2i(0, 1))
+	await step(90)
+	chk("coming back does not fire it again", drifted[0] == 1, drifted[0])
+	var hud2 := _hud()
+	hud2.hint_once("class_drifted", "Work only moves while you are at the front.")
+	var first_text: String = hud2.prompt.text
+	hud2.hint_once("class_drifted", "SHOULD NOT APPEAR")
+	chk("and the nudge is shown once per run, not once per crossing",
+		hud2.prompt.text == first_text, hud2.prompt.text)
 	p.global_position = Grid.tile_to_world(Vector2i(2, Grid.H - 2))
 	await step(30)                      # half a second away
 	chk("a short trip costs some attention, not all of it",
