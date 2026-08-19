@@ -176,6 +176,15 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		"office":
+			for m: Dictionary in Milestones.all():
+				if Game.milestones.size() >= 6:
+					break
+				Game.milestones.append(String(m["id"]))
+			hud.show_office()
+		"principal":
+			hud.principal_says("shot_demo",
+				"Work only moves while you are at the front.")
 		"watch":
 			Game.coins = 999999
 			Game.open_room()

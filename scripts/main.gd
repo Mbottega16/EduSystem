@@ -32,14 +32,15 @@ func _ready() -> void:
 	_wire_room()
 
 	# Onboarding, in one sentence at the moment it explains something the
-	# player has just watched happen. Game owns the threshold; hint_once
-	# owns the "only say it once" and respects Settings.show_hints.
+	# player has just watched happen, from the principal rather than a
+	# disembodied prompt. Game owns the threshold; principal_says() owns
+	# the "only say it once" and respects Settings.show_hints.
 	Game.class_drifted.connect(func() -> void:
-		hud.hint_once("class_drifted",
+		hud.principal_says("class_drifted",
 			"Work only moves while you are at the front."))
 
 	Game.work_going_cold.connect(func() -> void:
-		hud.hint_once("uncollected",
+		hud.principal_says("uncollected",
 			"Finished work only counts once you collect it."))
 
 	hud.item_chosen.connect(_start_placing)
@@ -176,7 +177,7 @@ func _toggle_build() -> void:
 		_unlock()
 		return
 	if Game.phase == Game.Phase.LESSON:
-		hud.hint_once("build_lesson", "Not while the class is working.")
+		hud.principal_says("build_lesson", "Not while the class is working.")
 		return
 	world.player.input_locked = true
 	placement.begin_browse(world.grid,
@@ -243,6 +244,8 @@ func _enter_hallway(_kind: String, _room_index: int) -> void:
 		world.camera.reset_smoothing()
 	world.visible = false
 	hallway.visible = true
+	hud.principal_says("hallway_first_visit",
+		"Every room you hold has a door here now.")
 
 
 ## The reverse: back through the home door, into the room you left exactly
@@ -267,6 +270,8 @@ func _on_hallway_door(kind: String, room_index: int) -> void:
 	match kind:
 		"home":
 			_return_home()
+		"office":
+			hud.show_office()
 		"open":
 			var err := Game.open_room()
 			if err != "":

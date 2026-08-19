@@ -47,6 +47,17 @@ CHARACTERS = {
         "legs": (42, 44, 56), "shoe": (28, 26, 30),
         "long_hair": False, "skirt": False,
     },
+    # The principal. Older (white hair, same trick as the inspector's grey)
+    # and in a colour nobody else in the building wears, so a popup can
+    # show the portrait alone and it reads as "the principal" with no
+    # label needed -- same reasoning as the inspector, different colour so
+    # the two authority figures are not confused with each other.
+    "principal": {
+        "hair": (206, 204, 198), "hair_d": (164, 162, 156),
+        "shirt": (96, 48, 92), "shirt_d": (68, 32, 66),
+        "legs": (54, 46, 40), "shoe": (30, 26, 22),
+        "long_hair": False, "skirt": False,
+    },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
     # rather than any new drawing code. Keys must match Names.ART in

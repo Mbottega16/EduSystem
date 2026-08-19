@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
@@ -48,6 +48,13 @@ signal perk_bought()
 var _reveal: Tween = null
 @onready var hint: Label = $Overlay/Hint
 @onready var portrait: TextureRect = $Overlay/Portrait
+## The principal's own corner, for a tutorial tip -- deliberately OUTSIDE
+## $Overlay. Overlay is hidden whenever mode == NONE (close()), which is
+## exactly when a tip needs to fire: nobody has a screen open, they are
+## mid-room and about to do the thing the tip is about.
+@onready var mascot_box: ColorRect = $MascotBox
+@onready var mascot_portrait: TextureRect = $MascotPortrait
+const PRINCIPAL_TEX := preload("res://art/principal.png")
 
 var mode: int = Mode.NONE
 var _player: Node = null
@@ -285,10 +292,17 @@ func _update_prompt() -> void:
 	if mode != Mode.NONE:
 		prompt.visible = false
 		prompt_box.visible = false
+		mascot_box.visible = false
+		mascot_portrait.visible = false
 		return
-	# a timed hint owns the prompt bar while it is up
+	# a timed hint owns the prompt bar while it is up. The mascot is not
+	# reset here -- it is only ever turned ON by principal_says(), and
+	# turned off below the moment the hint itself expires, so it never
+	# outlives the words it was said over.
 	if _hint_until > Time.get_ticks_msec() / 1000.0:
 		return
+	mascot_box.visible = false
+	mascot_portrait.visible = false
 	if _player == null or not is_instance_valid(_player):
 		prompt.visible = false
 		prompt_box.visible = false
@@ -485,6 +499,11 @@ func _pause_input() -> void:
 
 
 ## A one-off nudge, shown once per run. Silence is the worst teacher.
+##
+## Kept as the plain text-only version -- nothing currently calls it
+## instead of principal_says(), but a tip that needs to fire from a place
+## with no room to draw a portrait (mid-transition, say) has somewhere to
+## go that is not "invent a face for it".
 func hint_once(id: String, text: String) -> void:
 	if _shown_hints.has(id) or mode != Mode.NONE or not Settings.show_hints:
 		return
@@ -493,6 +512,26 @@ func hint_once(id: String, text: String) -> void:
 	prompt_box.visible = true
 	prompt.text = text
 	_hint_until = Time.get_ticks_msec() / 1000.0 + 4.0
+
+
+## The principal, appearing in the corner to explain something -- the same
+## once-per-run nudge as hint_once, with a face on it. This is the mascot
+## the tutorial content actually speaks through now; every hint in the game
+## goes through here rather than through the plain text-only version.
+func principal_says(id: String, text: String) -> void:
+	if _shown_hints.has(id) or mode != Mode.NONE or not Settings.show_hints:
+		return
+	_shown_hints[id] = true
+	prompt.visible = true
+	prompt_box.visible = true
+	prompt.text = text
+	var at := AtlasTexture.new()
+	at.atlas = PRINCIPAL_TEX
+	at.region = Rect2(0, 0, 16, 24)
+	mascot_portrait.texture = at
+	mascot_portrait.visible = true
+	mascot_box.visible = true
+	_hint_until = Time.get_ticks_msec() / 1000.0 + 5.0
 
 
 var _hint_until: float = 0.0
@@ -1431,6 +1470,75 @@ func show_career() -> void:
 	var earned: bool = Game.milestones.has(String(sel.get("id", "")))
 	hint.text = _clip("Esc - close.   %s%s" % [
 		"" if earned else "Not yet: ", String(sel.get("blurb", ""))])
+
+
+## The short, terse version of every principal_says() nudge the game can
+## fire live, kept here as well so a player who dismissed one -- or never
+## triggered it -- can still go and read it. Deliberately NOT the single
+## source of truth for the live text (each call site owns its own wording,
+## same as everywhere else in this game); this is a reference shelf, not a
+## second copy that could drift and contradict the real thing.
+const TUTORIALS := [
+	"Teaching: work only moves while you are at the front.",
+	"Collecting: finished work only counts once you collect it.",
+	"The room: furniture cannot be rearranged while the class works.",
+	"The hallway: every room you hold has a door in it now.",
+]
+
+
+## Milestones, career totals and the tutorial shelf, in one room -- the
+## principal's own office, reached through the hallway rather than a menu,
+## same as everything else that got a physical door this year.
+##
+## Deliberately a SUMMARY, not a second copy of the career list: E opens
+## the real thing (show_career(), which already knows how to page past
+## thirty milestones and reveal a blurb only once earned). Duplicating
+## that render here would be the two drifting apart the first time either
+## one changes.
+func show_office() -> void:
+	_open(Mode.OFFICE)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 1)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "THE PRINCIPAL'S OFFICE"
+	# No portrait here, on purpose -- Rich runs the full body height in
+	# this screen (a list this long has nowhere else to go), and the
+	# portrait box sits square inside that rectangle. On the student bio
+	# screen the text is written to start BELOW the portrait; a list
+	# screen like this one cannot promise the same and a portrait UNDER
+	# wrapped text is worse than no portrait, confirmed by screenshot
+	# rather than assumed. The corner popup (principal_says) is where the
+	# face actually appears now.
+
+	var all := Milestones.all()
+	var earned := Game.milestones.size()
+	var n := clampi(int(round(float(earned) / float(maxi(1, all.size())) * 20.0)), 0, 20)
+
+	var lines: Array[String] = []
+	lines.append("[color=#%s]The school is %s, and that is because of you.[/color]" % [
+		DIM, Game.reputation_words()])
+	lines.append("")
+	lines.append("[color=#%s]Milestones[/color]  [color=#%s]%s[/color][color=#3a3a42]%s[/color]  %d/%d" % [
+		C_COIN, C_COIN, BAR_FULL.repeat(n), BAR_EMPTY.repeat(20 - n), earned, all.size()])
+	lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
+		DIM, Game.term_history.size(), Game.graduated.size()])
+	lines.append("")
+	lines.append("[color=#%s]TUTORIALS[/color]" % C_COIN)
+	for t: String in TUTORIALS:
+		lines.append("[color=#%s]%s[/color]" % [DIM, t])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.3)
+	hint.text = "E - full career list   Esc - close"
+
+
+func _handle_office_input() -> void:
+	if Input.is_action_just_pressed("cancel"):
+		Sfx.play("blip")
+		close()
+	elif Game.claim_interact():
+		Sfx.play("blip")
+		show_career()
 
 
 ## What kind of teacher are you?
@@ -2432,6 +2540,10 @@ func _handle_input() -> void:
 			_sel = (_sel - 1 + n) % n
 			Sfx.play("blip")
 			show_career()
+		return
+
+	if mode == Mode.OFFICE:
+		_handle_office_input()
 		return
 
 	if mode == Mode.SPECIALISM:

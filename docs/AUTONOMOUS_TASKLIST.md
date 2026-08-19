@@ -179,6 +179,45 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **The principal's office, and the principal as the tutorial mascot.**
+      *(Aug 2026 -- user request: "create a principal's office that will
+      hold all of the progress bars, achievements, and accolades,
+      tutorials for how to do things... I actually want the principal of
+      the school to be the tutorial mascot and pop up and explain how
+      things are done.")*
+      A new character, drawn through the same palette-on-one-generator
+      pipeline as the inspector (`tools/make_art.py`'s `CHARACTERS`
+      table) rather than hand-painted -- white hair for "older, in
+      charge", a colour (deep plum) nobody else in the building wears,
+      same reasoning as the inspector's grey suit.
+      **The office** is the second door in the hallway, always there,
+      counting against neither `Game.rooms` nor the room cap since it is
+      about the player rather than a room they run. It is a SUMMARY, not
+      a second copy of the career list: milestones as a progress bar
+      (`X/Y`, `Milestones.all()` against `Game.milestones`), career
+      totals, and a shelf of tutorial text -- with E jumping straight to
+      the real, already-built `show_career()` for the full paged list,
+      rather than re-implementing paging a second time to drift from it.
+      **The principal as mascot:** `hint_once()` gained a sibling,
+      `principal_says(id, text)` -- same once-per-run gate, same
+      `Settings.show_hints` respect, but shown with a portrait in a new
+      corner popup (`MascotBox`/`MascotPortrait`) built deliberately
+      OUTSIDE `$Overlay`, because `$Overlay` is hidden whenever no menu
+      is open and that is exactly when a tutorial nudge needs to fire.
+      Every existing hint (work stopping when you leave the front,
+      uncollected work, build mode mid-lesson) now goes through the
+      principal, plus one new one on the hallway's first use.
+      **Two real layout bugs found by screenshot:** the office's first
+      screenshot had the portrait rendering, on top of it, the FULL
+      TUTORIALS list -- Rich runs the whole body height on a list screen
+      this long, and the portrait box sat square inside that rectangle,
+      so wrapped text painted over the face. Fixed by dropping the
+      portrait from the office screen entirely rather than fighting text
+      wrap for a box neither needed to share space with; the corner
+      popup is where the face actually appears. Confirmed by screenshot,
+      not assumed, both before and after the fix.
+      1120 -> 1127 assertions. Balance contract re-verified unmoved --
+      nothing here touches a grade input.
 - [x] **A hallway between the rooms you hold.**
       *(Aug 2026 -- user request: "make the ability to hold multiple
       classrooms at a time, have it so that the teacher can step out of

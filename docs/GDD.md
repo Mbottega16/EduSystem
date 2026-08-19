@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-18**, against build `b29`, with **1120 assertions
+> **Measured on 2026-08-18**, against build `b29`, with **1127 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -265,7 +265,7 @@ should still look like the plain room they have always been.
 
 ### Actors, interactables, UI
 `actor.gd` / `player.gd` (per-button targeting, hold-to-confirm, autopilot) /
-`student.gd` · 10 interactable types · `hud.gd` (2053 lines, 11 screen modes,
+`student.gd` · 10 interactable types · `hud.gd` (2053 lines, 16 screen modes,
 20 of them sharing `REPORT`) · `title.gd` (6 pages) · `debug_panel.gd` ·
 `fx.gd` · `floater.gd` · `sfx.gd` · `settings.gd`.
 
@@ -320,9 +320,9 @@ milestone and having taught it, not a number going up.
 | Names | 96 first, 64 surnames, 8 sprite sheets |
 | Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
-| Screens | 15 modes |
+| Screens | 16 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1120 assertions** across **75 sections** |
+| Tests | **1127 assertions** across **75 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -359,7 +359,18 @@ school board, and — *(Aug 2026)* — a real **hallway**: walk out your own
 door and every room you hold is a physical door in a corridor, not a menu
 row. Your own door leads back in; a staffed room's door opens the watch
 screen; an unstaffed one opens hiring; the last door, shown only when
-`Game.can_open_room()` says you actually can, opens a new one. See §7.
+`Game.can_open_room()` says you actually can, opens a new one. The second
+door along, always there, is the **principal's office** — milestones,
+career totals and a tutorial shelf, reached by walking rather than by a
+key. See §7.
+
+**Also built, same batch:** the principal as the game's tutorial mascot.
+`hud.principal_says(id, text)` is `hint_once()` with a face on it —
+same once-per-run gate, same respect for `Settings.show_hints`, shown in
+a corner popup (`MascotBox`/`MascotPortrait` in `hud.tscn`, deliberately
+OUTSIDE `$Overlay` so it can appear while no screen is open, which is
+exactly when a tip is needed) rather than a disembodied line of text.
+Every existing hint now goes through it.
 
 **Not built:** choosing which room to spend your day TEACHING in. Walking
 to a delegated room now gets you to its watch/hire screen faster than the

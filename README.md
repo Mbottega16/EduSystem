@@ -156,6 +156,19 @@ still resolved the way it always was — by running the real lesson model
 against its hired teacher's policy — the hallway is just a faster,
 physical way to reach that room's own screen than hunting through a menu.
 
+The second door along, always there, is the **principal's office** — your
+milestones, your career totals and a shelf of tutorials, in one room
+rather than a menu you have to remember exists.
+
+## The principal
+
+The principal is the one who explains things, and they do it in person.
+The first time something is worth knowing — that work stops the moment
+you leave the front, that a finished sheet left on a desk does not count
+until you collect it, that every room now has a door — they appear in the
+corner and say so, once, then get out of the way. Turn it off in
+**Settings** if you would rather work it out yourself.
+
 ## Three things that carry the load for you
 
 **Autopilot (R)** walks you to whoever needs you next — settling outranks
@@ -376,7 +389,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1120 assertions
+Run Tests.bat            1127 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

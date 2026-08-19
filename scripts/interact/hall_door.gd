@@ -9,12 +9,15 @@ extends Interactable
 ## through either door is the same action from the player's side -- you
 ## are choosing which room to be in.
 
-## "home"  -- the door out of your own room, or (in the hallway) the door
-##            back to it.
-## "room"  -- a room you already hold. `room_index` is which one.
-## "open"  -- the next room you could open. Only ever built when
-##            Game.can_open_room() is true -- LOCKED ITEMS ARE HIDDEN
-##            rather than greyed out, same rule the shop follows.
+## "home"    -- the door out of your own room, or (in the hallway) the
+##              door back to it.
+## "office"  -- the principal's office. Always there, second door along --
+##              it is about you, not a room you are running, so it does
+##              not count against Game.rooms or the room cap.
+## "room"    -- a room you already hold. `room_index` is which one.
+## "open"    -- the next room you could open. Only ever built when
+##              Game.can_open_room() is true -- LOCKED ITEMS ARE HIDDEN
+##              rather than greyed out, same rule the shop follows.
 var door_kind: String = "home"
 var room_index: int = -1
 ## True for the single door that sits in the player's OWN room and leads
@@ -43,6 +46,8 @@ func prompt_text() -> String:
 	match door_kind:
 		"home":
 			return "Step into the hallway" if leads_out else "Back to your room"
+		"office":
+			return "The principal's office"
 		"open":
 			return "Open a room (%d coins)" % Game.room_cost()
 		_:

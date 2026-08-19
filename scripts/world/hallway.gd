@@ -95,15 +95,20 @@ func rebuild() -> void:
 			a.queue_free()
 	_door_art.clear()
 
-	var n := 1 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
+	# Slot 0 is always home, slot 1 is always the office -- neither counts
+	# against Game.rooms or the max_rooms cap, both being about YOU rather
+	# than a room you are running.
+	var n := 2 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
 	for i in n:
 		var kind: String
 		var idx := -1
 		if i == 0:
 			kind = "home"
-		elif i <= Game.rooms.size():
+		elif i == 1:
+			kind = "office"
+		elif i <= 1 + Game.rooms.size():
 			kind = "room"
-			idx = i - 1
+			idx = i - 2
 		else:
 			kind = "open"
 		var dx := MARGIN + float(i) * SPACING

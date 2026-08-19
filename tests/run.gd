@@ -5128,6 +5128,7 @@ func test_hallway() -> void:
 	await step(2)
 	var main: Node = world.get_parent()
 	var hallway: Node = main.get_node("Hallway")
+	var hud := _hud()
 
 	chk("the door out is live outside a lesson", world.hall_door.can_interact())
 	world.start_lesson()
@@ -5140,10 +5141,34 @@ func test_hallway() -> void:
 		world.player.get_parent() == hallway)
 	chk("and the room itself is hidden while you are away", not world.visible)
 	chk("the hallway is what's on screen instead", hallway.visible)
+	chk("the principal greets you the first time, with a face on it",
+		hud.mascot_box.visible and hud.mascot_portrait.visible)
+	chk("and the same nudge does not repeat on a second visit", (func() -> bool:
+		hud.mascot_box.visible = false
+		hud.mascot_portrait.visible = false
+		hud.principal_says("hallway_first_visit", "SHOULD NOT APPEAR AGAIN")
+		return not hud.mascot_box.visible).call())
 
-	var expect_doors := 1 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
-	chk("one door per room you hold, plus your own and the next one to open",
+	var expect_doors := 2 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
+	chk("a door per room, plus home, the office, and the next one to open",
 		hallway.doors.size() == expect_doors, hallway.doors.size())
+
+	var office_door: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "office":
+			office_door = d
+	chk("the office is always the second door along", office_door != null)
+	world.player.global_position = office_door.global_position
+	await step(2)
+	await tap("manage")
+	chk("walking into it opens the principal's office", hud.mode == hud.Mode.OFFICE)
+	chk("its milestone count matches what the career screen knows",
+		hud.rich.text.contains("%d/%d" % [Game.milestones.size(), Milestones.all().size()]),
+		hud.rich.text)
+	await tap("interact")
+	chk("E from the office jumps to the full career list", hud.mode == hud.Mode.CAREER)
+	await tap("cancel")
+	chk("Esc backs all the way out, not just to the office", hud.mode == hud.Mode.NONE)
 
 	# Open a room from inside the hallway -- the same Game.open_room() the
 	# old School screen used, just reached by walking to a door instead of
@@ -5161,7 +5186,7 @@ func test_hallway() -> void:
 	await tap("manage")
 	chk("walking into it opens a room", Game.rooms.size() == rooms_before + 1)
 	chk("and the corridor rebuilds to match",
-		hallway.doors.size() == 1 + Game.rooms.size()
+		hallway.doors.size() == 2 + Game.rooms.size()
 			+ (1 if Game.can_open_room() else 0))
 
 	# The new room is unstaffed, so its door should offer to hire rather
@@ -5174,7 +5199,6 @@ func test_hallway() -> void:
 	world.player.global_position = room_door.global_position
 	await step(2)
 	await tap("manage")
-	var hud := _hud()
 	chk("an unstaffed room's door opens hiring, not watching",
 		hud.mode == hud.Mode.SCHOOL and hud._hiring)
 	hud.close()
