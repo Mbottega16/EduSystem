@@ -159,7 +159,15 @@ func _pick_target(action: String = "") -> Interactable:
 		# changes, and the physics server still hands back the old node for
 		# a frame afterwards. Targeting one means the next press lands on a
 		# corpse and silently does nothing.
-		if not is_instance_valid(a) or a.is_queued_for_deletion():
+		#
+		# is_queued_for_deletion() is NOT enough. A landmark's Interactable
+		# is a CHILD of the prop that carries the "room_part" group (see
+		# RoomBuilder.add_prop) -- rebuild_room() calls queue_free() on the
+		# PARENT, and that flag does not propagate to the child early, only
+		# the eventual free() does. The child is detached from the tree the
+		# instant remove_child() runs on its parent, well before that. This
+		# is the actual, general check: is it in the tree RIGHT NOW.
+		if not is_instance_valid(a) or not a.is_inside_tree():
 			continue
 		var it := a as Interactable
 		if not it.can_interact():
@@ -183,9 +191,18 @@ func _pick_target(action: String = "") -> Interactable:
 ## invalid previously freed instance", and that error aborts the rest of
 ## _physics_process -- every frame, forever, so targets stopped refreshing
 ## and every button went dead. It has to be checked as a Variant first.
+##
+## Same reason as the is_inside_tree() check in _pick_target(): a landmark
+## detached by its parent's rebuild is still "valid" right up until the
+## deferred free actually runs, and calling anything tree-dependent on it
+## (can_interact(), interact(), even reading hold_time off some scripts)
+## throws. This is what let one stale marking desk kill the homework
+## screen for the rest of a run -- the crash happened here, inside
+## _pick_target(), which aborts _physics_process before it ever reaches
+## the line that would have refreshed targets and replaced it.
 func _live(action: String) -> Interactable:
 	var v: Variant = targets.get(action)
-	if v == null or not is_instance_valid(v):
+	if v == null or not is_instance_valid(v) or not (v as Node).is_inside_tree():
 		targets[action] = null
 		return null
 	return v as Interactable

@@ -10,6 +10,14 @@ var handed_in: int = 0
 
 
 func _carrier() -> Node:
+	# Defence in depth: player.gd's _pick_target()/_live() already refuse
+	# to call this on anything detached from the tree, but get_tree() on a
+	# detached node throws "Parameter data.tree is null" regardless of who
+	# calls it -- and that error aborts the CALLER's function too (it once
+	# aborted _pick_target() itself, which is what silently killed the
+	# homework screen). Guard here as well, not just at the call site.
+	if not is_inside_tree():
+		return null
 	return get_tree().get_first_node_in_group("carrier")
 
 

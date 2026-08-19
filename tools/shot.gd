@@ -111,6 +111,17 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.new_run(0)
 			Game.draw_hand()
 			hud.show_hand(true)
+		"marking":
+			# The real bug this verifies: a rebuilt room used to leave a
+			# stale marking desk that silently killed the homework screen
+			# for the rest of the run. new_run() rebuilds the room, so
+			# opening straight after it is exactly the scenario that broke.
+			Game.new_run(0)
+			for s: StudentData in Game.roster:
+				s.hw_state = StudentData.HW.COLLECTED
+				s.hw_true_accuracy = 0.7
+				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, Game.rng, "math")
+			hud.open_marking()
 		"school":
 			Game.coins = 999999
 			for ri in 3:

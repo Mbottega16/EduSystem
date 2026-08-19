@@ -14,7 +14,7 @@ does not have.
 ## The premise correction that matters most
 
 **PixelRoom is not a port in progress.** It is a finished, working Godot
-4.7 game: 1062 assertions, 29 items, 40 lessons, 120 concepts, a balance
+4.7 game: 1067 assertions, 29 items, 40 lessons, 120 concepts, a balance
 contract measured from simulated play, and five verification tools.
 
 Any advice framed as "how to move EduSystems into Godot" is answering a

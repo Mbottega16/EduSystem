@@ -179,6 +179,37 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **The homework screen went silent, for real players, permanently,
+      after the first room rebuild.** *(Aug 2026 -- real bug, user-
+      reported: "we broke the homework page as now it shows nothing".)*
+      Root cause: `RoomBuilder.add_prop()` puts the "room_part" group on
+      the PROP (a StaticBody2D), not on the Interactable, which is a
+      CHILD of that prop. `rebuild_room()` calls `queue_free()` on the
+      prop; the child's own `is_queued_for_deletion()` stays false right
+      up until the deferred free actually runs, even though
+      `remove_child()` already took it out of the tree. `Game.new_run()`
+      rebuilds the room every time, and the crash happened INSIDE
+      `_pick_target()`, which aborts `_physics_process()` before `targets`
+      ever refreshes -- so the marking desk went untargetable for the rest
+      of the run, silently, no error a player would ever see, just a
+      button that stopped doing anything.
+      Fixed at both the caller (`player.gd`'s `_pick_target()`/`_live()`
+      now check `is_inside_tree()`, the actual general check, not
+      `is_queued_for_deletion()`) and the source (`marking_desk.gd`'s own
+      `_carrier()` no longer calls `get_tree()` on a detached node). A
+      dedicated regression test forces the exact rebuild path and polls
+      immediately, no `await`, to hit the narrow window. Verified live:
+      screenshotted the marking screen straight after a fresh
+      `new_run()` and confirmed it renders real content.
+      **Only `marking_desk.gd` called `get_tree()` directly** among all
+      the Interactable subclasses -- checked, so this was not a wider
+      pattern needing a sweep.
+      **Found, not fixed, out of scope for this pass:**
+      `Placement._refresh()` throws `Cannot call method 'get_height' on a
+      null value` -- a null `_ghost.texture`, unrelated to the
+      tree-detachment class of bug above. Confined to a manual `.tile` +
+      `._refresh()` poke in `test_build_mode` rather than the normal
+      `begin()` flow, so lower urgency; still needs a real fix.
 - [x] **Grading felt too hard, and the hand of cards is now a real
       shuffle of 3-7.** *(Aug 2026.)* Grade LETTER bands (not the pillar
       itself) moved from hardcoded A .88/B .75/C .62/D .50/E .38 in

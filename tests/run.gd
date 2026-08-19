@@ -193,6 +193,7 @@ func _main() -> void:
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
+	await test_stale_interactable_after_rebuild()
 	await test_inspection()
 	await test_disruption()
 	await test_overlays()
@@ -3609,6 +3610,46 @@ func test_quiz_buff_and_calm() -> void:
 	Game.new_run(SEED)
 	await step(2)
 
+
+func test_stale_interactable_after_rebuild() -> void:
+	section("A REBUILT ROOM DOES NOT LEAVE A CORPSE TARGETABLE")
+	# THE BUG THIS GUARDS: RoomBuilder.add_prop() puts the "room_part" group
+	# on the PROP (a StaticBody2D), and the Interactable is a CHILD of that
+	# prop. rebuild_room() calls queue_free() on the PROP, not the child --
+	# so the child's own is_queued_for_deletion() stays false right up
+	# until the deferred free actually runs, even though remove_child()
+	# already took it out of the tree. Every Game.new_run() rebuilds the
+	# room, so this fired constantly and, because the crash happens INSIDE
+	# _pick_target(), aborted _physics_process before targets ever got
+	# refreshed -- which is what silently killed the homework screen: the
+	# marking desk stopped being targetable for the rest of the run.
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(5)
+
+	var old_desk: Interactable = world.teacher_desk
+	chk("there is a teacher's desk to go stale", old_desk != null)
+
+	# Force the exact rebuild path new_run() itself triggers, then poll
+	# immediately -- NO awaiting a frame, which is the narrow window where
+	# the physics server can still hand back the just-detached node.
+	Game.room_resized.emit()
+	chk("the old desk is still a valid object, right after rebuild",
+		is_instance_valid(old_desk))
+	chk("but it is no longer in the tree -- the actual, general check",
+		not old_desk.is_inside_tree())
+
+	# The real regression: calling can_interact() on that exact object
+	# used to throw and abort _physics_process. It must not throw, and it
+	# must not be worth interacting with.
+	chk("a detached interactable is never offered", not old_desk.can_interact())
+
+	var picked: Interactable = world.player._pick_target()
+	chk("picking a target right after rebuild does not crash or return the corpse",
+		picked == null or picked != old_desk)
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_teaching() -> void:
