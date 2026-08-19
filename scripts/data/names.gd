@@ -14,6 +14,15 @@ const FIRST := [
 	"Asa", "Bree", "Cass", "Dov", "Esme", "Fern", "Gil", "Halle",
 	"Ida", "Jonah", "Kit", "Lark", "Mabel", "Ned", "Opal", "Pia",
 	"Quinn", "Rosa", "Silas", "Tess", "Uma", "Vince", "Willa", "Zane",
+	# --- content batch, August 2026 ---
+	"Ravi", "Asha", "Inez", "Sana", "Yara", "Arlo",
+	"Enzo", "Maya", "Niam", "Owen", "Ruth", "Lena",
+	"Mina", "Kian", "Ewan", "Anya", "Rafi", "Suki",
+	"Nia", "Zara", "Amir", "Luca", "Niko", "Sara",
+	"Tara", "Ari", "Eden", "Kira", "Mika", "Omar",
+	"Hana", "Leif", "Laya", "Timo", "Vera", "Sami",
+	"Ayla", "Dara", "Lior", "Mara", "Rhea", "Tali",
+	"Amin", "Nilo", "Eira", "Cora", "Romy", "Zuri",
 ]
 
 const LAST := [
@@ -21,6 +30,13 @@ const LAST := [
 	"Nash", "Pike", "Lund", "Ono", "Quill", "Vega", "Wood", "Sol",
 	"Bly", "Kerr", "Marsh", "Finch", "Doyle", "Rowe", "Tate", "Voss",
 	"Ames", "Bex", "Croft", "Dunn", "Ellis", "Ford", "Gale", "Hart",
+	# --- content batch, August 2026 ---
+	"Singh", "Khan", "Shah", "Patel", "Mehta", "Roy",
+	"Das", "Lin", "Wong", "Tran", "Kim", "Lee",
+	"Lopez", "Diaz", "Rios", "Soto", "Cano", "Mori",
+	"Sato", "Ito", "Yoon", "Choi", "Bhat", "Nair",
+	"Rao", "Gill", "Bose", "Ali", "Dean", "Gray",
+	"King", "Lane",
 ]
 
 ## Eight generated sprite sheets — see CHARACTERS in tools/make_art.py.

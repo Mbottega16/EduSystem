@@ -38,6 +38,16 @@ const BANK_ELA := [
 	{"q": "a word that rhymes with though", "a": "slow", "wrong": ["cough", "rough", "through"]},
 	{"q": "plural of mouse", "a": "mice", "wrong": ["mouses", "mices", "meese"]},
 	{"q": "adjective in: the tall tree", "a": "tall", "wrong": ["tree", "the", "grows"]},
+	{"q": "plural of mouse", "a": "mice", "wrong": ["mouses", "mices", "mouse"]},
+	{"q": "past tense of teach", "a": "taught", "wrong": ["teached", "teach", "teaching"]},
+	{"q": "opposite of narrow", "a": "wide", "wrong": ["thin", "small", "short"]},
+	{"q": "noun in: birds flew", "a": "birds", "wrong": ["flew", "in", "the"]},
+	{"q": "adjective in: red coat", "a": "red", "wrong": ["coat", "the", "in"]},
+	{"q": "plural of knife", "a": "knives", "wrong": ["knifes", "knivs", "knife"]},
+	{"q": "past tense of catch", "a": "caught", "wrong": ["catched", "catch", "catching"]},
+	{"q": "synonym for angry", "a": "cross", "wrong": ["calm", "quiet", "happy"]},
+	{"q": "verb in: Sam ran home", "a": "ran", "wrong": ["Sam", "home", "the"]},
+	{"q": "rhymes with light", "a": "night", "wrong": ["late", "left", "lit"]},
 ]
 
 const BANK_SCIENCE := [
@@ -53,6 +63,13 @@ const BANK_SCIENCE := [
 	{"q": "water at 100 C becomes", "a": "steam", "wrong": ["ice", "frost", "snow"]},
 	{"q": "the part of a plant that takes in water", "a": "roots", "wrong": ["leaves", "flower", "stem"]},
 	{"q": "how many planets orbit the Sun", "a": "8", "wrong": ["9", "7", "12"]},
+	{"q": "planet we live on", "a": "Earth", "wrong": ["Mars", "Venus", "Jupiter"]},
+	{"q": "liquid to gas change", "a": "evaporation", "wrong": ["freezing", "melting", "condensing"]},
+	{"q": "main gas in air", "a": "nitrogen", "wrong": ["oxygen", "carbon dioxide", "hydrogen"]},
+	{"q": "what carries pollen", "a": "insects", "wrong": ["rocks", "roots", "clouds"]},
+	{"q": "energy from the Sun", "a": "solar energy", "wrong": ["sound energy", "chemical energy", "wind"]},
+	{"q": "animal with a backbone", "a": "vertebrate", "wrong": ["invertebrate", "insect", "mollusc"]},
+	{"q": "gas plants take in", "a": "carbon dioxide", "wrong": ["oxygen", "nitrogen", "hydrogen"]},
 ]
 
 const BANK_SOCIAL := [
@@ -68,6 +85,18 @@ const BANK_SOCIAL := [
 	{"q": "the imaginary line at 0 degrees latitude", "a": "the equator", "wrong": ["the prime meridian", "the tropics", "the axis"]},
 	{"q": "people moving to a new country", "a": "immigration", "wrong": ["emigration", "migration", "tourism"]},
 	{"q": "a raised area of land, higher than a hill", "a": "mountain", "wrong": ["valley", "plateau", "basin"]},
+	{"q": "largest continent", "a": "Asia", "wrong": ["Africa", "Europe", "North America"]},
+	{"q": "ocean east of Maryland", "a": "Atlantic", "wrong": ["Pacific", "Indian", "Arctic"]},
+	{"q": "Maryland state nickname", "a": "Old Line State", "wrong": ["Sunshine State", "Golden State", "Bay State"]},
+	{"q": "lines running north to south", "a": "longitude", "wrong": ["latitude", "equator", "altitude"]},
+	{"q": "land surrounded by water", "a": "island", "wrong": ["peninsula", "valley", "plateau"]},
+	{"q": "map symbol key", "a": "legend", "wrong": ["scale", "compass", "grid"]},
+	{"q": "Maryland borders this state to west", "a": "West Virginia", "wrong": ["Virginia", "Delaware", "Pennsylvania"]},
+	{"q": "money used to buy goods", "a": "currency", "wrong": ["resource", "trade", "tax"]},
+	{"q": "people who make laws", "a": "legislators", "wrong": ["judges", "voters", "citizens"]},
+	{"q": "a vote in an election", "a": "ballot", "wrong": ["petition", "law", "census"]},
+	{"q": "goods bought from abroad", "a": "imports", "wrong": ["exports", "resources", "taxes"]},
+	{"q": "goods sold abroad", "a": "exports", "wrong": ["imports", "wages", "resources"]},
 ]
 
 const BANK := [
@@ -83,6 +112,18 @@ const BANK := [
 	{"q": "5 x 12", "a": "60", "wrong": ["50", "55", "72"]},
 	{"q": "144 / 12", "a": "12", "wrong": ["14", "11", "24"]},
 	{"q": "17 + 17", "a": "34", "wrong": ["24", "35", "44"]},
+	{"q": "6 x 9", "a": "54", "wrong": ["45", "56", "63"]},
+	{"q": "84 / 7", "a": "12", "wrong": ["11", "13", "14"]},
+	{"q": "36 + 48", "a": "84", "wrong": ["74", "82", "86"]},
+	{"q": "90 - 47", "a": "43", "wrong": ["42", "47", "53"]},
+	{"q": "25 x 4", "a": "100", "wrong": ["90", "80", "105"]},
+	{"q": "half of 86", "a": "43", "wrong": ["42", "46", "48"]},
+	{"q": "one quarter of 40", "a": "10", "wrong": ["5", "15", "20"]},
+	{"q": "3/4 of 20", "a": "15", "wrong": ["12", "14", "16"]},
+	{"q": "perimeter of a 5 by 3", "a": "16", "wrong": ["15", "18", "20"]},
+	{"q": "7 x 12", "a": "84", "wrong": ["72", "77", "96"]},
+	{"q": "1000 / 10", "a": "100", "wrong": ["10", "110", "1000"]},
+	{"q": "0.5 as a fraction", "a": "1/2", "wrong": ["1/5", "5/1", "2/5"]},
 ]
 
 const QUESTIONS_PER_SHEET := 3

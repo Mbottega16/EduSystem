@@ -179,6 +179,117 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **Content batch: Tasks 2, 5–11, from two independent model runs.**
+      *(Aug 2026.)* Both ChatGPT and Gemini were sent the same task pack;
+      each task was scored against its own prompt's rules and the real
+      checkers (`check_items.py`, `check_traits.py`) rather than
+      integrated on trust. Task 3 was already done in a prior session —
+      both models re-sent it anyway; ignored.
+
+      **Task 2 (21 items) — REJECTED, 16 of 16 problems real.** Every
+      `teaches`/`needs` concept id was fabricated -- none exist in
+      `curriculum.json` (`patterns_sequences.rules`,
+      `citizenship.rights`, etc., all invented). Also: 0/7 teaches, 0/5
+      needs (the fabricated ones do not count), `sensory_corner` is 14
+      chars against a 13 limit, and the `seating` category got zero
+      items against a 2 minimum. Nothing integrated. Needs a resend with
+      `curriculum.json` actually read.
+
+      **Task 5 (6 staff archetypes) — ChatGPT's, all landed.** No
+      strict-dominance violations against any of the existing six
+      (checked programmatically: reaction/wage/teaches/collects/settles/
+      quizzes on every pair), every blurb ≤47 chars, no id collisions.
+      `staff.gd`: 6 → 12 archetypes. Re-verified with
+      `Simulate the School.bat`: the twelve-archetype spread is still
+      0.48 (D) to 0.68 (C) -- same range as the original six, so nothing
+      dominates the pool.
+
+      **Task 6 (15 milestones) — 7 of 15, ChatGPT's only.** Gemini's 15
+      skipped the prompt's central requirement (a proof line from state
+      the engine actually keeps) entirely and used Title Case names
+      against house style; rejected outright. ChatGPT's followed the
+      rule and even filed three ideas under NEEDS NEW STATE rather than
+      inventing engine state -- but 8 of its 15 turned out to duplicate
+      an EXISTING milestone once checked against `milestones.gd`'s real
+      proof code: `quiet_excellence` == `outstanding`, `learned_it_all`
+      and `full_curriculum` both == `polymath` (the second also hardcoded
+      a stale 60 against the current 120), `big_room` == `grown`,
+      `proper_room` a weaker `furnished`, `clean_run` == `full_house`
+      verbatim (the task pack's OWN worked example for `full_house`),
+      and `hard_choice` both near-duplicates `legendary_done` and checks
+      a condition (`rarity == "Legendary"`, wrong case) that does not
+      actually confirm the paper was finished. The 7 that survived:
+      `no_empty_chairs`, `wall_to_wall`, `good_enough`, `thin_day`,
+      `enough_money`, `one_went_wrong`, `still_here` -- two blurbs
+      trimmed to fit 47 chars, `no_empty_chairs` proved against
+      `Balance.class_hard_cap` (24) rather than the literal old cap of 8
+      so it stays meaningful now desks are buyable past the start.
+      `milestones.gd`: 15 → 22.
+
+      **Task 7 (11 day events) — ChatGPT's, all landed.** Gemini's 11
+      carried zero mechanical hooks -- pure flavour text against a
+      prompt whose Rule 1 is "each must change a real number" -- and
+      omitted `weight` entirely, both of which are hard schema failures
+      with no fix short of a resend. ChatGPT's carried real hooks, every
+      blurb ≤55 chars, and its full rebalanced 20-row table (existing 9
+      re-weighted plus 11 new) sums to exactly 100 with `none` still the
+      largest by a wide margin (30 vs next-highest 8). `events.gd`: 9 →
+      20 events.
+
+      **Task 8 (48 questions) — 41 of 48, ChatGPT's only.** Gemini's
+      broke house style throughout (question marks and capitals against
+      the existing lowercase-fragment style the prompt explicitly asked
+      to match), had zero Maryland content in the social bank despite
+      the prompt naming that requirement directly, and included one
+      openly silly wrong answer (`London` for "capital of the USA").
+      Rejected. ChatGPT's passed every mechanical check (lengths, exactly
+      three wrongs, no wrong equal to the answer) but two were fixed by
+      hand after a correctness read: `0.5 as a fraction` offered `5/10`
+      as a WRONG answer, which is mathematically equal to `1/2` (swapped
+      for `5/1`); `Maryland state nickname` offered `Free State` as
+      wrong, which is also a real, commonly-used Maryland nickname
+      (swapped for `Sunshine State`). Two more were dropped as exact
+      duplicates of existing bank entries the model had been given but
+      restated anyway (`correct spelling` / necessary, `opposite of
+      ancient` / modern, both already in `BANK_ELA`), and five science
+      questions were dropped as near-duplicates of existing facts tested
+      from the other side (`force that pulls down` == existing gravity
+      question, `metal attracted to magnets` == existing iron question,
+      etc). `questions.gd`: math 12→24, ela 12→22, science 12→19,
+      social 12→24 (89 total, short of the 96 target because duplicates
+      were dropped rather than kept to hit a number).
+      Also fixed a test that broke as a direct, honest consequence of
+      the bank actually growing: `test_curriculum`'s maths-homework check
+      used to grep the sampled question for `x` or `+` as a proxy for
+      "looks like arithmetic" -- true of every old question, false of
+      new ones like `half of 86` or `one quarter of 40`. Rewrote it to
+      check the real thing (the question is one of `Questions.bank_for
+      ("math")`'s own) instead of guessing at its shape.
+
+      **Task 9 (Steam page) and Task 10 (audio brief) — ChatGPT's,
+      saved as docs, no code.** Gemini's Steam page had no tagline,
+      features or screenshot order; its audio brief was one
+      unstructured paragraph against a prompt asking for named cues,
+      lengths and moods. ChatGPT's followed the schema fully. Saved
+      verbatim as `docs/STEAM_PAGE.md` and `docs/AUDIO_BRIEF.md` --
+      copy only, nothing here touches balance, and no music or SFX
+      assets exist yet for anything the brief names.
+
+      **Task 11 (80 names) — ChatGPT's, all landed.** Gemini's list was
+      24 adult names with no FIRST/LAST split and most well over the
+      5-character hard limit (`Josephine`, `Penelope`, `Beatrice`) --
+      rejected outright, not a partial. ChatGPT's 48 first / 32 surnames
+      all landed inside 3–5 characters, none collided with the existing
+      pool or each other. `names.gd`: 48 → 96 first, 32 → 64 surnames.
+
+      1090 -> 1098 assertions (net zero from the new content itself --
+      the only test change was the maths-homework rewrite). Balance
+      contract re-verified (`Simulate a Term.bat`: still C / C / A).
+      `check_docs.py` and `check_balance.py` both clean. Docs synced:
+      the "content plan" and "content, counted" tables in `docs/GDD.md`,
+      and `docs/SALVAGE.md`'s milestone count -- both had ALSO gone
+      stale on traits (still said 6, live count has been 12 since a
+      prior session) and that was fixed in passing.
 - [x] **A one-key dev room, and a real bug in the panel that made it.**
       *(Aug 2026 -- user request: "make me a dev room with max coins,
       itms, stuudents, sstats, etc.")* The F1 dev panel already had

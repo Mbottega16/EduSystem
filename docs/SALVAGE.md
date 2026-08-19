@@ -64,7 +64,7 @@ re-reading before adding any system.
   **50 furniture pieces that each earn their slot beat 273 that exist
   because the list looked short.**
 - **Achievement bloat** — 30 challenges plus 30 accolades plus prestige.
-  PixelRoom has 15 milestones that pay nothing and gate nothing.
+  PixelRoom has 22 milestones that pay nothing and gate nothing.
 
 ---
 

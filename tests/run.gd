@@ -6075,9 +6075,17 @@ func test_curriculum() -> void:
 	rng.seed = 5
 	var math_sheet := Questions.make_sheet(1.0, rng, "math")
 	var ela_sheet := Questions.make_sheet(1.0, rng, "ela")
-	chk("a maths lesson sets maths homework",
-		String(math_sheet["items"][0]["q"]).findn("x") >= 0
-		or String(math_sheet["items"][0]["q"]).findn("+") >= 0,
+	# Was "does the question contain an x or a +" -- a proxy for "came from
+	# the maths bank" that broke the day the bank grew to include halves,
+	# quarters and perimeters, none of which use either symbol. Check the
+	# actual thing the test is FOR: the question is one of the math bank's
+	# own, not a guess at what a maths question looks like.
+	chk("a maths lesson sets maths homework", (func() -> bool:
+		var q := String(math_sheet["items"][0]["q"])
+		for item: Dictionary in Questions.bank_for("math"):
+			if String(item["q"]) == q:
+				return true
+		return false).call(),
 		math_sheet["items"][0]["q"])
 	chk("an English lesson does NOT set arithmetic", (func() -> bool:
 		for it: Dictionary in ela_sheet["items"]:

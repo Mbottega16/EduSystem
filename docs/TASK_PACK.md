@@ -193,7 +193,7 @@ is a rule it will explain away.**
 
 ---
 
-## Task 2 — Twenty-one more items of furniture ⭐ SEND THIS NEXT
+## Task 2 — Twenty-one more items of furniture ❌ REJECTED (August 2026, ChatGPT round) — resend, see docs/AUTONOMOUS_TASKLIST.md for the exact reasons
 
 **Attach:** `data/balance.json`, `data/curriculum.json`
 
@@ -567,7 +567,7 @@ Output as Markdown. No JSON in this one.
 
 ---
 
-## Task 5 — Six more staff archetypes
+## Task 5 — Six more staff archetypes ✅ DONE (August 2026)
 
 **Attach:** `data/balance.json`
 
@@ -660,7 +660,7 @@ naming the class you would give them and the class you would not.
 
 ---
 
-## Task 6 — Fifteen more milestones
+## Task 6 — Fifteen more milestones ⚠️ PARTIAL (August 2026) — 7 of 15 landed, see docs/AUTONOMOUS_TASKLIST.md
 
 **Attach:** `data/balance.json`
 
@@ -769,7 +769,7 @@ milestone. Then NEEDS NEW STATE, if any.
 
 ---
 
-## Task 7 — Eleven more day events
+## Task 7 — Eleven more day events ✅ DONE (August 2026)
 
 **Attach:** `data/balance.json`
 
@@ -856,7 +856,7 @@ OUTPUT
 
 ---
 
-## Task 8 — The homework question banks
+## Task 8 — The homework question banks ⚠️ PARTIAL (August 2026) — 41 of 48 landed, see docs/AUTONOMOUS_TASKLIST.md
 
 **Attach:** none needed — everything is in the prompt.
 
@@ -943,7 +943,7 @@ array of 12, in a single code block. No other commentary.
 
 ---
 
-## Task 9 — The Steam page
+## Task 9 — The Steam page ✅ DONE (August 2026) — see docs/STEAM_PAGE.md
 
 **Attach:** `docs/GDD.md`
 
@@ -996,7 +996,7 @@ Output as Markdown.
 
 ---
 
-## Task 10 — The audio brief
+## Task 10 — The audio brief ✅ DONE (August 2026) — see docs/AUDIO_BRIEF.md
 
 **Attach:** `docs/GDD.md`
 
@@ -1053,7 +1053,7 @@ Output as Markdown.
 
 ---
 
-## Task 11 — Names
+## Task 11 — Names ✅ DONE (August 2026)
 
 **Attach:** none needed — everything is in the prompt.
 

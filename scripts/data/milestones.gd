@@ -67,6 +67,22 @@ const TABLE := [
 		"blurb": "Two thousand coins, and somewhere to spend them."},
 	{"id": "legendary_done", "name": "They finished it",
 		"blurb": "You set a Legendary paper and the class handed it in."},
+
+	# --- content batch, August 2026 ---
+	{"id": "no_empty_chairs", "name": "No empty chairs",
+		"blurb": "You filled the room and kept it moving."},
+	{"id": "wall_to_wall", "name": "Wall to wall",
+		"blurb": "You filled the room with things worth having."},
+	{"id": "good_enough", "name": "Good enough",
+		"blurb": "Passed inspection without needing to impress."},
+	{"id": "thin_day", "name": "A thin day",
+		"blurb": "You taught a class with room left empty."},
+	{"id": "enough_money", "name": "Something to spend",
+		"blurb": "You finally had enough money to stop counting."},
+	{"id": "one_went_wrong", "name": "One got away",
+		"blurb": "Not everyone made it. You remember who did not."},
+	{"id": "still_here", "name": "Still here",
+		"blurb": "Another term passed and you came back."},
 ]
 
 
@@ -110,6 +126,13 @@ static func newly_earned(told: Array) -> Array[String]:
 		"outstanding": _an_outstanding_inspection(),
 		"hard_unit": _passed_a_hard_unit(),
 		"legendary_done": _finished_a_legendary(),
+		"no_empty_chairs": Game.roster.size() >= Balance.class_hard_cap,
+		"wall_to_wall": Game.room_items.size() >= 29,
+		"good_enough": String(Game.last_inspection.get("letter", "")) == "B",
+		"thin_day": Game.roster.size() > 0 and Game.roster.size() < Balance.class_cap,
+		"enough_money": Game.coins >= 1000,
+		"one_went_wrong": _a_term_fell_short(),
+		"still_here": Game.term_history.size() >= 2,
 	}
 
 	for m: Dictionary in TABLE:
@@ -169,5 +192,15 @@ static func _finished_a_legendary() -> bool:
 		return false
 	for s: StudentData in Game.roster:
 		if s.work_state == StudentData.Work.COLLECTED:
+			return true
+	return false
+
+
+## A term where somebody did NOT make it -- the inverse of full_house,
+## read from the record so it survives a reload same as full_house does.
+static func _a_term_fell_short() -> bool:
+	for row: Dictionary in Game.term_history:
+		if int(row.get("total", 0)) > 0 \
+				and int(row.get("passed", 0)) < int(row.get("total", 0)):
 			return true
 	return false

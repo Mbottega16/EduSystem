@@ -14,45 +14,100 @@ const TABLE := [
 		"blurb": "Nothing out of the usual.",
 	},
 	{
-		"id": "restless", "weight": 12, "name": "Restless class",
+		"id": "restless", "weight": 8, "name": "Restless class",
 		"blurb": "Something in the air. They will get stuck more today.",
 		"stall_mult": 1.6,
 	},
 	{
-		"id": "focused", "weight": 12, "name": "Unusually focused",
+		"id": "focused", "weight": 8, "name": "Unusually focused",
 		"blurb": "Whatever you did yesterday, it stuck.",
 		"stall_mult": 0.55,
 	},
 	{
-		"id": "short_day", "weight": 10, "name": "Assembly this morning",
+		"id": "short_day", "weight": 7, "name": "Assembly this morning",
 		"blurb": "The lesson is cut short. Prioritise.",
 		"lesson_mult": 0.65,
 	},
 	{
-		"id": "long_day", "weight": 8, "name": "Double period",
+		"id": "long_day", "weight": 5, "name": "Double period",
 		"blurb": "Twice as long to get round everyone.",
 		"lesson_mult": 1.5,
 	},
 	{
-		"id": "inspector", "weight": 8, "name": "An inspector is visiting",
+		"id": "inspector", "weight": 5, "name": "An inspector is visiting",
 		"blurb": "They will watch the lesson. Have the room ready.",
 		"inspection": true,
 	},
 	{
-		"id": "wet_play", "weight": 8, "name": "Wet play",
+		"id": "wet_play", "weight": 5, "name": "Wet play",
 		"blurb": "Nobody went outside. They are fidgety but they are here.",
 		"stall_mult": 1.3,
 		"coin_mult": 1.2,
 	},
 	{
-		"id": "budget", "weight": 6, "name": "Budget came through",
+		"id": "budget", "weight": 3, "name": "Budget came through",
 		"blurb": "A little extra to spend on the room.",
 		"bonus_coins": 120,
 	},
 	{
-		"id": "keen", "weight": 6, "name": "Homework club ran late",
+		"id": "keen", "weight": 3, "name": "Homework club ran late",
 		"blurb": "Everyone did their homework last night.",
 		"homework_sure": true,
+	},
+	{
+		"id": "fire_drill", "weight": 4, "name": "Fire drill",
+		"blurb": "Everyone is out, then back before you know it.",
+		"lesson_mult": 0.75,
+	},
+	{
+		"id": "heatwave", "weight": 3, "name": "Heatwave",
+		"blurb": "The room is warm and nobody is in a hurry.",
+		"stall_mult": 1.35,
+	},
+	{
+		"id": "bug", "weight": 2, "name": "Half the class is away",
+		"blurb": "Half the class is away with a bug.",
+		"coin_mult": 0.7,
+	},
+	{
+		"id": "visiting_speaker", "weight": 2, "name": "Visiting speaker",
+		"blurb": "The morning is busy, but the children are keen.",
+		"lesson_mult": 0.8, "coin_mult": 1.2,
+	},
+	{
+		"id": "photocopier", "weight": 2, "name": "Photocopier trouble",
+		"blurb": "The copies took longer than the lesson.",
+		"lesson_mult": 1.25,
+	},
+	{
+		"id": "supply_teacher", "weight": 2, "name": "Supply teacher",
+		"blurb": "Someone new is teaching next door today.",
+		"coin_mult": 0.9,
+	},
+	{
+		"id": "cold_snap", "weight": 2, "name": "Cold snap",
+		"blurb": "Everyone arrived wrapped up and ready to work.",
+		"stall_mult": 0.8,
+	},
+	{
+		"id": "after_school_club", "weight": 2, "name": "After school club",
+		"blurb": "The building is busy late into the afternoon.",
+		"homework_sure": true,
+	},
+	{
+		"id": "small_grant", "weight": 3, "name": "Small grant",
+		"blurb": "A little funding arrived at just the right time.",
+		"bonus_coins": 60,
+	},
+	{
+		"id": "cleaning", "weight": 2, "name": "Deep cleaning",
+		"blurb": "Everything smells clean and slightly unfamiliar.",
+		"lesson_mult": 0.9,
+	},
+	{
+		"id": "sports_day", "weight": 2, "name": "Sports day",
+		"blurb": "They are tired, cheerful, and ready for home.",
+		"stall_mult": 1.2, "coin_mult": 1.15,
 	},
 ]
 

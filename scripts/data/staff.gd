@@ -70,6 +70,42 @@ const ARCHETYPES := [
 		"reaction": 2.0, "teaches": true, "collects": true,
 		"settles": true, "quizzes": true, "wage": 52,
 	},
+	{
+		"id": "settler", "name": "Settler",
+		"blurb": "Restores order quickly. Misses quiet trouble.",
+		"reaction": 1.5, "teaches": true, "collects": false,
+		"settles": true, "quizzes": false, "wage": 27,
+	},
+	{
+		"id": "examiner", "name": "Examiner",
+		"blurb": "Checks for gaps. Slow and poor at settling.",
+		"reaction": 7.0, "teaches": true, "collects": false,
+		"settles": false, "quizzes": true, "wage": 23,
+	},
+	{
+		"id": "carer", "name": "Carer",
+		"blurb": "Good with struggling pupils. Misses paperwork.",
+		"reaction": 3.5, "teaches": true, "collects": false,
+		"settles": true, "quizzes": true, "wage": 29,
+	},
+	{
+		"id": "slow_marker", "name": "Slow marker",
+		"blurb": "Checks every sheet. Slow to spot trouble.",
+		"reaction": 10.0, "teaches": true, "collects": true,
+		"settles": false, "quizzes": true, "wage": 19,
+	},
+	{
+		"id": "quiet_hand", "name": "Quiet hand",
+		"blurb": "Catches work well. Does not settle noise.",
+		"reaction": 6.0, "teaches": true, "collects": true,
+		"settles": false, "quizzes": false, "wage": 20,
+	},
+	{
+		"id": "first_response", "name": "First response",
+		"blurb": "Gets to trouble fast. Leaves work behind.",
+		"reaction": 1.5, "teaches": true, "collects": false,
+		"settles": false, "quizzes": false, "wage": 25,
+	},
 ]
 
 

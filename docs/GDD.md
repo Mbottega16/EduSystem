@@ -303,12 +303,12 @@ milestone and having taught it, not a number going up.
 | Concepts | **120** (exactly 3 per lesson) |
 | Strands | 4 — Maths, English, Science, Humanities |
 | Furniture | **29** in 5 categories; 5 teach a concept, 3 are gated behind one |
-| Student traits | **6** — Quiet, Curious, Chatty, Steady, Copies, Bright spark |
-| Day events | **9**, weighted to 100 |
+| Student traits | **12** — Quiet, Curious, Chatty, Steady, Copies, Bright spark, Loud, Shy, Restless, Panics, Anchor, Ghost |
+| Day events | **20**, weighted to 100 |
 | Assignment rarities × forms | **5 × 5** |
 | Teacher perks | **5** (10 rank purchases) |
-| Names | 48 first, 32 surnames, 8 sprite sheets |
-| Homework questions | 48, 3 to a sheet |
+| Names | 96 first, 64 surnames, 8 sprite sheets |
+| Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 15 modes |
 | Input actions | 15 (14 rebindable) |
@@ -512,11 +512,11 @@ learn about multiple rooms before Phase 2.
 | Lessons | 20 | **40** | 8 per strand across 5 difficulty bands |
 | Concepts | 60 | **120** | 3 per lesson, automatic |
 | Furniture | 29 | **50** | more per category, and room-type-specific |
-| Traits | 6 | **12** | each must change what the player *does* |
-| Day events | 9 | **20** | |
-| Staff archetypes | 0 | **12** | policy combinations with names and wages |
+| Traits | 12 | 12 | done -- each changes what the player *does* |
+| Day events | 20 | 20 | done -- 20 rows, weights total exactly 100 |
+| Staff archetypes | 12 | 12 | done -- policy combinations with names and wages |
 | Room types | 1 | **5** | year groups; see the tier design below |
-| Milestones | 0 | **30** | |
+| Milestones | 22 | **30** | 7 landed in the August 2026 batch; 8 more were rejected for duplicating existing milestones or citing state the game does not keep |
 
 ### On the citation rule
 
@@ -668,7 +668,7 @@ plays a term of delegated rooms and prints the evening board:
 Room 2 is a Veteran with furniture, Room 3 a Supply teacher with none,
 Room 4 nobody at all. Three visibly different rooms; the board moves day to
 day; and an unstaffed room is a flat wall of F that reads as a problem you
-have to go and solve. Across the six archetypes the same class scores
+have to go and solve. Across the twelve archetypes the same class scores
 **0.48 (D) to 0.68 (C)** with different failure modes — one leaves work
 uncollected, another loses the room, another never spots who is behind.
 (Re-verified against `Simulate the School.bat` after the August 2026 grade
