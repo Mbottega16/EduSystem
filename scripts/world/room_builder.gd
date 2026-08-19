@@ -27,6 +27,7 @@ const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
+const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 
 
@@ -309,6 +310,20 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	cur.set_pick_radius(9.0)
 
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
+	return it
+
+
+## The hole in the left wall, which is already a walkable gap students spawn
+## through. No sprite and no collider of its own -- the wall art already
+## draws the doorway, and blocking it would undo the very thing that makes
+## it a door. Just a trigger sitting where the wall already has a hole.
+static func build_hall_door(parent: Node2D, _grid: Grid) -> Interactable:
+	var it := Interactable.new()
+	it.set_script(HALL_DOOR_SCRIPT)
+	it.door_kind = "home"
+	it.leads_out = true
+	it.position = Grid.tile_to_world(Layout.DOOR)
+	parent.add_child(it)
 	return it
 
 

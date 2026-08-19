@@ -14,7 +14,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 |---|---|---|
 | Arrows / WASD | walk | yes |
 | **E** / Space | **help, collect, hand in, call a quiz, sit a test** | yes |
-| **F** | **start or end a lesson, ring the bell, open the shop, move a desk** | yes |
+| **F** | **start or end a lesson, ring the bell, open the shop, move a desk, step through a door** | yes |
 | **Q** | **settle the room within earshot** | yes |
 | **B** | **rearrange the room from a free cursor** | yes |
 | Shift | hurry (1.7x) | yes |
@@ -140,6 +140,21 @@ because you were told the night before:
 
 A pass pays a grant. Everything judged is something the game already
 tracked, and every verdict is a sentence rather than a decimal.
+
+## Holding more than one room
+
+Once your standing allows it, your own door is not just a doorway — walk
+up to it outside a lesson and step through into a **hallway**. Every room
+you hold is a real door in it, in the order you opened them: your own
+leads back in; a staffed delegated room's opens straight to watching its
+day; an unstaffed one opens hiring; and there is always one more door for
+the next room, but only when you can actually afford to open it — a
+locked door with nothing behind it is not shown at all.
+
+Walking into a delegated room does not let you teach it yourself. It is
+still resolved the way it always was — by running the real lesson model
+against its hired teacher's policy — the hallway is just a faster,
+physical way to reach that room's own screen than hunting through a menu.
 
 ## Three things that carry the load for you
 
@@ -361,7 +376,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1106 assertions
+Run Tests.bat            1120 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

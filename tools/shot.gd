@@ -154,6 +154,28 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.furnish_room(0)
 			Game.resolve_rooms()
 			hud.show_school()
+		"door":
+			world.player.global_position = Grid.tile_to_world(Layout.DOOR + Vector2i(1, 0))
+			world.player.facing = Actor.DIR_LEFT
+		"hallway":
+			Game.coins = 999999
+			Game.open_room()
+			Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate()]
+			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.hire(0, 0)
+			Game.resolve_rooms()
+			var hallway: Node = main.get_node("Hallway")
+			hallway.rebuild()
+			world.player.get_parent().remove_child(world.player)
+			hallway.add_child(world.player)
+			world.player.position = hallway.entry_position()
+			hallway.refresh_camera_limits(world.camera)
+			if world.camera != null:
+				world.camera.make_current()
+				world.camera.reset_smoothing()
+			world.visible = false
+			hallway.visible = true
 		"watch":
 			Game.coins = 999999
 			Game.open_room()

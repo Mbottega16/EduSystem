@@ -191,6 +191,7 @@ func _main() -> void:
 	await test_milestones()
 	await test_buying_desks()
 	await test_the_school()
+	await test_hallway()
 	await test_dev_panel()
 	await test_teaching()
 	await test_weather()
@@ -5110,6 +5111,86 @@ func test_the_school() -> void:
 	await tap("cancel")
 	chk("Esc backs out to the school board", hud.mode == hud.Mode.SCHOOL)
 	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The hallway: your own door leads out, a door per room leads back in.
+##
+## Driven through the REAL input pipeline throughout (place_player + tap),
+## the same way the bell and podium are tested -- not by calling
+## interact() directly, which would prove the signal wiring works without
+## proving a player can actually reach it.
+func test_hallway() -> void:
+	section("HALLWAY")
+	Game.new_run(SEED)
+	await step(2)
+	var main: Node = world.get_parent()
+	var hallway: Node = main.get_node("Hallway")
+
+	chk("the door out is live outside a lesson", world.hall_door.can_interact())
+	world.start_lesson()
+	chk("but not mid-lesson", not world.hall_door.can_interact())
+	Game.set_phase(Game.Phase.AFTERNOON)
+
+	await place_player(Layout.DOOR + Vector2i(1, 0), Actor.DIR_LEFT)
+	await tap("manage")
+	chk("stepping through the door hands the player to the hallway",
+		world.player.get_parent() == hallway)
+	chk("and the room itself is hidden while you are away", not world.visible)
+	chk("the hallway is what's on screen instead", hallway.visible)
+
+	var expect_doors := 1 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
+	chk("one door per room you hold, plus your own and the next one to open",
+		hallway.doors.size() == expect_doors, hallway.doors.size())
+
+	# Open a room from inside the hallway -- the same Game.open_room() the
+	# old School screen used, just reached by walking to a door instead of
+	# pressing N from a menu.
+	var open_door: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "open":
+			open_door = d
+	chk("there is a door for the next room, since a fresh school can afford one",
+		open_door != null)
+	var rooms_before := Game.rooms.size()
+	Game.coins = 99999
+	world.player.global_position = open_door.global_position
+	await step(2)
+	await tap("manage")
+	chk("walking into it opens a room", Game.rooms.size() == rooms_before + 1)
+	chk("and the corridor rebuilds to match",
+		hallway.doors.size() == 1 + Game.rooms.size()
+			+ (1 if Game.can_open_room() else 0))
+
+	# The new room is unstaffed, so its door should offer to hire rather
+	# than to watch -- there is nothing yet to watch.
+	var room_door: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "room" and int(d.room_index) == rooms_before:
+			room_door = d
+	chk("the room you just opened has its own door", room_door != null)
+	world.player.global_position = room_door.global_position
+	await step(2)
+	await tap("manage")
+	var hud := _hud()
+	chk("an unstaffed room's door opens hiring, not watching",
+		hud.mode == hud.Mode.SCHOOL and hud._hiring)
+	hud.close()
+
+	# Home again.
+	var home_door: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "home":
+			home_door = d
+	world.player.global_position = home_door.global_position
+	await step(2)
+	await tap("manage")
+	chk("the home door hands the player back to their own room",
+		world.player.get_parent() == world)
+	chk("and the room is what's on screen again", world.visible)
+	chk("with the hallway put away", not hallway.visible)
 
 	Game.new_run(SEED)
 	await step(2)

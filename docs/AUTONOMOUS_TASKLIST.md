@@ -179,6 +179,42 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **A hallway between the rooms you hold.**
+      *(Aug 2026 -- user request: "make the ability to hold multiple
+      classrooms at a time, have it so that the teacher can step out of
+      the door of the room to walk into a hallway then can select to go
+      to a separate room once unlocked.")* The door already drawn into the
+      left wall (`Layout.DOOR`, where students spawn) now does something:
+      walk to it outside a lesson and press F to step into a real
+      corridor scene, reusing the classroom's own door art. Every room in
+      `Game.rooms` is a door in it, built by a new `hall_door.gd`
+      Interactable shared between the one door in your own room and every
+      door the hallway itself builds; your own leads back in, a staffed
+      room's opens `show_watch()`, an unstaffed one opens `show_hiring()`
+      pre-selected to it, and a locked-until-affordable door for the next
+      room only appears when `Game.can_open_room()` is actually true --
+      same "hidden, not greyed out" rule the shop follows.
+      **Deliberately does not** let the player personally teach a second
+      room at once: a delegated room is still resolved by `RoomSim`
+      exactly as before, and the hallway is a faster way to reach that
+      room's own screen, not a second body to puppet -- see the GDD's §6
+      update on why that is Phase 2, not this.
+      **Two real bugs found by screenshot, not by the suite passing:**
+      the hallway's own StaticBody2D walls were built at the same origin
+      as the classroom, so a HIDDEN corridor was colliding with the
+      player in their own room (`visible = false` does not stop
+      collision) -- caught by an EXISTING wall-collision test failing,
+      not by anything written for this feature, and fixed by parking the
+      hallway 10000px away. Then the hallway rendered completely empty on
+      its own first screenshot: the doors had no sprite at all, an
+      "offers nothing" failure of exactly the kind CLAUDE.md warns about,
+      fixed by drawing the real door art per door.
+      Regression test drives it through the REAL input pipeline
+      (`place_player` + `tap`, not calling `interact()` directly): out
+      the door, room count and door count agree, opening a room from the
+      hallway works, an unstaffed room's door routes to hiring, and the
+      home door hands the player back with the classroom visible again.
+      1106 -> 1120 assertions. Balance contract re-verified unmoved.
 - [x] **Ambient weather: day events you can see, not just read about.**
       *(Aug 2026 -- user request, with ChatGPT/Gemini unavailable: "I need
       something to make the game feel fresh... I don't care what it is.")*

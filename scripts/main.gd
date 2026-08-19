@@ -8,6 +8,7 @@ extends Node2D
 
 @onready var world: Node2D = $World
 @onready var hud: Control = $UI/HUD
+@onready var hallway: Node2D = $Hallway
 
 var placement: Placement = null
 
@@ -56,6 +57,11 @@ func _ready() -> void:
 	placement.sold.connect(func(tile: Vector2i) -> void:
 		Game.sell_item(tile))
 
+	# The hallway persists for the whole run, unlike the room's own
+	# landmarks -- it never gets torn down and rebuilt, so this connection
+	# is made once here rather than re-made in _wire_room().
+	hallway.door_chosen.connect(_on_hallway_door)
+
 
 ## The fixed props are NEW NODES after the room is rebuilt at a bigger size,
 ## so their signals have to be reconnected to match.
@@ -96,6 +102,7 @@ func _wire_room() -> void:
 		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
 		[world.teacher_desk, "marking_requested", hud.open_marking],
+		[world.hall_door, "chosen", _enter_hallway],
 	]
 	for row: Array in pairs:
 		var node: Object = row[0]
@@ -212,4 +219,75 @@ func _unlock() -> void:
 		Game.add_item(placement.item_id, _moving_from)
 		_moving_from = NOWHERE
 	world.player.input_locked = false
+
+
+## Walked through your own door. Reparents the SAME player node into the
+## hallway rather than spawning a second one -- world.player stays the one
+## true teacher throughout, which is what every test and every other system
+## already assumes it is.
+func _enter_hallway(_kind: String, _room_index: int) -> void:
+	if world.hall_door == null or not world.hall_door.can_interact():
+		return
+	hallway.rebuild()
+	var p: Actor = world.player
+	world.remove_child(p)
+	hallway.add_child(p)
+	p.position = hallway.entry_position()
+	p.facing = p.DIR_DOWN
+	# The camera is a CHILD of the player (classroom._attach_camera()), so
+	# it came along in the reparent above -- world.camera is still the
+	# right reference to it, just relocated.
+	hallway.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	world.visible = false
+	hallway.visible = true
+
+
+## The reverse: back through the home door, into the room you left exactly
+## as it was -- nothing in it was ticking while you were away, because
+## nothing in classroom._physics_process runs outside Phase.LESSON, and
+## you can only leave in the first place when you are not mid-lesson.
+func _return_home() -> void:
+	var p: Actor = world.player
+	hallway.remove_child(p)
+	world.add_child(p)
+	p.global_position = Grid.tile_to_world(Layout.DOOR + Vector2i(1, 0))
+	p.facing = p.DIR_DOWN
+	world._refresh_camera_limits()
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	hallway.visible = false
+	world.visible = true
+
+
+func _on_hallway_door(kind: String, room_index: int) -> void:
+	match kind:
+		"home":
+			_return_home()
+		"open":
+			var err := Game.open_room()
+			if err != "":
+				hud.hint_once("hallway_open_room_failed", err)
+				return
+			hallway.rebuild()
+		"room":
+			if room_index < 0 or room_index >= Game.rooms.size():
+				return
+			var r: Dictionary = Game.rooms[room_index]
+			var teacher: Dictionary = r.get("teacher", {})
+			if teacher.is_empty():
+				hud._hiring_for = room_index
+				hud.show_hiring()
+			elif hud._can_watch(room_index):
+				hud.show_watch(room_index)
+			else:
+				# Staffed, but the bell has not rung on it yet -- there is
+				# nothing to watch, but there is still something to show:
+				# the same room overview the old School screen gave, on
+				# this room, rather than silently doing nothing.
+				hud._sel = room_index
+				hud.show_school()
 

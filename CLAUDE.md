@@ -75,7 +75,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1106 assertions — must pass, count must not drop
+Run Tests.bat            1120 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -133,13 +133,13 @@ a deliberate WIP commit.
 |---|---|
 | `scripts/autoload/game.gd` | The run: day, coins, roster, grading, terms, school. The big one. |
 | `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones |
-| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement |
+| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold) |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
 | `scripts/ui/hud.gd` | Every screen. 15 modes; ten of them share `REPORT`. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1106 assertions, 74 sections |
+| `tests/run.gd` | The suite — 1120 assertions, 74 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

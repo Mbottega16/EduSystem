@@ -49,6 +49,8 @@ var podium: Interactable = null
 var teacher_desk: Interactable = null
 var bell: Interactable = null
 var noticeboard: Interactable = null
+## The way out, at the hole already in the left wall. Leads to the hallway.
+var hall_door: Interactable = null
 ## Standing at the back on inspection days. Not in `students`, so nothing
 ## that walks the roster ever mistakes them for a child.
 var inspector: Actor = null
@@ -111,6 +113,7 @@ func build() -> void:
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
 			c.curriculum_opened.connect(_on_curriculum_requested)
+	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
 	_spawn_students()
@@ -254,6 +257,7 @@ func rebuild_room() -> void:
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
 			c.curriculum_opened.connect(_on_curriculum_requested)
+	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
 	_refresh_camera_limits()
