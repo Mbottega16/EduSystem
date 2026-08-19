@@ -12,6 +12,18 @@ commit with a message that says *why*, tick it off here.
 **One task per cycle.** A cycle that touches three things cannot be
 bisected when it breaks.
 
+**Unless the tasks are genuinely independent — then run them in
+parallel.** When more than one unblocked task touches different files
+with no shared state (a different data-file section, a different tool
+script), dispatch them as separate `Agent` calls with
+`isolation: "worktree"` instead of grinding through them one at a time.
+Each agent gets its own git worktree, so they cannot step on each other's
+edits. The content-integration batches in section A are the clearest
+case: task 2 (items) and task 3 (traits) touch different sections of
+`balance.json` and were genuinely safe to validate and integrate in
+parallel once both were back. Do not parallelize tasks that touch the
+same file, or where one task's output is the input to another.
+
 ### The bar for finishing a task
 
 ```
@@ -47,12 +59,19 @@ Take a Screenshot.bat    anything visual. Headless never proves this
 These are not optional work; they are the queue. Prompts live in
 `docs/TASK_PACK.md`.
 
-- [ ] **A1. Integrate task 2 — 21 items of furniture.** Validate with
+- [ ] **A1. Integrate task 2 — 21 items of furniture.** *(One round
+      rejected Aug 2026.)* Validate with
       `python tools/check_items.py <file.json>` before touching
       `balance.json`. Reject rather than patch: an item outside the
       360–840 density window, a near-duplicate of the existing 29, a
       blurb that reads like a catalogue, or a concept link that does not
-      make sense. Then art, then a screenshot of the shop.
+      make sense. The first submission failed on all counts — every item
+      was missing `name` and `art` entirely, two ids (`beanbag`, `globe`)
+      collided with existing items, and every `teaches`/`needs` cited a
+      concept id from a stale, unintegrated curriculum draft rather than
+      the real file. The prompt in `docs/TASK_PACK.md` is unchanged and
+      correct; that round just didn't follow it. Re-send, don't patch
+      around it. Then art, then a screenshot of the shop.
 - [x] **A2. Integrate task 3 — 6 student traits.** *(Done Aug 2026.)*
       Loud, Shy, Restless, Panics, Anchor, Ghost — 6 to 12. Every one
       carries two hooks in tension rather than one bare multiplier: Ghost

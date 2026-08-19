@@ -110,6 +110,15 @@ what prints.
 5. Commit, with a message that says *why*, not just what.
 6. `git push` — the remote is `EduSystems-Code/PixelRoom` (private).
 
+**Step 2 is also enforced at the git level.** `git config core.hooksPath
+.githooks` (one-time, per clone — run it if commits aren't being checked)
+points git at the tracked `.githooks/pre-commit` hook, which runs the
+suite before any commit and blocks on a failure, a parse error, or a
+hang (240s fail-safe — this machine has shown Godot hang rather than
+exit when spawned as a git-hook child, so the hook kills it and blocks
+rather than trusting a clean exit). `git commit --no-verify` skips it for
+a deliberate WIP commit.
+
 ---
 
 ## File map

@@ -1,0 +1,69 @@
+#!/bin/sh
+# Blocks a commit if the suite does not pass, without relying on anyone
+# remembering to run it. This is what ECC and claude-orchestrator both
+# sell as their differentiator -- a deterministic quality gate that runs
+# outside the model's context -- built natively here for free.
+#
+# Escape hatch for a deliberate WIP commit: git commit --no-verify
+#
+# Drives Godot directly rather than shelling out to "Run Tests.bat":
+# cmd.exe's quoting for a batch file whose NAME contains a space, invoked
+# through cmd //c from Git Bash with an extra argument, mangles no matter
+# how it is escaped. Replicating Run Tests.bat's own hard-won detection
+# logic here in POSIX shell sidesteps the whole problem.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+GODOT="$(cat tools/godot_path.txt 2>/dev/null | tr -d '\r\n')"
+if [ -z "$GODOT" ] || [ ! -f "$GODOT" ]; then
+	echo "pre-commit: could not find Godot at tools/godot_path.txt -- skipping the gate."
+	echo "pre-commit: fix tools/godot_path.txt, or this check silently does nothing."
+	exit 0
+fi
+
+echo ""
+echo "pre-commit: running the suite (git commit --no-verify to skip)"
+echo ""
+
+LOG="$(mktemp)"
+# < /dev/null and a hard internal timeout: a git-invoked hook runs with a
+# different console/stdio context than a direct shell invocation, and on
+# this machine that difference was enough to make Godot hang rather than
+# exit -- observed directly, not theoretical. A hook that can hang forever
+# is worse than no hook: fail safe (block, with a clear reason) instead.
+timeout 240 "$GODOT" --headless --path "$REPO_ROOT" res://tests/run.tscn 	< /dev/null > "$LOG" 2>&1
+CODE=$?
+cat "$LOG"
+echo ""
+
+if [ "$CODE" -eq 124 ]; then
+	echo "pre-commit: BLOCKED -- the suite did not finish within 240s and was killed."
+	echo "pre-commit: run Verify.bat by hand to see the real failure, then retry."
+	rm -f "$LOG"
+	exit 1
+fi
+
+# DO NOT TRUST THE EXIT CODE ALONE. A GDScript parse error leaves Godot
+# exiting 0 while the suite never ran -- this printed TESTS PASSED with no
+# assertion count at all, twice in one session, before Run Tests.bat
+# learned to check for the actual completion line instead.
+if grep -q "Parse error" "$LOG"; then
+	echo "pre-commit: BLOCKED -- a script did not compile, so the suite never ran."
+	rm -f "$LOG"
+	exit 1
+fi
+if ! grep -q "ALL PIXELROOM CHECKS PASSED" "$LOG"; then
+	echo "pre-commit: BLOCKED -- no completion line. The suite did not finish."
+	rm -f "$LOG"
+	exit 1
+fi
+if [ "$CODE" -ne 0 ]; then
+	echo "pre-commit: BLOCKED -- the suite reported failures."
+	rm -f "$LOG"
+	exit 1
+fi
+
+rm -f "$LOG"
+echo "pre-commit: suite passed."
+exit 0
