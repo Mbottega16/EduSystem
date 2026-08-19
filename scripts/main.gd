@@ -271,6 +271,7 @@ func _on_hallway_door(kind: String, room_index: int) -> void:
 		"home":
 			_return_home()
 		"office":
+			Game.met_principal = true
 			hud.show_office()
 		"open":
 			var err := Game.open_room()

@@ -83,6 +83,8 @@ const TABLE := [
 		"blurb": "Not everyone made it. You remember who did not."},
 	{"id": "still_here", "name": "Still here",
 		"blurb": "Another term passed and you came back."},
+	{"id": "met_principal", "name": "An open door",
+		"blurb": "You went and introduced yourself."},
 ]
 
 
@@ -133,6 +135,7 @@ static func newly_earned(told: Array) -> Array[String]:
 		"enough_money": Game.coins >= 1000,
 		"one_went_wrong": _a_term_fell_short(),
 		"still_here": Game.term_history.size() >= 2,
+		"met_principal": Game.met_principal,
 	}
 
 	for m: Dictionary in TABLE:

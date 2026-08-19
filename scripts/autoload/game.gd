@@ -360,6 +360,10 @@ var graduated: Array = []            ## [{name, level, readiness, day}]
 ## run on a cheated save -- a balance reading taken after a cheat is a lie.
 var cheated: bool = false
 var unlimited_coins: bool = false
+## Set the first time the office door is used. Its only job is proving
+## the "met_principal" milestone from real state, same as every other
+## milestone -- see scripts/data/milestones.gd.
+var met_principal: bool = false
 
 signal teacher_levelled(level: int)
 
@@ -403,6 +407,7 @@ func new_run(seed_value: int = 0) -> void:
 	exam_result = {}
 	cheated = false
 	unlimited_coins = false
+	met_principal = false
 	teacher_xp = 0
 	teacher_level = 1
 	perk_ranks.clear()
@@ -1922,6 +1927,7 @@ func to_dict() -> Dictionary:
 		"perk_ranks": perk_ranks,
 		"graduated": graduated,
 		"cheated": cheated,
+		"met_principal": met_principal,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -1962,6 +1968,7 @@ func from_dict(d: Dictionary) -> void:
 	term_over = bool(d.get("term_over", false))
 	teacher_xp = int(d.get("teacher_xp", 0))
 	cheated = bool(d.get("cheated", false))
+	met_principal = bool(d.get("met_principal", false))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	graduated = d.get("graduated", []).duplicate()

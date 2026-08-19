@@ -218,6 +218,13 @@ These are not optional work; they are the queue. Prompts live in
       not assumed, both before and after the fix.
       1120 -> 1127 assertions. Balance contract re-verified unmoved --
       nothing here touches a grade input.
+      **Follow-up tweak, same session:** a 23rd milestone, `met_principal`
+      ("An open door"), proved by a new `Game.met_principal` bool set the
+      moment the office door is used -- saved, loaded, and reset in
+      `new_run()` alongside `cheated`, the existing flag it copies the
+      pattern from. The one genuinely new piece of state this whole
+      feature needed; everything else in the office reads state the game
+      already kept. 1127 -> 1129 assertions.
 - [x] **A hallway between the rooms you hold.**
       *(Aug 2026 -- user request: "make the ability to hold multiple
       classrooms at a time, have it so that the teacher can step out of

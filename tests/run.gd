@@ -5165,6 +5165,9 @@ func test_hallway() -> void:
 	chk("its milestone count matches what the career screen knows",
 		hud.rich.text.contains("%d/%d" % [Game.milestones.size(), Milestones.all().size()]),
 		hud.rich.text)
+	chk("visiting proves the met_principal milestone", Game.met_principal)
+	chk("and Milestones agrees, from that real state alone",
+		Milestones.newly_earned([]).has("met_principal"))
 	await tap("interact")
 	chk("E from the office jumps to the full career list", hud.mode == hud.Mode.CAREER)
 	await tap("cancel")
