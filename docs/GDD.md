@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-17**, against build `b29`, with **1055 assertions
+> **Measured on 2026-08-17**, against build `b29`, with **1062 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -62,6 +62,27 @@ by `tools/sim.gd`, asserted by `tests/run.gd`. It is written down in
 **Nothing may quietly move this pillar.** It is why the quiz pays no grade,
 and why assignment rarity pays coins and XP but never grade — a multiplier
 on the lesson term would move the pillar *by luck rather than by play*.
+
+### The grade LETTER bands are separate from the pillar, and were softened
+
+**Decided August 2026.** The three numbers above (0.63 / 0.71 / 0.97) are
+the pillar and did not move — the room/lesson/homework formula in
+`grade_for()` is untouched. What moved is `data/balance.json`'s
+`grade_bands`: where a numeric grade lands as a letter, which used to be
+hardcoded in `game.gd` as A .88 / B .75 / C .62 / D .50 / E .38.
+
+The problem: the pillar's own bare-room-perfect-teaching row (0.63) sat a
+single point above the old C floor of 0.62. Realistic play — decent, not
+flawless — routinely landed a shade below that, in D, which is what "grading
+feels too hard" actually was: not the pillar, the margin around it.
+
+Softened to A .85 / B .73 / C .55 / D .42 / E .30. The pillar's three rows
+still land C / C / A — `full room, never helped` (0.71) now has real
+margin below B (0.73) instead of `0.71 < 0.75` on the old scale, and
+`bare room, perfect teaching` (0.63) has real margin above C (0.55)
+instead of one point. `tests/run.gd` asserts the boundary logic against
+`Balance.grade_band_*` rather than pinned literals, so a future retune
+cannot silently break it the way a hardcoded probe would.
 
 ### Walking the room is the game
 Every verb lives on a landmark you walk to. `scripts/interact/noticeboard.gd`:
@@ -291,7 +312,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 11 modes |
 | Input actions | 13 (12 rebindable) |
-| Tests | **1055 assertions** across **74 sections** |
+| Tests | **1062 assertions** across **74 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -648,8 +669,12 @@ Room 2 is a Veteran with furniture, Room 3 a Supply teacher with none,
 Room 4 nobody at all. Three visibly different rooms; the board moves day to
 day; and an unstaffed room is a flat wall of F that reads as a problem you
 have to go and solve. Across the six archetypes the same class scores
-**0.47 (E) to 0.71 (C)** with different failure modes — one leaves work
+**0.48 (D) to 0.68 (C)** with different failure modes — one leaves work
 uncollected, another loses the room, another never spots who is behind.
+(Re-verified against `Simulate the School.bat` after the August 2026 grade
+band softening — see `data/balance.json`'s `grade_bands`; the underlying
+room/lesson/homework formula did not change, only which letter a given
+score lands on.)
 
 **Hiring is a decision and the board is worth reading.** Phase 2 is clear
 to proceed.

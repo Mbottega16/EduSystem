@@ -176,11 +176,11 @@ func _toggle_build() -> void:
 		Grid.world_to_tile(world.player.global_position))
 
 
-## Draw three papers and let the player pick one; the lesson starts with
-## whichever they took.
+## Draw a hand (3-7, a fresh shuffle every morning) and let the player pick
+## one; the lesson starts with whichever they took.
 func _offer_hand() -> void:
 	Game.draw_hand()
-	hud.show_hand()
+	hud.show_hand(true)
 
 
 func _start_chosen_lesson(i: int) -> void:

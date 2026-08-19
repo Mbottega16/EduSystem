@@ -1714,24 +1714,36 @@ func assign_homework() -> int:
 ## floor, the teacher sets the ceiling" — and tests/run.gd asserts all three
 ## rows of it so tuning can't silently break the game's whole point.
 ##
-##   perfect room, no attention     -> ~0.65   a C
-##   bare room, perfect attention   -> ~0.60   a C
-##   both                           ->  0.95   an A
+##   bare room, perfect teaching   -> ~0.63   a C
+##   full room, never helped       -> ~0.71   a C
+##   both                          -> ~0.97   an A
 ##
 ## Neither input alone can reach the top band. That is the whole idea.
 ## The numbers themselves live in data/balance.json now, and the contract
 ## is asserted against SIMULATED play rather than hand-set state — the old
 ## test wrote attention_credit directly and so validated a condition the
 ## game could not actually produce.
+##
+## Trust a fresh run of tools/sim.gd's CONTRACT CHECK over this comment —
+## it has drifted before, twice, and stopped saying what the code did.
 
-## Letter thresholds carried over from EduSystems, which are already tuned —
-## and note E is a real letter there, between D and F.
+## Letter thresholds, read from data/balance.json's grade_bands so tuning
+## them does not mean editing a .gd file.
+##
+## Softened from the EduSystems originals (A .88 / B .75 / C .62 / D .50 /
+## E .38): the contract's own bare-room-perfect-teaching row sat at 0.63,
+## a single point above the old C floor of 0.62 -- meaning realistic,
+## trying-but-imperfect play (not perfect, just decent) landed BELOW it,
+## in D. The three contract rows above still land C / C / A under the new
+## bands, with real margin instead of a hair's width; tests/run.gd asserts
+## this explicitly so a future retune can't silently break it again.
 static func grade_letter(v: float) -> String:
-	if v >= 0.88: return "A"
-	if v >= 0.75: return "B"
-	if v >= 0.62: return "C"
-	if v >= 0.50: return "D"
-	if v >= 0.38: return "E"
+	Balance.ensure_loaded()
+	if v >= Balance.grade_band_a: return "A"
+	if v >= Balance.grade_band_b: return "B"
+	if v >= Balance.grade_band_c: return "C"
+	if v >= Balance.grade_band_d: return "D"
+	if v >= Balance.grade_band_e: return "E"
 	return "F"
 
 

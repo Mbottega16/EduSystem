@@ -148,10 +148,11 @@ than a purchase you forget.
 
 ## Setting work is a hand of cards
 
-The podium deals **three papers** and you go through them one at a time,
-the way a teacher at a desk goes through lesson plans — turn the page with
-the scroll wheel, a click, or Up/Down. Two axes, rolled
-separately and then correlated:
+The podium **shuffles and deals 3 to 7 papers** — a real shuffle, not
+always the same count — and you go through them one at a time, the way a
+teacher at a desk goes through lesson plans — turn the page with the
+scroll wheel, a click, or Up/Down. Two axes, rolled separately and then
+correlated:
 
 | | |
 |---|---|
@@ -349,7 +350,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1055 assertions
+Run Tests.bat            1062 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

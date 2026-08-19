@@ -2,8 +2,8 @@
   "_note": "Every gameplay number lives here. Nothing tunable should be a const in a .gd file any more. tools/sim.gd plays hundreds of days against this file and prints the curves, so a change here can be checked without playing.",
   "_contract": [
     "THE BALANCE CONTRACT. tools/sim.gd measures these from SIMULATED play, and tests/run.gd asserts them. The previous version asserted hand-set state, which is how a grade model broken in four places passed 218 tests.",
-    "bare room, perfect teaching  -> ~0.62  a C",
-    "full room, never helped      -> ~0.63  a C",
+    "bare room, perfect teaching  -> ~0.63  a C",
+    "full room, never helped      -> ~0.71  a C",
     "full room, perfect teaching  -> ~0.97  an A",
     "Homework is a bonus on top, so a good term survives one bad lesson."
   ],
@@ -13,6 +13,15 @@
     "lesson_cap": 0.35,
     "homework_cap": 0.12,
     "uncollected_penalty": 0.5
+  },
+  "grade_bands": {
+    "_note": "Where a numeric grade (0..1) lands as a letter. Used to hardcode as A>=0.88, B>=0.75, C>=0.62, D>=0.50, E>=0.38 -- the contract's own bare-room-perfect-teaching row (0.63) sat 1 point above the C floor, and realistic imperfect play (not perfect, just decent) landed BELOW it, in D. Softened so the same three contract scenarios keep their letters with real margin instead of a hair's width, and so trying-but-imperfect play actually reads as a C rather than a D. Below 'e' is an F.",
+    "_contract_check": "bare-room-perfect (0.63) and full-room-never-helped (0.71) must both stay C -- so 'c' must sit below both and 'b' must sit above both. full-room-perfect (0.97) must stay A.",
+    "a": 0.85,
+    "b": 0.73,
+    "c": 0.55,
+    "d": 0.42,
+    "e": 0.30
   },
   "lesson": {
     "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes — that is the whole pressure.",
@@ -627,10 +636,12 @@
     "coin_bonus": 1.25
   },
   "assignments": {
-    "_note": "The paper you set. Three are drawn at the podium and you pick one, so setting work is a decision instead of a formality. RARITY pays -- coins and the experience the children get -- and DIFFICULTY is how long the paper takes. They are rolled separately and then correlated, so a Legendary is usually demanding: the question is whether this class, on this day, can actually finish it. Work you never collect counts for half.",
+    "_note": "The paper you set. A hand is drawn at the podium and you pick one, so setting work is a decision instead of a formality. RARITY pays -- coins and the experience the children get -- and DIFFICULTY is how long the paper takes. They are rolled separately and then correlated, so a Legendary is usually demanding: the question is whether this class, on this day, can actually finish it. Work you never collect counts for half.",
     "_colour_note": "Grey, green, blue, violet, gold -- the ladder every looter has trained players to read without a legend. The names are yours; the order of the colours is the one people already know.",
     "_grade_note": "Rarity deliberately pays COINS and XP, never grade. The three-row balance contract is measured from work completion, and a multiplier on the lesson term would move the pillar by luck rather than by play.",
-    "hand_size": 3,
+    "_hand_size_note": "How many cards are drawn, rolled fresh each morning between hand_size_min and hand_size_max inclusive -- a real shuffle, not always the same count. This is the hook for a later teacher LUCK skill (more, and eventually better, options for a teacher who has earned it) -- do not hardcode a count anywhere else when that lands, read it from here.",
+    "hand_size_min": 3,
+    "hand_size_max": 7,
     "rarities": [
       {
         "id": "common",

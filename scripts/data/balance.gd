@@ -24,6 +24,16 @@ static var homework_cap: float = 0.12
 ## the work up is worth doing; at 1.0 it would be the busywork it used to be.
 static var uncollected_penalty: float = 0.5
 
+## Where a numeric grade (0..1) lands as a letter. See the note on
+## grade_bands in balance.json for why these are not the EduSystems
+## originals any more -- the contract's own bare-room row sat a single
+## point above the old C floor.
+static var grade_band_a: float = 0.88
+static var grade_band_b: float = 0.75
+static var grade_band_c: float = 0.62
+static var grade_band_d: float = 0.50
+static var grade_band_e: float = 0.38
+
 # --- the lesson --------------------------------------------------------
 static var work_seconds: float = 14.0
 static var lesson_seconds: float = 60.0
@@ -111,7 +121,10 @@ static var furniture_steps: int = 5
 static var applicant_count: int = 4
 
 # --- the paper you set ---------------------------------------------------
-static var assign_hand_size: int = 3
+## A fresh count each morning, not always the same hand. See the note on
+## hand_size_min in balance.json -- the hook for a later teacher LUCK skill.
+static var assign_hand_size_min: int = 3
+static var assign_hand_size_max: int = 7
 static var assign_rarities: Array = []
 static var assign_forms: Array = []
 
@@ -237,6 +250,13 @@ static func apply(d: Dictionary) -> void:
 	homework_cap = float(g.get("homework_cap", homework_cap))
 	uncollected_penalty = float(g.get("uncollected_penalty", uncollected_penalty))
 
+	var gb: Dictionary = d.get("grade_bands", {})
+	grade_band_a = float(gb.get("a", grade_band_a))
+	grade_band_b = float(gb.get("b", grade_band_b))
+	grade_band_c = float(gb.get("c", grade_band_c))
+	grade_band_d = float(gb.get("d", grade_band_d))
+	grade_band_e = float(gb.get("e", grade_band_e))
+
 	var l: Dictionary = d.get("lesson", {})
 	work_seconds = float(l.get("work_seconds", work_seconds))
 	lesson_seconds = float(l.get("lesson_seconds", lesson_seconds))
@@ -325,7 +345,8 @@ static func apply(d: Dictionary) -> void:
 	applicant_count = int(sc.get("applicants", applicant_count))
 
 	var asg: Dictionary = d.get("assignments", {})
-	assign_hand_size = int(asg.get("hand_size", assign_hand_size))
+	assign_hand_size_min = int(asg.get("hand_size_min", assign_hand_size_min))
+	assign_hand_size_max = int(asg.get("hand_size_max", assign_hand_size_max))
 	assign_rarities = asg.get("rarities", assign_rarities)
 	assign_forms = asg.get("forms", assign_forms)
 

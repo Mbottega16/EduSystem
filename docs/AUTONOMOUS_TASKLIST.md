@@ -179,6 +179,29 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **Grading felt too hard, and the hand of cards is now a real
+      shuffle of 3-7.** *(Aug 2026.)* Grade LETTER bands (not the pillar
+      itself) moved from hardcoded A .88/B .75/C .62/D .50/E .38 in
+      `game.gd` to `data/balance.json`'s `grade_bands`, softened to
+      A .85/B .73/C .55/D .42/E .30 -- the pillar's own bare-room-perfect
+      row (0.63) sat one point above the old C floor, so realistic,
+      imperfect-but-decent play landed in D. Contract re-verified
+      unmoved: 0.63/0.71/0.97 still land C/C/A, now with real margin.
+      `assignments.hand_size` (fixed at 3) became `hand_size_min`/`_max`
+      (3-7), rolled fresh every draw via `Assignments.draw()`, with a
+      test proving the size actually VARIES across draws rather than
+      landing on the same number by seed coincidence. Added a shuffle
+      flourish in `hud.gd` -- a brief riffling pip-row with a paper sound
+      per frame -- that plays once on a freshly drawn hand and never on a
+      page turn. Found and fixed a stale test that could only ever have
+      passed by coincidence of a fixed 3-card hand: it checked that every
+      card's title appeared on a single page, when the UI only ever shows
+      one card at a time.
+      **Left for later, on purpose:** a teacher LUCK skill (more, and
+      eventually better, cards for a teacher who has earned it) was asked
+      for but explicitly deferred. `hand_size_min`/`_max` in
+      `data/balance.json` is the intended hook -- when that lands, it
+      should read these rather than hardcoding a count anywhere.
 - [x] **Integrate task 1 — 20 lessons.** Curriculum 20 → 40, concepts
       60 → 120. 15 verified codes, 5 honestly uncited. Added five
       assertions including the `short`-length check that nothing had ever

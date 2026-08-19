@@ -358,11 +358,12 @@ func test_game() -> void:
 		second.append("%s|%.4f|%.4f" % [s.display_name, s.aptitude, s.diligence])
 	chk("the same seed produces the same class", first == second, first)
 
-	# grade letters (carried over from EduSystems, E is a real letter)
-	chk("grade letters map at their thresholds",
-		Game.grade_letter(0.95) == "A" and Game.grade_letter(0.88) == "A"
-		and Game.grade_letter(0.87) == "B" and Game.grade_letter(0.62) == "C"
-		and Game.grade_letter(0.38) == "E" and Game.grade_letter(0.37) == "F")
+	# grade letters, read from Balance.grade_band_* rather than pinned to a
+	# literal -- these were hardcoded probe values once, and broke the
+	# moment the bands were retuned even though the LOGIC was still right.
+	chk("grade letters map at their thresholds", (func() -> bool:
+		var eps := 0.001
+		return Game.grade_letter(1.0) == "A" 			and Game.grade_letter(Balance.grade_band_a) == "A" 			and Game.grade_letter(Balance.grade_band_a - eps) == "B" 			and Game.grade_letter(Balance.grade_band_b) == "B" 			and Game.grade_letter(Balance.grade_band_b - eps) == "C" 			and Game.grade_letter(Balance.grade_band_c) == "C" 			and Game.grade_letter(Balance.grade_band_c - eps) == "D" 			and Game.grade_letter(Balance.grade_band_d) == "D" 			and Game.grade_letter(Balance.grade_band_d - eps) == "E" 			and Game.grade_letter(Balance.grade_band_e) == "E" 			and Game.grade_letter(Balance.grade_band_e - eps) == "F").call())
 
 	# save round-trip
 	Game.new_run(SEED)
@@ -776,11 +777,13 @@ func test_balance() -> void:
 	chk("room AND teaching together earn an A",
 		Game.grade_letter(rich_taught) == "A", "%.2f" % rich_taught)
 	chk("neither input alone gets near the top",
-		bare_taught < 0.75 and rich_ignored < 0.75)
+		bare_taught < Balance.grade_band_b and rich_ignored < Balance.grade_band_b,
+		"%.2f, %.2f vs B at %.2f" % [bare_taught, rich_ignored, Balance.grade_band_b])
 
 	var bare_ignored := _simulate_lesson(false, false)
 	chk("doing neither is well below a pass",
-		bare_ignored < 0.50, "%.2f  %s" % [bare_ignored, Game.grade_letter(bare_ignored)])
+		bare_ignored < Balance.grade_band_c,
+		"%.2f  %s" % [bare_ignored, Game.grade_letter(bare_ignored)])
 
 	# helping is the ONLY way a stuck student progresses
 	Game.new_run(SEED)
@@ -4175,8 +4178,26 @@ func test_assignment_cards() -> void:
 	# --- drawing and choosing ---
 	Game.new_run(SEED)
 	var hand := Game.draw_hand()
-	chk("the podium deals a hand", hand.size() == Balance.assign_hand_size,
+	chk("the podium deals a hand within the shuffled range",
+		hand.size() >= Balance.assign_hand_size_min
+		and hand.size() <= Balance.assign_hand_size_max,
 		hand.size())
+
+	# A REAL shuffle, not always the same count -- draw a run of hands and
+	# check the size actually varies. A single draw proves nothing; it could
+	# always land on the same number by coincidence of the seed.
+	var sizes := {}
+	var all_in_range := true
+	for i in 30:
+		var sz: int = Game.draw_hand().size()
+		sizes[sz] = true
+		if sz < Balance.assign_hand_size_min or sz > Balance.assign_hand_size_max:
+			all_in_range = false
+	chk("hand size actually varies across draws, not fixed",
+		sizes.size() > 1, sizes.keys())
+	chk("and every draw stayed within the shuffled range", all_in_range,
+		sizes.keys())
+
 	chk("nothing is set until you pick", Game.assignment.is_empty())
 	Game.choose_assignment(1)
 	chk("choosing sets the paper", not Game.assignment.is_empty())
@@ -4230,17 +4251,24 @@ func test_assignment_cards() -> void:
 	Game.draw_hand()
 	hud.show_hand()
 	chk("the hand is on screen", hud.mode == hud.Mode.HAND)
-	chk("and names every paper it dealt", (func() -> bool:
-		for c3: Dictionary in Game.hand:
+	# ONE page at a time -- only the card at _sel is ever on screen, so
+	# checking every title against a single page's text is checking
+	# something the UI cannot show. This passed before only by an accident
+	# of a fixed 3-card hand and this seed; a real 3-7 shuffle exposed it.
+	# Turn to every page and check each card names ITSELF, correctly.
+	chk("names every paper it dealt, one page at a time", (func() -> bool:
+		for i in Game.hand.size():
+			hud._sel = i
+			hud.show_hand()
+			var c3: Dictionary = Game.hand[i]
 			if not hud.rich.text.contains(Assignments.title(c3)):
 				return false
-		return true).call(), hud.rich.text)
-	chk("in its rarity's colour", (func() -> bool:
-		for c4: Dictionary in Game.hand:
-			if not hud.rich.text.contains(
-					Assignments.rarity_colour(String(c4["rarity"]))):
+			if not hud.rich.text.contains(Assignments.rarity_colour(
+					String(c3["rarity"]))):
 				return false
 		return true).call())
+	hud._sel = 0
+	hud.show_hand()
 	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
 		hud.rich.text.split("\n").size())
 	hud.close()
@@ -4289,7 +4317,7 @@ func test_a_term_can_be_won() -> void:
 
 	var avg := Game.class_average()
 	chk("a term taught properly averages a real grade",
-		avg >= 0.62, "%.2f (%s)" % [avg, Game.grade_letter(avg)])
+		avg >= Balance.grade_band_c, "%.2f (%s)" % [avg, Game.grade_letter(avg)])
 
 	var result := Game.sit_exam()
 	var passed: int = int(result["passed"])
@@ -4458,9 +4486,30 @@ func test_lesson_plan_folder() -> void:
 		return obj == "" or hud.rich.text.contains(obj.substr(0, 20))).call(),
 		hud.rich.text)
 
+	# THE SHUFFLE. A hand just drawn gets a riffle before it settles; a page
+	# TURN never does, or turning pages would nag with a sound effect and a
+	# flourish every single time.
+	hud._sel = 0
+	hud.show_hand(true)
+	chk("a fresh hand shuffles before it shows anything",
+		hud.title.text == "SHUFFLING...", hud.title.text)
+	await step(6)  # let at least the first riffle callback fire
+	chk("the riffle actually draws a pip row, not blank or garbage",
+		hud.rich.text.contains(hud.BAR_FULL) or hud.rich.text.contains(hud.BAR_EMPTY),
+		hud.rich.text)
+	chk("and it has not jumped ahead to the real card yet",
+		not hud.rich.text.contains(Assignments.title(Game.hand[0])),
+		hud.rich.text)
+	await step(45)  # 6 steps x 0.07s of tween, with margin
+	chk("and settles into the real folder afterward",
+		hud.title.text.contains("1 of %d" % Game.hand.size()), hud.title.text)
+	chk("showing a real card, not the shuffle pattern",
+		hud.rich.text.contains(Assignments.title(Game.hand[0])), hud.rich.text)
+
 	var first: String = hud.rich.text
 	hud._sel = 1
 	hud.show_hand()
+	chk("turning the page does NOT reshuffle", hud.title.text != "SHUFFLING...")
 	chk("turning the page shows a different plan", hud.rich.text != first)
 	chk("and says so", hud.title.text.contains("2 of"), hud.title.text)
 

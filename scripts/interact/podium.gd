@@ -8,7 +8,7 @@ extends Interactable
 ## the room.
 
 signal lesson_started(assigned: int)
-## Setting work is a CHOICE now: three papers are drawn and you pick one.
+## Setting work is a CHOICE now: a hand of 3-7 papers is drawn and you pick one.
 signal hand_requested()
 
 func _init() -> void:

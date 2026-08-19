@@ -93,11 +93,18 @@ static func roll(rng: RandomNumberGenerator, lesson: Dictionary) -> Dictionary:
 	}
 
 
-## The hand you choose from.
+## The hand you choose from. A fresh count every morning, not always the
+## same size -- see the note on hand_size_min in balance.json, which is
+## also the hook for a later teacher LUCK skill (a lucky teacher draws
+## more, and eventually better, cards; nothing here should need to change
+## when that lands, only the numbers it reads).
 static func draw(rng: RandomNumberGenerator, lesson: Dictionary) -> Array:
 	Balance.ensure_loaded()
+	var lo: int = maxi(1, Balance.assign_hand_size_min)
+	var hi: int = maxi(lo, Balance.assign_hand_size_max)
+	var n: int = rng.randi_range(lo, hi)
 	var out: Array = []
-	for i in maxi(1, Balance.assign_hand_size):
+	for i in n:
 		out.append(roll(rng, lesson))
 	return out
 

@@ -917,7 +917,8 @@ func show_run_over(info: Dictionary) -> void:
 	hint.text = "E - start again"
 
 
-## THE HAND. Three papers, drawn at the podium, and you set one of them.
+## THE HAND. A shuffled hand of 3-7 papers, drawn at the podium, and you
+## set one of them.
 ##
 ## Rarity is what it PAYS and difficulty is how LONG it is, and they are
 ## correlated -- so the rare ones are usually demanding and the question is
@@ -930,18 +931,70 @@ func show_run_over(info: Dictionary) -> void:
 ##
 ## The hand used to be a list of three rows, which reads as a menu. A page
 ## reads as a PLAN: room for the objective, the standard it comes from, what
-## it asks of the class and what it pays. The same three cards, but you meet
-## them one at a time and have to turn to see the next.
+## it asks of the class and what it pays. The same 3-7 cards (a fresh
+## shuffle every morning, not always the same count), but you meet them one
+## at a time and have to turn to see the next.
 ##
 ## Turned with the scroll wheel, a click, or Up/Down -- whichever your hand
 ## is already on.
-func show_hand() -> void:
+##
+## `fresh` marks a hand that was JUST drawn, as opposed to turning a page in
+## one already on the table -- only a fresh hand gets the shuffle. Paging
+## calls this with no argument, which defaults to false, so turning a page
+## never re-triggers it.
+func show_hand(fresh: bool = false) -> void:
 	_open(Mode.HAND)
 	body.visible = false
 	rich.visible = true
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 8)
 
+	if Game.hand.is_empty():
+		close()
+		return
+	if fresh:
+		_play_shuffle()
+	else:
+		_render_hand()
+
+
+## A quick riffle before the hand settles -- card backs flickering through a
+## few frames with a paper-shuffle sound each one, then the real hand reveals
+## as normal. Text-and-tween rather than a sprite fan: this UI is a single
+## page you turn, not a physical table of cards, so the flourish is a
+## suspense beat rather than a full card-game redeal.
+const SHUFFLE_STEPS := 6
+const SHUFFLE_STEP_SECONDS := 0.07
+
+
+func _play_shuffle() -> void:
+	var n: int = Game.hand.size()
+	title.text = "SHUFFLING..."
+	var t := create_tween()
+	for i in SHUFFLE_STEPS:
+		t.tween_callback(_shuffle_frame.bind(n, i))
+		t.tween_interval(SHUFFLE_STEP_SECONDS)
+	t.tween_callback(_render_hand)
+
+
+func _shuffle_frame(n: int, i: int) -> void:
+	Sfx.play_varied("paper")
+	var row := ""
+	for c in n:
+		# a riffling fill: which pips are "up" shifts every frame, so the
+		# row visibly ripples rather than just fading in
+		var lit := (c + i) % 2 == 0
+		row += "[color=#%s]%s[/color]" % [
+			"e8dcc2" if lit else DIM, BAR_FULL if lit else BAR_EMPTY]
+	rich.text = "
+
+      %s
+" % row
+
+
+## The actual page content -- split out of show_hand() so a page TURN can
+## call straight in without repeating the shuffle every time.
+func _render_hand() -> void:
 	var n: int = Game.hand.size()
 	if n == 0:
 		close()

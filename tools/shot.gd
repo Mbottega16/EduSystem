@@ -98,6 +98,19 @@ func _open_screen(main: Node, screen: String) -> void:
 					"subject": "Arithmetic", "lesson": "basic_arithmetic"},
 			]
 			hud.show_hand()
+		"hand_shuffle":
+			# A REAL draw, not the hand-crafted one-of-each-rarity fixture
+			# "hand" uses -- this exercises the actual 3-7 shuffle and
+			# settles on whatever size and rarities the seed produced. The
+			# shuffle ANIMATION itself is not what this captures: every
+			# screen shot here waits 70 frames after opening for the same
+			# reason results screens do not photograph mid-wipe -- layout
+			# is what these shots are for, not catching an animation. The
+			# shuffle's mechanics are asserted directly in tests/run.gd
+			# instead (title reads SHUFFLING..., then settles).
+			Game.new_run(0)
+			Game.draw_hand()
+			hud.show_hand(true)
 		"school":
 			Game.coins = 999999
 			for ri in 3:
