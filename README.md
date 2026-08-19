@@ -23,7 +23,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | **V** | **watch a delegated room's day, from the school screen** | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
-| F1 / F2 | live tuning panel | dev only |
+| F1 / F2, or **`** to toggle | live tuning + cheats panel (Tab for the CHEATS page; try "EVERYTHING") | dev only, not rebindable |
 
 **E and F are deliberately separate.** E is the button you mash all lesson
 long — helping, collecting, handing in — and it can never do anything
@@ -361,7 +361,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1098 assertions
+Run Tests.bat            1102 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

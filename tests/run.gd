@@ -5099,6 +5099,28 @@ func test_dev_panel() -> void:
 		Game.room_items.size())
 	chk("a cheat marks the run as cheated, permanently", Game.cheated)
 
+	# The panel's own open/close, not just what a cheat does once it's
+	# open. F1/F2 are two different keys and a plain held-check is fine
+	# for them; backtick does BOTH jobs on one key, so it needs the edge
+	# of the press rather than the level, or it would flap open/closed
+	# every frame the key stayed down. This is that bug, caught directly.
+	dbg.open = false
+	if dbg._backtick_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("backtick opens the panel", dbg.open)
+	if dbg._backtick_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("holding backtick down does not close it again on the next frame",
+		dbg.open)
+	if dbg._backtick_edge(false):
+		dbg._toggle(not dbg.open)
+	chk("releasing backtick leaves it open", dbg.open)
+	if dbg._backtick_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("pressing backtick again closes it", not dbg.open)
+	if dbg._backtick_edge(false):
+		dbg._toggle(not dbg.open)
+
 	Game.new_run(SEED)
 	await step(2)
 

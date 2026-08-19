@@ -39,6 +39,7 @@ const CHEATS := [
 ]
 
 var open: bool = false
+var _backtick_was_down: bool = false
 var page: int = Page.TUNING
 var _sel: int = 0
 var _panel: ColorRect = null
@@ -68,10 +69,32 @@ func _process(_d: float) -> void:
 		_toggle(true)
 	elif Input.is_key_pressed(KEY_F2) and open:
 		_toggle(false)
+	# Backtick TOGGLES, on the edge of the press rather than the hold --
+	# F1/F2 can afford a held check because they are two different keys,
+	# one for each direction, but one key doing both jobs needs edge
+	# detection or it would open and close every frame the key stayed
+	# down. It exists because an F-row key is exactly the one a laptop's
+	# own OEM shortcuts (brightness, mute, a vendor "help" binding) are
+	# most likely to eat before Godot ever sees it, and there is no way
+	# to tell that happened from in here. Backtick is the conventional
+	# dev-console key for a reason: almost nothing else claims it.
+	if _backtick_edge(Input.is_key_pressed(KEY_QUOTELEFT)):
+		_toggle(not open)
 	if not open:
 		return
 	_handle()
 	_render()
+
+
+## True exactly on the frame backtick goes from up to down. Split out from
+## _process() so the toggle logic can be tested directly, without going
+## through Input's raw key state -- which real hardware fills reliably but
+## a headless test's synthetic InputEventKey does not always reproduce the
+## same way, and this logic is the part a bug could actually hide in.
+func _backtick_edge(down: bool) -> bool:
+	var edge := down and not _backtick_was_down
+	_backtick_was_down = down
+	return edge
 
 
 func _toggle(v: bool) -> void:
@@ -228,7 +251,7 @@ func _free_spot(id: String) -> Vector2i:
 
 func _render() -> void:
 	var lines: Array[String] = [
-		"F1 open  F2 close  Tab page  %s" % (
+		"F1/` open  F2/` close  Tab page  %s" % (
 			"[TUNING] cheats" if page == Page.TUNING else "tuning [CHEATS]"),
 		"",
 	]
