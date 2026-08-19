@@ -154,6 +154,19 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.furnish_room(0)
 			Game.resolve_rooms()
 			hud.show_school()
+		"watch":
+			Game.coins = 999999
+			Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate()]
+			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.hire(0, 0)
+			Game.resolve_rooms()
+			hud.show_watch(0)
+			# Land mid-lesson rather than on frame zero or the final tally,
+			# so the shot shows the thing this screen actually adds: a
+			# room mid-day, not its bookends.
+			hud._watch_i = mini(10, hud._watch_frames.size() - 1)
+			hud._render_watch_frame()
 		"hiring":
 			Game.coins = 999999
 			Game.open_room()

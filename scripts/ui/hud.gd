@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
@@ -107,6 +107,21 @@ var _hiring: bool = false
 ## Which room a hire is FOR.
 var _hiring_for: int = 0
 
+## WATCHING A DELEGATED ROOM: the day it already had, played back.
+##
+## `resolve_rooms()` already ran this exact roll to get yesterday's letter,
+## and RoomSim recorded one frame a second while it did. This does not
+## re-simulate anything -- it steps through the SAME frames at a speed a
+## person can actually watch, so what you see is what earned the grade,
+## not a guess dressed up to look like it.
+var _watch_room: int = -1
+var _watch_frames: Array = []
+var _watch_result: Dictionary = {}
+var _watch_i: int = 0
+var _watch_clock: float = 0.0
+## Seconds of real time per frame (each frame is one simulated second).
+const WATCH_FRAME_SECONDS := 0.12
+
 
 func _ready() -> void:
 	# A new run must not inherit the last one's screen.
@@ -121,6 +136,12 @@ func _process(_delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("carrier")
 	_update_status()
 	_update_prompt()
+	if mode == Mode.WATCH and _watch_i < _watch_frames.size() - 1:
+		_watch_clock += _delta
+		if _watch_clock >= WATCH_FRAME_SECONDS:
+			_watch_clock = 0.0
+			_watch_i += 1
+			_render_watch_frame()
 
 
 ## ALL input, on ONE clock.
@@ -1243,8 +1264,101 @@ func show_school() -> void:
 
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.3)
-	hint.text = _clip("Up/Down room   E hire   F furnish   N new room (%d)   Esc" % [
-		Game.room_cost()])
+	var watch_hint := ""
+	if _can_watch(_sel):
+		watch_hint = "V watch   "
+	hint.text = _clip("Up/Down room   E hire   F furnish   %sN new room (%d)   Esc" % [
+		watch_hint, Game.room_cost()])
+
+
+## Whether room `i` has a day worth watching -- staffed and resolved at
+## least once. A fresh room has a teacher but no history yet; the bell
+## has to ring on it first.
+func _can_watch(i: int) -> bool:
+	if i < 0 or i >= Game.rooms.size():
+		return false
+	var r: Dictionary = Game.rooms[i]
+	if (r.get("teacher", {}) as Dictionary).is_empty():
+		return false
+	var last: Dictionary = r.get("last", {})
+	return not (last.get("history", []) as Array).is_empty()
+
+
+## Open the day room `i` already had, and start stepping through it.
+func show_watch(i: int) -> void:
+	if not _can_watch(i):
+		return
+	_watch_room = i
+	var r: Dictionary = Game.rooms[i]
+	_watch_result = r.get("last", {})
+	_watch_frames = _watch_result.get("history", [])
+	_watch_i = 0
+	_watch_clock = 0.0
+	_open(Mode.WATCH)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	title.text = "WATCHING  -  %s" % String(r.get("name", "Room"))
+	_render_watch_frame()
+
+
+## One frame: who is where, coloured the same way the rest of the game
+## colours a struggling or noisy child, plus a running tally so the letter
+## at the end does not land as a surprise.
+func _render_watch_frame() -> void:
+	var lines: Array[String] = []
+	var frame: Dictionary = _watch_frames[_watch_i] if _watch_i < _watch_frames.size() else {}
+	var teacher: Dictionary = (Game.rooms[_watch_room] as Dictionary).get("teacher", {})
+	var at_front: bool = bool(frame.get("at_front", false))
+	lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+		C_LESSON, String(teacher.get("name", "")),
+		C_GOOD if at_front else DIM,
+		"at the front, teaching" if at_front else "away from the front"])
+	lines.append("")
+
+	var faces: Array = frame.get("faces", [])
+	var stuck := 0
+	var noisy := 0
+	var done := 0
+	for f: Dictionary in faces:
+		var st := String(f.get("state", "working"))
+		var hue := DIM
+		var tag := "working"
+		match st:
+			"disrupting":
+				hue = C_BAD
+				tag = "unsettled"
+				noisy += 1
+			"stuck":
+				hue = C_HOMEWORK
+				tag = "stuck"
+				stuck += 1
+			"done":
+				hue = C_GOOD
+				tag = "finished"
+				done += 1
+		lines.append("  [color=#%s]%-13s %s[/color]" % [
+			hue, String(f.get("name", "")).substr(0, 13), tag])
+
+	lines.append("")
+	var frac: float = float(_watch_i) / maxf(1.0, float(_watch_frames.size() - 1))
+	if _watch_i >= _watch_frames.size() - 1:
+		lines.append("[color=#%s]The bell went. %s[/color]" % [
+			DIM, "%d finished, %d still stuck, %d unsettled" % [done, stuck, noisy]])
+		lines.append("[color=#%s]Grade: %s[/color]" % [
+			C_GOOD, String(_watch_result.get("letter", "-"))])
+	else:
+		lines.append("[color=#%s]%s[/color]" % [
+			DIM, _watch_bar(frac)])
+
+	rich.text = "\n".join(lines)
+
+
+func _watch_bar(frac: float) -> String:
+	var n := clampi(int(round(frac * 20.0)), 0, 20)
+	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
+		C_ROOM, BAR_FULL.repeat(n), BAR_EMPTY.repeat(20 - n)]
 
 
 func _furniture_bar(level: int) -> String:
@@ -2286,10 +2400,23 @@ func _handle_input() -> void:
 			var err3 := Game.furnish_room(_sel)
 			Sfx.play("deny" if err3 != "" else "confirm")
 			show_school()
+		elif n > 0 and _can_watch(_sel) and Input.is_action_just_pressed("watch"):
+			Sfx.play("blip")
+			show_watch(_sel)
 		elif n > 0 and Game.claim_interact():
 			_hiring_for = _sel
 			_sel = 0
 			show_hiring()
+		return
+
+	if mode == Mode.WATCH:
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			show_school()
+		elif Input.is_action_just_pressed("watch"):
+			# skip straight to the bell
+			_watch_i = maxi(0, _watch_frames.size() - 1)
+			_render_watch_frame()
 		return
 
 	if mode == Mode.CAREER:

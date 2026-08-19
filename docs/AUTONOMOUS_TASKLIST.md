@@ -179,6 +179,33 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **An auto-play system: watch a delegated room play out.**
+      *(Aug 2026 -- user request, "an auto play system for the game as
+      well".)* Conflicts directly with "legwork, not judgement" if read
+      as automating the PLAYER's own room, so asked first rather than
+      guessing -- the user picked "watch a delegated room play out",
+      which turns automation the game already considers legitimate (a
+      hired NPC teacher's fixed archetype policy) from an invisible
+      number into something you can actually watch happen.
+      `RoomSim.play_day()` already RUNS the real lesson model for a
+      delegated room once a day (`Game.resolve_rooms()`, called at the
+      bell) -- it was never a formula, so nothing needed to be re-derived
+      for honesty, only recorded. Added a `history` array to its
+      existing tick loop: one frame a second (roster + who is at the
+      front), appended into the SAME dict `resolve_rooms()` already
+      stores as `room["last"]`, so playback is the identical roll that
+      produced the letter, not a fresh, possibly-different one.
+      New `V` key (global, not landmark-bound -- `Mode.WATCH`, #15) from
+      the School screen, only offered once a room is staffed AND has a
+      day behind it (`_can_watch()`). Steps through its own frames on
+      the idle clock at a speed a person can watch, ends on the actual
+      grade letter, `V` again skips straight to the bell, Esc backs out.
+      Regression-tested (frames recorded, screen reachable/gated
+      correctly, last frame's letter matches `resolve_rooms()`'s own,
+      panel fits) and screenshotted mid-lesson. Balance contract
+      re-verified after touching `room_sim.gd`'s tick loop -- all three
+      rows still hold, `Simulate the School.bat` still shows archetypes
+      producing genuinely different, sensible results.
 - [x] **A dashboard, and what "two buttons is not enough" actually meant.**
       *(Aug 2026 -- user request.)* Checked the actual rule in CLAUDE.md
       before touching it: E/F were never "two buttons total", they are

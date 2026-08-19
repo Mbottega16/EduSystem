@@ -5033,6 +5033,28 @@ func test_the_school() -> void:
 		hud.rich.text)
 	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
 		hud.rich.text.split("\n").size())
+
+	# --- watching the day that already happened ---
+	# The playback must be the SAME roll that produced the letter, not a
+	# fresh one -- so the frames' own tallies have to be able to add up to
+	# it, and the screen must never be reachable before a room has a day
+	# behind it to show.
+	var last: Dictionary = Game.rooms[0].get("last", {})
+	chk("resolving a room records a frame history",
+		not (last.get("history", []) as Array).is_empty(), last.get("history", []))
+	hud.show_watch(0)
+	chk("watching opens its own screen", hud.mode == hud.Mode.WATCH)
+	chk("and it fits too", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	chk("it names the teacher watching",
+		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"])),
+		hud.rich.text)
+	hud._watch_i = hud._watch_frames.size() - 1
+	hud._render_watch_frame()
+	chk("the last frame reports the same grade resolve_rooms recorded",
+		hud.rich.text.contains(String(last.get("letter", "?"))), hud.rich.text)
+	await tap("cancel")
+	chk("Esc backs out to the school board", hud.mode == hud.Mode.SCHOOL)
 	hud.close()
 
 	Game.new_run(SEED)

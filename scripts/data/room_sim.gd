@@ -38,7 +38,7 @@ static func play_day(roster: Array, teacher: Dictionary, room_value: float,
 	Balance.ensure_loaded()
 	if roster.is_empty():
 		return {"average": 0.0, "letter": "F", "collected": 0, "stuck": 0,
-			"noisy": 0, "taught": 0.0}
+			"noisy": 0, "taught": 0.0, "history": []}
 
 	# NOBODY IS NOBODY. An empty teacher dict used to default `teaches` to
 	# true, so an unstaffed room quietly taught itself and read almost the
@@ -71,6 +71,12 @@ static func play_day(roster: Array, teacher: Dictionary, room_value: float,
 	var quizzed := false
 	var t := 0.0
 	var length := Balance.lesson_seconds
+
+	# One frame a second of simulated time, cheap enough to build every
+	# call whether or not anyone watches. WATCHING A DELEGATED ROOM reads
+	# this back and plays it as an animation, so the frame IS the day --
+	# not a decorative guess at what one might have looked like.
+	var history: Array = []
 
 	while t < length:
 		t += STEP
@@ -118,6 +124,19 @@ static func play_day(roster: Array, teacher: Dictionary, room_value: float,
 				if s.quiz_flagged and quizzes:
 					s.resolve_quiz()
 
+		if fmod(t, 1.0) < STEP:
+			var faces: Array = []
+			for s: StudentData in roster:
+				var state := "working"
+				if s.disrupting:
+					state = "disrupting"
+				elif s.is_struggling():
+					state = "stuck"
+				elif s.work_fraction() >= 1.0:
+					state = "done"
+				faces.append({"name": s.display_name, "state": state})
+			history.append({"t": t, "at_front": at_front, "faces": faces})
+
 	# marking up
 	var total := 0.0
 	var collected := 0
@@ -137,7 +156,7 @@ static func play_day(roster: Array, teacher: Dictionary, room_value: float,
 	return {
 		"average": avg, "letter": Game.grade_letter(avg),
 		"collected": collected, "stuck": stuck, "noisy": noisy,
-		"taught": taught / maxf(0.01, length),
+		"taught": taught / maxf(0.01, length), "history": history,
 	}
 
 
