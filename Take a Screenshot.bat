@@ -5,7 +5,7 @@ REM   quiz specialism hand school watch hiring career curriculum unit_test
 REM   student shop room staff class_list at_board at_bell title
 REM   inspection inspector_here teaching noise day run_over new_term exam
 REM   dashboard dashboard_items dashboard_skills marking
-REM   dev_room dev_room_bare
+REM   dev_room dev_room_bare weather
 REM Saves into shots\ (gitignored), named after the screen so repeat runs
 REM do not overwrite each other and nothing lands in the tracked root the
 REM way six shot_*.png files once did.

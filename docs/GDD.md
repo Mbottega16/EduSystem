@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-18**, against build `b29`, with **1103 assertions
+> **Measured on 2026-08-18**, against build `b29`, with **1106 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -250,8 +250,18 @@ banks, hidden key) · `names.gd` · `version.gd`.
 ### World — `scripts/world/`
 `grid.gd` (16px tiles, AStarGrid2D, `BASE 20×11` → `MAX 34×20`) ·
 `layout.gd` (landmarks; seats movable) · `classroom.gd` (the world root, the
-lesson clock, bubbles, the day) · `room_builder.gd` · `placement.gd` (ghost
-cursor, build mode, aisle-safety check).
+lesson clock, bubbles, the day, ambient weather keyed to today's day event —
+see below) · `room_builder.gd` · `placement.gd` (ghost cursor, build mode,
+aisle-safety check).
+
+**Ambient weather** *(Aug 2026)* — five of the twenty day events
+(`wet_play`, `heatwave`, `sports_day`, `cold_snap`, `cleaning`) now spawn
+drifting motes in the room itself while their lesson is live, using
+`Fx.weather_mote()`. Purely cosmetic — it changes nothing `DayEvent`'s own
+hooks do not already change — but it turns "today is different" from a
+line on last night's report into something visible while you are standing
+in the room. The other fifteen events spawn nothing, on purpose: most days
+should still look like the plain room they have always been.
 
 ### Actors, interactables, UI
 `actor.gd` / `player.gd` (per-button targeting, hold-to-confirm, autopilot) /
@@ -312,7 +322,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 15 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1103 assertions** across **75 sections** |
+| Tests | **1106 assertions** across **75 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

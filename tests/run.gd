@@ -193,6 +193,7 @@ func _main() -> void:
 	await test_the_school()
 	await test_dev_panel()
 	await test_teaching()
+	await test_weather()
 	await test_voice()
 	await test_quiz_buff_and_calm()
 	await test_stale_interactable_after_rebuild()
@@ -3036,6 +3037,33 @@ func test_bubbles() -> void:
 	world._refresh_bubbles()
 	chk("a quiet child gives you nothing to scan for, at first",
 		not n0.bubble.visible)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## Ambient weather, tied to today's day event -- purely decorative, so the
+## thing worth asserting is that it fires on a day the event calls for and
+## stays quiet on a plain one, not any particular position or colour.
+func test_weather() -> void:
+	section("WEATHER")
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()
+	await step(2)
+
+	Game.event = DayEvent.by_id("none")
+	var before := world.get_child_count()
+	world._tick_weather(0.5)
+	chk("an ordinary day spawns no weather", world.get_child_count() == before)
+
+	Game.event = DayEvent.by_id("wet_play")
+	world._weather_due = 0.0
+	var before2 := world.get_child_count()
+	world._tick_weather(0.5)
+	chk("wet play spawns a mote", world.get_child_count() > before2)
+	chk("and it queues the next one rather than spawning every frame",
+		world._weather_due > 0.0)
 
 	Game.new_run(SEED)
 	await step(2)

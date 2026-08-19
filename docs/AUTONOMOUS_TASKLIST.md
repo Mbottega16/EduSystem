@@ -179,6 +179,34 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **Ambient weather: day events you can see, not just read about.**
+      *(Aug 2026 -- user request, with ChatGPT/Gemini unavailable: "I need
+      something to make the game feel fresh... I don't care what it is.")*
+      Looked for the biggest gap between a system that already exists and
+      what the player actually experiences of it. Found one: `DayEvent`
+      had grown to 20 real entries with real mechanical hooks, but the
+      only trace of an event during the actual lesson was a line on last
+      night's report -- the room itself looked identical every day.
+      Five events (`wet_play`, `heatwave`, `sports_day`, `cold_snap`,
+      `cleaning`) now spawn drifting motes in the room while their lesson
+      runs, via a new `Fx.weather_mote()` reusing the existing dust-puff
+      texture rather than new art. Purely cosmetic -- changes nothing
+      `DayEvent`'s own hooks do not already change -- and the other 15
+      events spawn nothing, on purpose, so most days still look plain.
+      **The tuning took three full screenshot passes**, not one: the
+      first version was genuinely invisible (the shared dust texture is
+      2x2 pixels with one transparent corner, fine for a five-at-once
+      burst, a near-invisible smudge alone), confirmed by isolating the
+      render pipeline with an oversized debug sprite before touching
+      real values again; the second pass fixed falling motes but rising
+      ones (heatwave/sports_day) spawned under the HUD's own bottom hint
+      bar; the third widened contrast and spawn rate until each event
+      was confirmed legible in an actual screenshot, not just spawning
+      in a test. Regression test drives `_tick_weather()` directly:
+      an ordinary day spawns nothing, `wet_play` spawns a mote and
+      queues its own next one rather than firing every frame.
+      1103 -> 1106 assertions. Balance contract re-verified unmoved,
+      as expected for a change that touches no grade input.
 - [x] **Content batch: Tasks 2, 5–11, from two independent model runs.**
       *(Aug 2026.)* Both ChatGPT and Gemini were sent the same task pack;
       each task was scored against its own prompt's rules and the real

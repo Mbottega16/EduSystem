@@ -80,6 +80,47 @@ static func shake(camera: Camera2D, strength: float = 2.0,
 	tw.tween_property(camera, "offset", Vector2.ZERO, 0.05)
 
 
+## One drifting mote of ambient weather — a raindrop, a snowflake, a mote
+## of dust in a sunbeam. Spawned above the room at a random x, drifts to a
+## random point below, and fades out. The room's OWN day event decides
+## whether any of this runs at all and what colour it drifts in, so most
+## days are still the plain room they have always been — the point is that
+## the handful of days that roll something different now LOOK different,
+## not just read differently on last night's report.
+##
+## Reuses the dust puff's own texture and z-index rather than new art: a
+## mote is a puff that falls instead of scattering, and the room already
+## knows how to draw one of those.
+static func weather_mote(parent: Node2D, top_left: Vector2, size: Vector2,
+		colour: Color, fall: bool, seconds: float) -> void:
+	if parent == null or not is_instance_valid(parent):
+		return
+	var s := Sprite2D.new()
+	s.texture = DUST
+	# DUST is a 2x2 png with one corner transparent, which reads as five
+	# converging flecks in a puff() burst but is a near-invisible smudge
+	# alone at native size -- confirmed by screenshot, not assumed. Scaled
+	# well past puff()'s own size, and stretched along the direction of
+	# travel so a raindrop reads as a streak rather than a dot, the same
+	# trick real pixel-art rain uses.
+	s.scale = Vector2(2.5, 7.0) if fall else Vector2(4.5, 4.5)
+	s.modulate = colour
+	s.z_index = 55
+	var start := top_left + Vector2(randf() * size.x,
+		0.0 if fall else size.y)
+	s.position = start
+	parent.add_child(s)
+	# Seeded from the loop, same as puff() -- decoration must never draw
+	# from Game.rng or a replay of the same seed stops matching.
+	var drift := randf_range(-6.0, 6.0)
+	var travel: float = size.y if fall else -size.y
+	var tw := s.create_tween().set_parallel(true)
+	tw.tween_property(s, "position",
+		start + Vector2(drift, travel), seconds).set_trans(Tween.TRANS_LINEAR)
+	tw.tween_property(s, "modulate:a", 0.0, seconds).set_delay(seconds * 0.6)
+	tw.chain().tween_callback(s.queue_free)
+
+
 ## Count a number up, into a Label, rather than having it appear.
 static func count_to(label: Label, prefix: String, value: int,
 		suffix: String = "", seconds: float = 0.5) -> void:

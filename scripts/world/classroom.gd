@@ -55,6 +55,21 @@ var inspector: Actor = null
 var camera: Camera2D = null
 
 var lesson_left: float = 0.0
+## Ambient weather: seconds until the next mote is due. A day event whose
+## id has no entry in WEATHER spawns nothing, which is deliberate — most
+## days should still look like the plain room they have always been.
+var _weather_due: float = 0.0
+## id -> [colour, falls-rather-than-rises, seconds to cross the room,
+## seconds between motes]. Purely cosmetic, so unlike a balance number
+## this is allowed to live in code -- nothing here is read by the model
+## a delegated room is graded against.
+const WEATHER := {
+	"wet_play": [Color(0.35, 0.55, 0.95, 0.9), true, 1.6, 0.3],
+	"heatwave": [Color(0.95, 0.35, 0.1, 0.85), false, 1.8, 0.3],
+	"sports_day": [Color(0.95, 0.5, 0.1, 0.85), false, 1.6, 0.32],
+	"cold_snap": [Color(0.85, 0.93, 1.0, 0.95), true, 2.4, 0.4],
+	"cleaning": [Color(1.0, 1.0, 1.0, 0.85), false, 1.1, 0.35],
+}
 var _purchased: Array = []
 ## Tiles the bought furniture is currently occupying, so they can be handed
 ## back when it moves or the room is cleared.
@@ -182,6 +197,30 @@ func _refresh_camera_limits() -> void:
 	camera.limit_bottom = Grid.H * Grid.TILE
 
 
+## Ambient weather for whatever today's day event is. Purely decorative —
+## it changes nothing DayEvent's own hooks do not already change, it only
+## makes the handful of days that roll something different actually LOOK
+## different while you are standing in the room, not just on last night's
+## report.
+func _tick_weather(delta: float) -> void:
+	var profile: Array = WEATHER.get(String(Game.event.get("id", "none")), [])
+	if profile.is_empty():
+		return
+	_weather_due -= delta
+	if _weather_due > 0.0:
+		return
+	var colour: Color = profile[0]
+	var fall: bool = profile[1]
+	var seconds: float = profile[2]
+	_weather_due = float(profile[3])
+	# Kept off the very top and bottom rows on purpose: the HUD's status
+	# line and hint bar sit over those in screen space, and a mote is not
+	# worth drawing where it will spawn already hidden under them.
+	Fx.weather_mote(self, Vector2(0.0, 20.0),
+		Vector2(Grid.W * Grid.TILE, Grid.H * Grid.TILE - 40.0),
+		colour, fall, seconds)
+
+
 ## The room got bigger. Rebuild the geometry around the people in it.
 ##
 ## Everything the room is made of is torn down and rebuilt, exactly as a
@@ -261,6 +300,7 @@ func _physics_process(delta: float) -> void:
 		# always reach every student and there was no triage to do.
 		lesson_left = maxf(0.0, lesson_left - delta)
 		lesson_tick.emit(lesson_left)
+		_tick_weather(delta)
 		# Passing a null rng is what makes a test silent: tick_work() only
 		# ever stalls a student when it has one to roll with. Nobody gets
 		# stuck in a test, because you would not be allowed to go and

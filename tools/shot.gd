@@ -257,6 +257,12 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
+		"weather":
+			Game.event = DayEvent.by_id("wet_play")
+			world.start_lesson()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.PODIUM + Vector2i(0, 1))
+			Game.attention = 0.8
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance
