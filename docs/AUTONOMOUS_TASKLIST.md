@@ -387,12 +387,16 @@ These are not optional work; they are the queue. Prompts live in
       **Only `marking_desk.gd` called `get_tree()` directly** among all
       the Interactable subclasses -- checked, so this was not a wider
       pattern needing a sweep.
-      **Found, not fixed, out of scope for this pass:**
-      `Placement._refresh()` throws `Cannot call method 'get_height' on a
-      null value` -- a null `_ghost.texture`, unrelated to the
-      tree-detachment class of bug above. Confined to a manual `.tile` +
-      `._refresh()` poke in `test_build_mode` rather than the normal
-      `begin()` flow, so lower urgency; still needs a real fix.
+      **Found, not fixed, out of scope for that pass — fixed later
+      (August 2026, dev-panel session):** `Placement._refresh()` threw
+      `Cannot call method 'get_height' on a null value` on a null
+      `_ghost.texture`. Confirmed none of the three real entry points
+      (`begin`, `begin_desk`, `begin_browse`) can actually reach it —
+      each either sets a real texture first or stays in `browsing`,
+      which `_refresh()` returns out of before the line that crashed —
+      so this was defensive, not a live player-facing bug. Fixed with a
+      null-guarded height fallback and a regression test that builds
+      the exact broken state by hand, since no real caller does.
 - [x] **Grading felt too hard, and the hand of cards is now a real
       shuffle of 3-7.** *(Aug 2026.)* Grade LETTER bands (not the pillar
       itself) moved from hardcoded A .88/B .75/C .62/D .50/E .38 in

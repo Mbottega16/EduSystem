@@ -1200,6 +1200,31 @@ func test_placement() -> void:
 	section("PLACEMENT")
 	Game.new_run(SEED)
 	Game.add_coins(5000)
+
+	# A null ghost texture used to crash _refresh() with "Cannot call
+	# get_height() on a null value" -- not reachable through begin()'s own
+	# sequencing (browsing is set first, which returns early), but nothing
+	# stops a future caller from poking tile/desk_index before the texture
+	# is ever assigned, and that IS reachable: a fresh Placement node whose
+	# _refresh() is called before begin(). Logged, found, not fixed for a
+	# session; fixed here.
+	var bare := Placement.new()
+	world.add_child(bare)
+	# None of begin() / begin_desk() / begin_browse() actually leave the
+	# ghost in this state -- every real entry point sets a texture (or
+	# stays in `browsing`, which _refresh() returns out of before it
+	# would matter). Building it by hand is the only way to reach the
+	# line that used to crash, which is exactly what makes it worth a
+	# defensive fix rather than trusting today's three callers forever.
+	bare._ghost = Sprite2D.new()
+	bare.add_child(bare._ghost)
+	bare.item_id = "plant"
+	bare.desk_index = -1
+	bare.tile = Vector2i(9, 6)
+	bare._refresh()
+	chk("_refresh() survives a texture that was never assigned", true)
+	bare.queue_free()
+
 	var place := Placement.new()
 	world.add_child(place)
 	place.begin("plant", world.grid, Vector2i(9, 6))

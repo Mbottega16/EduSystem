@@ -248,16 +248,22 @@ func _refresh() -> void:
 		_reached.clear()
 		queue_redraw()
 		return
+	# A null ghost texture is not reachable through begin()'s own sequencing
+	# today (browsing is set first, which returns above), but nothing stops
+	# a future caller from setting tile/desk_index before the texture is
+	# assigned -- and get_height() on null is a hard crash, not a graceful
+	# no-op. Treat "no texture yet" as "nothing to anchor by" instead.
+	var ghost_h: float = _ghost.texture.get_height() if _ghost.texture != null else 0.0
 	if desk_index >= 0:
 		# anchored on the DESK tile, so the ghost sits where the desk will
 		_ghost.position = Layout.span_anchor([tile + Layout.DESK_OFFSET]) \
-			- Vector2(0, _ghost.texture.get_height() / 2.0)
+			- Vector2(0, ghost_h / 2.0)
 		_ghost.modulate = OK_TINT if is_valid() else BAD_TINT
 		_reached.clear()
 		queue_redraw()
 		return
 	var tiles := Items.footprint(item_id, tile)
-	_ghost.position = Layout.span_anchor(tiles) - Vector2(0, _ghost.texture.get_height() / 2.0)
+	_ghost.position = Layout.span_anchor(tiles) - Vector2(0, ghost_h / 2.0)
 	_ghost.modulate = OK_TINT if is_valid() else BAD_TINT
 	_reached = Items.seats_in_range(item_id, tile)
 	queue_redraw()
