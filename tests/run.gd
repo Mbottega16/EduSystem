@@ -187,6 +187,7 @@ func _main() -> void:
 	test_a_term_can_be_won()
 	await test_autopilot_and_aide()
 	await test_lesson_plan_folder()
+	await test_dashboard()
 	await test_milestones()
 	await test_buying_desks()
 	await test_the_school()
@@ -4578,6 +4579,80 @@ func test_lesson_plan_folder() -> void:
 	Game.new_run(SEED)
 	await step(2)
 
+
+func test_dashboard() -> void:
+	section("YOUR OWN DASHBOARD")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(5)
+	var hud := _hud()
+	const RICH_ROWS := 11
+
+	# Reachable from the WORLD, on its own key -- not a landmark verb, so
+	# E/F gain no third or fourth job. This is the actual test of "a
+	# better button system": one more global key, same tier as Tab/pause.
+	chk("closed to start with", hud.mode == hud.Mode.NONE)
+	await tap("dashboard")
+	chk("pressing the dashboard key opens it from the world",
+		hud.mode == hud.Mode.DASHBOARD, hud.mode)
+	hud.close()
+
+	# --- page 1: overview ---
+	hud._dash = hud.Dash.OVERVIEW
+	hud.show_dashboard()
+	chk("opens on the overview page", hud._dash == hud.Dash.OVERVIEW)
+	chk("shows your level", hud.rich.text.contains("Level %d" % Game.teacher_level),
+		hud.rich.text)
+	chk("and how many children you have",
+		hud.rich.text.contains("%d of %d seats" % [Game.roster.size(), Game.seat_capacity()]),
+		hud.rich.text)
+	chk("the portrait is on for the overview page", hud.portrait.visible)
+	chk("and names the cosmetic slots without pretending they exist",
+		hud.rich.text.contains("Hat") and hud.rich.text.contains("Background")
+		and hud.rich.text.contains("none chosen"), hud.rich.text)
+	chk("it fits", hud.rich.text.split("
+").size() <= RICH_ROWS,
+		hud.rich.text.split("
+").size())
+
+	# --- page 2: items ---
+	Game.place_item("stool", Vector2i(9, 6))
+	hud._render_dashboard()  # room_items changed under an open screen
+	hud._dash = (hud._dash + 1) % 3
+	hud.show_dashboard()
+	chk("cycled to the items page", hud._dash == hud.Dash.ITEMS)
+	chk("the portrait turns off for a non-overview page", not hud.portrait.visible)
+	chk("counts what you have bought, by category",
+		hud.rich.text.contains(Items.category_label(Items.category_of("stool"))),
+		hud.rich.text)
+	chk("it fits", hud.rich.text.split("
+").size() <= RICH_ROWS,
+		hud.rich.text.split("
+").size())
+	Game.sell_item(Vector2i(9, 6))
+
+	# --- page 3: skills ---
+	Game.perk_ranks["calm_presence"] = 1
+	hud._dash = (hud._dash + 1) % 3
+	hud.show_dashboard()
+	chk("cycled to the skills page", hud._dash == hud.Dash.SKILLS)
+	chk("shows a perk you have actually spent a point on",
+		hud.rich.text.contains(String(Progress.perk_def("calm_presence").get("name", ""))),
+		hud.rich.text)
+	chk("it fits", hud.rich.text.split("
+").size() <= RICH_ROWS,
+		hud.rich.text.split("
+").size())
+	chk("and cycling wraps back round to overview",
+		(hud._dash + 1) % 3 == hud.Dash.OVERVIEW)
+
+	# --- closing ---
+	await tap("cancel")
+	chk("Esc closes it", hud.mode == hud.Mode.NONE, hud.mode)
+
+	Game.perk_ranks.clear()
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_milestones() -> void:

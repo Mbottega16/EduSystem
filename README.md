@@ -19,6 +19,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | **B** | **rearrange the room from a free cursor** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
+| **I** | **your dashboard -- who you are, what you own, your skills** | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
 | F1 / F2 | live tuning panel | dev only |
@@ -34,6 +35,15 @@ ended the whole lesson.
 One landmark can carry a verb on **each** button, and several now do: the
 podium teaches on F and quizzes on E, a desk offers help on E and picks
 itself up on F, the noticeboard is the shop on F and the curriculum on E.
+
+**A growing game needs more than two KEYS, not more than two VERBS.**
+E and F stay exactly what they are — the mashable one and the session
+one, tied to whatever landmark you are standing at. Everything that is
+not about a landmark gets its own dedicated key instead of a third job
+bolted onto E or F: Tab for the class list and shop, B to rearrange the
+room, Q to settle it, and now **I** for your own dashboard. The pillar
+was never "two buttons total" — it is "no landmark ever needs more than
+two", and that is still true everywhere in the game.
 
 **Settings** covers master and sound volume, window size, fullscreen and
 whether hints appear. **Controls** rebinds any key — taking a key from
@@ -350,7 +360,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1067 assertions
+Run Tests.bat            1084 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

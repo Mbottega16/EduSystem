@@ -13,8 +13,13 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD }
 enum Shop { BUY, SELL, STAFF, ROOM }
+## The dashboard's own three pages, cycled by the same "menu" key the shop
+## already cycles its tabs with -- one overview screen for "who am I, what
+## do I have", not a fourth thing bolted onto E/F.
+enum Dash { OVERVIEW, ITEMS, SKILLS }
+var _dash: int = Dash.OVERVIEW
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
 const ROOM_ROWS := ["wide", "tall", "desk"]
@@ -159,6 +164,9 @@ func _physics_process(_delta: float) -> void:
 	if mode == Mode.NONE:
 		if Input.is_action_just_pressed("menu"):
 			show_class_list()
+		elif Input.is_action_just_pressed("dashboard"):
+			_dash = Dash.OVERVIEW
+			show_dashboard()
 		elif Input.is_action_just_pressed("pause"):
 			show_pause()
 		return
@@ -467,6 +475,152 @@ func hint_once(id: String, text: String) -> void:
 
 
 var _hint_until: float = 0.0
+
+
+## YOUR OWN DASHBOARD. Not a landmark verb -- you are not standing anywhere
+## specific to ask "who am I, what do I have" -- so it lives on its own key
+## (I), the same way the class list and pause already do not compete with
+## E/F. Those two stay exactly what they were: E is the mashable verb, F is
+## session-level, and neither of them gained a third or fourth job here.
+##
+## Three pages, cycled with the same "menu" key the shop already cycles its
+## own tabs with: OVERVIEW (who you are, how many children, your level),
+## ITEMS (what you have bought, by category), SKILLS (every perk you have
+## spent points on, read-only -- spending them is still the staff room's
+## job; this is a mirror, not a second till).
+func show_dashboard() -> void:
+	_open(Mode.DASHBOARD)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 8)
+	_render_dashboard()
+
+
+func _render_dashboard() -> void:
+	Balance.ensure_loaded()
+	var lines: Array[String] = []
+	var tabs := ["Overview", "Items", "Skills"]
+	var strip := ""
+	for i in tabs.size():
+		strip += "[color=#%s]%s[/color]  " % [
+			C_LESSON if i == _dash else DIM, tabs[i]]
+	lines.append(strip)
+	lines.append("")
+
+	# Only the OVERVIEW page wants the portrait -- _render_dashboard() is
+	# called directly when cycling pages (not through _open(), which is
+	# the usual place a portrait gets hidden again), so this has to manage
+	# it itself or a stale portrait would follow you onto Items/Skills.
+	portrait.visible = (_dash == Dash.OVERVIEW)
+
+	match _dash:
+		Dash.OVERVIEW:
+			lines.append_array(_render_dash_overview())
+		Dash.ITEMS:
+			lines.append_array(_render_dash_items())
+		Dash.SKILLS:
+			lines.append_array(_render_dash_skills())
+
+	rich.text = "
+".join(lines)
+	rich.visible_ratio = 1.0
+	hint.text = "Tab - next page    E / Esc - close"
+
+
+## Who you are, at a glance. The character portrait is the hook for the
+## cosmetic slots that are coming -- a hat and a background are asked for
+## and explicitly NOT built yet, so the two lines are placeholders that
+## read honestly as "not chosen" rather than as a broken feature.
+func _render_dash_overview() -> Array[String]:
+	var at := AtlasTexture.new()
+	at.atlas = load("res://art/player.png")
+	at.region = Rect2(0, 0, 16, 24)
+	portrait.texture = at   # visibility is handled by _render_dashboard()
+
+	# The panel does not scroll (scroll_active = false on Rich in
+	# hud.tscn) -- content past its 128px height clips SILENTLY, and that
+	# clip point sits below what the raw line count suggests once
+	# font-8/line-separation-2 is accounted for. Learned the hard way:
+	# a 10-line version of this page visibly cut its last row. Kept
+	# deliberately short, with real margin, rather than exactly at
+	# whatever the budget arithmetic claims should just barely fit.
+	var lines: Array[String] = []
+	lines.append("[color=#%s]Level %d[/color]   [color=#%s]%s[/color]" % [
+		C_KNOW, Game.teacher_level, DIM,
+		Curriculum.strand_label(Game.specialism) if Game.specialism != ""
+			else "no speciality yet"])
+	lines.append("[color=#%s]Class[/color]      %d of %d seats" % [
+		DIM, Game.roster.size(), Game.seat_capacity()])
+	lines.append("[color=#%s]Furniture[/color]  %d piece%s, %d coins" % [
+		DIM, Game.room_items.size(), "" if Game.room_items.size() == 1 else "s",
+		Game.coins])
+	lines.append("")
+	# Deliberately unimplemented -- see the function doc above.
+	lines.append("[color=#%s]Hat[/color]         none chosen yet" % DIM)
+	lines.append("[color=#%s]Background[/color]  none chosen yet" % DIM)
+	return lines
+
+
+## What you have bought, by category -- a count and what it is worth to a
+## desk, not the tile-by-tile list the shop's own SELL tab already gives
+## you. Reading "what have I got" a category at a time is the thing a
+## dashboard is for; reading "which exact item is at which exact tile" is
+## still the sell list's job.
+func _render_dash_items() -> Array[String]:
+	var lines: Array[String] = []
+	if Game.room_items.is_empty():
+		lines.append("[color=#%s]Nothing bought yet.[/color]" % DIM)
+		return lines
+	var counts: Dictionary = {}
+	var worth: Dictionary = {}
+	for placed: Dictionary in Game.room_items:
+		var id := String(placed.get("id", ""))
+		var cat := Items.category_of(id)
+		counts[cat] = int(counts.get(cat, 0)) + 1
+		worth[cat] = float(worth.get(cat, 0.0)) + float(Items.get_def(id).get("bonus", 0.0))
+	for cat: String in Items.categories():
+		if not counts.has(cat):
+			continue
+		lines.append("[color=#%s]%-10s[/color] %2d   %s" % [
+			cat_colour(cat), Items.category_label(cat), int(counts[cat]),
+			_worth_bar(float(worth[cat]))])
+	lines.append("")
+	lines.append("[color=#%s]%d piece%s, worth %d coins new[/color]" % [
+		DIM, Game.room_items.size(), "" if Game.room_items.size() == 1 else "s",
+		_room_spend()])
+	return lines
+
+
+## What is currently standing in the room would cost to buy again -- there
+## is no purchase-history ledger, so this is "worth", not "spent".
+func _room_spend() -> int:
+	var total := 0
+	for placed: Dictionary in Game.room_items:
+		total += Items.cost(String(placed.get("id", "")))
+	return total
+
+
+## The same rank bars the staff room draws, without a cursor and without
+## the "E to spend a point" hint -- spending stays the staff room's job.
+func _render_dash_skills() -> Array[String]:
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%d point%s unspent[/color]" % [
+		C_COIN, Game.perk_points_free(),
+		"" if Game.perk_points_free() == 1 else "s"])
+	lines.append("")
+	var order := Progress.perk_order()
+	for id: String in order:
+		var d := Progress.perk_def(id)
+		var have := Game.perk_rank(id)
+		var cap := Progress.max_rank(id)
+		lines.append("[color=#%s]%-17s[/color] [color=#%s]%s[/color]" % [
+			C_LESSON if have > 0 else DIM, String(d.get("name", id)),
+			C_LESSON if have > 0 else DIM,
+			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
+	if order.is_empty():
+		lines.append("[color=#%s]No perks defined.[/color]" % DIM)
+	return lines
 
 
 ## Everyone in the room, what they are good at, and how they have been doing.
@@ -2169,6 +2323,16 @@ func _handle_input() -> void:
 			Game.specialism = String(strands[_sel])
 			Sfx.play("confirm")
 			close()
+		return
+
+	if mode == Mode.DASHBOARD:
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			close()
+		elif Input.is_action_just_pressed("menu") 				or Input.is_action_just_pressed("dashboard"):
+			_dash = (_dash + 1) % 3
+			Sfx.play("blip")
+			_render_dashboard()
 		return
 
 	if mode == Mode.CURRICULUM:

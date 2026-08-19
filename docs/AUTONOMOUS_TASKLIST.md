@@ -179,6 +179,34 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **A dashboard, and what "two buttons is not enough" actually meant.**
+      *(Aug 2026 -- user request.)* Checked the actual rule in CLAUDE.md
+      before touching it: E/F were never "two buttons total", they are
+      "no LANDMARK ever offers more than two" -- the game already had
+      Tab/B/Q/P as dedicated global keys, unrelated to any landmark,
+      before that rule was written down. A dashboard is not about
+      anywhere you are standing, so it got the same treatment: a new
+      global key (`I`), Mode.DASHBOARD as #14, E/F untouched.
+      Three pages, cycled with the shop's own tab-cycling pattern:
+      OVERVIEW (level, speciality, class size, room, coins, portrait, and
+      two deliberately-empty Hat/Background lines -- the cosmetic slots
+      were asked for and explicitly deferred, same pattern as the hand-
+      size luck skill), ITEMS (what is owned, by category, reusing
+      `cat_colour`/`_worth_bar` from the shop rather than re-inventing
+      them), SKILLS (a read-only mirror of the staff room's perk bars --
+      spending stays the staff room's job).
+      Found a real, silent clipping bug while screenshotting it: the body
+      panel does not scroll (`scroll_active = false`), and the true
+      visual capacity at font 8 / line-separation 2 is BELOW what the
+      `<= 11` logical-line-count assertion catches, since that assertion
+      only counts `
+` and cannot see a wrapped or simply-too-tall block
+      clip silently. The Overview page's Background line was cut off on
+      screen while its own line-count assertion still reported it fit.
+      Trimmed for real margin rather than exactly at the arithmetic edge.
+      CLAUDE.md's constraint itself reworded from "Two buttons" to "Two
+      buttons per landmark" to say the true rule out loud, since the old
+      wording was ambiguous enough to prompt this very question.
 - [x] **The homework screen went silent, for real players, permanently,
       after the first room rebuild.** *(Aug 2026 -- real bug, user-
       reported: "we broke the homework page as now it shows nothing".)*

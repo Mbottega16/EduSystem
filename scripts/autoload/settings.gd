@@ -22,6 +22,7 @@ const ACTIONS := [
 	{"action": "autopilot", "label": "Go to whoever needs me"},
 	{"action": "sprint", "label": "Hurry"},
 	{"action": "menu", "label": "Class list"},
+	{"action": "dashboard", "label": "Your dashboard"},
 	{"action": "pause", "label": "Pause"},
 ]
 ## Bound, but not offered for rebinding: Escape always means "back out".
@@ -40,6 +41,7 @@ const DEFAULTS := {
 	"autopilot": [KEY_R],
 	"sprint": [KEY_SHIFT],
 	"menu": [KEY_TAB],
+	"dashboard": [KEY_I],
 	"pause": [KEY_P],
 	"cancel": [KEY_ESCAPE],
 }

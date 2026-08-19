@@ -53,8 +53,14 @@ repeatedly by edits that seemed obviously right:
   job", not "0.62". Enforced by a test.
 - **Legwork, not judgement.** Automation may do the walking; it may never
   make the decision about a particular child.
-- **Two buttons.** E is the mashable verb (help, collect, hand in). F is
-  session-level (lesson, bell, shop). Anything irreversible is HELD.
+- **Two buttons per landmark.** E is the mashable verb (help, collect,
+  hand in). F is session-level (lesson, bell, shop). Anything irreversible
+  is HELD. This is about what one landmark can offer, not the whole
+  keyboard -- the game already had Tab/B/Q/P as dedicated global keys
+  before this rule was ever written down, and a new global key (`I`, the
+  dashboard) is the same kind of thing, not an exception to it. What
+  would actually break the rule is a THIRD verb on a landmark, or E/F
+  gaining a job that is not mashable/session-level respectively.
 - **A dev tool must never write the player's save.** `Game.save_path` is a
   var for exactly this reason — the suite and simulators point it elsewhere.
 - **Panel budget:** 11 rows at font 8 in a 288×128 body. Labels clip in
@@ -69,7 +75,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1067 assertions — must pass, count must not drop
+Run Tests.bat            1084 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -130,10 +136,10 @@ a deliberate WIP commit.
 | `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
-| `scripts/ui/hud.gd` | Every screen. 13 modes; ten of them share `REPORT`. |
+| `scripts/ui/hud.gd` | Every screen. 14 modes; ten of them share `REPORT`. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1067 assertions, 74 sections |
+| `tests/run.gd` | The suite — 1084 assertions, 74 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

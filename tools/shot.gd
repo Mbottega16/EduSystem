@@ -111,6 +111,24 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.new_run(0)
 			Game.draw_hand()
 			hud.show_hand(true)
+		"dashboard":
+			Game.new_run(0)
+			Game.place_item("stool", Vector2i(9, 6))
+			Game.perk_ranks["calm_presence"] = 1
+			hud._dash = hud.Dash.OVERVIEW
+			hud.show_dashboard()
+		"dashboard_items":
+			Game.new_run(0)
+			Game.place_item("stool", Vector2i(9, 6))
+			hud._dash = hud.Dash.ITEMS
+			hud.show_dashboard()
+		"dashboard_skills":
+			Game.new_run(0)
+			Game.teacher_level = 5   # 4 points earned, so 3 spent reads sanely
+			Game.perk_ranks["calm_presence"] = 1
+			Game.perk_ranks["long_reach"] = 2
+			hud._dash = hud.Dash.SKILLS
+			hud.show_dashboard()
 		"marking":
 			# The real bug this verifies: a rebuilt room used to leave a
 			# stale marking desk that silently killed the homework screen
