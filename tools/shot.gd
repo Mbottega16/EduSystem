@@ -184,6 +184,15 @@ func _open_screen(main: Node, screen: String) -> void:
 				for i in 4:
 					Game.record_taught(String(l.get("id", "")))
 			hud.show_curriculum()
+		"dev_room":
+			var dbg: Node = main.get_node("Debug")
+			dbg._do_cheat("all")
+			dbg._toggle(true)
+			dbg.page = dbg.Page.CHEATS
+		"dev_room_bare":
+			# Same cheat, panel closed -- to actually see the room it made.
+			var dbg2: Node = main.get_node("Debug")
+			dbg2._do_cheat("all")
 		"unit_test":
 			for i in 5:
 				Game.record_taught("basic_arithmetic")

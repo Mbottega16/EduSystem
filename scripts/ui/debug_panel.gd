@@ -26,6 +26,7 @@ const ROWS := [
 ]
 
 const CHEATS := [
+	{"label": "EVERYTHING (dev room)", "id": "all"},
 	{"label": "Unlimited coins", "id": "coins"},
 	{"label": "Max teacher + all perks", "id": "teacher"},
 	{"label": "Max every student", "id": "students"},
@@ -116,47 +117,96 @@ func _do_cheat(id: String) -> void:
 	Balance.ensure_loaded()
 	Game.cheated = true          # permanent, saved, and shown at term end
 	match id:
+		"all":
+			# Everything, in the order that makes each step actually land:
+			# the room has to be BIGGER before there is anywhere to enrol
+			# or furnish into, and the class has to exist before "every
+			# student" has anyone in it to max.
+			var msgs: Array[String] = []
+			msgs.append(_cheat_coins(true))
+			msgs.append(_cheat_grow())
+			msgs.append(_cheat_grow())
+			msgs.append(_cheat_enrol())
+			msgs.append(_cheat_students())
+			msgs.append(_cheat_teacher())
+			msgs.append(_cheat_furnish())
+			_msg = "dev room: " + ", ".join(msgs)
 		"coins":
-			Game.unlimited_coins = not Game.unlimited_coins
-			if Game.unlimited_coins:
-				Game.add_coins(999999)
-			_msg = "unlimited coins %s" % ("ON" if Game.unlimited_coins else "off")
+			_msg = _cheat_coins()
 		"teacher":
-			Game.add_teacher_xp(Balance.teacher_xp_per_level * Balance.teacher_max_level)
-			for pid: String in Progress.perk_order():
-				while Game.perk_rank(pid) < Progress.max_rank(pid):
-					Game.perk_ranks[pid] = Game.perk_rank(pid) + 1
-			_msg = "teacher maxed"
+			_msg = _cheat_teacher()
 		"students":
-			for s: StudentData in Game.roster:
-				while s.level < Balance.stu_max_level:
-					s.level += 1
-					s.aptitude = clampf(s.aptitude + Balance.stu_aptitude_step, 0.0, 1.0)
-					s.diligence = clampf(s.diligence + Balance.stu_diligence_step, 0.0, 1.0)
-			_msg = "every student maxed"
+			_msg = _cheat_students()
 		"ready":
 			for s: StudentData in Game.roster:
 				s.level = maxi(s.level, Balance.stu_ready_level)
 			_msg = "all ready to send up"
 		"furnish":
-			var placed := 0
-			for iid: String in Items.order():
-				var spot := _free_spot(iid)
-				if spot.x >= 0:
-					Game.add_item(iid, spot)
-					placed += 1
-			_msg = "placed %d items" % placed
+			_msg = _cheat_furnish()
 		"enrol":
-			var n := 0
-			while Game.enrol() != null:
-				n += 1
-			_msg = "enrolled %d" % n
+			_msg = _cheat_enrol()
+		"grow":
+			_msg = _cheat_grow()
 		"day":
 			Game.advance_day()
 			_msg = "now day %d" % Game.day
 		"term":
 			Game.day = Balance.term_days
 			_msg = "last day of term"
+
+
+## `force_on`: for "all", where toggling would be the wrong verb -- a
+## dev room means coins ARE unlimited, not "whatever they happened to be".
+func _cheat_coins(force_on: bool = false) -> String:
+	if force_on:
+		Game.unlimited_coins = true
+	else:
+		Game.unlimited_coins = not Game.unlimited_coins
+	if Game.unlimited_coins:
+		Game.add_coins(999999)
+	return "unlimited coins %s" % ("ON" if Game.unlimited_coins else "off")
+
+
+func _cheat_teacher() -> String:
+	Game.add_teacher_xp(Balance.teacher_xp_per_level * Balance.teacher_max_level)
+	for pid: String in Progress.perk_order():
+		while Game.perk_rank(pid) < Progress.max_rank(pid):
+			Game.perk_ranks[pid] = Game.perk_rank(pid) + 1
+	return "teacher maxed"
+
+
+func _cheat_students() -> String:
+	for s: StudentData in Game.roster:
+		while s.level < Balance.stu_max_level:
+			s.level += 1
+			s.aptitude = clampf(s.aptitude + Balance.stu_aptitude_step, 0.0, 1.0)
+			s.diligence = clampf(s.diligence + Balance.stu_diligence_step, 0.0, 1.0)
+	return "every student maxed"
+
+
+func _cheat_furnish() -> String:
+	var placed := 0
+	for iid: String in Items.order():
+		var spot := _free_spot(iid)
+		if spot.x >= 0:
+			Game.add_item(iid, spot)
+			placed += 1
+	return "placed %d items" % placed
+
+
+func _cheat_enrol() -> String:
+	var n := 0
+	while Game.enrol() != null:
+		n += 1
+	return "enrolled %d" % n
+
+
+func _cheat_grow() -> String:
+	var w := Game.expand_room("wide")
+	var h := Game.expand_room("tall")
+	if w != "" and h != "":
+		return "room already at its cap"
+	return "room grown"
 
 
 ## Somewhere this item actually fits, or (-1,-1).

@@ -179,6 +179,23 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **A one-key dev room, and a real bug in the panel that made it.**
+      *(Aug 2026 -- user request: "make me a dev room with max coins,
+      itms, stuudents, sstats, etc.")* The F1 dev panel already had
+      individual cheats for all of this (coins, teacher, students,
+      furniture, enrolling, growing the room) -- what was missing was one
+      key to fire all of them in the right order. Found a real bug while
+      wiring it: the "grow" cheat was listed in `CHEATS` with a label but
+      had no case in `_do_cheat()`'s match, so pressing E on it silently
+      did nothing but mark the run cheated. Refactored each cheat into
+      its own function so "EVERYTHING (dev room)" can call them in an
+      order that actually works -- coins BEFORE grow (growing costs
+      money), grow BEFORE enrol/furnish (both need the extra floor).
+      Screenshotted both the panel (`dev_room`) and the room it produces
+      (`dev_room_bare`) to confirm coins, room size, roster and furniture
+      all actually changed, not just the message line. Regression-tested
+      directly against the debug panel's own `_do_cheat`, including the
+      previously-silent `grow` case.
 - [x] **An auto-play system: watch a delegated room play out.**
       *(Aug 2026 -- user request, "an auto play system for the game as
       well".)* Conflicts directly with "legwork, not judgement" if read

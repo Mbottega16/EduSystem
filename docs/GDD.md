@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-18**, against build `b29`, with **1090 assertions
+> **Measured on 2026-08-18**, against build `b29`, with **1098 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -312,7 +312,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 15 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1090 assertions** across **75 sections** |
+| Tests | **1098 assertions** across **75 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

@@ -191,6 +191,7 @@ func _main() -> void:
 	await test_milestones()
 	await test_buying_desks()
 	await test_the_school()
+	await test_dev_panel()
 	await test_teaching()
 	await test_voice()
 	await test_quiz_buff_and_calm()
@@ -5060,6 +5061,46 @@ func test_the_school() -> void:
 	Game.new_run(SEED)
 	await step(2)
 
+
+## The F1 panel's "grow" cheat had a label and no case in the match --
+## pressing E on it set Game.cheated and did nothing else. Caught only by
+## actually calling it and checking the room got bigger, which a headless
+## boot check never would have.
+func test_dev_panel() -> void:
+	section("DEV PANEL")
+	Game.new_run(SEED)
+	await step(2)
+	var dbg: Node = world.get_parent().get_node("Debug")
+	var w0 := Grid.W
+	var h0 := Grid.H
+	var students0 := Game.roster.size()
+
+	Game.coins = 999999
+	dbg._do_cheat("grow")
+	chk("the grow cheat actually grows the room",
+		Grid.W > w0 and Grid.H > h0, "%dx%d -> %dx%d" % [w0, h0, Grid.W, Grid.H])
+
+	Game.new_run(SEED)
+	await step(2)
+	dbg._do_cheat("all")
+	chk("EVERYTHING gives unlimited coins", Game.unlimited_coins)
+	chk("EVERYTHING grows the room",
+		Grid.W > w0 or Grid.H > h0, "%dx%d" % [Grid.W, Grid.H])
+	chk("EVERYTHING fills the class",
+		Game.roster.size() > students0, Game.roster.size())
+	chk("EVERYTHING maxes every student", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.level < Balance.stu_max_level:
+				return false
+		return true).call())
+	chk("EVERYTHING maxes the teacher",
+		Game.teacher_level >= Balance.teacher_max_level, Game.teacher_level)
+	chk("EVERYTHING places furniture", Game.room_items.size() > 0,
+		Game.room_items.size())
+	chk("a cheat marks the run as cheated, permanently", Game.cheated)
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_overlays() -> void:
