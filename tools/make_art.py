@@ -208,7 +208,7 @@ def outline(img, colour=LINE):
 # ====================================================================
 
 def draw_char(direction, frame, pal):
-    """One 16x24 frame.
+    """One 16x24 frame, CHIBI proportions: the head is most of the sprite.
 
     `direction` 0=down 1=left 2=right 3=up.
     `frame` 0-3 is the walk cycle; frame 4 (SIT_FRAME) is the seated pose.
@@ -218,13 +218,21 @@ def draw_char(direction, frame, pal):
     true of every character sprite — the bottom of the cell is where this
     person meets the floor — which is the rule the whole game positions and
     depth-sorts by.
+
+    *(Aug 2026, redesigned for a cute/chibi silhouette.)* The old figure
+    split the 24px cell roughly head 8 / body 7 / legs 4+shoes. This one is
+    head 12 / body 5 / legs 4 — the head is now wider than the shoulders,
+    which is the one proportion change that actually reads as "chibi"
+    rather than just "smaller person". Every character is still one
+    palette through this same routine; nothing about the per-character
+    data changed, only the shape everyone shares.
     """
     im = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
     hair, hair_d = pal["hair"], pal["hair_d"]
     shirt, shirt_d = pal["shirt"], pal["shirt_d"]
 
     seated = (frame == SIT_FRAME)
-    dy = 3 if seated else 0        # how far the figure sinks into the chair
+    dy = 2 if seated else 0        # how far the figure sinks into the chair
 
     # contact shadow, drawn before anything else so the figure sits on it
     shadow(im, CW // 2, CH - 2, 6, 2)
@@ -236,68 +244,71 @@ def draw_char(direction, frame, pal):
     elif frame == 3:
         step = -1
 
-    # ---- legs ----
+    # ---- legs: short and stubby, well under the big head ----
     if seated:
-        # knees forward, feet tucked under the chair. Only the tops of the
-        # thighs read from this angle, and at a desk even those are hidden.
-        rect(im, 3, 21, 6, 23, pal["legs"])
-        rect(im, 9, 21, 12, 23, pal["legs"])
+        rect(im, 5, 21, 7, 23, pal["legs"])
+        rect(im, 9, 21, 11, 23, pal["legs"])
     else:
         l_off = max(0, step)
         r_off = max(0, -step)
-        leg_top = 20 if pal["skirt"] else 18   # a skirt covers the thighs
-        rect(im, 4, leg_top - l_off, 6, 21 - l_off, pal["legs"])
-        rect(im, 9, leg_top - r_off, 11, 21 - r_off, pal["legs"])
-        rect(im, 4, 22 - l_off, 6, 22 - l_off, pal["shoe"])
-        rect(im, 9, 22 - r_off, 11, 22 - r_off, pal["shoe"])
+        leg_top = 21 if pal["skirt"] else 19   # a skirt covers the thighs
+        rect(im, 5, leg_top - l_off, 7, 22 - l_off, pal["legs"])
+        rect(im, 9, leg_top - r_off, 11, 22 - r_off, pal["legs"])
+        rect(im, 5, 23 - l_off, 7, 23 - l_off, pal["shoe"])
+        rect(im, 9, 23 - r_off, 11, 23 - r_off, pal["shoe"])
 
-    # ---- body ----
-    rect(im, 4, 12 + dy, 11, 18 + dy, shirt)
-    rect(im, 4, 17 + dy, 11, 18 + dy, shirt_d)   # shading under the torso
+    # ---- body: a small torso, mostly hidden under the head from the front ----
+    rect(im, 5, 15 + dy, 10, 19 + dy, shirt)
+    rect(im, 5, 18 + dy, 10, 19 + dy, shirt_d)   # shading under the torso
     if pal["skirt"] and not seated:
-        rect(im, 4, 17, 11, 17, shirt)           # a flared hem over the legs
-        rect(im, 3, 18, 12, 19, shirt)
-        rect(im, 2, 20, 13, 20, shirt_d)
+        rect(im, 5, 18, 10, 18, shirt)           # a flared hem over the legs
+        rect(im, 4, 19, 11, 20, shirt)
+        rect(im, 3, 21, 12, 21, shirt_d)
 
-    # ---- arms (swing opposite to the legs; still when seated) ----
+    # ---- arms (short, swing opposite to the legs; still when seated) ----
     a_l = 0 if seated else -step
     a_r = 0 if seated else step
-    rect(im, 2, 13 + dy + a_l, 3, 17 + dy + a_l, shirt_d)
-    rect(im, 12, 13 + dy + a_r, 13, 17 + dy + a_r, shirt_d)
-    px(im, 2, 18 + dy + a_l, SKIN); px(im, 3, 18 + dy + a_l, SKIN)
-    px(im, 12, 18 + dy + a_r, SKIN); px(im, 13, 18 + dy + a_r, SKIN)
+    rect(im, 3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
+    rect(im, 11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
+    px(im, 3, 19 + dy + a_l, SKIN); px(im, 4, 19 + dy + a_l, SKIN)
+    px(im, 11, 19 + dy + a_r, SKIN); px(im, 12, 19 + dy + a_r, SKIN)
 
-    # ---- head ----
-    rect(im, 4, 4 + dy, 11, 11 + dy, SKIN)
-    rect(im, 4, 11 + dy, 11, 11 + dy, SKIN_D)    # jaw shadow
+    # ---- head: the whole point. Wider than the body and most of the cell ----
+    rect(im, 2, 3 + dy, 13, 14 + dy, SKIN)
+    rect(im, 2, 13 + dy, 13, 14 + dy, SKIN_D)    # jaw shadow
 
     # ---- long hair falls behind the head, so it goes down before the fringe
     if pal["long_hair"]:
-        rect(im, 3, 5 + dy, 3, 15 + dy, hair)
-        rect(im, 12, 5 + dy, 12, 15 + dy, hair)
-        px(im, 3, 15 + dy, hair_d); px(im, 12, 15 + dy, hair_d)
+        rect(im, 2, 6 + dy, 2, 18 + dy, hair)
+        rect(im, 13, 6 + dy, 13, 18 + dy, hair)
+        px(im, 2, 18 + dy, hair_d); px(im, 13, 18 + dy, hair_d)
 
-    # ---- hair, which is what actually sells the facing ----
+    # ---- hair and the big chibi eyes, which sell the facing ----
     if direction == 3:                           # away: all hair, no face
-        rect(im, 4, 3 + dy, 11, 10 + dy, hair)
-        rect(im, 4, 10 + dy, 11, 10 + dy, hair_d)
+        rect(im, 2, 2 + dy, 13, 12 + dy, hair)
+        rect(im, 2, 12 + dy, 13, 12 + dy, hair_d)
         if pal["long_hair"]:
-            rect(im, 4, 10 + dy, 11, 15 + dy, hair)   # full fall down the back
-            rect(im, 4, 15 + dy, 11, 15 + dy, hair_d)
+            rect(im, 2, 12 + dy, 13, 18 + dy, hair)   # full fall down the back
+            rect(im, 2, 18 + dy, 13, 18 + dy, hair_d)
     elif direction == 0:                         # toward camera: fringe + eyes
-        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
-        rect(im, 4, 6 + dy, 5, 7 + dy, hair)
-        rect(im, 10, 6 + dy, 11, 7 + dy, hair)
-        px(im, 6, 8 + dy, EYE); px(im, 9, 8 + dy, EYE)
-        px(im, 6, 9 + dy, SKIN_D); px(im, 9, 9 + dy, SKIN_D)
+        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
+        rect(im, 2, 7 + dy, 4, 8 + dy, hair)
+        rect(im, 11, 7 + dy, 13, 8 + dy, hair)
+        rect(im, 5, 9 + dy, 6, 10 + dy, EYE)
+        rect(im, 9, 9 + dy, 10, 10 + dy, EYE)
+        px(im, 6, 9 + dy, (255, 255, 255, 220))     # a highlight per eye --
+        px(im, 10, 9 + dy, (255, 255, 255, 220))    # the actual "cute" signal
+        px(im, 7, 12 + dy, SKIN_D); px(im, 8, 12 + dy, SKIN_D)
     elif direction == 1:                         # left profile
-        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
-        rect(im, 9, 3 + dy, 11, 9 + dy, hair)
-        px(im, 5, 8 + dy, EYE)
+        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
+        rect(im, 11, 2 + dy, 13, 11 + dy, hair)
+        rect(im, 5, 9 + dy, 6, 10 + dy, EYE)
+        px(im, 6, 9 + dy, (255, 255, 255, 220))
     else:                                        # right profile
-        rect(im, 4, 3 + dy, 11, 6 + dy, hair)
-        rect(im, 4, 3 + dy, 6, 9 + dy, hair)
-        px(im, 10, 8 + dy, EYE)
+        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
+        rect(im, 2, 2 + dy, 4, 11 + dy, hair)
+        rect(im, 9, 9 + dy, 10, 10 + dy, EYE)
+        px(im, 9, 9 + dy, (255, 255, 255, 220))
 
     return outline(im)
 

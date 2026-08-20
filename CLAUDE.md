@@ -174,7 +174,10 @@ forbids. If you add uncited content, name it in that list so an
 ## Art
 
 Characters **are palettes** — one drawn model, recoloured. A new character
-is a data-table edit, not new artwork.
+is a data-table edit, not new artwork. The shared model (`draw_char()` in
+`tools/make_art.py`) is chibi — big head, small body — *(Aug 2026)*, one
+proportion change that every existing and future palette inherits for
+free, rather than each character needing its own redraw.
 
 | | |
 |---|---|

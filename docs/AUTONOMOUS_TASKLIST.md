@@ -172,7 +172,7 @@ These are not optional work; they are the queue. Prompts live in
       it. The directory sweep already loaded every PNG and covers all 71
       (no subdirectories).
 
-## E. The art overhaul — same user request as the consumables, two parts still open
+## E. The art overhaul — same user request as the consumables, one part still open
 
 *(Aug 2026.)* "isthere anyway to change the characters to a more cute
 chibi art style? also lets convert to 32 bit as the pixelated look is
@@ -184,13 +184,25 @@ Not the alternative (same window, fewer tiles visible), which would
 have put the balance contract's own camera/layout assumptions at risk
 for no reason.
 
-- [ ] **E1. Chibi character proportions.** Redesign `make_character()` in
-      `tools/make_art.py` (currently one drawing routine, a palette per
-      character) for a bigger-head, smaller-body silhouette, applied
-      through the SAME palette table so every existing character stays a
-      one-line edit rather than newly hand-drawn art. Do this BEFORE E2,
-      not after — drawing it once at the final resolution beats drawing
-      it twice.
+- [x] **E1. Chibi character proportions.** *(Done Aug 2026.)* Redesigned
+      `draw_char()` in `tools/make_art.py` -- head 12/24 rows, body 5,
+      legs 4 (was head 8, body 7, legs 4+shoes), plus bigger eyes with a
+      white highlight pixel each, the actual "cute" signal. All ten
+      characters (player, inspector, principal, 8 students) redrawn from
+      the SAME routine and palette table, so this was a ~90-line rewrite
+      of one function rather than ten redraws.
+      **Sequencing note, corrected from the original plan below:** the
+      plan said do this AFTER a resolution bump, reasoning "draw it once
+      at the final resolution." That assumed hand-painted art. This is a
+      PROCEDURAL generator -- adjusting proportions after E2 is a second
+      pass over the same numbers, not a second drawing, so there was no
+      real cost to shipping chibi now and E2 later. Worth remembering
+      next time a sequencing call leans on an assumption about the art
+      pipeline rather than checking it.
+      Verified against every screen that shows a portrait, not just the
+      room: dashboard, student bio, the principal's own corner popup,
+      and the classroom itself, all screenshotted. Balance contract
+      re-verified unmoved, as expected for an art-only change.
 - [ ] **E2. The 2x resolution pass.** `Grid.TILE` 16 -> 32,
       `project.godot`'s `window/size/viewport_width|height` 320x176 ->
       640x352 (window override 960x528 -> 1920x1056 to keep the exact
