@@ -102,6 +102,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	tick_pose(delta)
 	var dir := Vector2.ZERO
 	if not input_locked:
 		dir = Vector2(
@@ -295,12 +296,11 @@ func _tick_one(action: String, delta: float) -> void:
 
 ## Perks raise the teacher's base speed, so this is expressed as a ratio
 ## against the Actor constant rather than as a flat multiplier.
-## Standing at the front, gesturing at the class.
-##
-## Cycles the two STEP frames while facing the room. There is no dedicated
-## teaching pose in the sheet -- adding a sixth frame would change every
-## character's sheet size and break hframes=5 everywhere -- and the step
-## frames read perfectly well as somebody talking with their hands.
+## Standing at the front, gesturing at the class -- POSE_CHAT (the sheet's
+## Aug 2026 pose columns) held for most of a beat and released for one
+## walk-step frame in between, so it reads as talking rather than a frozen
+## photo. Before the pose columns existed this cycled the two STEP frames
+## instead; that fallback is gone now that there is a real pose for it.
 var _teach_t: float = 0.0
 
 func _teach_anim(delta: float) -> void:
@@ -309,8 +309,10 @@ func _teach_anim(delta: float) -> void:
 		return
 	facing = DIR_DOWN                 # turn and face the room
 	_teach_t += delta
-	var f: int = 1 if fmod(_teach_t, 0.7) < 0.35 else 3
-	_set_frame(f)
+	if fmod(_teach_t, 0.7) < 0.35:
+		_set_frame(POSE_CHAT, true)
+	else:
+		_set_frame(1)
 
 
 func speed_scale() -> float:
@@ -338,9 +340,13 @@ func carry_work(n: int) -> void:
 	carrying += n
 	_refresh_carry_icon()
 	carrying_changed.emit(carrying)
+	if n > 0:
+		play_pose(POSE_HANDOFF)
 
 
 func drop_all_work() -> void:
+	if carrying > 0:
+		play_pose(POSE_HANDOFF)
 	carrying = 0
 	_refresh_carry_icon()
 	carrying_changed.emit(carrying)
@@ -350,9 +356,13 @@ func carry_homework(n: int) -> void:
 	carrying_hw += n
 	_refresh_carry_icon()
 	carrying_changed.emit(carrying)
+	if n > 0:
+		play_pose(POSE_HANDOFF)
 
 
 func drop_all_homework() -> void:
+	if carrying_hw > 0:
+		play_pose(POSE_HANDOFF)
 	carrying_hw = 0
 	_refresh_carry_icon()
 	carrying_changed.emit(carrying)

@@ -33,13 +33,13 @@ const BG_DARK := Color(0.11, 0.10, 0.13)
 ## project has actually shipped. It is invisible against both other grounds.
 const BG_CHROMA := Color(1, 0, 1)
 
-## A character sheet is a fixed 5x4 grid of 16x24 frames -- see
-## scenes/actors/student.tscn (hframes=5, vframes=4) and actor.gd's
-## SIT_FRAME := 4. Detected by size so the editor can draw cell boundaries
-## rather than presenting an unreadable 7680-pixel slab.
-const CHAR_CW := 16
-const CHAR_CH := 24
-const CHAR_COLS := 5
+## A character sheet is a fixed 9x4 grid of 32x48 frames -- see
+## scenes/actors/student.tscn (hframes=9, vframes=4) and actor.gd's
+## SIT_FRAME/POSE_* constants. Detected by size so the editor can draw cell
+## boundaries rather than presenting an unreadable slab.
+const CHAR_CW := 32
+const CHAR_CH := 48
+const CHAR_COLS := 9
 const CHAR_ROWS := 4
 const CHAR_W := CHAR_CW * CHAR_COLS
 const CHAR_H := CHAR_CH * CHAR_ROWS

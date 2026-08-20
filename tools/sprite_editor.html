@@ -14,8 +14,8 @@
 
      EduSystems   88x88 canvas, 10 separately-named PNGs, exported
                   as a ZIP because that is 10 files
-     PixelRoom    32x48 cells in a 5x4 grid -> ONE 400x192 sheet, which
-                  is what Sprite2D(hframes=5, vframes=4) loads
+     PixelRoom    32x48 cells in a 9x4 grid -> ONE 288x192 sheet, which
+                  is what Sprite2D(hframes=9, vframes=4) loads
 
    Because the export is a single file, the hand-rolled ZIP writer that
    tool needs is simply not required here. One download, one PNG.
@@ -64,13 +64,17 @@ details>summary:hover{color:var(--chalk-d);}
 details>*:not(summary){margin-top:9px;}
 .help{font-size:11.5px;color:var(--ink2);line-height:1.5;margin:8px 0 0;}
 
-/* ---- frame strip: laid out as the SHEET is, 5 across by 4 down ---- */
-#frameStrip{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;width:280px;flex:0 0 auto;align-content:start;}
+/* ---- frame strip: laid out as the SHEET is, 9 across by 4 down ---- */
+#frameStrip{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;width:496px;flex:0 0 auto;align-content:start;}
+.groupLabel{grid-column:1 / -1;font-size:9.5px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--chalk-d);margin-top:8px;border-top:1.5px dashed var(--line);padding-top:6px;}
+.groupLabel:first-child{border-top:none;margin-top:0;padding-top:0;}
 .rowLabel{grid-column:1 / -1;font-size:10px;font-weight:800;text-transform:uppercase;
   letter-spacing:.5px;color:var(--ink2);margin-top:4px;}
 .frameBtn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px;border-radius:8px;
   border:2px solid transparent;background:var(--paper2);cursor:pointer;}
 .frameBtn.active{border-color:var(--chalk);background:#e3f0e7;}
+.frameBtn.groupStart{margin-left:6px;box-shadow:-5px 0 0 -3px var(--line2);}
 .frameBtn canvas{width:32px;height:48px;image-rendering:pixelated;background:
   repeating-conic-gradient(#e9e2cf 0% 25%, #f7f2e4 0% 50%) 0 0/8px 8px;border:1px solid var(--line);border-radius:3px;}
 .frameBtn span{font-size:9px;font-weight:700;color:var(--ink2);}
@@ -123,11 +127,13 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
 
 <header>
   <h1>PixelRoom — Sprite Editor</h1>
-  <p>Twenty cells: four facings down the sheet, five frames across
-  (stand, step, stand, step, <b>sit</b>). Draw them, export one
-  <b>400&times;192</b> PNG, drop it in <code>art/</code> — then run
-  <code>godot --headless --path . --import</code>, or the game cannot
-  load it.</p>
+  <p>Thirty-six cells: four facings down the sheet, nine frames across —
+  a <b>walk cycle</b> (stand, step, stand, step), a <b>sit</b> pose, then
+  four one-shot <b>poses</b> a script can drop into for a beat: handing a
+  paper across, mid-chat, jumping for joy, a sad head-down slump. Draw
+  them, export one <b>288&times;192</b> PNG, drop it in <code>art/</code>
+  — then run <code>godot --headless --path . --import</code>, or the game
+  cannot load it.</p>
 </header>
 
 <div id="togglesBar">
@@ -189,8 +195,12 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
       </div>
       <div class="row" style="margin-top:8px;">
         <input type="color" id="colorPicker" value="#392d24">
-        <span id="colorHex" style="font-size:11.5px;color:var(--ink2);font-family:monospace;"></span>
+        <input type="text" id="colorHex" value="#392D24" maxlength="7"
+          style="width:78px;font-size:11.5px;color:var(--ink2);font-family:monospace;padding:5px 6px;">
       </div>
+      <p class="help">Any of the three pickers reaches every colour — hue
+      bar + square, the OS colour dialog, or type a hex code directly.
+      There is no fixed palette.</p>
       <button class="smallBtn" id="extractPaletteBtn" style="width:100%;margin-top:8px;">Extract colours from this frame</button>
       <div id="extractedSwatches" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
     </details>
@@ -206,7 +216,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
       <summary>&#129529; Flatten</summary>
       <input type="range" id="flattenTolerance" min="5" max="150" value="45">
       <div id="flattenToleranceLabel" style="font-size:11.5px;color:var(--ink2)">tolerance 45</div>
-      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="flattenAll"> Apply to all 20 cells</label>
+      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="flattenAll"> Apply to all 36 cells</label>
       <p class="help">Click a pixel and every pixel <em>close enough in
       colour</em> anywhere in the frame collapses to one shared average.
       Gathers "all the blue, but not the red".</p>
@@ -216,7 +226,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
       <summary>&#127752; Retint</summary>
       <input type="range" id="retintTolerance" min="5" max="60" value="24">
       <div id="retintToleranceLabel" style="font-size:11.5px;color:var(--ink2)">&plusmn;24&deg; hue</div>
-      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="retintAll"> Apply to all 20 cells</label>
+      <label class="tglCheck" style="margin-top:6px;"><input type="checkbox" id="retintAll"> Apply to all 36 cells</label>
       <p class="help">Recolours a whole <em>shaded</em> region at once and
       keeps the shading. Click a blue shirt's mid-tone with green picked:
       the dark fold and the light highlight both become the matching
@@ -228,7 +238,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
     <div>
       <h2>&#11015; Load</h2>
       <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;">
-        Load a 400&times;192 sheet
+        Load a 288&times;192 sheet
         <input type="file" id="importSheet" accept="image/png" style="display:none">
       </label>
       <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;margin-top:6px;">
@@ -237,7 +247,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
       </label>
       <p class="help">Load any existing character straight out of
       <code>art/</code> and edit it — the sheet is split back into its
-      twenty cells.</p>
+      thirty-six cells.</p>
     </div>
 
     <div>
@@ -260,7 +270,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
     <div class="row">
       <label for="charName">Name</label>
       <input type="text" id="charName" value="student_i" size="18">
-      <button class="bigBtn" id="exportBtn" style="width:auto;">Export 400&times;192 sheet</button>
+      <button class="bigBtn" id="exportBtn" style="width:auto;">Export 288&times;192 sheet</button>
     </div>
     <p id="exportNote" style="margin-top:10px;">
       Saves <code>&lt;name&gt;.png</code>. Put it in <code>art/</code>,
@@ -285,9 +295,16 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
    CW/CH is one cell; COLS x ROWS is the sheet the game loads with
    Sprite2D(hframes=5, vframes=4).
    ============================================================ */
-const CW = 32, CH = 48, COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
+const CW = 32, CH = 48, COLS = 9, ROWS = 4, CELLS = COLS * ROWS;
 const ROW_NAMES = ["Facing down", "Facing left", "Facing right", "Facing up"];
-const COL_NAMES = ["stand", "step", "stand", "step", "sit"];
+const COL_NAMES = ["stand", "step", "stand", "step", "sit",
+  "hand-off", "chat", "jump", "sad"];
+/* Which category each column belongs to, purely for the strip's group
+   dividers and the legend text — the game only ever addresses cells by
+   column index (Actor.WALK_CYCLE / SIT_FRAME / POSE_*). */
+const COL_GROUP = ["walk", "walk", "walk", "walk", "sit",
+  "pose", "pose", "pose", "pose"];
+const GROUP_TITLE = {walk: "Walk cycle", sit: "Seated", pose: "One-shot poses"};
 
 let zoom = 11;
 let cur = 0;
@@ -318,6 +335,12 @@ for (let i = 0; i < CELLS; i++) store.push(makeCell());
 
 function buildStrip(){
   strip.innerHTML = "";
+  const legend = document.createElement("div");
+  legend.className = "groupLabel";
+  legend.style.gridColumn = "1 / -1";
+  legend.textContent = "Walk cycle (cols 1-4) · Sit (col 5) · "
+    + "One-shot poses (cols 6-9): hand-off, chat, jump, sad";
+  strip.appendChild(legend);
   for (let r = 0; r < ROWS; r++){
     const lab = document.createElement("div");
     lab.className = "rowLabel";
@@ -326,7 +349,9 @@ function buildStrip(){
     for (let c = 0; c < COLS; c++){
       const i = r * COLS + c;
       const b = document.createElement("div");
-      b.className = "frameBtn" + (i === cur ? " active" : "");
+      b.className = "frameBtn" + (i === cur ? " active" : "")
+        + (c > 0 && COL_GROUP[c] !== COL_GROUP[c - 1] ? " groupStart" : "");
+      b.title = GROUP_TITLE[COL_GROUP[c]] + ": " + COL_NAMES[c];
       b.dataset.i = i;
       const cv = document.createElement("canvas");
       cv.width = CW; cv.height = CH;
@@ -502,8 +527,13 @@ function paintSatVal(){
 function setColour(hex){
   colour = hex;
   document.getElementById("colorPicker").value = hex;
-  document.getElementById("colorHex").textContent = hex.toUpperCase();
+  document.getElementById("colorHex").value = hex.toUpperCase();
 }
+document.getElementById("colorHex").addEventListener("change", e => {
+  const v = e.target.value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) setColour(v);
+  else e.target.value = colour.toUpperCase();   // reject junk, restore
+});
 hueBar.addEventListener("pointerdown", e => {
   const f = e.offsetX / hueBar.width;
   pickH = Math.max(0, Math.min(359, f * 360));
@@ -747,7 +777,7 @@ document.getElementById("clearFrameBtn").addEventListener("click", () => {
   pushUndo(); ctx.clearRect(0, 0, CW, CH); saveFrame();
 });
 document.getElementById("clearAllBtn").addEventListener("click", () => {
-  if (!confirm("Clear all twenty cells?")) return;
+  if (!confirm("Clear all thirty-six cells?")) return;
   store.forEach(c => c.getContext("2d").clearRect(0, 0, CW, CH));
   loadFrame(); refreshStrip();
 });

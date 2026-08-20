@@ -299,13 +299,18 @@ for no reason.
 
 ## D. Housekeeping
 
-- [ ] **D0. Update the HTML sprite editor for the Aug 2026 resolution
-      doubling.** `Draw a Sprite.bat` still exports 80x96/16x24 --
-      everything drawn through `tools/make_art.py`/`make_items.py` is
-      32x48/doubled now, so a sprite hand-edited today is undersized the
-      moment it is saved. The five items that already went through this
-      editor (bookshelf, lab_bench, art_easel, rug, plant) are the one
-      part of the shop still at the old scale as a result.
+- [x] **D0. Update the HTML sprite editor for the Aug 2026 resolution
+      doubling.** Done — `tools/sprite_editor.html` now matches
+      `tools/make_art.py`'s current 32x48-cell grid (previously it was
+      still 16x24, and briefly claimed a wrong "400x192" sheet size in
+      between). It was also expanded from a 5x4 to a 9x4 grid at the
+      same time (see D3): four one-shot pose columns added past the
+      existing walk cycle and sit pose. Any *character* re-drawn through
+      it today is the current scale and grid. The five hand-drawn
+      furniture items (bookshelf, lab_bench, art_easel, rug, plant) are
+      a separate case — they're one-off art edited via `Browse Art.bat`'s
+      in-editor curator, not this HTML tool, and still need checking
+      individually against the doubled scale.
 - [~] **D1. `.godot/` and OneDrive.** Git half was **already done** —
       `.godot/` is in `.gitignore` and zero files under it are tracked.
       **The OneDrive half needs the user**: excluding a folder from sync
@@ -322,6 +327,23 @@ for no reason.
       (`b30`/"a reputation you can lose" → `b31`/"a door to every room
       you hold"). A3/A4 on this list were also stale — both integrations
       landed sessions ago but the checkboxes were never ticked.
+- [x] **D3. Sheet grid expanded 5x4 -> 9x4 for real animation room.**
+      *(Aug 2026 -- user request.)* `tools/make_art.py` draws four new
+      one-shot poses per character (`POSE_HANDOFF/CHAT/JUMP/SAD`,
+      `Actor.gd`), `sprite_editor.html` matches the grid, and `Actor`
+      gained `play_pose()`/`tick_pose()` to hold one for a beat and hand
+      back to idle/seated. Wired to two real triggers so far: the player
+      flashes the hand-off pose on every pickup/hand-in
+      (`player.gd::carry_work/drop_all_work` etc.), and a student flashes
+      jump-for-joy on WORKING->DONE and the sad pose whenever their
+      stuck bubble comes on. Chatting between students and anything
+      fancier than these two edge-triggered moments is NOT wired --
+      the art and the plumbing exist, the behaviour that would call them
+      more often does not.
+- [x] **D4. One `Dev Console.bat` menu for every root launcher.**
+      *(Aug 2026 -- user request.)* Every individual `.bat` still exists
+      and still works stand-alone; the console just calls them, so this
+      added a front door rather than a replacement.
 
 ---
 

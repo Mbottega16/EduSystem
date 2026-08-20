@@ -147,8 +147,10 @@ a deliberate WIP commit.
 | `docs/BRIEFING.md` | Context pack for external AIs |
 | `docs/TASK_PACK.md` | Copy-paste prompts for Gemini/ChatGPT |
 | `docs/SALVAGE.md` | What to take from EduSystems and what to refuse. Idea banks; the trait calibration set |
+| `docs/ART_CATALOG.md` | Every PNG in `art/`, grouped by category and which tool draws/edits it |
 | `tools/check_docs.py` | Verifies every doc claim against live data. A worked example is an INPUT to an outside model, not prose |
 | `tools/check_balance.py`, `check_items.py`, `check_traits.py` | Catch a misspelled tunable before it silently reverts to a built-in default; validate a task-2/task-3 submission before it touches `balance.json` |
+| `Dev Console.bat` | One menu for every other `.bat` launcher at the project root -- play, verify, simulate, trace/audit, and the art tools, so there is one icon to remember instead of a dozen. Each individual `.bat` still exists and still works stand-alone; this just calls them. |
 | `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
 | `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 

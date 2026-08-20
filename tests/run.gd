@@ -145,6 +145,7 @@ func _main() -> void:
 	await test_arrival()
 	await test_work_loop()
 	await test_seating()
+	test_poses()
 	await test_day_cycle()
 	await test_confusion()
 	await test_placement()
@@ -761,8 +762,8 @@ func test_seating() -> void:
 	var st: Actor = world.student_node(0)
 	chk("a seated student uses the seated sprite frame",
 		st.sprite.frame_coords.x == Actor.SIT_FRAME, st.sprite.frame_coords)
-	chk("the sprite sheet actually has a seated column",
-		st.sprite.hframes == 5, st.sprite.hframes)
+	chk("the sprite sheet actually has a seated column and the pose columns",
+		st.sprite.hframes == 9, st.sprite.hframes)
 
 	# A seated body would let the teacher wedge into a 16px aisle.
 	var has_live_collision := false
@@ -795,6 +796,36 @@ func _body_near(p: Vector2) -> StaticBody2D:
 		if c is StaticBody2D and (c as StaticBody2D).global_position.distance_to(p) < 0.6:
 			return c
 	return null
+
+
+func test_poses() -> void:
+	section("ONE-SHOT POSES")
+	# test_seating left every student seated, and test_day_cycle after this
+	# one assumes that is still true -- restore it, don't just stand().
+	var st: Actor = world.student_node(0)
+	var was_seated := st.seated
+	st.stand()
+	st.play_pose(Actor.POSE_JUMP)
+	chk("play_pose shows the requested column immediately",
+		st.sprite.frame_coords.x == Actor.POSE_JUMP, st.sprite.frame_coords)
+	# A held pose must not be clobbered by ordinary idle/frame updates --
+	# only tick_pose(), once the hold time has elapsed, hands it back.
+	st.set_idle()
+	chk("set_idle() does not interrupt a held pose",
+		st.sprite.frame_coords.x == Actor.POSE_JUMP, st.sprite.frame_coords)
+	st.tick_pose(Actor.POSE_HOLD_TIME + 0.01)
+	chk("tick_pose() releases the pose once its hold time has elapsed",
+		st.sprite.frame_coords.x == 0, st.sprite.frame_coords)
+
+	st.sit(Actor.DIR_DOWN)
+	st.play_pose(Actor.POSE_SAD)
+	st.tick_pose(Actor.POSE_HOLD_TIME + 0.01)
+	chk("a released pose falls back to SIT_FRAME while seated",
+		st.sprite.frame_coords.x == Actor.SIT_FRAME, st.sprite.frame_coords)
+	if was_seated:
+		st.sit(Actor.DIR_DOWN)
+	else:
+		st.stand()
 
 
 # ============================================ the balance contract & content

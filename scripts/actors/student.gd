@@ -22,6 +22,7 @@ var _path: Array[Vector2i] = []
 var _path_i: int = 0
 var _delay: float = 0.0
 var _seat_world := Vector2.ZERO
+var _was_working := false      # edge-detects WORKING -> DONE, for the jump
 
 
 func bind(d: StudentData) -> void:
@@ -75,6 +76,7 @@ func set_bubble(on: bool, tint: Color = Color.WHITE) -> void:
 		var tw := create_tween()
 		tw.tween_property(bubble, "scale", Vector2.ONE, 0.18) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		play_pose(POSE_SAD)
 
 
 ## Colours for the little bar over their head.
@@ -102,8 +104,14 @@ func _draw() -> void:
 
 func _physics_process(delta: float) -> void:
 	idle_bob(delta)
-	if data != null and data.work_state == StudentData.Work.WORKING:
-		queue_redraw()
+	tick_pose(delta)
+	if data != null:
+		var working: bool = data.work_state == StudentData.Work.WORKING
+		if working:
+			queue_redraw()
+		elif _was_working and data.work_state == StudentData.Work.DONE:
+			play_pose(POSE_JUMP)      # finished the work -- a little cheer
+		_was_working = working
 	if _path.is_empty():
 		return
 	if _delay > 0.0:

@@ -23,7 +23,7 @@ texture = ExtResource("9_shadow")
 [node name="Sprite2D" type="Sprite2D" parent="."]
 position = Vector2(0, -12)
 texture = ExtResource("2_tex")
-hframes = 5
+hframes = 9
 vframes = 4
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

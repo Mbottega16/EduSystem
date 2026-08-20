@@ -21,8 +21,15 @@ EYE = (28, 24, 32)
 # --- characters ------------------------------------------------------
 CW, CH = 32, 48          # one frame (doubled Aug 2026, was 16x24)
 DIRS = 4                 # rows: down, left, right, up
-FRAMES = 5               # cols: stand, step, stand, step (other foot), SEATED
+# cols: stand, step, stand, step (other foot), SEATED, then four one-shot
+# poses for scripted moments -- handing a paper across, mid-chat, a jump
+# for joy, a sad head-down slump. (Aug 2026, room for real animation.)
+FRAMES = 9
 SIT_FRAME = 4            # must match Actor.SIT_FRAME in scripts/actors/actor.gd
+POSE_HANDOFF = 5         # must match Actor.POSE_HANDOFF
+POSE_CHAT = 6            # must match Actor.POSE_CHAT
+POSE_JUMP = 7            # must match Actor.POSE_JUMP
+POSE_SAD = 8             # must match Actor.POSE_SAD
 
 SKIN = (240, 200, 160)
 SKIN_D = (206, 162, 122)
@@ -287,10 +294,13 @@ def draw_char(direction, frame, pal):
         rect(im, x * 2, y * 2, x * 2 + 1, y * 2 + 1, c)
 
     seated = (frame == SIT_FRAME)
-    dy = 2 if seated else 0        # how far the figure sinks into the chair
+    pose = frame if frame >= POSE_HANDOFF else None
+    dy = 2 if seated else (-3 if pose == POSE_JUMP else 1 if pose == POSE_SAD else 0)
 
-    # contact shadow, drawn before anything else so the figure sits on it
-    shadow(im, CW // 2, CH - 4, 12, 4)
+    # contact shadow, drawn before anything else so the figure sits on it.
+    # A jumper's shadow stays on the floor while the figure rises above it,
+    # which is most of what sells "in the air" at this scale.
+    shadow(im, CW // 2, CH - 4, 12 if pose != POSE_JUMP else 8, 4)
 
     # walk cycle: frames 1 and 3 lift opposite feet, 0 and 2 stand
     step = 0
@@ -303,6 +313,10 @@ def draw_char(direction, frame, pal):
     if seated:
         R(5, 21, 7, 23, pal["legs"])
         R(9, 21, 11, 23, pal["legs"])
+    elif pose == POSE_JUMP:
+        # both feet tucked together under the raised body
+        R(6, 17, 10, 19, pal["legs"])
+        R(6, 19, 10, 19, pal["shoe"])
     else:
         l_off = max(0, step)
         r_off = max(0, -step)
@@ -315,18 +329,44 @@ def draw_char(direction, frame, pal):
     # ---- body: a small torso, mostly hidden under the head from the front ----
     R(5, 15 + dy, 10, 19 + dy, shirt)
     R(5, 18 + dy, 10, 19 + dy, shirt_d)   # shading under the torso
-    if pal["skirt"] and not seated:
+    if pal["skirt"] and not seated and pose != POSE_JUMP:
         R(5, 18, 10, 18, shirt)           # a flared hem over the legs
         R(4, 19, 11, 20, shirt)
         R(3, 21, 12, 21, shirt_d)
 
     # ---- arms (short, swing opposite to the legs; still when seated) ----
-    a_l = 0 if seated else -step
-    a_r = 0 if seated else step
-    R(3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
-    R(11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
-    P(3, 19 + dy + a_l, SKIN); P(4, 19 + dy + a_l, SKIN)
-    P(11, 19 + dy + a_r, SKIN); P(12, 19 + dy + a_r, SKIN)
+    if pose == POSE_HANDOFF:
+        # both arms reach straight out, a hand at full stretch on each side
+        # -- the pose for "here, take this" and "here, take it back" alike
+        R(1, 15 + dy, 4, 17 + dy, shirt_d)
+        R(11, 15 + dy, 14, 17 + dy, shirt_d)
+        P(1, 16 + dy, SKIN); P(2, 16 + dy, SKIN)
+        P(13, 16 + dy, SKIN); P(14, 16 + dy, SKIN)
+    elif pose == POSE_CHAT:
+        # one hand comes up near the face, mid-sentence
+        R(3, 16 + dy, 4, 18 + dy, shirt_d)
+        R(10, 10 + dy, 11, 15 + dy, shirt_d)
+        P(3, 19 + dy, SKIN); P(4, 19 + dy, SKIN)
+        P(10, 9 + dy, SKIN); P(11, 9 + dy, SKIN)
+    elif pose == POSE_JUMP:
+        # both arms thrown straight up over the head
+        R(2, 5 + dy, 3, 12 + dy, shirt_d)
+        R(12, 5 + dy, 13, 12 + dy, shirt_d)
+        P(2, 4 + dy, SKIN); P(3, 4 + dy, SKIN)
+        P(12, 4 + dy, SKIN); P(13, 4 + dy, SKIN)
+    elif pose == POSE_SAD:
+        # arms hang long and loose at the sides
+        R(3, 17 + dy, 4, 21 + dy, shirt_d)
+        R(11, 17 + dy, 12, 21 + dy, shirt_d)
+        P(3, 22 + dy, SKIN); P(4, 22 + dy, SKIN)
+        P(11, 22 + dy, SKIN); P(12, 22 + dy, SKIN)
+    else:
+        a_l = 0 if seated else -step
+        a_r = 0 if seated else step
+        R(3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
+        R(11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
+        P(3, 19 + dy + a_l, SKIN); P(4, 19 + dy + a_l, SKIN)
+        P(11, 19 + dy + a_r, SKIN); P(12, 19 + dy + a_r, SKIN)
 
     # ---- head: the whole point. Wider than the body and most of the cell ----
     R(2, 3 + dy, 13, 14 + dy, SKIN)

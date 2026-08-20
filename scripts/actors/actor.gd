@@ -32,6 +32,15 @@ const DIR_UP := 3
 const WALK_CYCLE := [0, 1, 2, 3]
 const SIT_FRAME := 4
 
+## One-shot poses, columns 5-8 of every character sheet (tools/make_art.py).
+## Not part of the walk cycle -- played for a fixed beat by play_pose() and
+## then handed back to whatever idle/seated frame was showing before.
+const POSE_HANDOFF := 5   # passing a paper across, either direction
+const POSE_CHAT := 6      # mid-conversation
+const POSE_JUMP := 7      # jumping for joy
+const POSE_SAD := 8       # head down
+const POSE_HOLD_TIME := 0.6
+
 @onready var sprite: Sprite2D = $Sprite2D
 
 var facing := DIR_DOWN
@@ -42,6 +51,26 @@ var _frame_timer := 0.0
 ## Phase offset so a room full of seated people does not breathe in unison.
 var idle_phase := 0.0
 var _step_side := false
+var _pose_timer := 0.0     # >0 while a one-shot pose (POSE_*) is being held
+
+
+## Play a one-shot pose (POSE_HANDOFF/CHAT/JUMP/SAD) for POSE_HOLD_TIME,
+## then fall back to whatever idle/seated frame was showing. Callers still
+## have to call tick_pose(delta) each frame (walk() and idle_bob() do not,
+## since a seated or moving actor is exactly when this matters least).
+func play_pose(pose: int) -> void:
+	_pose_timer = POSE_HOLD_TIME
+	_set_frame(pose, true)
+
+
+## Advance a held pose; call once a frame from whatever drives this actor.
+## No-op unless play_pose() is mid-hold.
+func tick_pose(delta: float) -> void:
+	if _pose_timer <= 0.0:
+		return
+	_pose_timer -= delta
+	if _pose_timer <= 0.0:
+		_set_frame(SIT_FRAME if seated else 0)
 
 
 ## Move in `dir` (unnormalised is fine) and animate accordingly.
@@ -138,6 +167,8 @@ func idle_bob(delta: float) -> void:
 	sprite.position.y = lift
 
 
-func _set_frame(f: int) -> void:
+func _set_frame(f: int, force: bool = false) -> void:
+	if not force and _pose_timer > 0.0:
+		return
 	if sprite != null:
 		sprite.frame_coords = Vector2i(f, facing)
