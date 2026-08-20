@@ -408,6 +408,7 @@ func new_run(seed_value: int = 0) -> void:
 	cheated = false
 	unlimited_coins = false
 	met_principal = false
+	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
 	perk_ranks.clear()
@@ -762,13 +763,15 @@ func lesson_strand() -> String:
 
 ## How much more (or less) likely a stall is today.
 func event_stall_multiplier() -> float:
-	return DayEvent.multiplier(event, "stall_mult")
+	return DayEvent.multiplier(event, "stall_mult") * consumable_multiplier("stall_mult")
 
 
-## Today's lesson length, after the day's event has had its say.
+## Today's lesson length, after the day's event -- and anything bought
+## for today -- have had their say.
 func lesson_length() -> float:
 	Balance.ensure_loaded()
-	return Balance.lesson_seconds * DayEvent.multiplier(event, "lesson_mult")
+	return Balance.lesson_seconds * DayEvent.multiplier(event, "lesson_mult") \
+		* consumable_multiplier("lesson_mult")
 
 
 ## THE END OF TERM. Everything you built up gets scored in one sitting: each
@@ -1338,6 +1341,56 @@ var has_aide: bool = false
 ## Seconds until the aide reaches the next finished desk.
 var _aide_timer: float = 0.0
 
+# --- consumables -------------------------------------------------------
+## A treat for TODAY, bought at the noticeboard rather than placed in the
+## room. Furniture is an investment; a consumable is spent the moment you
+## buy it, same day, and gone tomorrow -- which is what keeps it cheap and
+## keeps buying one a real, repeatable choice rather than a one-off.
+##
+## Reuses the exact hook vocabulary DayEvent already uses (stall_mult,
+## lesson_mult, coin_mult, bonus_coins, homework_sure) rather than
+## inventing a second effect system: a consumable and a day event are the
+## same kind of thing mechanically, one rolled by the game and one bought
+## by the player, and they stack the same way multipliers already do.
+var _consumable_mults: Dictionary = {}
+var consumable_bonus_coins: int = 0
+var _consumable_homework_sure: bool = false
+## What you actually bought today, for the evening report to name.
+var consumables_used_today: Array = []
+
+
+func consumable_multiplier(key: String) -> float:
+	return float(_consumable_mults.get(key, 1.0))
+
+
+## Buy and use, in the same motion -- there is no inventory to manage,
+## which is the whole point: it is a decision about today, not a stockpile.
+func use_consumable(id: String) -> String:
+	Balance.ensure_loaded()
+	var d := Items.get_def(id)
+	if d.is_empty() or String(d.get("cat", "")) != "consumable":
+		return "That is not something you can use today."
+	if not spend(int(d.get("cost", 0))):
+		return "You cannot afford that."
+	var effect: Dictionary = d.get("effect", {})
+	for key: String in effect:
+		var v = effect[key]
+		if key == "bonus_coins":
+			consumable_bonus_coins += int(v)
+		elif key == "homework_sure":
+			_consumable_homework_sure = _consumable_homework_sure or bool(v)
+		else:
+			_consumable_mults[key] = float(_consumable_mults.get(key, 1.0)) * float(v)
+	consumables_used_today.append(String(d.get("name", id)))
+	return ""
+
+
+func _reset_consumables() -> void:
+	_consumable_mults.clear()
+	consumable_bonus_coins = 0
+	_consumable_homework_sure = false
+	consumables_used_today.clear()
+
 signal aide_hired(on: bool)
 
 var attention: float = 0.0
@@ -1628,7 +1681,8 @@ func advance_day() -> Dictionary:
 	last_split = split
 	var avg := class_average()
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
-		* DayEvent.multiplier(event, "coin_mult") * lesson_pay_multiplier()))
+		* DayEvent.multiplier(event, "coin_mult") * consumable_multiplier("coin_mult")
+		* lesson_pay_multiplier())) + consumable_bonus_coins
 	add_coins(earned)
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
 	# with nothing to spend them on once the room was capped.
@@ -1646,7 +1700,8 @@ func advance_day() -> Dictionary:
 	for s: StudentData in roster:
 		# who actually did the homework you set
 		if homework_out and s.hw_state == StudentData.HW.ASSIGNED:
-			if bool(event.get("homework_sure", false)) or rng.randf() < s.diligence:
+			if bool(event.get("homework_sure", false)) or _consumable_homework_sure \
+					or rng.randf() < s.diligence:
 				s.hw_state = StudentData.HW.DONE
 				s.hw_done_total += 1
 				s.hw_true_accuracy = clampf(
@@ -1680,6 +1735,11 @@ func advance_day() -> Dictionary:
 			joined = s.display_name
 
 	subject = pick_subject()
+	# Captured before the reset below clears it -- these were bought FOR
+	# the day that just ended, so they belong on that day's own report,
+	# not on tomorrow's (which is what "event" a few lines down already is).
+	var used_today := consumables_used_today.duplicate()
+	_reset_consumables()
 	event = DayEvent.roll(rng)
 	if event.has("bonus_coins"):
 		add_coins(int(event["bonus_coins"]))
@@ -1691,6 +1751,7 @@ func advance_day() -> Dictionary:
 	return {"day": day - 1, "average": avg, "coins": earned,
 			"upkeep": upkeep, "homework_done": did, "joined": joined,
 			"event": event.get("name", ""), "event_blurb": event.get("blurb", ""),
+			"consumables": used_today,
 			"term_over": term_over,
 		"teacher_xp": teacher_xp, "perk_ranks": perk_ranks,
 		"cheated": cheated,

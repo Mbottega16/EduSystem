@@ -172,6 +172,40 @@ These are not optional work; they are the queue. Prompts live in
       it. The directory sweep already loaded every PNG and covers all 71
       (no subdirectories).
 
+## E. The art overhaul — same user request as the consumables, two parts still open
+
+*(Aug 2026.)* "isthere anyway to change the characters to a more cute
+chibi art style? also lets convert to 32 bit as the pixelated look is
+good but needs more detail." Confirmed with the user before starting:
+the resolution jump is **same layout, everything crisper** — the
+viewport doubles (320x176 -> 640x352, `Grid.TILE` 16 -> 32) so the room
+still shows the same desks and the same layout, just rendered denser.
+Not the alternative (same window, fewer tiles visible), which would
+have put the balance contract's own camera/layout assumptions at risk
+for no reason.
+
+- [ ] **E1. Chibi character proportions.** Redesign `make_character()` in
+      `tools/make_art.py` (currently one drawing routine, a palette per
+      character) for a bigger-head, smaller-body silhouette, applied
+      through the SAME palette table so every existing character stays a
+      one-line edit rather than newly hand-drawn art. Do this BEFORE E2,
+      not after — drawing it once at the final resolution beats drawing
+      it twice.
+- [ ] **E2. The 2x resolution pass.** `Grid.TILE` 16 -> 32,
+      `project.godot`'s `window/size/viewport_width|height` 320x176 ->
+      640x352 (window override 960x528 -> 1920x1056 to keep the exact
+      same 3x integer pixel scale — a non-integer scale blurs pixel
+      art). Every tile, prop and character redrawn at the higher density
+      with genuinely more shading detail, not a nearest-neighbour
+      upscale (which would add zero information and defeat the point).
+      Then every hardcoded pixel position in `scripts/ui/hud.gd`'s
+      `.tscn` layout and every `scripts/world/*.gd` file that assumes
+      16px doubles alongside it. Large, mostly mechanical, and the
+      highest-risk item on this whole list for exactly that reason: get
+      it wrong and a hundred small UI/collision offsets are each
+      wrong by a few pixels in a way no single screenshot catches.
+      Verify screen by screen, not in one pass.
+
 ## D. Housekeeping
 
 - [~] **D1. `.godot/` and OneDrive.** Git half was **already done** —
@@ -195,6 +229,39 @@ These are not optional work; they are the queue. Prompts live in
 
 ## Done
 
+- [x] **Consumables: a fifth shop tab, spent the same day rather than
+      placed.** *(Aug 2026 -- user request, part of a three-part ask: "I
+      want to implement some sort of consumable for each day. something
+      that could be purchased in the shop.")* The other two parts of that
+      request (a chibi art style, a 2x/32px resolution upgrade) are
+      tracked separately below -- this piece shipped first because it
+      needed no art-pipeline rework to be real and correct.
+      Four items -- Coffee (calms the room), Sticker Chart (guarantees
+      homework), Bake Sale (a flat coin bonus), Photocopies (more lesson
+      time) -- reusing DayEvent's own hook vocabulary
+      (`stall_mult`/`lesson_mult`/`coin_mult`/`bonus_coins`/
+      `homework_sure`) rather than inventing a second effect system, since
+      a consumable and a day event are mechanically the same kind of
+      thing: one bought, one rolled, and they stack the same way.
+      Bought and used in one motion -- `Game.use_consumable()` charges
+      the coins and applies the effect immediately, with no inventory to
+      manage, which is the actual design point: a decision about today,
+      not a stockpile. The shop's BUY flow branches on category so a
+      consumable never enters the ghost-cursor placement flow furniture
+      uses, since there is nowhere to place it.
+      **Two real bugs found by running the checkers, not by them staying
+      quiet:** `tests/run.gd` had three places that read `d["bonus"]` /
+      `d["range"]` by direct dict-subscript across EVERY item in the
+      catalogue, which crashed the moment an item existed without those
+      keys -- consumables are the first items in the shop's history that
+      genuinely don't have them. `tools/check_docs.py` had the identical
+      bug in its own value-density check. All four fixed by branching on
+      `cat == "consumable"` rather than widening what every item is
+      required to have.
+      1132 -> 1147 assertions. Balance contract re-verified unmoved --
+      `tools/sim.gd`'s policies never buy anything from the shop, so the
+      three contract rows cannot see this feature at all, which is
+      exactly why it was safe to add without resimulating a term by hand.
 - [x] **The principal's office, and the principal as the tutorial mascot.**
       *(Aug 2026 -- user request: "create a principal's office that will
       hold all of the progress bars, achievements, and accolades,

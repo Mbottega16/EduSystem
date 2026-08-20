@@ -1937,6 +1937,7 @@ const CAT_COLOUR := {
 	"learning": "9fd89f",    # green
 	"comfort": "f2a0b5",     # rose
 	"decor": "d0a3e8",       # violet
+	"consumable": "f2c66b", # coin gold -- spent, not placed
 }
 
 
@@ -2076,6 +2077,10 @@ func show_day_report(report: Dictionary) -> void:
 		C_COIN, earned, C_BAD, upkeep,
 		C_GOOD if done * 2 >= of else C_BAD, done, of])
 
+	var bought: Array = report.get("consumables", [])
+	if not bought.is_empty():
+		lines.append("[color=#%s]Today: %s[/color]" % [
+			DIM, ", ".join(bought)])
 	if String(report.get("joined", "")) != "":
 		lines.append("[color=#%s]%s has joined the class.[/color]" % [
 			C_GOOD, String(report["joined"])])
@@ -2195,13 +2200,22 @@ func _render_catalogue() -> void:
 			var hue := cat_colour(Items.category_of(id))
 			# The price is the thing you are actually deciding on, so it
 			# carries the yes/no colour rather than the name doing it.
-			lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
-				">" if i == _sel else " ", hue if afford else DIM,
-				String(d["name"]).substr(0, 13),
-				C_GOOD if afford else C_BAD, int(d["cost"]),
-				_worth_bar(float(d["bonus"])),
-				"[color=#%s]%s[/color]" % [DIM,
-					_reach_words(int(d["range"]), float(d["bonus"]))]])
+			if String(d.get("cat", "")) == "consumable":
+				# No range, no bonus -- it is not placed anywhere, so the
+				# worth-bar and reach-words that describe FURNITURE would
+				# both crash reading fields a consumable does not have.
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [color=#%s]today only[/color]" % [
+					">" if i == _sel else " ", hue if afford else DIM,
+					String(d["name"]).substr(0, 13),
+					C_GOOD if afford else C_BAD, int(d["cost"]), DIM])
+			else:
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
+					">" if i == _sel else " ", hue if afford else DIM,
+					String(d["name"]).substr(0, 13),
+					C_GOOD if afford else C_BAD, int(d["cost"]),
+					_worth_bar(float(d["bonus"])),
+					"[color=#%s]%s[/color]" % [DIM,
+						_reach_words(int(d["range"]), float(d["bonus"]))]])
 		if lo + LIST_ROWS < rows.size():
 			lines.append("   ...")
 		# The blurb rides on the HINT bar rather than taking a body line. The
@@ -2722,7 +2736,15 @@ func _handle_input() -> void:
 				_render_catalogue()
 			elif _shop == Shop.BUY:
 				var id: String = rows[_sel]
-				if Game.can_afford(Items.cost(id)):
+				if Items.category_of(id) == "consumable":
+					# Bought and used in the same motion -- there is
+					# nowhere to place it, so the ghost-cursor placement
+					# flow item_chosen normally starts would have nothing
+					# to do.
+					var uerr := Game.use_consumable(id)
+					Sfx.play("deny" if uerr != "" else "confirm")
+					_render_catalogue()
+				elif Game.can_afford(Items.cost(id)):
 					Sfx.play("confirm")
 					close()
 					item_chosen.emit(id)

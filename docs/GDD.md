@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-19**, against build `b31`, with **1132 assertions
+> **Measured on 2026-08-19**, against build `b31`, with **1147 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -322,7 +322,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 16 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1132 assertions** across **79 sections** |
+| Tests | **1147 assertions** across **79 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -520,6 +520,7 @@ announced the evening before:
 | sink | amount |
 |---|---|
 | Furniture | 30 → 320 coins (29 items) |
+| Consumables | 25 → 55 coins (4 items, spent same day -- *(Aug 2026)*) |
 | Upkeep | **3**/item/day |
 | An aide | **260** to hire, **18**/day |
 | Coaching a child | 90 or 70, ×**1.7** each time, max 4 per child |

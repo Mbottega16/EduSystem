@@ -359,6 +359,42 @@
       "blurb": "The strongest boost there is, but only close by.",
       "cat": "learning",
       "needs": "science_basics.observing"
+    },
+    "coffee": {
+      "name": "Coffee",
+      "cost": 25,
+      "art": "coffee",
+      "w": 1,
+      "cat": "consumable",
+      "blurb": "Nobody's morning gets worse for it.",
+      "effect": { "stall_mult": 0.85 }
+    },
+    "sticker_chart": {
+      "name": "Sticker Chart",
+      "cost": 45,
+      "art": "sticker_chart",
+      "w": 1,
+      "cat": "consumable",
+      "blurb": "Everyone wants their name up there tonight.",
+      "effect": { "homework_sure": true }
+    },
+    "bake_sale": {
+      "name": "Bake Sale",
+      "cost": 55,
+      "art": "bake_sale",
+      "w": 1,
+      "cat": "consumable",
+      "blurb": "The tin is always a little fuller by home time.",
+      "effect": { "bonus_coins": 60 }
+    },
+    "photocopies": {
+      "name": "Photocopies",
+      "cost": 30,
+      "art": "photocopies",
+      "w": 1,
+      "cat": "consumable",
+      "blurb": "A few more minutes before the bell today.",
+      "effect": { "lesson_mult": 1.12 }
     }
   },
   "item_order": [
@@ -390,7 +426,11 @@
     "wall_clock",
     "class_banner",
     "alphabet_frieze",
-    "fish_tank"
+    "fish_tank",
+    "coffee",
+    "photocopies",
+    "sticker_chart",
+    "bake_sale"
   ],
   "term": {
     "_note": "A run is a term. On the last day the class sits an exam scored on everything you built up, and that is the score you are playing for.",
@@ -514,7 +554,8 @@
     "surfaces",
     "learning",
     "comfort",
-    "decor"
+    "decor",
+    "consumable"
   ],
   "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn.",
   "traits": {

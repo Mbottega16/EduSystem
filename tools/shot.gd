@@ -244,6 +244,11 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud.open_catalogue()
 			hud._shop = hud.Shop.ROOM
 			hud._render_catalogue()
+		"consumables":
+			Game.add_coins(3000)
+			hud.open_catalogue()
+			hud._cat = Items.categories().find("consumable")
+			hud._render_catalogue()
 		"staff":
 			Game.add_teacher_xp(4000)
 			hud.open_catalogue()
@@ -310,6 +315,12 @@ func _open_screen(main: Node, screen: String) -> void:
 			rep["event"] = "A wasp in the room"
 			rep["event_blurb"] = "Nobody is going to concentrate today."
 			hud.show_day_report(rep)
+		"consumables_report":
+			Game.add_coins(1000)
+			Game.use_consumable("coffee")
+			Game.use_consumable("bake_sale")
+			var rep2 := Game.advance_day()
+			hud.show_day_report(rep2)
 		"run_over":
 			# a career: two terms taught, the second one missed. Cleared
 			# first -- the harness has already played real days by now, and

@@ -300,6 +300,57 @@ def draw_pot_of_pens():
     return outline(im)
 
 
+# --- consumables -------------------------------------------------------
+# Bought and used the same day rather than placed, so these are held
+# objects rather than room furniture -- smaller, and drawn without the
+# floor shadow every placed item gets (_blank() adds one; these skip it
+# by building the canvas directly instead).
+
+def draw_coffee():
+    im = Image.new("RGBA", (14, 16), (0, 0, 0, 0))
+    MUG = (216, 210, 198)
+    MUG_D = (180, 172, 158)
+    COFFEE = (108, 66, 40)
+    rect(im, 3, 7, 10, 14, MUG)
+    rect(im, 3, 12, 10, 14, MUG_D)
+    rect(im, 4, 7, 9, 8, COFFEE)
+    rect(im, 10, 8, 12, 11, MUG)
+    px(im, 5, 3, (210, 208, 204))
+    px(im, 8, 2, (210, 208, 204))
+    px(im, 5, 5, (228, 226, 222))
+    px(im, 8, 4, (228, 226, 222))
+    return outline(im)
+
+
+def draw_sticker_chart():
+    im = _blank(14, 16)
+    rect(im, 2, 2, 12, 14, PAPER)
+    rect(im, 2, 2, 12, 3, WOOD)
+    for i, (x, y) in enumerate(((4, 6), (8, 6), (4, 10), (8, 10))):
+        c = (CLOTH, BLUE, GREEN, GOLD)[i]
+        rect(im, x, y, x + 1, y + 1, c)
+    return outline(im)
+
+
+def draw_bake_sale():
+    im = _blank(14, 16)
+    rect(im, 3, 6, 11, 14, (216, 206, 190))
+    rect(im, 3, 6, 11, 7, WOOD_D)
+    rect(im, 5, 3, 9, 6, WOOD)
+    px(im, 6, 10, GOLD)
+    px(im, 8, 11, GOLD)
+    px(im, 7, 12, GOLD)
+    return outline(im)
+
+
+def draw_photocopies():
+    im = _blank(14, 16)
+    for i in range(4):
+        y = 12 - i * 2
+        rect(im, 3, y, 11, y + 2, PAPER if i % 2 == 0 else (232, 230, 222))
+    return outline(im)
+
+
 ITEMS = {
     # seating
     "stool": draw_stool, "beanbag": draw_beanbag,
@@ -318,6 +369,9 @@ ITEMS = {
     "wall_clock": draw_wall_clock, "alphabet_frieze": draw_alphabet_frieze,
     "fish_tank": draw_fish_tank, "class_banner": draw_class_banner,
     "pot_of_pens": draw_pot_of_pens,
+    # consumables
+    "coffee": draw_coffee, "sticker_chart": draw_sticker_chart,
+    "bake_sale": draw_bake_sale, "photocopies": draw_photocopies,
 }
 
 

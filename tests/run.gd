@@ -863,7 +863,16 @@ func test_items() -> void:
 	chk("every catalogue entry has art, a cost and an effect", (func() -> bool:
 		for id: String in Items.order():
 			var d := Items.get_def(id)
-			if d.is_empty() or int(d["cost"]) <= 0 or float(d["bonus"]) <= 0.0:
+			if d.is_empty() or int(d["cost"]) <= 0:
+				return false
+			# Furniture's effect is bonus/range on the item itself; a
+			# consumable's is a hook dict (stall_mult, bonus_coins, ...)
+			# spent the day it is bought -- different schema, same
+			# requirement that SOMETHING real is there.
+			if String(d.get("cat", "")) == "consumable":
+				if (d.get("effect", {}) as Dictionary).is_empty():
+					return false
+			elif float(d["bonus"]) <= 0.0:
 				return false
 			if not ResourceLoader.exists("res://art/%s.png" % String(d["art"])):
 				return false
@@ -929,6 +938,43 @@ func test_items() -> void:
 	chk("two items can't occupy the same tile", not Game.item_fits("plant", Vector2i(5, 3)))
 	chk("a free tile still fits", Game.item_fits("plant", Vector2i(6, 3)))
 	Game.room_items.clear()
+
+	# --- consumables: bought and spent the same day, never placed ---
+	Game.new_run(SEED)
+	Game.coins = 0
+	chk("a consumable you can't afford refuses, same as furniture",
+		Game.use_consumable("coffee") != "")
+	Game.add_coins(1000)
+	var stall_before := Game.event_stall_multiplier()
+	var spend_before := Game.coins
+	chk("buying one is free of any error",
+		Game.use_consumable("coffee") == "")
+	chk("and it actually charges you", Game.coins == spend_before - Items.cost("coffee"))
+	chk("coffee measurably calms the room down for today",
+		Game.event_stall_multiplier() < stall_before, Game.event_stall_multiplier())
+	chk("it never enters the room -- nothing got placed", Game.room_items.is_empty())
+	chk("it shows up as something you bought today",
+		Game.consumables_used_today.has("Coffee"))
+
+	chk("a sticker chart guarantees homework, bypassing the dice",
+		Game.use_consumable("sticker_chart") == "" and Game._consumable_homework_sure)
+	var coins_before_bake := Game.coins
+	chk("a bake sale is a flat bonus, banked at the bell",
+		Game.use_consumable("bake_sale") == "" and Game.consumable_bonus_coins == 60)
+	chk("photocopies buy more lesson time today",
+		Game.use_consumable("photocopies") == ""
+		and Game.lesson_length() > Balance.lesson_seconds)
+
+	# the bell resets all of it for the next day, same as a day event does
+	var report := Game.advance_day()
+	chk("the day report names what you bought", report.get("consumables", []).size() == 4,
+		report.get("consumables", []))
+	chk("and the slate is wiped for tomorrow",
+		Game.consumable_bonus_coins == 0 and not Game._consumable_homework_sure
+			and Game.consumables_used_today.is_empty()
+			and is_equal_approx(Game.consumable_multiplier("stall_mult"), 1.0))
+
+	Game.new_run(SEED)
 
 
 func test_homework() -> void:
@@ -5534,6 +5580,28 @@ func test_shop() -> void:
 	await tap("cancel")
 	chk("Esc closes the shop", hud.mode == hud.Mode.NONE and not p.input_locked)
 
+	# --- a consumable, bought through the real shop rather than
+	# Game.use_consumable() directly, so the UI branch that skips
+	# placement for it is what is actually under test ---
+	await tap("manage")
+	for i in Items.categories().size():
+		if String(Items.categories()[hud._cat]) == "consumable":
+			break
+		await tap("move_right")
+	chk("the shop actually has a consumable tab to land on",
+		String(Items.categories()[hud._cat]) == "consumable", Items.categories()[hud._cat])
+	hud._sel = 0
+	hud._render_catalogue()
+	var coins_before_shop_buy: int = Game.coins
+	await tap("interact")
+	chk("buying a consumable in the shop actually spends the coins",
+		Game.coins < coins_before_shop_buy)
+	chk("and does not start the ghost cursor -- there is nowhere to put it",
+		not main.placement.active)
+	chk("the shop stays open, unlike an ordinary purchase",
+		hud.mode == hud.Mode.CATALOGUE)
+	await tap("cancel")
+
 	# --- moving ---
 	Game.room_items.clear()
 	Game.add_item("plant", Vector2i(6, 6))
@@ -6965,7 +7033,12 @@ func test_catalogue() -> void:
 	var bad: Array = []
 	for id: String in Items.order():
 		var d := Items.get_def(id)
-		for key: String in ["name", "cat", "cost", "art", "range", "bonus", "blurb"]:
+		var required := ["name", "cat", "cost", "art", "blurb"]
+		if String(d.get("cat", "")) == "consumable":
+			required.append("effect")     # spent the day it's bought
+		else:
+			required.append_array(["range", "bonus"])   # placed furniture
+		for key: String in required:
 			if not d.has(key):
 				bad.append("%s missing %s" % [id, key])
 		if not Items.categories().has(String(d.get("cat", ""))):
@@ -7013,11 +7086,15 @@ func test_catalogue() -> void:
 				n += Items.in_category(c).size()
 			return n == Items.order().size()).call())
 
-	# prices should broadly rise with what an item does, or the choice is fake
+	# prices should broadly rise with what an item does, or the choice is
+	# fake -- furniture only, since a consumable's price buys a day-long
+	# hook rather than a bonus/range figure at all.
 	var cheap_bonus := 0.0
 	var dear_bonus := 0.0
 	for id: String in Items.order():
 		var d := Items.get_def(id)
+		if String(d.get("cat", "")) == "consumable":
+			continue
 		if int(d["cost"]) <= 90:
 			cheap_bonus = maxf(cheap_bonus, float(d["bonus"]))
 		if int(d["cost"]) >= 240:

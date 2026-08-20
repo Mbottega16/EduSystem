@@ -88,7 +88,11 @@ for iid, (cost, bonus, rng) in quoted.items():
           (real["cost"], real["bonus"], real["range"]), (cost, bonus, rng))
 
 # ---- 3. counts ----
-check("item count", len(items),
+# BRIEFING's "Currently N items" sits inside the FURNITURE schema section
+# specifically -- the density rule two lines below it only makes sense for
+# placed furniture -- so this counts the same way, excluding consumables.
+furniture_items = {k: v for k, v in items.items() if v.get("cat") != "consumable"}
+check("item count", len(furniture_items),
       int(re.search(r"Currently (\d+) items", brief).group(1)))
 check("trait count", len(traits), 12)
 check("lesson count", len(curric["lessons"]),
@@ -119,6 +123,12 @@ m = re.search(r"between (\d+) and (\d+)", pack)
 if m:
     lo, hi = int(m.group(1)), int(m.group(2))
 for iid, v in items.items():
+    # Consumables are bought and spent the same day rather than placed --
+    # cost/(bonus*range) is a placement-value formula and they carry
+    # neither field, on purpose. TASK_PACK's own density claim is about
+    # furniture specifically, so they are outside what this check covers.
+    if v.get("cat") == "consumable":
+        continue
     checks += 1
     d = v["cost"] / (v["bonus"] * v["range"])
     if not (lo <= d <= hi):

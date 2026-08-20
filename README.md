@@ -319,6 +319,17 @@ bubble and the audio design both lean on. Buy past one screen and the view
 starts to follow you. That is a deliberate choice you make, not something
 that happens to you.
 
+## Something for today
+
+A fifth shop tab, next to Decor: **consumables**. Unlike furniture, nothing
+here gets placed — buying one spends it immediately, for that day only, and
+tomorrow you are buying it again if you want it again. Four of them, each
+its own kind of help: **Coffee** calms the room down a little, a
+**Sticker Chart** guarantees homework gets done tonight, a **Bake Sale**
+banks a flat handful of coins at the bell, and **Photocopies** buy a few
+more minutes of lesson before it ends. The evening report says what you
+bought, same as it says what tomorrow's day is going to be like.
+
 ## How a grade is built
 
 ```
@@ -389,7 +400,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1132 assertions
+Run Tests.bat            1147 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
