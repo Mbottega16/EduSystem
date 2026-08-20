@@ -16,6 +16,8 @@ const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
 const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
+const PROP_MESS_TRASH := preload("res://art/mess_trash.png")
+const PROP_MESS_SPILL := preload("res://art/mess_spill.png")
 const SHADOW_TEX := preload("res://art/shadow.png")
 
 const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
@@ -29,6 +31,7 @@ const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
 const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
+const MESS_SCRIPT := preload("res://scripts/interact/mess.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -310,6 +313,22 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	cur.set_pick_radius(18.0)   # doubled Aug 2026, was 9.0
 
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
+	return it
+
+
+## One piece of daily clutter -- trash or a spill -- dropped on an open
+## floor tile. Unlike every other build_* here it does NOT block the grid:
+## `block` stays Vector2.ZERO, so students and the teacher walk straight
+## over it, which is the whole point of "clean it before or after class
+## starts" rather than it becoming an obstacle to route around.
+static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interactable:
+	var tex: Texture2D = PROP_MESS_SPILL if kind == "spill" else PROP_MESS_TRASH
+	var body := add_prop(parent, tex, Grid.tile_to_world(tile), Vector2.ZERO,
+		0.0, false)   # no shadow -- both sprites are flat floor decals
+	var it := Interactable.new()
+	it.set_script(MESS_SCRIPT)
+	it.kind = kind
+	body.add_child(it)
 	return it
 
 

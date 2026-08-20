@@ -351,6 +351,41 @@ def draw_photocopies():
     return outline(im)
 
 
+# --- daily room mess ---------------------------------------------------
+# Not a shop item -- these are transient clutter spawned into the room by
+# scripts/world/classroom.gd (see mess.gd), not bought or placed by the
+# player, so they are deliberately NOT in ITEMS/balance.json below: a row
+# there would claim they are purchasable furniture, which they are not.
+# No floor shadow either (same reasoning as the consumables above): a
+# flat stain or a scattered pile reads as ON the floor, not standing on it.
+
+def draw_mess_trash():
+    im = Image.new("RGBA", (18, 12), (0, 0, 0, 0))
+    # two crumpled balls of paper and a dropped wrapper
+    rect(im, 2, 5, 6, 9, PAPER)
+    rect(im, 3, 6, 5, 8, (228, 224, 214))
+    rect(im, 9, 6, 12, 10, PAPER)
+    rect(im, 10, 7, 11, 9, (228, 224, 214))
+    rect(im, 13, 4, 17, 7, CLOTH_L)
+    rect(im, 14, 5, 16, 6, CLOTH)
+    return outline(im)
+
+
+def draw_mess_spill():
+    im = Image.new("RGBA", (18, 10), (0, 0, 0, 0))
+    PUDDLE = (120, 168, 210, 165)
+    PUDDLE_L = (176, 214, 236, 150)
+    rect(im, 3, 5, 14, 8, PUDDLE)
+    rect(im, 5, 4, 11, 5, PUDDLE)
+    rect(im, 1, 6, 3, 7, PUDDLE)
+    rect(im, 14, 6, 16, 7, PUDDLE)
+    rect(im, 6, 5, 9, 6, PUDDLE_L)     # a highlight, so it reads as wet
+    return im     # no outline() -- a hard ink border would kill the puddle
+
+
+MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
+
+
 ITEMS = {
     # seating
     "stool": draw_stool, "beanbag": draw_beanbag,
@@ -395,6 +430,17 @@ def make_all(hand=None):
         # make_art.py -- scale2x doubles it here with real diagonal-edge
         # detail rather than a blur, and this is the ONE place every
         # purchasable item's art actually gets written.
+        img = scale2x(fn())
+        img.save(os.path.join(OUT, "%s.png" % name))
+        print("art/%-20s %3dx%-3d" % (name + ".png", img.width, img.height))
+        drawn += 1
+    # Room mess: same treatment (hand-edit still wins, same 2x scale-up),
+    # just not counted against ITEMS/balance.json since these are not
+    # purchasable.
+    for name, fn in MESS_ITEMS.items():
+        if name in hand:
+            print("art/%-20s hand-edited, not redrawn" % (name + ".png"))
+            continue
         img = scale2x(fn())
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-20s %3dx%-3d" % (name + ".png", img.width, img.height))

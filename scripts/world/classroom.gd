@@ -77,6 +77,16 @@ var _purchased: Array = []
 ## back when it moves or the room is cleared.
 var _purchased_tiles: Array[Vector2i] = []
 
+## Daily clutter -- trash and spills, mess.gd -- currently on the floor,
+## waiting to be cleaned. Purely cosmetic housekeeping: legwork, not a
+## number the balance contract or anything else reads. How many spawn and
+## which kinds, same reasoning as WEATHER above -- nothing here is graded,
+## so it is allowed to be a code const rather than a balance.json entry.
+const MESS_MIN := 1
+const MESS_MAX := 3
+const MESS_KINDS := ["trash", "trash", "spill"]   # trash twice as likely
+var messes: Array[Interactable] = []
+
 
 func _ready() -> void:
 	# Explicit, because an autoload's _ready() does not fire under the custom
@@ -118,7 +128,43 @@ func build() -> void:
 	_connect_placed()
 	_spawn_students()
 	_spawn_player()
+	_spawn_mess()
 	refresh_inspector()
+
+
+## New clutter for a new day. Any mess left uncleaned from before is simply
+## gone -- there's no penalty system attached to this, so carrying it over
+## would only be visual noise with no mechanic behind it.
+func _clear_mess() -> void:
+	for m in messes:
+		if is_instance_valid(m):
+			m.queue_free()
+	messes.clear()
+
+
+func _spawn_mess() -> void:
+	_clear_mess()
+	var open := grid.free_tiles()
+	if open.is_empty():
+		return
+	# Array.shuffle() draws from the engine's global RNG, which the
+	# determinism rule bans -- everything random goes through Game.rng, so
+	# this is a hand-rolled Fisher-Yates seeded from that instead.
+	for i in range(open.size() - 1, 0, -1):
+		var j: int = Game.rng.randi_range(0, i)
+		var tmp := open[i]
+		open[i] = open[j]
+		open[j] = tmp
+	var n: int = Game.rng.randi_range(MESS_MIN, MESS_MAX)
+	for i in mini(n, open.size()):
+		var kind: String = MESS_KINDS[Game.rng.randi() % MESS_KINDS.size()]
+		var it := RoomBuilder.build_mess(self, open[i], kind)
+		it.cleaned.connect(_on_mess_cleaned)
+		messes.append(it)
+
+
+func _on_mess_cleaned(mess: Interactable, _kind: String) -> void:
+	messes.erase(mess)
 
 
 ## The inspector is IN THE ROOM on the day they visit, standing at the back
@@ -238,6 +284,9 @@ func rebuild_room() -> void:
 			n.queue_free()
 	_purchased.clear()
 	_purchased_tiles.clear()
+	# Every mess body is a room_part too, and just got torn down above --
+	# forget them rather than hold references to freed nodes.
+	messes.clear()
 
 	grid.rebuild()
 	RoomBuilder.build_floor(self)
@@ -260,6 +309,10 @@ func rebuild_room() -> void:
 	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
+	# The old mess bodies were room_parts and are already gone (above), so
+	# this re-rolls fresh tiles rather than actually preserving anything --
+	# their old tiles may not even exist in the resized grid.
+	_spawn_mess()
 	_refresh_camera_limits()
 	room_rebuilt.emit()
 
@@ -578,6 +631,7 @@ func end_day() -> Dictionary:
 	for st: Interactable in stations:
 		st.show_paper(false)
 	_respawn_students()
+	_spawn_mess()
 	refresh_inspector()
 	day_started.emit(Game.day)
 	return report

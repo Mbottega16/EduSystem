@@ -59,6 +59,21 @@ data. Everything from `bookshelf.png` down is this category:
 `tools/check_items.py` validates a new furniture entry against this data
 before it's wired in.
 
+## Daily room mess (`tools/make_items.py::MESS_ITEMS`)
+
+Not purchasable and not in the shop's `ITEMS` catalogue — transient
+clutter `scripts/world/classroom.gd` spawns fresh each day
+(`Classroom._spawn_mess()`), placed by `RoomBuilder.build_mess()` on an
+open floor tile that stays walkable. Cleaned via the ordinary E verb
+(`scripts/interact/mess.gd`), held for a couple of seconds, any time —
+before the lesson, mid-lesson, or after. Purely cosmetic legwork: it pays
+no coins or XP and touches nothing the balance contract measures.
+
+| file | role |
+|---|---|
+| `mess_trash.png` | dropped paper/wrapper clutter |
+| `mess_spill.png` | a floor spill, drawn without an outline so it reads as flat and wet rather than a solid object |
+
 ## UI & effects
 
 | file | role |

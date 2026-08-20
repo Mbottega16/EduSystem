@@ -149,6 +149,7 @@ func _main() -> void:
 	await test_day_cycle()
 	await test_confusion()
 	await test_placement()
+	await test_mess()
 	test_events()
 	test_economy()
 	test_term()
@@ -1478,6 +1479,59 @@ func _neutral_lesson() -> void:
 
 func _hud() -> Control:
 	return world.get_parent().get_node("UI/HUD")
+
+
+## Daily clutter: spawns with the room, cleans on interact, blocks nothing.
+func test_mess() -> void:
+	section("ROOM MESS")
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("a fresh day spawns some mess",
+		world.messes.size() >= world.MESS_MIN
+		and world.messes.size() <= world.MESS_MAX,
+		world.messes.size())
+	var all_valid := true
+	for m: Interactable in world.messes:
+		if not is_instance_valid(m):
+			all_valid = false
+	chk("every spawned mess is a live node", all_valid)
+
+	var kinds_ok := true
+	for m: Interactable in world.messes:
+		if not (m.kind == "trash" or m.kind == "spill"):
+			kinds_ok = false
+	chk("every mess is a recognised kind", kinds_ok)
+
+	# It sits ON a free tile, not blocking it -- see build_mess()'s own
+	# comment on why that matters ("clean it before or after class starts"
+	# rather than it becoming an obstacle to route around).
+	var still_walkable := true
+	for m: Interactable in world.messes:
+		var t := Grid.world_to_tile(m.get_parent().global_position)
+		if not world.grid.is_free(t):
+			still_walkable = false
+	chk("a mess tile is still walkable, not blocked", still_walkable)
+
+	var before: int = world.messes.size()
+	chk("there is something to clean", before > 0)
+	if before > 0:
+		var target: Interactable = world.messes[0]
+		chk("it offers to be cleaned", target.can_interact()
+			and target.prompt_text() != "")
+		# A one-element Array, not a bool -- a GDScript lambda captures an
+		# outer local BY VALUE, so `saw_signal = true` inside one would set
+		# a copy and never touch this variable. Index-assignment into a
+		# shared Array does reach it.
+		var saw_signal := [false]
+		target.cleaned.connect(func(_m, _k): saw_signal[0] = true)
+		target.interact(world.player)
+		chk("cleaning emits its signal", saw_signal[0])
+		chk("cleaning removes it from the tracked list",
+			world.messes.size() == before - 1, world.messes.size())
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_moving_desks() -> void:
