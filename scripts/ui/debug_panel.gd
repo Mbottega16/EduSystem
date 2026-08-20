@@ -40,6 +40,7 @@ const CHEATS := [
 
 var open: bool = false
 var _backtick_was_down: bool = false
+var _shift_d_was_down: bool = false
 var page: int = Page.TUNING
 var _sel: int = 0
 var _panel: ColorRect = null
@@ -80,6 +81,13 @@ func _process(_d: float) -> void:
 	# dev-console key for a reason: almost nothing else claims it.
 	if _backtick_edge(Input.is_key_pressed(KEY_QUOTELEFT)):
 		_toggle(not open)
+	# Shift+D as a third way in -- F1 is reportedly not reaching Godot at
+	# all on at least one machine (an OEM binding eating it before the
+	# engine sees it, the same failure mode backtick already exists to
+	# route around), so this is a second fallback while that gets sorted
+	# rather than a replacement for either existing key.
+	if _shift_d_edge(Input.is_key_pressed(KEY_SHIFT) and Input.is_key_pressed(KEY_D)):
+		_toggle(not open)
 	if not open:
 		return
 	_handle()
@@ -94,6 +102,14 @@ func _process(_d: float) -> void:
 func _backtick_edge(down: bool) -> bool:
 	var edge := down and not _backtick_was_down
 	_backtick_was_down = down
+	return edge
+
+
+## Same edge-detect as backtick, same reason: Shift+D toggles both ways on
+## one combo, so it needs the edge of the press, not the hold.
+func _shift_d_edge(down: bool) -> bool:
+	var edge := down and not _shift_d_was_down
+	_shift_d_was_down = down
 	return edge
 
 
@@ -251,7 +267,7 @@ func _free_spot(id: String) -> Vector2i:
 
 func _render() -> void:
 	var lines: Array[String] = [
-		"F1/` open  F2/` close  Tab page  %s" % (
+		"F1/`/Shift+D toggle  Tab page  %s" % (
 			"[TUNING] cheats" if page == Page.TUNING else "tuning [CHEATS]"),
 		"",
 	]

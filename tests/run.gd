@@ -5282,6 +5282,25 @@ func test_dev_panel() -> void:
 	if dbg._backtick_edge(false):
 		dbg._toggle(not dbg.open)
 
+	# Shift+D, added after F1 turned out not to reach Godot at all on at
+	# least one real machine -- an OEM binding eating it before the engine
+	# ever sees it. Same edge-detect requirement as backtick, since it is
+	# also one combo doing both jobs.
+	dbg.open = false
+	if dbg._shift_d_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("shift+D opens the panel too", dbg.open)
+	if dbg._shift_d_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("holding it down does not flap the panel shut again", dbg.open)
+	if dbg._shift_d_edge(false):
+		dbg._toggle(not dbg.open)
+	if dbg._shift_d_edge(true):
+		dbg._toggle(not dbg.open)
+	chk("pressing shift+D again closes it", not dbg.open)
+	if dbg._shift_d_edge(false):
+		dbg._toggle(not dbg.open)
+
 	Game.new_run(SEED)
 	await step(2)
 
