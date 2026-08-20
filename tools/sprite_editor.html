@@ -14,7 +14,7 @@
 
      EduSystems   88x88 canvas, 10 separately-named PNGs, exported
                   as a ZIP because that is 10 files
-     PixelRoom    16x24 cells in a 5x4 grid -> ONE 80x96 sheet, which
+     PixelRoom    32x48 cells in a 5x4 grid -> ONE 400x192 sheet, which
                   is what Sprite2D(hframes=5, vframes=4) loads
 
    Because the export is a single file, the hand-rolled ZIP writer that
@@ -125,7 +125,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
   <h1>PixelRoom — Sprite Editor</h1>
   <p>Twenty cells: four facings down the sheet, five frames across
   (stand, step, stand, step, <b>sit</b>). Draw them, export one
-  <b>80&times;96</b> PNG, drop it in <code>art/</code> — then run
+  <b>400&times;192</b> PNG, drop it in <code>art/</code> — then run
   <code>godot --headless --path . --import</code>, or the game cannot
   load it.</p>
 </header>
@@ -154,7 +154,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
       <div id="gridOverlay"></div>
       <div id="brushCursor"></div>
     </div>
-    <div id="canvasMeta">16 &times; 24 px — one character frame</div>
+    <div id="canvasMeta">32 &times; 48 px — one character frame</div>
   </div>
 
   <div id="toolPanel" class="card">
@@ -228,7 +228,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
     <div>
       <h2>&#11015; Load</h2>
       <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;">
-        Load an 80&times;96 sheet
+        Load a 400&times;192 sheet
         <input type="file" id="importSheet" accept="image/png" style="display:none">
       </label>
       <label class="smallBtn" style="cursor:pointer;display:block;text-align:center;margin-top:6px;">
@@ -260,7 +260,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
     <div class="row">
       <label for="charName">Name</label>
       <input type="text" id="charName" value="student_i" size="18">
-      <button class="bigBtn" id="exportBtn" style="width:auto;">Export 80&times;96 sheet</button>
+      <button class="bigBtn" id="exportBtn" style="width:auto;">Export 400&times;192 sheet</button>
     </div>
     <p id="exportNote" style="margin-top:10px;">
       Saves <code>&lt;name&gt;.png</code>. Put it in <code>art/</code>,
@@ -285,7 +285,7 @@ input[type=text]{font-family:inherit;font-size:13px;padding:7px 9px;border-radiu
    CW/CH is one cell; COLS x ROWS is the sheet the game loads with
    Sprite2D(hframes=5, vframes=4).
    ============================================================ */
-const CW = 16, CH = 24, COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
+const CW = 32, CH = 48, COLS = 5, ROWS = 4, CELLS = COLS * ROWS;
 const ROW_NAMES = ["Facing down", "Facing left", "Facing right", "Facing up"];
 const COL_NAMES = ["stand", "step", "stand", "step", "sit"];
 
