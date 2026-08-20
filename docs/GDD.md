@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-18**, against build `b29`, with **1132 assertions
+> **Measured on 2026-08-19**, against build `b31`, with **1132 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -229,7 +229,7 @@ children who passed move up and out.
 
 ## 5. Systems reference
 
-*Measured 2026-08-17. ~21,000 lines across scripts, tests, tools and data.*
+*Measured 2026-08-19. ~26,000 lines across scripts, tests, tools and data.*
 
 ### Run state — `scripts/autoload/game.gd`
 Seeded RNG · day phases · roster and enrolment · neighbour model (reads live
@@ -265,7 +265,7 @@ should still look like the plain room they have always been.
 
 ### Actors, interactables, UI
 `actor.gd` / `player.gd` (per-button targeting, hold-to-confirm, autopilot) /
-`student.gd` · 10 interactable types · `hud.gd` (2053 lines, 16 screen modes,
+`student.gd` · 11 interactable types · `hud.gd` (2741 lines, 16 screen modes,
 20 of them sharing `REPORT`) · `title.gd` (6 pages) · `debug_panel.gd` ·
 `fx.gd` · `floater.gd` · `sfx.gd` · `settings.gd`.
 
@@ -322,7 +322,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 16 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1132 assertions** across **75 sections** |
+| Tests | **1132 assertions** across **79 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

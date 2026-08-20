@@ -139,7 +139,7 @@ a deliberate WIP commit.
 | `scripts/ui/hud.gd` | Every screen. 16 modes; ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1132 assertions, 74 sections |
+| `tests/run.gd` | The suite — 1132 assertions, 79 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

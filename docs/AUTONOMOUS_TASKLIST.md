@@ -78,10 +78,18 @@ These are not optional work; they are the queue. Prompts live in
       hides AND self-resolves by copying, so a player may never learn
       there is a gap until a test exposes it. `tools/check_traits.py`
       validates future submissions against the real hook set.
-- [ ] **A3. Integrate task 7 — 11 day events.** Weights must still total
-      roughly 100 and "an ordinary day" must stay the most common outcome
-      by a wide margin.
-- [ ] **A4. Integrate task 8 — homework banks to 24 each.**
+- [x] **A3. Integrate task 7 — 11 day events.** *(Done Aug 2026, see the
+      content-batch entry under Done.)* ChatGPT's landed, all 11 carrying
+      a real hook; Gemini's was pure flavour text and was rejected.
+      `events.gd`: 9 → 20, weights re-summed to exactly 100, "none" still
+      the largest by a wide margin.
+- [x] **A4. Integrate task 8 — homework banks to 24 each.** *(Done Aug
+      2026, see the content-batch entry under Done.)* Landed short of
+      the target on purpose: two questions were fixed for an accidentally-
+      correct or ambiguous wrong answer, and near-duplicate facts against
+      the existing bank were dropped rather than kept to hit a round
+      number. `questions.gd`: math 12→24, ela 12→22, science 12→19,
+      social 12→24.
 
 ## B. Real gaps, found by counting — highest value first
 
@@ -174,6 +182,14 @@ These are not optional work; they are the queue. Prompts live in
       device* off, or move the repo outside OneDrive.
 - [ ] **D2. Run `/deep_update` after any batch integration.** Counts move
       in six documents at once and disagreement is worse than staleness.
+      *(Last run 2026-08-19.)* Found real drift beyond assertion counts:
+      the suite has grown to **79 sections** (CLAUDE.md said 74, GDD said
+      75), `hud.gd` is 2741 lines now (was quoted at 2053), there are
+      **11** interactable types not 10 (`hall_door.gd`), and the title
+      screen's own build stamp was three features behind
+      (`b30`/"a reputation you can lose" → `b31`/"a door to every room
+      you hold"). A3/A4 on this list were also stale — both integrations
+      landed sessions ago but the checkboxes were never ticked.
 
 ---
 
