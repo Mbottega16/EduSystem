@@ -326,7 +326,7 @@ func _physics_process(delta: float) -> void:
 			if st != null:
 				st.show_paper(false)
 			Floater.pop(self, Grid.tile_to_world(
-				Layout.seat(taken.seat_index)) + Vector2(0, -20),
+				Layout.seat(taken.seat_index)) + Vector2(0, -40),   # doubled, was -20
 				"aide", Color(0.72, 0.86, 1.0))
 		# Attention is fed by the teacher STANDING at the front, not by a
 		# button press -- holding a key to teach and holding a key to walk

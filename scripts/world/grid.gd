@@ -14,7 +14,7 @@ extends RefCounted
 ## synchronous call here; and integer tile paths are trivially assertable in
 ## a headless test, which navigation-agent output is not.
 
-const TILE := 16
+const TILE := 32   ## Aug 2026: was 16. Same room, same layout, denser pixels.
 
 ## The room the game opens in, and the floor of every later size.
 const BASE_W := 20           ## tiles across, matching tools/make_art.py

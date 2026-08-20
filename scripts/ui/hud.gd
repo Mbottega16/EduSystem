@@ -375,8 +375,8 @@ func _update_prompt() -> void:
 
 func _open(m: int) -> void:
 	mode = m
-	body.add_theme_font_size_override("font_size", 10)
-	body.add_theme_constant_override("line_spacing", 4)
+	body.add_theme_font_size_override("font_size", 20)
+	body.add_theme_constant_override("line_spacing", 8)
 	# every mode that wants a portrait turns it back on; this is the
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
@@ -409,8 +409,8 @@ func close() -> void:
 ## ran off the bottom and overlapped the hint bar.
 func show_title() -> void:
 	_open(Mode.TITLE)
-	body.add_theme_font_size_override("font_size", 8)
-	body.add_theme_constant_override("line_spacing", 1)
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_constant_override("line_spacing", 2)
 	title.text = "P I X E L R O O M"
 	# This screen had gone stale. It still described only the original loop,
 	# so a player who had just been given traits, disruption, a voice and
@@ -527,7 +527,7 @@ func principal_says(id: String, text: String) -> void:
 	prompt.text = text
 	var at := AtlasTexture.new()
 	at.atlas = PRINCIPAL_TEX
-	at.region = Rect2(0, 0, 16, 24)
+	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
 	mascot_portrait.texture = at
 	mascot_portrait.visible = true
 	mascot_box.visible = true
@@ -552,8 +552,8 @@ func show_dashboard() -> void:
 	_open(Mode.DASHBOARD)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	_render_dashboard()
 
 
@@ -595,7 +595,7 @@ func _render_dashboard() -> void:
 func _render_dash_overview() -> Array[String]:
 	var at := AtlasTexture.new()
 	at.atlas = load("res://art/player.png")
-	at.region = Rect2(0, 0, 16, 24)
+	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
 	portrait.texture = at   # visibility is handled by _render_dashboard()
 
 	# The panel does not scroll (scroll_active = false on Rich in
@@ -701,7 +701,7 @@ func _render_class_list() -> void:
 	title.text = "YOUR CLASS"
 	# eight students plus a three-line lesson header does not fit at the
 	# default size; the panel is 128px and this needs about 13 rows
-	body.add_theme_font_size_override("font_size", 8)
+	body.add_theme_font_size_override("font_size", 16)
 	body.add_theme_constant_override("line_spacing", 0)
 	var lines: Array[String] = []
 	# The objective is the source document's own wording, so a player can
@@ -754,8 +754,8 @@ func show_student(s: StudentData) -> void:
 		return
 	_bio = s
 	_open(Mode.STUDENT)
-	body.add_theme_font_size_override("font_size", 8)
-	body.add_theme_constant_override("line_spacing", 1)
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_constant_override("line_spacing", 2)
 
 	title.text = s.display_name
 	if title.text.length() > 22:
@@ -766,7 +766,7 @@ func show_student(s: StudentData) -> void:
 	# itself inside a Control and ignore the layout entirely.
 	var at := AtlasTexture.new()
 	at.atlas = load("res://art/%s.png" % s.art)
-	at.region = Rect2(0, 0, 16, 24)
+	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
 	portrait.texture = at
 	portrait.visible = true
 
@@ -928,8 +928,8 @@ func show_exam(result: Dictionary) -> void:
 	Sfx.play("grade")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 1)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	title.text = "END OF TERM  -  %s" % String(result.get("letter", "F"))
 
@@ -1110,8 +1110,8 @@ func show_run_over(info: Dictionary) -> void:
 	Sfx.play("deny")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	title.text = "THAT IS THE END OF IT"
 	var lines: Array[String] = []
@@ -1160,8 +1160,8 @@ func show_hand(fresh: bool = false) -> void:
 	_open(Mode.HAND)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	if Game.hand.is_empty():
 		close()
@@ -1263,8 +1263,8 @@ func show_school() -> void:
 	_open(Mode.SCHOOL)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	title.text = "THE SCHOOL  -  %d room%s" % [
 		Game.rooms.size() + 1, "" if Game.rooms.is_empty() else "s"]
 
@@ -1336,8 +1336,8 @@ func show_watch(i: int) -> void:
 	_open(Mode.WATCH)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	title.text = "WATCHING  -  %s" % String(r.get("name", "Room"))
 	_render_watch_frame()
 
@@ -1415,8 +1415,8 @@ func show_hiring() -> void:
 	_hiring = true
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	title.text = "WHO WILL TEACH IT?"
 
 	if Game.applicants.is_empty():
@@ -1446,8 +1446,8 @@ func show_career() -> void:
 	_open(Mode.CAREER)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 1)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	var all := Milestones.all()
 	title.text = "YOUR CAREER  %d/%d" % [Game.milestones.size(), all.size()]
@@ -1499,8 +1499,8 @@ func show_office() -> void:
 	_open(Mode.OFFICE)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 1)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	title.text = "THE PRINCIPAL'S OFFICE"
 	# No portrait here, on purpose -- Rich runs the full body height in
 	# this screen (a list this long has nowhere else to go), and the
@@ -1551,8 +1551,8 @@ func show_specialism() -> void:
 	_open(Mode.SPECIALISM)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 3)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 6)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	title.text = "WHAT DO YOU TEACH?"
 
 	var strands := Curriculum.strands()
@@ -1587,8 +1587,8 @@ func show_new_term(info: Dictionary) -> void:
 	Sfx.play("start")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	var prev: Dictionary = info.get("previous", {})
 	title.text = "TERM %d" % int(info.get("term", Game.term))
@@ -1670,8 +1670,8 @@ func show_curriculum() -> void:
 	_open(Mode.CURRICULUM)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	var lessons := Curriculum.lessons
 	if lessons.is_empty():
@@ -2054,8 +2054,8 @@ func show_day_report(report: Dictionary) -> void:
 	_open(Mode.REPORT)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 1)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 
 	var avg := float(report.get("average", 0.0))
 	title.text = "DAY %d  -  %s  -  %d LEFT" % [
@@ -2136,12 +2136,12 @@ func _render_catalogue() -> void:
 	# exactly what colour is for, and a Label is one colour by definition.
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 8)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
 	# The shop grew a blurb line and the staff room lists five perks, so the
 	# default font 10 (about 6 lines in a 128px body) ran under the hint bar.
-	body.add_theme_font_size_override("font_size", 8)
-	body.add_theme_constant_override("line_spacing", 1)
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_constant_override("line_spacing", 2)
 	var rows := _shop_rows()
 	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
 

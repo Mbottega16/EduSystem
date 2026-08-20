@@ -15,7 +15,7 @@ import os
 from PIL import Image
 
 from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, px, rect, shadow,
-                      hand_edited)
+                      hand_edited, scale2x)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -391,7 +391,11 @@ def make_all(hand=None):
         if name in hand:
             print("art/%-20s hand-edited, not redrawn" % (name + ".png"))
             continue
-        img = fn()
+        # Drawn at the original small resolution, same as furniture in
+        # make_art.py -- scale2x doubles it here with real diagonal-edge
+        # detail rather than a blur, and this is the ONE place every
+        # purchasable item's art actually gets written.
+        img = scale2x(fn())
         img.save(os.path.join(OUT, "%s.png" % name))
         print("art/%-20s %3dx%-3d" % (name + ".png", img.width, img.height))
         drawn += 1

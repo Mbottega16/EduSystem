@@ -172,7 +172,7 @@ These are not optional work; they are the queue. Prompts live in
       it. The directory sweep already loaded every PNG and covers all 71
       (no subdirectories).
 
-## E. The art overhaul — same user request as the consumables, one part still open
+## E. The art overhaul — same user request as the consumables, both parts done
 
 *(Aug 2026.)* "isthere anyway to change the characters to a more cute
 chibi art style? also lets convert to 32 bit as the pixelated look is
@@ -203,23 +203,109 @@ for no reason.
       room: dashboard, student bio, the principal's own corner popup,
       and the classroom itself, all screenshotted. Balance contract
       re-verified unmoved, as expected for an art-only change.
-- [ ] **E2. The 2x resolution pass.** `Grid.TILE` 16 -> 32,
-      `project.godot`'s `window/size/viewport_width|height` 320x176 ->
-      640x352 (window override 960x528 -> 1920x1056 to keep the exact
-      same 3x integer pixel scale — a non-integer scale blurs pixel
-      art). Every tile, prop and character redrawn at the higher density
-      with genuinely more shading detail, not a nearest-neighbour
-      upscale (which would add zero information and defeat the point).
-      Then every hardcoded pixel position in `scripts/ui/hud.gd`'s
-      `.tscn` layout and every `scripts/world/*.gd` file that assumes
-      16px doubles alongside it. Large, mostly mechanical, and the
-      highest-risk item on this whole list for exactly that reason: get
-      it wrong and a hundred small UI/collision offsets are each
-      wrong by a few pixels in a way no single screenshot catches.
-      Verify screen by screen, not in one pass.
+- [x] **E2. The 2x resolution pass.** *(Done Aug 2026.)* User confirmed the
+      UI should be redone natively at the new resolution rather than
+      wrapped in a sub-viewport, accepting the larger, riskier job.
+
+      **Art.** `Grid.TILE` 16 -> 32; `project.godot`'s viewport 320x176
+      -> 640x352, window override 960x528 -> 1920x1056 (same 3x integer
+      scale, so pixel edges stay crisp). Characters redrawn natively at
+      32x48 -- the chibi routine from E1 wrapped in a small `R()`/`P()`
+      helper that scales every call 2x on the way to the canvas, plus
+      real NEW detail the bigger canvas afforded (rosy cheeks, a mouth)
+      rather than a blind doubling. Furniture, room tiles and shop icons
+      (~70 assets) run through a new `scale2x()` -- Scale2x/AdvMAME2x,
+      the decades-old pixel-art upscaler emulators use -- rather than
+      nearest-neighbour, because nearest-neighbour would have been a
+      complete NO-OP on screen: the window doubled exactly as much as
+      the art, so a naive 2x resize lands every source pixel back on the
+      same physical screen pixels it always occupied. Scale2x actually
+      redraws staircased diagonal edges into real diagonal ones, which
+      is where the "more detail" genuinely comes from. The title screen
+      (`draw_title_bg`, `draw_logo`) draws natively at the new size
+      instead, since both were already screen-sized rather than
+      tile-sized.
+
+      **Pacing, the part a pure art pass would have silently broken.**
+      `Actor.SPEED` doubled (60 -> 120) alongside every pixel-distance
+      balance value that does NOT cancel out algebraically against it --
+      `teacher_speed`, `teacher_pick_radius`, `brisk_walk_speed`,
+      `long_reach_radius`, `calm_presence_radius` all doubled in
+      `data/balance.json`. Missing any one of these would not have
+      crashed anything; it would have quietly made either the player or
+      the students faster than the other, or reach further than intended
+      -- a real balance regression a screenshot alone would not catch.
+      Caught by tracing the actual formula (`speed_scale()` divides by
+      `SPEED` again, so `SPEED` itself cancels out of the PLAYER's real
+      speed entirely -- the balance.json value is what actually matters).
+      New guard-rail assertions pin `Grid.TILE`, the viewport, and the
+      SPEED/TILE ratio directly so this class of regression fails loudly
+      next time instead of shipping quietly.
+
+      **The UI.** Every offset in `hud.tscn`, every
+      `add_theme_font_size_override`/`add_theme_constant_override` call
+      in `hud.gd` (38 of them), the three portrait `AtlasTexture` crop
+      regions, `debug_panel.gd`'s programmatic panel, `floater.gd`'s
+      popup text, `title.tscn`/`title.gd` (dust bounds, logo breathing,
+      the walker), `hallway.gd`'s whole geometry, and every hardcoded
+      collision box / sprite offset in `room_builder.gd` (desk, podium,
+      bell, noticeboard, teacher desk, the shadow's own width divisor) --
+      all doubled. `LINE_CHARS`/`LIST_ROWS` deliberately NOT touched:
+      those are character/row counts, and a screen that fits 11 rows at
+      font 8 in a 288px body still fits 11 rows at font 16 in a 576px
+      body -- doubling them too would have been the same bug as touching
+      `SPEED` twice.
+
+      **Real bugs, all found by screenshot or by the suite, not assumed
+      fixed:**
+      - `Take a Screenshot.bat` hardcoded 320x176 as the capture size --
+        every "verification" screenshot taken early in this pass was
+        silently re-rendering the OLD resolution regardless of what the
+        project actually shipped. Every shot after the fix used 640x352;
+        every shot before it was worthless and had to be retaken.
+      - The actual title screen (`scenes/ui/title.tscn`) is a different
+        scene from what `tools/shot.gd`'s `"title"` case opens (an
+        in-game HUD overlay) -- so screenshotting `"title"` was never
+        looking at the boot scene at all. Added a real `"boot_title"`
+        case that loads `title.tscn` directly.
+      - A test at the noticeboard started failing for a reason that had
+        nothing to do with geometry: `Actor.player.targets` is a CACHE,
+        only refreshed by `_repick()` on a physics frame, and a stray
+        held key from earlier in the same long test function landed the
+        cache's last refresh on the wrong facing direction. The desk
+        three tiles away scored higher than the noticeboard for that one
+        cached frame and never got asked again. Fixed by forcing a clean
+        `_repick()` at the point a test actually needs one, and by
+        making `place_player()` re-assert facing after its own await,
+        not just before it -- neither alone was enough.
+      - `floater.gd`: a doubled-value comment landed between a
+        method-chain call and its trailing `\` line-continuation,
+        turning the continuation into ordinary comment text and breaking
+        the chain. A reminder that a comment appended after code on a
+        continuation line is not safe in GDScript.
+
+      **Known gap, deliberately not fixed here:** the HTML sprite editor
+      (`Draw a Sprite.bat`) still exports at the old 80x96/16x24 size, so
+      the five hand-edited furniture items (bookshelf, lab_bench,
+      art_easel, rug, plant) are the one part of the shop still at the
+      old scale until that tool is updated too. Noted in `README.md` and
+      `docs/GDD.md` rather than silently left for someone to discover.
+
+      1147 -> 1150 assertions (3 new guard-rails). Balance contract
+      re-verified unmoved. Screenshotted: the real boot title, the
+      classroom, the shop, the office, the principal's corner popup, the
+      dashboard, the hallway, the dev panel, the curriculum screen, the
+      watch screen, and the career screen -- eleven real screens, not one.
 
 ## D. Housekeeping
 
+- [ ] **D0. Update the HTML sprite editor for the Aug 2026 resolution
+      doubling.** `Draw a Sprite.bat` still exports 80x96/16x24 --
+      everything drawn through `tools/make_art.py`/`make_items.py` is
+      32x48/doubled now, so a sprite hand-edited today is undersized the
+      moment it is saved. The five items that already went through this
+      editor (bookshelf, lab_bench, art_easel, rug, plant) are the one
+      part of the shop still at the old scale as a result.
 - [~] **D1. `.godot/` and OneDrive.** Git half was **already done** —
       `.godot/` is in `.gitignore` and zero files under it are tracked.
       **The OneDrive half needs the user**: excluding a folder from sync

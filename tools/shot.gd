@@ -35,6 +35,25 @@ func _ready() -> void:
 	# Optional: grow the room first, so a screenshot can show a size the
 	# opening classroom never reaches.
 	var grow: int = int(args[4]) if args.size() > 4 else 0
+	var screen: String = args[5] if args.size() > 5 else ""
+
+	# The actual boot scene (scenes/ui/title.tscn) is structurally nothing
+	# like main.tscn -- no World, no UI/HUD -- so it gets its own short
+	# path rather than being forced through _open_screen(), which assumes
+	# both exist.
+	if screen == "boot_title":
+		var title: Node = load("res://scenes/ui/title.tscn").instantiate()
+		get_tree().root.add_child.call_deferred(title)
+		await get_tree().process_frame
+		for i in frames:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img2 := get_viewport().get_texture().get_image()
+		var err2 := img2.save_png(out)
+		print("shot: %s  %dx%d  err=%d  (%d frames)" % [
+			out, img2.get_width(), img2.get_height(), err2, frames])
+		get_tree().quit(0 if err2 == OK else 1)
+		return
 
 	var main: Node = load(MAIN).instantiate()
 	get_tree().root.add_child.call_deferred(main)
@@ -43,8 +62,6 @@ func _ready() -> void:
 	# Optional: open a named screen before shooting. Every overlay in this
 	# project has needed two or three passes to stop running off the bottom
 	# of a 288x128 panel, and no assertion catches text that merely overflows.
-	var screen: String = args[5] if args.size() > 5 else ""
-
 	if grow > 0:
 		Game.coins = 99999999
 		for i in grow:

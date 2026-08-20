@@ -21,7 +21,7 @@
     "b": 0.73,
     "c": 0.55,
     "d": 0.42,
-    "e": 0.30
+    "e": 0.3
   },
   "lesson": {
     "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes — that is the whole pressure.",
@@ -367,7 +367,9 @@
       "w": 1,
       "cat": "consumable",
       "blurb": "Nobody's morning gets worse for it.",
-      "effect": { "stall_mult": 0.85 }
+      "effect": {
+        "stall_mult": 0.85
+      }
     },
     "sticker_chart": {
       "name": "Sticker Chart",
@@ -376,7 +378,9 @@
       "w": 1,
       "cat": "consumable",
       "blurb": "Everyone wants their name up there tonight.",
-      "effect": { "homework_sure": true }
+      "effect": {
+        "homework_sure": true
+      }
     },
     "bake_sale": {
       "name": "Bake Sale",
@@ -385,7 +389,9 @@
       "w": 1,
       "cat": "consumable",
       "blurb": "The tin is always a little fuller by home time.",
-      "effect": { "bonus_coins": 60 }
+      "effect": {
+        "bonus_coins": 60
+      }
     },
     "photocopies": {
       "name": "Photocopies",
@@ -394,7 +400,9 @@
       "w": 1,
       "cat": "consumable",
       "blurb": "A few more minutes before the bell today.",
-      "effect": { "lesson_mult": 1.12 }
+      "effect": {
+        "lesson_mult": 1.12
+      }
     }
   },
   "item_order": [
@@ -450,8 +458,8 @@
   },
   "teacher": {
     "_note": "The teacher's own numbers. speed and pick_radius used to be consts in actor.gd/interactable.gd -- they were missed when everything else moved here, because they read as physics rather than balance. They live here now so perks can raise them and tools/sim.tscn can model a levelled teacher.",
-    "speed": 60.0,
-    "pick_radius": 20.0,
+    "speed": 120.0,
+    "pick_radius": 40.0,
     "xp_per_day": 12,
     "xp_per_grade_point": 25,
     "xp_per_graduation": 45,
@@ -543,9 +551,9 @@
   },
   "perk_effects": {
     "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile.",
-    "brisk_walk_speed": 15.0,
-    "long_reach_radius": 8.0,
-    "calm_presence_radius": 40.0,
+    "brisk_walk_speed": 30.0,
+    "long_reach_radius": 16.0,
+    "calm_presence_radius": 80.0,
     "calm_presence_mult": 0.7,
     "practised_marker_sheets": 2
   },

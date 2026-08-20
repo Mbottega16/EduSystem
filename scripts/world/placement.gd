@@ -282,16 +282,16 @@ func _draw() -> void:
 		var r := Rect2(Vector2(tile) * Grid.TILE, Vector2(Grid.TILE, Grid.TILE))
 		var on_something: bool = not Game.item_at(tile).is_empty()
 		draw_rect(r, REACH_FILL if on_something else Color(1, 1, 1, 0.12))
-		draw_rect(r, REACH_EDGE if on_something else Color(1, 1, 1, 0.5), false, 1.0)
+		draw_rect(r, REACH_EDGE if on_something else Color(1, 1, 1, 0.5), false, 2.0)   # doubled line width
 		return
 	for i in Layout.seat_count():
 		var occupied := Game.student_in_seat(i) != null
 		var r := Rect2(
-			Vector2(Layout.seat(i)) * Grid.TILE + Vector2(1, 1),
-			Vector2(Grid.TILE - 2, Grid.TILE - 2))
+			Vector2(Layout.seat(i)) * Grid.TILE + Vector2(2, 2),
+			Vector2(Grid.TILE - 4, Grid.TILE - 4))   # doubled inset, was 1/2
 		if i in _reached:
 			draw_rect(r, REACH_FILL if occupied else EMPTY_SEAT)
-			draw_rect(r, REACH_EDGE, false, 1.0)
+			draw_rect(r, REACH_EDGE, false, 2.0)   # doubled line width
 		elif occupied:
 			draw_rect(r, Color(0, 0, 0, 0.12))
 

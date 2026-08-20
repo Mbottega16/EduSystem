@@ -13,7 +13,8 @@ cannot run anything.
 
 ## The game in one page
 
-A pixel-art classroom management sim in Godot 4.7, 320×176, mouse-free.
+A pixel-art classroom management sim in Godot 4.7, 640×352 (doubled from
+320×176 in Aug 2026 for more detail per tile — same 20×11 room), mouse-free.
 
 **You are a teacher. Walking the room is the game.** A class of up to eight
 children sit at desks. Work only advances while you stand at the front

@@ -71,8 +71,8 @@ static var term_target_growth: int = 1
 static var upkeep_per_item: int = 3
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
-static var teacher_speed: float = 60.0
-static var teacher_pick_radius: float = 20.0
+static var teacher_speed: float = 120.0   ## doubled Aug 2026
+static var teacher_pick_radius: float = 40.0   ## doubled Aug 2026
 static var teacher_xp_per_day: int = 12
 static var teacher_xp_per_grade_point: int = 25
 static var teacher_xp_per_graduation: int = 45
@@ -207,9 +207,9 @@ static var coach_max_per_student: int = 4
 
 # --- perks --------------------------------------------------------------
 static var perks: Dictionary = {}
-static var perk_brisk_walk_speed: float = 15.0
-static var perk_long_reach_radius: float = 8.0
-static var perk_calm_presence_radius: float = 40.0
+static var perk_brisk_walk_speed: float = 30.0   ## doubled Aug 2026
+static var perk_long_reach_radius: float = 16.0   ## doubled Aug 2026
+static var perk_calm_presence_radius: float = 80.0   ## doubled Aug 2026
 static var perk_calm_presence_mult: float = 0.7
 static var perk_practised_marker_sheets: int = 2
 

@@ -109,7 +109,7 @@ func _pop(text: String, colour: Color) -> void:
 	while world != null and not world.has_method("student_node"):
 		world = world.get_parent()
 	if world != null:
-		Floater.pop(world, global_position + Vector2(0, -18), text, colour)
+		Floater.pop(world, global_position + Vector2(0, -36), text, colour)   # doubled, was -18
 		# Chalk dust where it happened. The word tells you WHAT; the puff is
 		# what makes the desk feel like the place it happened at.
 		Fx.puff(world, global_position + Vector2(0, -10), colour)

@@ -25,19 +25,20 @@ var _label: Label = null
 func _go() -> void:
 	_label = Label.new()
 	_label.text = _text
-	_label.add_theme_font_size_override("font_size", 9)
+	_label.add_theme_font_size_override("font_size", 18)   # doubled Aug 2026
 	_label.add_theme_color_override("font_color", _colour)
 	_label.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.08))
-	_label.add_theme_constant_override("outline_size", 3)
+	_label.add_theme_constant_override("outline_size", 6)   # doubled Aug 2026
 	# centred on the point, not starting from it
-	_label.position = Vector2(-20, -8)
-	_label.size = Vector2(40, 12)
+	_label.position = Vector2(-40, -16)   # doubled Aug 2026
+	_label.size = Vector2(80, 24)   # doubled Aug 2026
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_label)
 
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(self, "position:y", position.y - 14.0, 0.8) \
+	# doubled Aug 2026, was -14.0
+	tw.tween_property(self, "position:y", position.y - 28.0, 0.8) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_label, "modulate:a", 0.0, 0.8).set_delay(0.25)
 	tw.chain().tween_callback(queue_free)

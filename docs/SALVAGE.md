@@ -14,7 +14,7 @@ does not have.
 ## The premise correction that matters most
 
 **PixelRoom is not a port in progress.** It is a finished, working Godot
-4.7 game: 1147 assertions, 29 items, 40 lessons, 120 concepts, a balance
+4.7 game: 1150 assertions, 29 items, 40 lessons, 120 concepts, a balance
 contract measured from simulated play, and five verification tools.
 
 Any advice framed as "how to move EduSystems into Godot" is answering a
@@ -26,7 +26,7 @@ reasons are worth keeping because they will be proposed again:
 
 | Proposal | Why it does not apply |
 |---|---|
-| Isometric `TileMap`, 2:1 projection, `cartesian_to_isometric()` | PixelRoom is a **flat square grid**. `Grid.TILE` is 16, the room is 20×11 tiles — which is exactly the 320×176 screen. There is no `TileMap` node anywhere in `scripts/`. |
+| Isometric `TileMap`, 2:1 projection, `cartesian_to_isometric()` | PixelRoom is a **flat square grid**. `Grid.TILE` is 32 (doubled Aug 2026, was 16), the room is 20×11 tiles — which is exactly the 640×352 screen. There is no `TileMap` node anywhere in `scripts/`. |
 | `_unhandled_input` on `MOUSE_BUTTON_LEFT` to place furniture | The game is **mouse-free**. Two buttons: E is the mashable verb, F is session-level, irreversible things are HELD. The mouse cycles the card hand and nothing else. |
 | `ItemData` Resource with `@export var cost: int` | **Numbers do not live in code.** Every tunable is in `data/balance.json`. An `@export`ed cost is exactly the constant that rule forbids. |
 | Magenta chroma-key + Pillow processor | PixelRoom has no magenta pipeline. Characters **are palettes** — one drawn model, recoloured, via `Make a Sprite.bat`. The one real seam is that `make_art.py` cannot import, so `godot --headless --path . --import` must follow. |

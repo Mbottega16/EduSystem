@@ -11,7 +11,7 @@ extends Area2D
 ## from the front but 19px from the side, and you fight that asymmetry
 ## forever.
 
-const PICK_RADIUS := 20.0
+const PICK_RADIUS := 40.0   ## doubled Aug 2026 alongside Grid.TILE (16 -> 32)
 
 
 ## Shrink (or grow) this one thing's own reach.

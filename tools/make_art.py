@@ -19,7 +19,7 @@ LINE = (36, 26, 18)      # shared outline colour for everything
 EYE = (28, 24, 32)
 
 # --- characters ------------------------------------------------------
-CW, CH = 16, 24          # one frame
+CW, CH = 32, 48          # one frame (doubled Aug 2026, was 16x24)
 DIRS = 4                 # rows: down, left, right, up
 FRAMES = 5               # cols: stand, step, stand, step (other foot), SEATED
 SIT_FRAME = 4            # must match Actor.SIT_FRAME in scripts/actors/actor.gd
@@ -203,6 +203,47 @@ def outline(img, colour=LINE):
     return img
 
 
+def scale2x(img):
+    """Double an image's size the way pixel-art upscalers do -- not a resize.
+
+    A plain nearest-neighbour 2x would be a complete no-op on screen: the
+    window doubled exactly as much as the art, so every source pixel would
+    still land on the same physical screen pixels it always did. This is
+    Scale2x/AdvMAME2x instead -- decades old, used in emulators for exactly
+    this problem. For each source pixel P with neighbours above/below/left/
+    right (B/H/D/F), a diagonal corner of its 2x2 block is redrawn in a
+    NEIGHBOUR colour rather than P's own wherever that neighbour agrees with
+    one adjacent side and disagrees with the perpendicular one -- which is
+    precisely the situation a staircased diagonal edge produces. Flat edges
+    and solid fills are untouched and stay perfectly crisp; only the actual
+    diagonals gain real new pixels that were not decidable from one sample.
+    """
+    w, h = img.size
+    src = img.convert("RGBA")
+    get = src.getpixel
+    out = Image.new("RGBA", (w * 2, h * 2))
+    put = out.putpixel
+    for y in range(h):
+        for x in range(w):
+            p = get((x, y))
+            b = get((x, y - 1)) if y > 0 else p
+            d = get((x - 1, y)) if x > 0 else p
+            f = get((x + 1, y)) if x < w - 1 else p
+            hh = get((x, y + 1)) if y < h - 1 else p
+            if b != hh and d != f:
+                e0 = d if d == b else p
+                e1 = b if b == f else p
+                e2 = d if d == hh else p
+                e3 = f if f == hh else p
+            else:
+                e0 = e1 = e2 = e3 = p
+            put((x * 2, y * 2), e0)
+            put((x * 2 + 1, y * 2), e1)
+            put((x * 2, y * 2 + 1), e2)
+            put((x * 2 + 1, y * 2 + 1), e3)
+    return out
+
+
 # ====================================================================
 # characters
 # ====================================================================
@@ -231,11 +272,25 @@ def draw_char(direction, frame, pal):
     hair, hair_d = pal["hair"], pal["hair_d"]
     shirt, shirt_d = pal["shirt"], pal["shirt_d"]
 
+    # The whole silhouette below is written ONCE, at the original 16x24
+    # coordinates, through R()/P() instead of rect()/px() -- they scale
+    # every call 2x on the way to the canvas, so this is a real doubling
+    # of both position AND size (not a blurry image resize afterward) with
+    # zero risk of the arithmetic drifting between two hand-written copies
+    # of the same figure. Extra detail the bigger canvas actually affords
+    # (cheeks, a mouth) is added separately below in real 32x48 pixels,
+    # since duplicating THOSE from nothing wouldn't mean anything.
+    def R(x0, y0, x1, y1, c):
+        rect(im, x0 * 2, y0 * 2, x1 * 2 + 1, y1 * 2 + 1, c)
+
+    def P(x, y, c):
+        rect(im, x * 2, y * 2, x * 2 + 1, y * 2 + 1, c)
+
     seated = (frame == SIT_FRAME)
     dy = 2 if seated else 0        # how far the figure sinks into the chair
 
     # contact shadow, drawn before anything else so the figure sits on it
-    shadow(im, CW // 2, CH - 2, 6, 2)
+    shadow(im, CW // 2, CH - 4, 12, 4)
 
     # walk cycle: frames 1 and 3 lift opposite feet, 0 and 2 stand
     step = 0
@@ -246,69 +301,77 @@ def draw_char(direction, frame, pal):
 
     # ---- legs: short and stubby, well under the big head ----
     if seated:
-        rect(im, 5, 21, 7, 23, pal["legs"])
-        rect(im, 9, 21, 11, 23, pal["legs"])
+        R(5, 21, 7, 23, pal["legs"])
+        R(9, 21, 11, 23, pal["legs"])
     else:
         l_off = max(0, step)
         r_off = max(0, -step)
         leg_top = 21 if pal["skirt"] else 19   # a skirt covers the thighs
-        rect(im, 5, leg_top - l_off, 7, 22 - l_off, pal["legs"])
-        rect(im, 9, leg_top - r_off, 11, 22 - r_off, pal["legs"])
-        rect(im, 5, 23 - l_off, 7, 23 - l_off, pal["shoe"])
-        rect(im, 9, 23 - r_off, 11, 23 - r_off, pal["shoe"])
+        R(5, leg_top - l_off, 7, 22 - l_off, pal["legs"])
+        R(9, leg_top - r_off, 11, 22 - r_off, pal["legs"])
+        R(5, 23 - l_off, 7, 23 - l_off, pal["shoe"])
+        R(9, 23 - r_off, 11, 23 - r_off, pal["shoe"])
 
     # ---- body: a small torso, mostly hidden under the head from the front ----
-    rect(im, 5, 15 + dy, 10, 19 + dy, shirt)
-    rect(im, 5, 18 + dy, 10, 19 + dy, shirt_d)   # shading under the torso
+    R(5, 15 + dy, 10, 19 + dy, shirt)
+    R(5, 18 + dy, 10, 19 + dy, shirt_d)   # shading under the torso
     if pal["skirt"] and not seated:
-        rect(im, 5, 18, 10, 18, shirt)           # a flared hem over the legs
-        rect(im, 4, 19, 11, 20, shirt)
-        rect(im, 3, 21, 12, 21, shirt_d)
+        R(5, 18, 10, 18, shirt)           # a flared hem over the legs
+        R(4, 19, 11, 20, shirt)
+        R(3, 21, 12, 21, shirt_d)
 
     # ---- arms (short, swing opposite to the legs; still when seated) ----
     a_l = 0 if seated else -step
     a_r = 0 if seated else step
-    rect(im, 3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
-    rect(im, 11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
-    px(im, 3, 19 + dy + a_l, SKIN); px(im, 4, 19 + dy + a_l, SKIN)
-    px(im, 11, 19 + dy + a_r, SKIN); px(im, 12, 19 + dy + a_r, SKIN)
+    R(3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
+    R(11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
+    P(3, 19 + dy + a_l, SKIN); P(4, 19 + dy + a_l, SKIN)
+    P(11, 19 + dy + a_r, SKIN); P(12, 19 + dy + a_r, SKIN)
 
     # ---- head: the whole point. Wider than the body and most of the cell ----
-    rect(im, 2, 3 + dy, 13, 14 + dy, SKIN)
-    rect(im, 2, 13 + dy, 13, 14 + dy, SKIN_D)    # jaw shadow
+    R(2, 3 + dy, 13, 14 + dy, SKIN)
+    R(2, 13 + dy, 13, 14 + dy, SKIN_D)    # jaw shadow
 
     # ---- long hair falls behind the head, so it goes down before the fringe
     if pal["long_hair"]:
-        rect(im, 2, 6 + dy, 2, 18 + dy, hair)
-        rect(im, 13, 6 + dy, 13, 18 + dy, hair)
-        px(im, 2, 18 + dy, hair_d); px(im, 13, 18 + dy, hair_d)
+        R(2, 6 + dy, 2, 18 + dy, hair)
+        R(13, 6 + dy, 13, 18 + dy, hair)
+        P(2, 18 + dy, hair_d); P(13, 18 + dy, hair_d)
 
     # ---- hair and the big chibi eyes, which sell the facing ----
     if direction == 3:                           # away: all hair, no face
-        rect(im, 2, 2 + dy, 13, 12 + dy, hair)
-        rect(im, 2, 12 + dy, 13, 12 + dy, hair_d)
+        R(2, 2 + dy, 13, 12 + dy, hair)
+        R(2, 12 + dy, 13, 12 + dy, hair_d)
         if pal["long_hair"]:
-            rect(im, 2, 12 + dy, 13, 18 + dy, hair)   # full fall down the back
-            rect(im, 2, 18 + dy, 13, 18 + dy, hair_d)
+            R(2, 12 + dy, 13, 18 + dy, hair)   # full fall down the back
+            R(2, 18 + dy, 13, 18 + dy, hair_d)
     elif direction == 0:                         # toward camera: fringe + eyes
-        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
-        rect(im, 2, 7 + dy, 4, 8 + dy, hair)
-        rect(im, 11, 7 + dy, 13, 8 + dy, hair)
-        rect(im, 5, 9 + dy, 6, 10 + dy, EYE)
-        rect(im, 9, 9 + dy, 10, 10 + dy, EYE)
-        px(im, 6, 9 + dy, (255, 255, 255, 220))     # a highlight per eye --
-        px(im, 10, 9 + dy, (255, 255, 255, 220))    # the actual "cute" signal
-        px(im, 7, 12 + dy, SKIN_D); px(im, 8, 12 + dy, SKIN_D)
+        R(2, 2 + dy, 13, 7 + dy, hair)
+        R(2, 7 + dy, 4, 8 + dy, hair)
+        R(11, 7 + dy, 13, 8 + dy, hair)
+        R(5, 9 + dy, 6, 10 + dy, EYE)
+        R(9, 9 + dy, 10, 10 + dy, EYE)
+        P(6, 9 + dy, (255, 255, 255, 220))     # a highlight per eye --
+        P(10, 9 + dy, (255, 255, 255, 220))    # the actual "cute" signal
+        P(7, 12 + dy, SKIN_D); P(8, 12 + dy, SKIN_D)
+        # The extra headroom is spent here: rosy cheeks and a mouth line,
+        # neither of which existed at 16x24 -- there was nowhere to put
+        # them without crowding the eyes off the face entirely. Real
+        # 32x48-space coordinates, not a doubled copy of anything.
+        cheek_y = 22 + dy * 2
+        rect(im, 6, cheek_y, 8, cheek_y + 1, (240, 150, 140, 130))
+        rect(im, 23, cheek_y, 25, cheek_y + 1, (240, 150, 140, 130))
+        rect(im, 15, cheek_y + 3, 16, cheek_y + 3, (150, 90, 80, 170))
     elif direction == 1:                         # left profile
-        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
-        rect(im, 11, 2 + dy, 13, 11 + dy, hair)
-        rect(im, 5, 9 + dy, 6, 10 + dy, EYE)
-        px(im, 6, 9 + dy, (255, 255, 255, 220))
+        R(2, 2 + dy, 13, 7 + dy, hair)
+        R(11, 2 + dy, 13, 11 + dy, hair)
+        R(5, 9 + dy, 6, 10 + dy, EYE)
+        P(6, 9 + dy, (255, 255, 255, 220))
     else:                                        # right profile
-        rect(im, 2, 2 + dy, 13, 7 + dy, hair)
-        rect(im, 2, 2 + dy, 4, 11 + dy, hair)
-        rect(im, 9, 9 + dy, 10, 10 + dy, EYE)
-        px(im, 9, 9 + dy, (255, 255, 255, 220))
+        R(2, 2 + dy, 13, 7 + dy, hair)
+        R(2, 2 + dy, 4, 11 + dy, hair)
+        R(9, 9 + dy, 10, 10 + dy, EYE)
+        P(9, 9 + dy, (255, 255, 255, 220))
 
     return outline(im)
 
@@ -661,8 +724,9 @@ def make_contact_shadow():
                 # softer at the rim, so it reads as contact rather than a decal
                 a = int(70 * (1.0 - d * 0.65))
                 im.putpixel((x, y), (0, 0, 0, max(0, a)))
-    save_png(im, "shadow")
-    return im.size
+    doubled = scale2x(im)
+    save_png(doubled, "shadow")
+    return doubled.size
 
 
 def make_room_tiles():
@@ -674,7 +738,7 @@ def make_room_tiles():
     out = []
 
     def save(img, name):
-        save_png(img, name)
+        save_png(scale2x(img), name)
         out.append(name)
 
     for i in range(FLOOR_VARIANTS):
@@ -881,7 +945,7 @@ FRAME_W = (128, 88, 52)
 FRAME_D = (92, 60, 34)
 
 
-def draw_logo(scale=3, gap=2):
+def draw_logo(scale=6, gap=4):   # doubled Aug 2026, was 3/2
     """The wordmark, drawn big and chalky."""
     word = "PIXELROOM"
     gw, gh = 5, 7
@@ -907,16 +971,19 @@ def draw_logo(scale=3, gap=2):
 def draw_title_bg():
     """A blackboard in a wooden frame, with a chalk tray and some ghost
     writing left over from the last lesson."""
-    W, H = 320, 176
+    W, H = 640, 352   # doubled Aug 2026, was 320x176
     im = Image.new("RGBA", (W, H), BOARD)
 
-    # uneven wiped-over patches, so the board is not flat colour
+    # uneven wiped-over patches, so the board is not flat colour. The
+    # speckle loop itself already scales for free -- it ranges over W/H,
+    # which just doubled -- only the fixed patch SIZE needed doubling to
+    # keep the same texture density rather than twice as many tiny flecks.
     rnd = random.Random(11)
     for _ in range(90):
         cx = rnd.randrange(0, W)
         cy = rnd.randrange(0, H)
-        rw = rnd.randrange(10, 46)
-        rh = rnd.randrange(3, 10)
+        rw = rnd.randrange(20, 92)
+        rh = rnd.randrange(6, 20)
         for y in range(cy, min(H, cy + rh)):
             for x in range(cx, min(W, cx + rw)):
                 if rnd.random() < 0.35:
@@ -924,33 +991,33 @@ def draw_title_bg():
 
     # faint sums in the corner, half rubbed out
     for i, line in enumerate(("7 x 8 =", "12 + 5 =", "3 x 9 =")):
-        gy = 132 + i * 10
-        gx = 250
+        gy = 264 + i * 20
+        gx = 500
         for ch in line:
             if ch != " ":
-                for dy in range(4):
-                    for dx in range(3):
+                for dy in range(8):
+                    for dx in range(6):
                         if rnd.random() < 0.30:
                             px(im, gx + dx, gy + dy, CHALK_D)
-            gx += 5
+            gx += 10
 
     # wooden frame
-    rect(im, 0, 0, W - 1, 5, FRAME_W)
-    rect(im, 0, 0, W - 1, 1, (156, 112, 70))
-    rect(im, 0, H - 12, W - 1, H - 1, FRAME_W)
-    rect(im, 0, H - 12, W - 1, H - 11, (156, 112, 70))
-    rect(im, 0, H - 4, W - 1, H - 1, FRAME_D)
-    rect(im, 0, 0, 5, H - 1, FRAME_W)
-    rect(im, W - 6, 0, W - 1, H - 1, FRAME_W)
-    rect(im, 0, 0, 1, H - 1, FRAME_D)
-    rect(im, W - 2, 0, W - 1, H - 1, FRAME_D)
+    rect(im, 0, 0, W - 1, 11, FRAME_W)
+    rect(im, 0, 0, W - 1, 3, (156, 112, 70))
+    rect(im, 0, H - 24, W - 1, H - 1, FRAME_W)
+    rect(im, 0, H - 24, W - 1, H - 22, (156, 112, 70))
+    rect(im, 0, H - 8, W - 1, H - 1, FRAME_D)
+    rect(im, 0, 0, 11, H - 1, FRAME_W)
+    rect(im, W - 12, 0, W - 1, H - 1, FRAME_W)
+    rect(im, 0, 0, 3, H - 1, FRAME_D)
+    rect(im, W - 4, 0, W - 1, H - 1, FRAME_D)
 
     # chalk tray: a stub of chalk and a board rubber
-    rect(im, 24, H - 10, 40, H - 8, CHALK)
-    rect(im, 24, H - 10, 40, H - 10, (255, 255, 255))
-    rect(im, 54, H - 11, 74, H - 7, (86, 62, 40))
-    rect(im, 54, H - 11, 74, H - 10, (120, 92, 62))
-    rect(im, 56, H - 8, 72, H - 7, (200, 200, 196))
+    rect(im, 48, H - 20, 80, H - 16, CHALK)
+    rect(im, 48, H - 20, 80, H - 20, (255, 255, 255))
+    rect(im, 108, H - 22, 148, H - 14, (86, 62, 40))
+    rect(im, 108, H - 22, 148, H - 20, (120, 92, 62))
+    rect(im, 112, H - 16, 144, H - 14, (200, 200, 196))
     return im
 
 
@@ -974,8 +1041,16 @@ if __name__ == "__main__":
         size = make_character(name, pal)
         print("art/%-18s %3dx%-3d (%d facings x %d frames of %dx%d)"
               % (name + ".png", size[0], size[1], DIRS, FRAMES, CW, CH))
-    for name, fn in (list(FURNITURE.items()) + list(ITEM_ART.items())
-                     + list(TITLE_ART.items())):
+    # FURNITURE/ITEM_ART are still drawn at the ORIGINAL small resolution
+    # internally -- scale2x doubles them here, adding real diagonal-edge
+    # detail rather than a blur. TITLE_ART is excluded: draw_title_bg() and
+    # draw_logo() were rewritten to draw at the new resolution directly
+    # (see their own Aug 2026 notes), so scaling them again would be wrong.
+    for name, fn in (list(FURNITURE.items()) + list(ITEM_ART.items())):
+        img = scale2x(fn())
+        if save_png(img, name):
+            print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+    for name, fn in TITLE_ART.items():
         img = fn()
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))

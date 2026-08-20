@@ -121,7 +121,16 @@ func tap(action: String) -> void:
 func place_player(tile: Vector2i, dir: int) -> void:
 	world.player.global_position = Grid.tile_to_world(tile)
 	world.player.facing = dir
+	world.player.velocity = Vector2.ZERO
 	await step(2)
+	# A physics frame with the player idle should never touch facing --
+	# walk()'s zero-direction branch returns before reaching that code.
+	# It can still drift if a LEFTOVER held key from earlier in the same
+	# test is still down when these frames run, which any test using this
+	# helper after a hold()/tap() is one dropped release away from. Setting
+	# it a second time, after the steps rather than only before them, is
+	# what actually guarantees the facing a caller asked for.
+	world.player.facing = dir
 
 
 func _main() -> void:
@@ -272,8 +281,25 @@ func test_grid() -> void:
 	section("GRID")
 	var g := Grid.new()
 
+	# Pinned literally, not derived -- this IS the number that should never
+	# drift by accident. Aug 2026: doubled from 16 to 32 for more detail
+	# per tile, same 20x11 room. If this ever fails, the resolution moved
+	# and every hardcoded pixel constant doubled alongside it (movement
+	# speed, pick radii, room_builder's collision boxes, the whole of
+	# hud.tscn) needs re-deriving from this number again, not just this one
+	# assertion fixed in isolation.
+	chk("the tile size is what the whole game was last tuned against",
+		Grid.TILE == 32, Grid.TILE)
+	chk("project.godot's viewport actually matches Grid.TILE's room",
+		ProjectSettings.get_setting("display/window/size/viewport_width")
+			== Grid.BASE_W * Grid.TILE
+		and ProjectSettings.get_setting("display/window/size/viewport_height")
+			== Grid.BASE_H * Grid.TILE,
+		[ProjectSettings.get_setting("display/window/size/viewport_width"),
+			ProjectSettings.get_setting("display/window/size/viewport_height")])
+
 	chk("a tile's anchor is its bottom-centre",
-		Grid.tile_to_world(Vector2i(0, 0)) == Vector2(8, 16),
+		Grid.tile_to_world(Vector2i(0, 0)) == Vector2(Grid.TILE / 2.0, Grid.TILE),
 		Grid.tile_to_world(Vector2i(0, 0)))
 	chk("tile -> world -> tile round-trips",
 		Grid.world_to_tile(Grid.tile_to_world(Vector2i(7, 4))) == Vector2i(7, 4))
@@ -470,7 +496,16 @@ func test_movement() -> void:
 	section("MOVEMENT")
 	var p: Actor = world.player
 
-	# SPEED 60 at 60Hz physics == exactly 1px per frame, so this is integer
+	# Crossing one tile should take the same real TIME regardless of how
+	# many pixels that tile is now drawn with -- SPEED doubled alongside
+	# Grid.TILE in Aug 2026 specifically so this ratio held. If it drifts,
+	# the room got faster or slower to walk across, which is a balance
+	# change nothing about a resolution pass should ever cause.
+	chk("crossing a tile takes about the same time it always did",
+		is_equal_approx(Actor.SPEED / float(Grid.TILE), 60.0 / 16.0),
+		Actor.SPEED / float(Grid.TILE))
+
+	# SPEED 120 at 60Hz physics == exactly 2px per frame, so this is integer
 	# arithmetic rather than a tolerance.
 	#
 	# Row 3 is an aisle (seats are on rows 4 and 7, desks on 5 and 8). The
@@ -488,9 +523,13 @@ func test_movement() -> void:
 	p.global_position = Grid.tile_to_world(Vector2i(2, 3))
 	await step(1)
 	var x0: float = p.global_position.x
+	# Per-frame speed at the default 60Hz physics tick -- SPEED itself
+	# doubled alongside Grid.TILE in Aug 2026 (60 -> 120), so this is
+	# derived rather than a second hardcoded copy of that number.
+	var px_per_frame: float = Actor.SPEED / 60.0
 	await hold("move_right", 40)
-	chk("holding move_right for 40 physics frames advances exactly 40px",
-		is_equal_approx(p.global_position.x - x0, 40.0),
+	chk("holding move_right for 40 physics frames advances the right distance",
+		is_equal_approx(p.global_position.x - x0, 40.0 * px_per_frame),
 		"moved %.1f" % (p.global_position.x - x0))
 	chk("facing is RIGHT after walking right", p.facing == Actor.DIR_RIGHT)
 
@@ -500,14 +539,14 @@ func test_movement() -> void:
 	await step(1)
 	var dx0: float = p.global_position.x
 	await hold("move_right", 60)
-	chk("a desk stops the player well short of 60px",
-		p.global_position.x - dx0 < 30.0,
+	chk("a desk stops the player well short of a 60-frame walk",
+		p.global_position.x - dx0 < 60.0 * px_per_frame * 0.5,
 		"moved %.1f before hitting the desk at tile 11" % (p.global_position.x - dx0))
 
 	var y0: float = p.global_position.y
 	await hold("move_down", 20)
-	chk("holding move_down for 20 frames advances exactly 20px",
-		is_equal_approx(p.global_position.y - y0, 20.0),
+	chk("holding move_down for 20 frames advances the right distance",
+		is_equal_approx(p.global_position.y - y0, 20.0 * px_per_frame),
 		"moved %.1f" % (p.global_position.y - y0))
 	chk("facing is DOWN after walking down", p.facing == Actor.DIR_DOWN)
 
@@ -533,7 +572,8 @@ func test_movement() -> void:
 	await step(1)
 	var travelled: float = before.distance_to(p.global_position)
 	chk("walking diagonally is not faster than walking straight",
-		travelled <= 31.0, "travelled %.1f in 30 frames" % travelled)
+		travelled <= 30.0 * px_per_frame + 2.0,
+		"travelled %.1f in 30 frames" % travelled)
 
 	# --- walls ---
 	# Column 6 is clear all the way to the top wall. Column 2 is NOT: the
@@ -547,7 +587,8 @@ func test_movement() -> void:
 	await step(1)
 	await hold("move_up", 60)
 	chk("the top wall stops the player and they stay inside the room",
-		p.global_position.y > 32.0 and p.global_position.y < 48.0,
+		p.global_position.y > Layout.TOP_WALL * Grid.TILE
+			and p.global_position.y < Layout.TOP_WALL * Grid.TILE + Grid.TILE,
 		"y=%.1f" % p.global_position.y)
 
 	# Row 9 runs clear to the left wall, below the door and under the desks.
@@ -555,7 +596,7 @@ func test_movement() -> void:
 	await step(1)
 	await hold("move_left", 90)
 	chk("the left wall stops the player with no tunnelling",
-		p.global_position.x > 16.0 and p.global_position.x < 28.0,
+		p.global_position.x > Grid.TILE and p.global_position.x < Grid.TILE * 1.75,
 		"x=%.1f" % p.global_position.x)
 
 	# The doorway is a genuine hole, so you can stand in it.
@@ -563,7 +604,7 @@ func test_movement() -> void:
 	await step(1)
 	await hold("move_left", 30)
 	chk("you can walk into the doorway itself",
-		p.global_position.x < 16.0, "x=%.1f" % p.global_position.x)
+		p.global_position.x < Grid.TILE * 0.5, "x=%.1f" % p.global_position.x)
 
 
 func test_arrival() -> void:
@@ -2449,6 +2490,12 @@ func test_panels_fit() -> void:
 	# is exactly when it is longest. It is a Label, so it clips in silence.
 	Game.set_phase(Game.Phase.AFTERNOON)
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	# targets{} is a CACHE, only refreshed by _repick() on a physics frame --
+	# place_player's own await can land its LAST frame on a stray held key
+	# from earlier in this same test and re-pick against THAT facing, which
+	# printing the (by-then-correct) facing afterwards never catches. Force
+	# one clean re-pick against the facing actually asked for.
+	world.player._repick()
 	hud._update_prompt()
 	chk("both buttons are named at the noticeboard",
 		hud.prompt.text.contains("Curriculum") and hud.prompt.text.contains("shop"),
@@ -6500,7 +6547,7 @@ func test_bio() -> void:
 		hud.portrait.texture)
 	chk("and it is one standing frame, not the whole sheet", (func() -> bool:
 		var at := hud.portrait.texture as AtlasTexture
-		return at != null and at.region == Rect2(0, 0, 16, 24)).call())
+		return at != null and at.region == Rect2(0, 0, 32, 48)).call())
 	chk("the file says which seat and when they joined",
 		hud.body.text.contains("Seat %d" % (who.seat_index + 1))
 		and hud.body.text.contains("day %d" % who.joined_day), hud.body.text)

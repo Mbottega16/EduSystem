@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-19**, against build `b31`, with **1147 assertions
+> **Measured on 2026-08-19**, against build `b31`, with **1150 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -248,7 +248,7 @@ input arbitration (`claim_action`) · save/load · the cheat flag.
 banks, hidden key) · `names.gd` · `version.gd`.
 
 ### World — `scripts/world/`
-`grid.gd` (16px tiles, AStarGrid2D, `BASE 20×11` → `MAX 34×20`) ·
+`grid.gd` (32px tiles -- doubled Aug 2026, was 16px -- AStarGrid2D, `BASE 20×11` → `MAX 34×20`) ·
 `layout.gd` (landmarks; seats movable) · `classroom.gd` (the world root, the
 lesson clock, bubbles, the day, ambient weather keyed to today's day event —
 see below) · `room_builder.gd` · `placement.gd` (ghost cursor, build mode,
@@ -322,7 +322,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 16 modes |
 | Input actions | 15 (14 rebindable) |
-| Tests | **1147 assertions** across **79 sections** |
+| Tests | **1150 assertions** across **79 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -582,8 +582,9 @@ into the school layer rather than built separately.
 
 **Staying procedural pixel.** The decision is made and the pipeline exists.
 
-- **16×24** character cells, **5×4** sheets (4 facings × 5 frames, the last
-  being seated), one 80×96 PNG per character.
+- **32×48** character cells (doubled Aug 2026, was 16×24 -- chibi
+  proportions redrawn at the same time), **5×4** sheets (4 facings × 5
+  frames, the last being seated), one 160×192 PNG per character.
 - Characters **are palettes** — `make_art.py` draws one model and recolours
   it. A new character is a data-table edit.
 - Furniture is drawn in code (`make_items.py`), floors and walls are
@@ -594,7 +595,7 @@ into the school layer rather than built separately.
 | | |
 |---|---|
 | `Make a Sprite.bat` | New character: writes the palette, draws the sheet, imports it, registers the name |
-| `Draw a Sprite.bat` | Hand-drawing editor (HTML, same style as the EduSystems curator) — brush, fill, soften, flatten, **retint**, onion skin, mirror, 80×96 export |
+| `Draw a Sprite.bat` | Hand-drawing editor (HTML, same style as the EduSystems curator) — brush, fill, soften, flatten, **retint**, onion skin, mirror, 80×96 export. **Not yet updated for the Aug 2026 resolution doubling** — still exports at the old 80×96/16×24 size, so the five hand-edited furniture items (bookshelf, lab_bench, art_easel, rug, plant) are the one part of the shop still at the old scale until this tool is updated too. |
 | `Browse Art.bat` | Every sprite at once; flags unreferenced art and missing art |
 
 ### What the school layer needs ***(to build)***
@@ -630,17 +631,19 @@ quieter during a test, restless when the room is noisy.
 
 ## 14. UX rules
 
-- **320×176.** The whole room is one screen at the opening size; the camera
-  only moves once you have bought a bigger room.
+- **640×352** (doubled Aug 2026, was 320×176 -- same 20×11 room, denser
+  pixels, same 3x window scale). The whole room is one screen at the
+  opening size; the camera only moves once you have bought a bigger room.
 - **Two buttons.** E is the mashable verb (help, collect, hand in); F is
   session-level (lesson, bell, shop). *"You mash USE all lesson long, and it
   must never be able to end the lesson."*
 - **One landmark carries a verb on each button** — the podium teaches on F
   and quizzes on E. Shared tiles resolve **by key**, never by node order.
 - **Anything irreversible is HELD**, with a bar in the prompt.
-- **Panel budget: 11 rows at font 8** in a 288×128 body. Both the prompt bar
-  and the status strip are Labels and clip in silence, so both are
-  fit-tested.
+- **Panel budget: 11 rows at font 16** in a 576×256 body (doubled Aug
+  2026, was font 8 in 288×128 -- the row count is unchanged, only the
+  pixels). Both the prompt bar and the status strip are Labels and clip
+  in silence, so both are fit-tested.
 - **The prompt bar names both buttons** whenever both are live.
 
 ---

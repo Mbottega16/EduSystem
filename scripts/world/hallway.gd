@@ -30,9 +30,9 @@ extends Node2D
 signal door_chosen(kind: String, room_index: int)
 
 const DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
-const SPACING := 48.0
-const MARGIN := 32.0
-const HEIGHT := 64.0
+const SPACING := 96.0   # doubled Aug 2026, was 48.0
+const MARGIN := 64.0   # doubled Aug 2026, was 32.0
+const HEIGHT := 128.0   # doubled Aug 2026, was 64.0
 ## The classroom's own door art (tile_door_top over tile_door_bottom),
 ## reused rather than drawing new art -- a hallway door should look like
 ## the door it already is, not invent a second design.
@@ -66,10 +66,10 @@ func _build_bounds() -> void:
 	add_child(floor_rect)
 
 	for seg: Rect2 in [
-		Rect2(0.0, -8.0, w, 8.0),          # top
-		Rect2(0.0, HEIGHT, w, 8.0),        # bottom
-		Rect2(-8.0, -8.0, 8.0, HEIGHT + 16.0),   # left end
-		Rect2(w, -8.0, 8.0, HEIGHT + 16.0),      # right end
+		Rect2(0.0, -16.0, w, 16.0),          # top
+		Rect2(0.0, HEIGHT, w, 16.0),        # bottom
+		Rect2(-16.0, -16.0, 16.0, HEIGHT + 32.0),   # left end
+		Rect2(w, -16.0, 16.0, HEIGHT + 32.0),      # right end
 	]:
 		var body := StaticBody2D.new()
 		body.collision_layer = 1
@@ -119,24 +119,24 @@ func rebuild() -> void:
 		var top_spr := Sprite2D.new()
 		top_spr.texture = DOOR_TOP
 		top_spr.centered = false
-		top_spr.position = Vector2(dx - 8.0, HEIGHT - 32.0)
+		top_spr.position = Vector2(dx - 16.0, HEIGHT - 64.0)   # doubled, door art is 32x32/tile now
 		add_child(top_spr)
 		_door_art.append(top_spr)
 		var bottom_spr := Sprite2D.new()
 		bottom_spr.texture = DOOR_BOTTOM
 		bottom_spr.centered = false
-		bottom_spr.position = Vector2(dx - 8.0, HEIGHT - 16.0)
+		bottom_spr.position = Vector2(dx - 16.0, HEIGHT - 32.0)
 		add_child(bottom_spr)
 		_door_art.append(bottom_spr)
 
 		var d := DOOR_SCRIPT.new()
 		d.door_kind = kind
 		d.room_index = idx
-		d.position = Vector2(dx, HEIGHT - 8.0)
+		d.position = Vector2(dx, HEIGHT - 16.0)
 		# Doors 48px apart with the player's own 20px zone would overlap a
 		# neighbour's reach at the default 20px circle -- same fix as the
 		# noticeboard/curriculum board sharing a tile.
-		d.set_pick_radius(8.0)
+		d.set_pick_radius(32.0)   # doubled Aug 2026, was 8.0 -> 16.0 -> 32.0
 		d.chosen.connect(func(k: String, ri: int) -> void: door_chosen.emit(k, ri))
 		add_child(d)
 		doors.append(d)
@@ -144,7 +144,7 @@ func rebuild() -> void:
 
 ## Where a fresh arrival stands: just past the home door, facing in.
 func entry_position() -> Vector2:
-	return Vector2(MARGIN + 14.0, HEIGHT * 0.5 + 10.0)
+	return Vector2(MARGIN + 28.0, HEIGHT * 0.5 + 20.0)   # doubled, was 14.0/10.0
 
 
 func width() -> float:

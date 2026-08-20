@@ -26,7 +26,7 @@ if not exist "%GODOT%" (
   exit /b 1
 )
 
-"%GODOT%" --path "%PROJECT%" res://tools/shot.tscn -- "%PROJECT%\shots\%SCREEN%.png" 90 320 176 0 %1
+"%GODOT%" --path "%PROJECT%" res://tools/shot.tscn -- "%PROJECT%\shots\%SCREEN%.png" 90 640 352 0 %1
 echo.
 echo Saved to shots\%SCREEN%.png
 pause

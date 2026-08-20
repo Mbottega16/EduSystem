@@ -13,11 +13,11 @@ centered = false
 texture = ExtResource("2_bg")
 
 [node name="Logo" type="Sprite2D" parent="."]
-position = Vector2(160, 30)
+position = Vector2(320, 60)
 texture = ExtResource("3_logo")
 
 [node name="Walker" type="Sprite2D" parent="."]
-position = Vector2(-20, 156)
+position = Vector2(-40, 312)
 texture = ExtResource("4_walk")
 hframes = 5
 vframes = 4
@@ -26,29 +26,29 @@ frame = 10
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="Heading" type="Label" parent="UI"]
-offset_top = 14.0
-offset_right = 320.0
-offset_bottom = 28.0
+offset_top = 28.0
+offset_right = 640.0
+offset_bottom = 56.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 24
 horizontal_alignment = 1
 
 [node name="Menu" type="Label" parent="UI"]
-offset_left = 92.0
-offset_top = 34.0
-offset_right = 316.0
-offset_bottom = 150.0
+offset_left = 184.0
+offset_top = 68.0
+offset_right = 632.0
+offset_bottom = 300.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.93, 0.95, 0.91, 1)
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 16
 theme_override_constants/line_spacing = 0
 
 [node name="Footer" type="Label" parent="UI"]
-offset_top = 152.0
-offset_right = 320.0
-offset_bottom = 166.0
+offset_top = 304.0
+offset_right = 640.0
+offset_bottom = 332.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.72, 0.78, 0.72, 1)
-theme_override_font_sizes/font_size = 8
+theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1

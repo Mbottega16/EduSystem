@@ -400,7 +400,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1147 assertions
+Run Tests.bat            1150 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
@@ -441,7 +441,10 @@ generator is the right tool for a new person: it writes the palette, draws
 the sheet with the same code as everyone else, imports it, and registers the
 name. The editor is for the one-offs that are not palettes: props, icons,
 touch-ups. It draws 16x24 cells in a 5x4 grid and exports the single 80x96
-sheet the game loads.
+sheet the game loads. **Not yet updated for the Aug 2026 resolution
+doubling** — the game's own characters are 32x48 now (see `tools/make_art.py`),
+so a sprite made in this editor today needs scaling up by hand before it
+matches. Tracked in `docs/AUTONOMOUS_TASKLIST.md`.
 
 ### After adding a `class_name` or new art
 

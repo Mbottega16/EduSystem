@@ -17,13 +17,16 @@ Settings="*res://scripts/autoload/settings.gd"
 
 [display]
 
-; The viewport is exactly the size of the room image (20x11 tiles of 16px),
-; so the whole room is on screen at once and every pixel lands on a whole
-; screen pixel when it scales up.
-window/size/viewport_width=320
-window/size/viewport_height=176
-window/size/window_width_override=960
-window/size/window_height_override=528
+; The viewport is exactly the size of the room image (20x11 tiles of 32px,
+; doubled from 16px in Aug 2026 for more detail per tile -- same 20x11 room,
+; same layout, denser pixels), so the whole room is on screen at once and
+; every pixel lands on a whole screen pixel when it scales up. Window
+; override keeps the same 3x integer scale as before (960x528 at 320x176),
+; so pixel edges stay crisp rather than blurring on a fractional scale.
+window/size/viewport_width=640
+window/size/viewport_height=352
+window/size/window_width_override=1920
+window/size/window_height_override=1056
 window/stretch/mode="viewport"
 window/stretch/aspect="keep"
 

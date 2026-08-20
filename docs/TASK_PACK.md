@@ -548,7 +548,8 @@ HARD CONSTRAINTS
   - Desk-based and mouse-free. Two buttons: E is the mashable verb and
     is never destructive; F is session-level. Anything irreversible is a
     HOLD.
-  - It must work at 320x176 pixels, 11 rows of text to a screen.
+  - It must work at 640x352 pixels (doubled Aug 2026, was 320x176), 11
+    rows of text to a screen.
   - "Walking the room is the game." A design where the player stands
     still is a different game, not a year group.
   - Prose, never numbers. Do not propose balance values - they have to

@@ -42,7 +42,7 @@ func _make_dust() -> void:
 	for i in DUST_COUNT:
 		var s := Sprite2D.new()
 		s.texture = tex
-		s.position = Vector2(randf_range(8, 312), randf_range(10, 160))
+		s.position = Vector2(randf_range(16, 624), randf_range(20, 320))   # doubled Aug 2026
 		s.modulate.a = randf_range(0.15, 0.6)
 		add_child(s)
 		_dust.append(s)
@@ -56,19 +56,19 @@ func _process(delta: float) -> void:
 	for i in _dust.size():
 		var s := _dust[i]
 		s.position += _dust_vel[i] * delta
-		s.position.x += sin(_t * 0.7 + float(i)) * 6.0 * delta
-		if s.position.y < 8.0:
-			s.position = Vector2(randf_range(8, 312), 162.0)
+		s.position.x += sin(_t * 0.7 + float(i)) * 12.0 * delta
+		if s.position.y < 16.0:
+			s.position = Vector2(randf_range(16, 624), 324.0)   # doubled Aug 2026
 			s.modulate.a = randf_range(0.15, 0.6)
 
 	# the logo breathes, very slightly
-	logo.position.y = 30.0 + sin(_t * 1.3) * 1.5
+	logo.position.y = 60.0 + sin(_t * 1.3) * 3.0   # doubled Aug 2026
 
 	# a student wanders across the chalk tray, because an empty title screen
 	# with no living thing on it reads as a menu, not a game
-	_walk_x += 22.0 * delta
-	if _walk_x > 340.0:
-		_walk_x = -20.0
+	_walk_x += 44.0 * delta   # doubled Aug 2026
+	if _walk_x > 680.0:
+		_walk_x = -40.0
 	_walk_timer += delta
 	if _walk_timer >= 0.14:
 		_walk_timer = 0.0
@@ -269,7 +269,7 @@ func _render() -> void:
 		Page.MAIN:
 			heading.text = ""
 			logo.visible = true
-			menu.offset_top = 54.0
+			menu.offset_top = 108.0   # doubled Aug 2026
 			for i in rows.size():
 				var id := String(rows[i])
 				var names_main := {
@@ -286,7 +286,7 @@ func _render() -> void:
 		Page.SETTINGS:
 			heading.text = "SETTINGS"
 			logo.visible = false
-			menu.offset_top = 40.0
+			menu.offset_top = 80.0   # doubled Aug 2026
 			var vals := {
 				"master": _bar(Settings.master_volume),
 				"sfx": _bar(Settings.sfx_volume),
@@ -309,7 +309,7 @@ func _render() -> void:
 		Page.CONTROLS:
 			heading.text = "CONTROLS"
 			logo.visible = false
-			menu.offset_top = 32.0
+			menu.offset_top = 64.0   # doubled Aug 2026
 			for i in rows.size():
 				var id := String(rows[i])
 				if id == "back" or id == "reset":
@@ -324,7 +324,7 @@ func _render() -> void:
 			footer.text = message if message != "" else "E to rebind, Esc to go back"
 
 		Page.HOWTO:
-			menu.offset_top = 40.0
+			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "HOW TO PLAY"
 			logo.visible = false
 			lines = [
@@ -340,7 +340,7 @@ func _render() -> void:
 			footer.text = "Esc to go back"
 
 		Page.CREDITS:
-			menu.offset_top = 40.0
+			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "CREDITS"
 			logo.visible = false
 			lines = [
@@ -355,7 +355,7 @@ func _render() -> void:
 			footer.text = "Esc to go back"
 
 		Page.CONFIRM_WIPE:
-			menu.offset_top = 40.0
+			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "ERASE SAVE?"
 			logo.visible = false
 			lines = ["This cannot be undone.", ""]

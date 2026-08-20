@@ -58,8 +58,8 @@ static func add_prop(parent: Node2D, tex: Texture2D, at: Vector2,
 	if with_shadow:
 		var shade := Sprite2D.new()
 		shade.texture = SHADOW_TEX
-		shade.position = Vector2(0, -2)
-		shade.scale = Vector2(maxf(1.0, tex.get_width() / 16.0), 1.0)
+		shade.position = Vector2(0, -4)   # doubled, was -2
+		shade.scale = Vector2(maxf(1.0, tex.get_width() / 32.0), 1.0)   # was /16.0
 		body.add_child(shade)
 
 	var spr := Sprite2D.new()
@@ -208,7 +208,7 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 
 		# The chair is nudged 1px up so it always sorts BEHIND its occupant.
 		var chair := add_prop(parent, PROP_CHAIR, Grid.tile_to_world(seat), Vector2.ZERO, -1.0)
-		var body := add_prop(parent, PROP_DESK, Grid.tile_to_world(desk), Vector2(14, 8))
+		var body := add_prop(parent, PROP_DESK, Grid.tile_to_world(desk), Vector2(28, 16))   # doubled, was 14,8
 		# Grouped so the room can tear the seating down and rebuild it when a
 		# desk moves. Without this the old chair and desk stay behind as
 		# scenery you can walk through.
@@ -218,7 +218,7 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		# The finished sheet, hidden until they're done with it.
 		var paper := Sprite2D.new()
 		paper.texture = PROP_PAPER
-		paper.position = Vector2(0, -18)
+		paper.position = Vector2(0, -36)   # doubled, was -18
 		paper.visible = false
 		body.add_child(paper)
 
@@ -242,7 +242,7 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 
 
 static func build_podium(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_PODIUM, Grid.tile_to_world(Layout.PODIUM), Vector2(12, 8))
+	var body := add_prop(parent, PROP_PODIUM, Grid.tile_to_world(Layout.PODIUM), Vector2(24, 16))   # doubled, was 12,8
 	var it := Interactable.new()
 	it.set_script(PODIUM_SCRIPT)
 	body.add_child(it)
@@ -269,7 +269,7 @@ static func build_podium(parent: Node2D, grid: Grid) -> Interactable:
 
 static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var anchor := Layout.span_anchor(Layout.TEACHER_DESK)
-	var body := add_prop(parent, PROP_TEACHER_DESK, anchor, Vector2(30, 10))
+	var body := add_prop(parent, PROP_TEACHER_DESK, anchor, Vector2(60, 20))   # doubled, was 30,10
 	var it := Interactable.new()
 	it.set_script(MARKING_DESK_SCRIPT)
 	body.add_child(it)
@@ -279,7 +279,7 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 
 
 static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_BELL, Grid.tile_to_world(Layout.BELL), Vector2(12, 8))
+	var body := add_prop(parent, PROP_BELL, Grid.tile_to_world(Layout.BELL), Vector2(24, 16))   # doubled, was 12,8
 	var it := Interactable.new()
 	it.set_script(BELL_SCRIPT)
 	body.add_child(it)
@@ -288,14 +288,14 @@ static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
 
 
 static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(12, 8))
+	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(24, 16))   # doubled, was 12,8
 	var it := Interactable.new()
 	it.set_script(BOARD_SCRIPT)
 	body.add_child(it)
 	# Same reason as the curriculum board it shares a tile with: at the
 	# default the shop answered from the BELL's square two tiles away, so
 	# the morning offered "Furniture shop" while standing at the bell.
-	it.set_pick_radius(12.0)
+	it.set_pick_radius(24.0)   # doubled Aug 2026, was 12.0
 
 	# Same board, other button: E is the shop, F is what you have learned to
 	# teach. Both are always live, which is fine -- the picker only has to
@@ -307,7 +307,7 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	# The board sits two tiles from the BELL, and reach is the sum of both
 	# circles -- so at the default it answered from the bell's own tile and
 	# took the prompt with it. You have to be at the board to read the board.
-	cur.set_pick_radius(9.0)
+	cur.set_pick_radius(18.0)   # doubled Aug 2026, was 9.0
 
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
 	return it
@@ -340,7 +340,7 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		var anchor := Layout.span_anchor(tiles)
 		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
 		var body := add_prop(parent, tex, anchor,
-			Vector2(Items.width(id) * 16 - 2, 8), 0.0,
+			Vector2(Items.width(id) * Grid.TILE - 4, 16), 0.0,   # was * 16 - 2, 8
 			not Items.is_flat(id))
 		body.add_to_group("purchased")
 

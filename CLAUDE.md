@@ -63,8 +63,10 @@ repeatedly by edits that seemed obviously right:
   gaining a job that is not mashable/session-level respectively.
 - **A dev tool must never write the player's save.** `Game.save_path` is a
   var for exactly this reason — the suite and simulators point it elsewhere.
-- **Panel budget:** 11 rows at font 8 in a 288×128 body. Labels clip in
-  silence, so every panel is fit-tested.
+- **Panel budget:** 11 rows at font 16 in a 576×256 body (doubled Aug 2026
+  alongside the whole game's resolution -- was font 8 in 288×128; the ROW
+  COUNT a screen can hold is unchanged, since font size and body both
+  scaled together). Labels clip in silence, so every panel is fit-tested.
 
 ---
 
@@ -75,7 +77,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1147 assertions — must pass, count must not drop
+Run Tests.bat            1150 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -139,7 +141,7 @@ a deliberate WIP commit.
 | `scripts/ui/hud.gd` | Every screen. 16 modes; ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1147 assertions, 79 sections |
+| `tests/run.gd` | The suite — 1150 assertions, 79 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

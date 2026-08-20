@@ -52,15 +52,15 @@ func _ready() -> void:
 	layer = 20
 	_panel = ColorRect.new()
 	_panel.color = Color(0.05, 0.05, 0.08, 0.94)
-	_panel.size = Vector2(230, 168)
-	_panel.position = Vector2(4, 6)
+	_panel.size = Vector2(460, 336)   # doubled Aug 2026
+	_panel.position = Vector2(8, 12)   # doubled Aug 2026
 	_panel.visible = false
 	add_child(_panel)
 
 	_label = Label.new()
-	_label.position = Vector2(6, 3)
-	_label.size = Vector2(222, 162)
-	_label.add_theme_font_size_override("font_size", 8)
+	_label.position = Vector2(12, 6)   # doubled Aug 2026
+	_label.size = Vector2(444, 324)   # doubled Aug 2026
+	_label.add_theme_font_size_override("font_size", 16)   # doubled Aug 2026
 	_label.add_theme_color_override("font_color", Color(0.75, 1.0, 0.8))
 	_panel.add_child(_label)
 

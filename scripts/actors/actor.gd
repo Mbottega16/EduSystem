@@ -6,9 +6,15 @@ extends CharacterBody2D
 ## input, a student follows a path. Neither touches the animation.
 
 ## SPEED is a multiple of 60 on purpose. At the default 60Hz physics tick
-## that makes it exactly 1px per physics frame, so movement assertions in
+## that makes it exactly 2px per physics frame, so movement assertions in
 ## the tests are integer arithmetic instead of float tolerance.
-const SPEED := 60.0
+##
+## Doubled to 120 in Aug 2026 alongside Grid.TILE doubling to 32 -- the
+## room is drawn at twice the pixel density but is still the SAME layout,
+## and the old 60 would have made every crossing take twice as long in
+## practice: half the lesson spent walking is a real balance change, not
+## a cosmetic one, and nothing about this pass was meant to touch pacing.
+const SPEED := 120.0
 ## Held-sprint multiplier. The lesson clock makes crossing the room a real
 ## cost, so there has to be a way to spend effort to cross it faster.
 const SPRINT := 1.7
