@@ -137,6 +137,10 @@ func _scan_references() -> void:
 			_note(art, "balance.json (%s)" % id)
 	for a: String in Names.ART:
 		_note(a, "names.gd (student)")
+	for h: Dictionary in Cosmetics.HATS:
+		var art := String(h.get("art", ""))
+		if art != "":
+			_note(art, "cosmetics.gd (hat)")
 
 	# Art loaded by a name BUILT AT RUNTIME, which no regex over the source
 	# can see. The room is composed tile by tile from these, and without

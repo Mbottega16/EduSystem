@@ -22,7 +22,7 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | **B** | **rearrange the room from a free cursor** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
-| **I** | **your dashboard -- who you are, what you own, your skills** | yes |
+| **I** | **your dashboard -- who you are, what you own, your skills, your wardrobe** | yes |
 | **V** | **watch a delegated room's day, from the school screen** | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
@@ -398,7 +398,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1197 assertions
+Run Tests.bat            1205 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

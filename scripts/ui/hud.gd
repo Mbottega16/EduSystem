@@ -18,7 +18,7 @@ enum Shop { BUY, SELL, STAFF, ROOM }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
 ## do I have", not a fourth thing bolted onto E/F.
-enum Dash { OVERVIEW, ITEMS, SKILLS }
+enum Dash { OVERVIEW, ITEMS, SKILLS, WARDROBE }
 var _dash: int = Dash.OVERVIEW
 ## The two ways the room can grow. It only ever grows right and down --
 ## the door is a fixed point on the left wall.
@@ -48,6 +48,11 @@ signal perk_bought()
 var _reveal: Tween = null
 @onready var hint: Label = $Overlay/Hint
 @onready var portrait: TextureRect = $Overlay/Portrait
+## A flat colour behind the portrait -- the "Background" cosmetic. Only
+## ever shown alongside the portrait itself, on the two dashboard pages
+## that display your own character (never the student bio: that is
+## someone else's portrait, not yours).
+@onready var portrait_bg: ColorRect = $Overlay/PortraitBg
 ## The principal's own corner, for a tutorial tip -- deliberately OUTSIDE
 ## $Overlay. Overlay is hidden whenever mode == NONE (close()), which is
 ## exactly when a tip needs to fire: nobody has a screen open, they are
@@ -408,6 +413,7 @@ func _open(m: int) -> void:
 	# every mode that wants a portrait turns it back on; this is the
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
+	portrait_bg.visible = false
 	# the same single line that stops one screen leaking into the next
 	rich.visible = false
 	body.visible = true
@@ -449,9 +455,9 @@ func show_title() -> void:
 		"the bottom, F the one beside it. Tab: your class.",
 		"Teach at the PODIUM, then walk the room:",
 		"  amber ? stuck     red ! playing up (it SPREADS)",
-		"  blue ? behind     Q settles who can hear you",
-		"Collect work, mark homework at YOUR desk, ring the",
-		"BELL. Quiz mid-lesson; test a unit you know well.",
+		"  blue ? behind     C settles who can hear you",
+		"Collect on E, mark homework on H, ring the BELL",
+		"on F. Q for a quick quiz; test a unit you know well.",
 		"%d days, then the exam." % Balance.term_days,
 	])
 	hint.text = "E - begin        %s" % BUILD_STAMP.stamp()
@@ -594,7 +600,7 @@ func show_dashboard() -> void:
 func _render_dashboard() -> void:
 	Balance.ensure_loaded()
 	var lines: Array[String] = []
-	var tabs := ["Overview", "Items", "Skills"]
+	var tabs := ["Overview", "Items", "Skills", "Wardrobe"]
 	var strip := ""
 	for i in tabs.size():
 		strip += "[color=#%s]%s[/color]  " % [
@@ -602,11 +608,23 @@ func _render_dashboard() -> void:
 	lines.append(strip)
 	lines.append("")
 
-	# Only the OVERVIEW page wants the portrait -- _render_dashboard() is
-	# called directly when cycling pages (not through _open(), which is
+	# OVERVIEW and WARDROBE both want the portrait -- the latter is the
+	# whole point of the page, seeing the hat actually sit on your own
+	# character rather than reading its name off a list. _render_dashboard()
+	# is called directly when cycling pages (not through _open(), which is
 	# the usual place a portrait gets hidden again), so this has to manage
 	# it itself or a stale portrait would follow you onto Items/Skills.
-	portrait.visible = (_dash == Dash.OVERVIEW)
+	portrait.visible = (_dash == Dash.OVERVIEW or _dash == Dash.WARDROBE)
+	# The "Background" cosmetic: a flat colour behind the portrait, on
+	# both pages that show it. An empty/"none" colour has alpha 0, so it
+	# stays invisible without a separate visibility flag to manage.
+	portrait_bg.visible = portrait.visible
+	portrait_bg.color = Color(Cosmetics.background_by_id(Game.background_id).get("colour", Color(0, 0, 0, 0)))
+	if _dash == Dash.WARDROBE:
+		var at := AtlasTexture.new()
+		at.atlas = load("res://art/player.png")
+		at.region = Rect2(0, 0, 32, 48)
+		portrait.texture = at
 
 	match _dash:
 		Dash.OVERVIEW:
@@ -615,11 +633,13 @@ func _render_dashboard() -> void:
 			lines.append_array(_render_dash_items())
 		Dash.SKILLS:
 			lines.append_array(_render_dash_skills())
+		Dash.WARDROBE:
+			lines.append_array(_render_dash_wardrobe())
 
 	rich.text = "
 ".join(lines)
 	rich.visible_ratio = 1.0
-	hint.text = "Tab - next page    E / Esc - close"
+	hint.text = "Up/Down row   Left/Right choose   E / Esc - close" 		if _dash == Dash.WARDROBE else "Tab - next page    E / Esc - close"
 
 
 ## Who you are, at a glance. The character portrait is the hook for the
@@ -715,6 +735,42 @@ func _render_dash_skills() -> Array[String]:
 	if order.is_empty():
 		lines.append("[color=#%s]No perks defined.[/color]" % DIM)
 	return lines
+
+
+## Hat and background -- the two lines the OVERVIEW page has read "none
+## chosen yet" on since the dashboard was first built. _sel picks the
+## row (0 = hat, 1 = background); Left/Right steps through that row's
+## own list. Nothing here is a landmark verb or touches a grade -- it is
+## exactly as decorative as it looks, the same as a hat is everywhere
+## else in this genre.
+func _render_dash_wardrobe() -> Array[String]:
+	_sel = clampi(_sel, 0, 1)
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%sHat[/color]         %s" % [
+		C_LESSON if _sel == 0 else DIM, ">" if _sel == 0 else " ",
+		String(Cosmetics.hat_by_id(Game.hat_id).get("name", "None"))])
+	lines.append("[color=#%s]%sBackground[/color]  %s" % [
+		C_LESSON if _sel == 1 else DIM, ">" if _sel == 1 else " ",
+		String(Cosmetics.background_by_id(Game.background_id).get("name", "None"))])
+	return lines
+
+
+## Step the hat or the background (whichever row _sel is on) one entry
+## along its own list, wrapping. Takes effect immediately, same as
+## Settings' own Left/Right sliders -- there is no separate confirm step
+## for something this low-stakes.
+func _adjust_wardrobe(dir: int) -> void:
+	if _sel == 0:
+		var i := (Cosmetics.hat_index(Game.hat_id) + dir + Cosmetics.HATS.size()) 				% Cosmetics.HATS.size()
+		Game.hat_id = String(Cosmetics.HATS[i]["id"])
+		if _player != null and is_instance_valid(_player) and _player.has_method("refresh_hat"):
+			_player.refresh_hat()
+	else:
+		var i := (Cosmetics.background_index(Game.background_id) + dir
+			+ Cosmetics.BACKGROUNDS.size()) % Cosmetics.BACKGROUNDS.size()
+		Game.background_id = String(Cosmetics.BACKGROUNDS[i]["id"])
+	Sfx.play("blip")
+	_render_dashboard()
 
 
 ## Everyone in the room, what they are good at, and how they have been doing.
@@ -2667,9 +2723,21 @@ func _handle_input() -> void:
 			Sfx.play("blip")
 			close()
 		elif Input.is_action_just_pressed("menu") 				or Input.is_action_just_pressed("dashboard"):
-			_dash = (_dash + 1) % 3
+			_dash = (_dash + 1) % 4
 			Sfx.play("blip")
 			_render_dashboard()
+		elif _dash == Dash.WARDROBE and Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % 2
+			Sfx.play("blip")
+			_render_dashboard()
+		elif _dash == Dash.WARDROBE and Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + 2) % 2
+			Sfx.play("blip")
+			_render_dashboard()
+		elif _dash == Dash.WARDROBE and Input.is_action_just_pressed("move_right"):
+			_adjust_wardrobe(1)
+		elif _dash == Dash.WARDROBE and Input.is_action_just_pressed("move_left"):
+			_adjust_wardrobe(-1)
 		return
 
 	if mode == Mode.CURRICULUM:

@@ -355,6 +355,12 @@ var teacher_level: int = 1
 var perk_ranks: Dictionary = {}      ## perk id -> ranks bought
 var graduated: Array = []            ## [{name, level, readiness, day}]
 
+## Cosmetics. Purely decorative -- see cosmetics.gd's own note on why
+## these are not tunables. "" means none chosen, same convention as
+## `specialism` and `chosen_lesson` already use.
+var hat_id: String = ""
+var background_id: String = ""
+
 ## Set the moment any cheat is used, and never cleared. Saved, shown on the
 ## end-of-term screen, and checked by the term simulator, which refuses to
 ## run on a cheated save -- a balance reading taken after a cheat is a lie.
@@ -412,6 +418,8 @@ func new_run(seed_value: int = 0) -> void:
 	teacher_xp = 0
 	teacher_level = 1
 	perk_ranks.clear()
+	hat_id = ""
+	background_id = ""
 	graduated.clear()
 	taught.clear()
 	concepts.clear()
@@ -2098,6 +2106,8 @@ func to_dict() -> Dictionary:
 		"has_janitor": has_janitor,
 		"janitor_level": janitor_level,
 		"chosen_lesson": chosen_lesson,
+		"hat_id": hat_id,
+		"background_id": background_id,
 		"assignment": assignment,
 		"term_history": term_history,
 		"run_over": run_over,
@@ -2147,6 +2157,8 @@ func from_dict(d: Dictionary) -> void:
 	has_janitor = bool(d.get("has_janitor", false))
 	janitor_level = int(d.get("janitor_level", 1))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
+	hat_id = String(d.get("hat_id", ""))
+	background_id = String(d.get("background_id", ""))
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()

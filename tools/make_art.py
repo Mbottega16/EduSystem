@@ -631,6 +631,59 @@ ITEM_ART = {
 }
 
 
+# --- cosmetics: hats -------------------------------------------------
+# The dashboard has said "Hat: none chosen yet" since it was built -- a
+# hook for exactly this, deliberately not built at the time. Worn by
+# ANY character (player, inspector, principal, a student), so drawn
+# once as a flat icon rather than per-palette: the head is chibi-big
+# and round in every direction, and a hat this simple reads fine sat
+# on top of it regardless of which way the wearer is facing, which is
+# what lets one sprite serve all four walk directions with no redraw.
+
+def draw_hat_cap():
+    # A beanie, not a baseball cap -- a brim sticking out to one side
+    # read as a disconnected floating block at this size, confirmed by
+    # a real render rather than assumed. A dome plus a fold band all the
+    # way round is forgiving at any angle, which matters since this one
+    # sprite has to sit convincingly on a head facing any direction.
+    im = Image.new("RGBA", (24, 20), (0, 0, 0, 0))
+    for y, (x0, x1) in enumerate(
+            ((10, 13), (8, 15), (6, 17), (5, 18), (4, 19), (3, 20), (2, 21))):
+        rect(im, x0, 1 + y, x1, 1 + y, (196, 48, 56))
+    rect(im, 2, 8, 21, 12, (168, 40, 48))             # fold band
+    rect(im, 6, 2, 15, 3, (216, 72, 80))              # highlight near the top
+    rect(im, 10, 0, 13, 1, (236, 200, 108))           # pom-pom
+    return outline(im)
+
+
+def draw_hat_bow():
+    im = Image.new("RGBA", (24, 16), (0, 0, 0, 0))
+    # Two wings, each a diamond built from rows that widen then narrow
+    # outward from the centre knot -- the same taper trick as the cap
+    # and the wizard hat, mirrored left and right.
+    widths = (1, 4, 8, 11, 8, 4, 1)
+    for y, w in enumerate(widths):
+        rect(im, 11 - w, 2 + y, 10, 2 + y, (222, 92, 132))          # left wing
+        rect(im, 13, 2 + y, 13 + w, 2 + y, (222, 92, 132))          # right wing
+    rect(im, 10, 4, 13, 9, (176, 60, 96))            # knot
+    return outline(im)
+
+
+def draw_hat_wizard():
+    im = Image.new("RGBA", (24, 22), (0, 0, 0, 0))
+    rect(im, 2, 18, 21, 21, (96, 64, 156))          # brim
+    for row, (x0, x1) in enumerate(
+            ((9, 14), (8, 15), (7, 16), (6, 17), (5, 18), (10, 13))):
+        rect(im, x0, 2 + row * 3, x1, 4 + row * 3, (116, 84, 176))
+    rect(im, 10, 1, 13, 3, (216, 196, 108))          # star tip
+    return outline(im)
+
+
+HAT_ART = {
+    "cap": draw_hat_cap, "bow": draw_hat_bow, "wizard": draw_hat_wizard,
+}
+
+
 # ====================================================================
 # room
 # ====================================================================
@@ -1091,6 +1144,14 @@ if __name__ == "__main__":
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
     for name, fn in TITLE_ART.items():
+        img = fn()
+        if save_png(img, name):
+            print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+    # Hats, like TITLE_ART and unlike furniture/ITEM_ART, are drawn
+    # directly at final scale rather than small-then-scale2x'd -- they
+    # are worn on the ALREADY-doubled character sheet, not placed in the
+    # room, so the character-drawing convention is the one that matches.
+    for name, fn in HAT_ART.items():
         img = fn()
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))

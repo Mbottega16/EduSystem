@@ -5028,10 +5028,11 @@ func test_dashboard() -> void:
 	# --- page 2: items ---
 	Game.place_item("stool", Vector2i(9, 6))
 	hud._render_dashboard()  # room_items changed under an open screen
-	hud._dash = (hud._dash + 1) % 3
+	hud._dash = (hud._dash + 1) % 4
 	hud.show_dashboard()
 	chk("cycled to the items page", hud._dash == hud.Dash.ITEMS)
-	chk("the portrait turns off for a non-overview page", not hud.portrait.visible)
+	chk("the portrait turns off for a non-overview, non-wardrobe page",
+		not hud.portrait.visible)
 	chk("counts what you have bought, by category",
 		hud.rich.text.contains(Items.category_label(Items.category_of("stool"))),
 		hud.rich.text)
@@ -5043,7 +5044,7 @@ func test_dashboard() -> void:
 
 	# --- page 3: skills ---
 	Game.perk_ranks["calm_presence"] = 1
-	hud._dash = (hud._dash + 1) % 3
+	hud._dash = (hud._dash + 1) % 4
 	hud.show_dashboard()
 	chk("cycled to the skills page", hud._dash == hud.Dash.SKILLS)
 	chk("shows a perk you have actually spent a point on",
@@ -5053,8 +5054,40 @@ func test_dashboard() -> void:
 ").size() <= RICH_ROWS,
 		hud.rich.text.split("
 ").size())
+
+	# --- page 4: wardrobe -- hats and backgrounds, on the hook the
+	# dashboard's own overview page has said "none chosen yet" about
+	# since it was built ---
+	hud._dash = (hud._dash + 1) % 4
+	hud._sel = 0
+	hud.show_dashboard()
+	chk("cycled to the wardrobe page", hud._dash == hud.Dash.WARDROBE)
+	chk("the portrait comes back for it -- the whole point is seeing the hat",
+		hud.portrait.visible)
+	chk("starts on the hat row", hud.rich.text.contains(">Hat"), hud.rich.text)
+	var hat_before := Game.hat_id
+	hud._adjust_wardrobe(1)
+	chk("stepping right changes the hat", Game.hat_id != hat_before, Game.hat_id)
+	chk("the actual player sprite picks it up, not just the label",
+		world.player.hat_sprite.visible == (Game.hat_id != ""))
+	hud._sel = 1
+	hud._render_dashboard()
+	var bg_before := Game.background_id
+	hud._adjust_wardrobe(1)
+	chk("stepping right on the background row changes the background",
+		Game.background_id != bg_before, Game.background_id)
+	chk("and leaves the hat exactly where the other row left it",
+		Game.hat_id != hat_before, Game.hat_id)
+	chk("it fits", hud.rich.text.split("
+").size() <= RICH_ROWS,
+		hud.rich.text.split("
+").size())
+
 	chk("and cycling wraps back round to overview",
-		(hud._dash + 1) % 3 == hud.Dash.OVERVIEW)
+		(hud._dash + 1) % 4 == hud.Dash.OVERVIEW)
+	Game.hat_id = ""
+	Game.background_id = ""
+	world.player.refresh_hat()
 
 	# --- closing ---
 	await tap("cancel")

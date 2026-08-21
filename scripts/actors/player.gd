@@ -12,6 +12,7 @@ signal carrying_changed(count: int)
 
 @onready var zone: Area2D = $InteractZone
 @onready var carry_icon: Sprite2D = $CarryIcon
+@onready var hat_sprite: Sprite2D = $HatSprite
 
 ## What each BUTTON is pointing at. Two interactables may share a tile so
 ## long as they use different keys -- the podium offers "teach today's
@@ -104,6 +105,7 @@ func _ready() -> void:
 	# has interacted with anything.
 	add_to_group("carrier")
 	_refresh_carry_icon()
+	refresh_hat()
 
 
 func _physics_process(delta: float) -> void:
@@ -379,3 +381,18 @@ func _refresh_carry_icon() -> void:
 	if carry_icon == null:
 		return
 	carry_icon.visible = (carrying + carrying_hw) > 0
+
+
+## Called once at spawn, and again the moment the wardrobe changes it --
+## it never changes on its own the way carrying does, so nothing else
+## needs to poll it every frame.
+func refresh_hat() -> void:
+	if hat_sprite == null:
+		return
+	var h := Cosmetics.hat_by_id(Game.hat_id)
+	var art := String(h.get("art", ""))
+	if art == "":
+		hat_sprite.visible = false
+		return
+	hat_sprite.texture = load("res://art/%s.png" % art)
+	hat_sprite.visible = true

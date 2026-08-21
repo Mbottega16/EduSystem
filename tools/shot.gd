@@ -134,6 +134,13 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.perk_ranks["calm_presence"] = 1
 			hud._dash = hud.Dash.OVERVIEW
 			hud.show_dashboard()
+		"dashboard_wardrobe":
+			Game.new_run(0)
+			Game.hat_id = "cap"
+			Game.background_id = "dusk"
+			hud._dash = hud.Dash.WARDROBE
+			hud._sel = 0
+			hud.show_dashboard()
 		"dashboard_items":
 			Game.new_run(0)
 			Game.place_item("stool", Vector2i(9, 6))
@@ -311,6 +318,14 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
+		"hat":
+			# refresh_hat() again on purpose: the player's own _ready()
+			# already ran, with hat_id still "", by the time this case
+			# gets to set it.
+			Game.hat_id = "cap"
+			world.player.refresh_hat()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.PODIUM + Vector2i(0, 1))
 		"weather":
 			Game.event = DayEvent.by_id("wet_play")
 			world.start_lesson()

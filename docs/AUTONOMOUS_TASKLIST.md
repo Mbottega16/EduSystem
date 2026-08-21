@@ -370,6 +370,53 @@ for no reason.
 
 ## Done
 
+- [x] **Cosmetics: hats and backgrounds, the hook the dashboard has had
+      since it was built.** *(Aug 2026 -- user: "keep going" / adding
+      things to the game, following a monetization discussion that
+      flagged this exact hook as the highest-value, lowest-risk next
+      build.)* The Overview page has read "Hat: none chosen yet" /
+      "Background: none chosen yet" since the dashboard shipped --
+      deliberately not built at the time. Built now:
+      - Three hats (`cap` a beanie, `bow`, `wizard`), drawn in
+        `tools/make_art.py::HAT_ART` directly at final scale (the
+        character-sheet convention, not furniture's small-then-`scale2x`
+        one -- a hat is composited onto an already-doubled character).
+        Took two redraws: a baseball-cap silhouette and a flat two-block
+        bow both failed to read as their shape at this size, confirmed
+        by a real zoomed render before touching the game at all. The
+        beanie (dome + fold band + pom-pom) and a wing-diamond bow both
+        read cleanly once redrawn with the same row-taper technique the
+        wizard hat's cone already used successfully.
+      - `scripts/data/cosmetics.gd` -- plain const tables (HATS,
+        BACKGROUNDS), the same "content, not a tunable" reasoning that
+        already keeps `Names.FIRST/LAST` out of `balance.json`.
+      - Worn live: a `HatSprite` child on the player, refreshed by
+        `refresh_hat()`. Confirmed by screenshot on the actual walking
+        character (not just a UI mock), both hats sitting naturally on
+        the chibi head on the first placement attempt.
+      - A fourth Dashboard tab, WARDROBE: Up/Down picks hat vs.
+        background, Left/Right steps that row's list, takes effect
+        immediately (no separate confirm, same as Settings' own
+        sliders). The portrait shows on this page too -- unlike Items/
+        Skills -- since seeing the hat on your own character is the
+        whole point of the page, not reading its name off a list.
+      - Backgrounds are flat colours behind the portrait, not new art:
+        lower risk, and the portrait is where every other cosmetic in
+        this game already shows itself.
+      - Persisted in the save (`Game.hat_id`/`background_id`, added to
+        `to_dict()`/`from_dict()`); reset on a new career the same way
+        `teacher_xp`/`perk_ranks` already are.
+      Two real gotchas hit and fixed, both already documented project
+      patterns: a brand-new `class_name` (`Cosmetics`) isn't in Godot's
+      registry until a rescan (`--headless --import`), the same trap
+      the suite already has a test for; and `tools/curator.gd`'s
+      regex-based art-reference scanner cannot see a dynamically-built
+      `load("res://art/%s.png" % art)` path, the same class of gap the
+      room tiles already needed a manual allowlist entry for -- added
+      one for `Cosmetics.HATS` rather than patching around the report.
+      1197 -> 1205 assertions. Contract re-verified unmoved, as expected
+      for a change that adds nothing the grade model reads.
+
 - [x] **A second `/deep_critique` pass, and its three findings
       implemented.** *(Aug 2026 -- user: "do /deep_critique again and
       implement.")* Ran it for real again: `Trace a Day.bat`,

@@ -28,6 +28,27 @@ handed back to idle/seated. Rows: facing down, left, right, up.
 grid; `Make a Sprite.bat` generates a brand new character (new palette)
 through `make_art.py` instead of hand-drawing one.
 
+## Cosmetics (`tools/make_art.py::HAT_ART`)
+
+Worn on the head, at runtime, by whoever `Game.hat_id` names (currently
+only the player) — see `scripts/data/cosmetics.gd` and
+`Player.refresh_hat()`. Drawn directly at final scale, the same
+convention as the character sheets rather than the
+small-then-`scale2x`'d one furniture uses (§Furniture below): a hat is
+composited onto an already-doubled character, not placed in the room.
+One flat icon per hat, not a 9x4 sheet — chibi heads are round enough
+from every facing that a single sprite reads convincingly regardless of
+which way the wearer is walking.
+
+| file | hat | id |
+|---|---|---|
+| `cap.png` | a beanie, not a baseball cap — a brim read as a disconnected floating block at this scale | `cap` |
+| `bow.png` | a bow-tie shape | `bow` |
+| `wizard.png` | a pointed hat with a star tip | `wizard` |
+
+Backgrounds (the other half of the same cosmetics hook) are flat
+colours behind the portrait, not art files — see `Cosmetics.BACKGROUNDS`.
+
 ## Room tiles — auto-tiled at runtime (`tools/make_art.py` room section)
 
 Not placed by hand; `scripts/world/room_builder.gd` picks among the
@@ -92,7 +113,7 @@ so it touches nothing the balance contract measures.
 
 | tool | scope |
 |---|---|
-| `python tools/make_art.py` | characters, room tiles, furniture, UI/effects — everything parametric |
+| `python tools/make_art.py` | characters, cosmetics, room tiles, furniture, UI/effects — everything parametric |
 | `Make a Sprite.bat` | one new *character*: writes the palette, draws the 9&times;4 sheet, imports it, registers the name |
 | `Draw a Sprite.bat` / `Browse Art.bat` | hand-drawing editor for one-off art like `poster_abc.png`; also lets you open and re-edit any generated PNG in place |
 | `tools/sprite_editor.html` | the dedicated character-sheet editor — the 9&times;4 walk/sit/pose grid specifically, standalone HTML, no Godot/Python needed |
