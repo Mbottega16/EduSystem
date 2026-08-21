@@ -93,21 +93,27 @@ These are not optional work; they are the queue. Prompts live in
 
 ## B. Real gaps, found by counting — highest value first
 
-- [ ] **B0. A grid-out-of-bounds error prints on every single room
-      build.** *(Found Aug 2026, not chased -- unrelated to the task in
-      progress at the time.)* `set_point_solid`/`block_rect` in
-      `grid.gd`, called from `room_builder.gd`'s `build_walls()`, tries
-      to mark points outside the AStarGrid2D's actual bounds (seen:
-      `(20,0)`, `(21,0)`, `(22,0)`, `(20,1)`... against a `20x11` grid) --
-      repeating dozens of times per build. Non-fatal: the suite passes,
-      screenshots render correctly, walking/collision all work as
-      expected in every manual check so far. Only surfaced because a
-      full stderr capture was taken for once instead of the usual
-      tail -- an error this noisy, printing on literally every room
-      build including every test's own setup, went unnoticed for who
-      knows how long. Worth tracing `build_walls()`'s loop bounds
-      properly rather than living with a wall of caught-but-ignored
-      engine errors on every run.
+- [x] **B0. A grid-out-of-bounds error printed on every single room
+      build.** *(Found and fixed Aug 2026.)* Root cause traced, not just
+      silenced: `classroom.gd`'s `var grid := Grid.new()` is a property
+      initializer, which runs at NODE CONSTRUCTION -- before `_ready()`,
+      before `Game.ensure_run()` has decided how big the room actually
+      is. `Grid.new()` calls `rebuild()`, which bakes the AStarGrid2D's
+      region to whatever `Grid.W`/`H` (static, process-lifetime) happen
+      to be at that exact moment -- stale, if a previous run in the same
+      process left the room bigger than the default. `build()` then used
+      that same stale-region `grid` to wall a room sized by the CURRENT
+      (correct) `Grid.W`/`H`, and every tile past the old width threw
+      "Can't set if point is disabled" -- caught by the engine,
+      non-fatal, but printed dozens of times on every single build.
+      `rebuild_room()` (the room-resize path) already called
+      `grid.rebuild()` to stay in sync; `build()` (the FIRST build) never
+      did. One line -- `grid.rebuild()` at the top of `build()` -- closes
+      it. Confirmed by re-running the exact repro with full stderr
+      captured (clean, zero errors), the room-growth screenshot case
+      (`dev_room_bare`, also clean), the full suite (1193, unchanged),
+      and `Simulate a Term.bat` (contract unmoved, as expected for a
+      change that touches no grade input).
 - [x] **B1. What a concept is for.** *(Decided and implemented Aug 2026.)*
       The finding was bigger than "112 aren't linked": `concept_bonus`
       caps at **ten** concepts, so 110 of the 120 move no number at all.
@@ -405,10 +411,10 @@ for no reason.
       1189 -> 1193 assertions, including a genuine walk-up-and-press
       test for the new homework key that was never covered even for the
       OLD key (previous tests called `hud.open_marking()` directly).
-      Also noted, not fixed (pre-existing, unrelated): a
-      `set_point_solid` / grid-out-of-bounds error prints on every room
-      build, caught only because a full stderr capture was taken for the
-      first time rather than the usual tail. Worth a real look later.
+      Also noted (pre-existing, unrelated): a `set_point_solid` /
+      grid-out-of-bounds error printed on every room build, caught only
+      because a full stderr capture was taken for the first time rather
+      than the usual tail. Traced and fixed the same session -- see B0.
 
 - [x] **A `/deep_critique` pass, and all ten findings implemented.**
       *(Aug 2026 -- user: "give me a list of the 10 most important

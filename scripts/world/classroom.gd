@@ -108,6 +108,17 @@ func _ready() -> void:
 
 
 func build() -> void:
+	# THE BUG THIS FIXES: `grid` is `Grid.new()` at property-init time --
+	# before _ready() runs, before Game.ensure_run() has decided how big
+	# the room actually is. Its AStarGrid2D region gets baked to whatever
+	# Grid.W/H were at THAT moment, which can be stale (a bigger room
+	# left over from the previous run in this same process) by the time
+	# build() actually runs. rebuild_room() already knows to re-sync
+	# after Game.expand_room() changes the size; the very first build()
+	# never did, and every wall tile past the STALE width threw "Can't
+	# set if point is disabled" -- caught, non-fatal, printed on every
+	# single room build regardless.
+	grid.rebuild()
 	RoomBuilder.build_floor(self)
 	RoomBuilder.build_walls(self, grid)
 	stations = RoomBuilder.build_desks(self, grid)
