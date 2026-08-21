@@ -370,6 +370,39 @@ for no reason.
 
 ## Done
 
+- [x] **A second `/deep_critique` pass, and its three findings
+      implemented.** *(Aug 2026 -- user: "do /deep_critique again and
+      implement.")* Ran it for real again: `Trace a Day.bat`,
+      `Audit the Room.bat` (now showing all five action columns), and
+      fresh screenshots of the hallway, office and a live lesson, rather
+      than re-reasoning about the last pass's findings.
+      1. **The prompt bar silently truncated a live prompt with no
+         ellipsis the moment three verbs collided at once** (E, F and Q,
+         all live at the podium mid-lesson with a mess nearby) --
+         confirmed by screenshot: "Q - Quick quiz" rendered as
+         "Q - Quick q". Root cause: the budget math reserved space for
+         exactly one "   " joiner, correct when only two things could
+         ever be live, wrong now that a third routinely is. Fixed the
+         formula (`3 * (parts.size() - 1)`, not a flat `3`) and switched
+         the final clip to `_clip_visibly()` as a safety net. Confirmed
+         with a forced 3-way repro: every truncated part now ends in a
+         marker, nothing is a bare mid-word fragment.
+      2. **The dashboard showed the PREVIOUS screen's title.**
+         `show_dashboard()` never set `title.text` at all, and `_open()`
+         does not clear it -- open Career, close it, open the dashboard,
+         and it read "YOUR CAREER 6/23" over the tab strip. Every other
+         mode in the file sets its own title; this was the one gap.
+         One line fixes it.
+      3. **The unstaffed-room door tint was nearly indistinguishable
+         from the plain home door.** A flat 0.85 grey just darkens the
+         same teal the home door already is -- confirmed by a zoomed
+         screenshot. Changed to a warm red-orange, sharing no hue with
+         office (gold) or a staffed room (blue), so "this one needs a
+         teacher" now reads at a glance rather than on close inspection.
+      Both bugs got a real regression test (a forced 3-way collision,
+      and the exact open-Career-then-dashboard repro), not just a fix.
+      1193 -> 1197 assertions. Contract re-verified unmoved.
+
 - [x] **One dedicated key per verb: quiz, homework and desk-move each got
       their own.** *(Aug 2026 -- direct user instruction: "H to collect
       homework / E to answer questions... / F to move furniture / Q to

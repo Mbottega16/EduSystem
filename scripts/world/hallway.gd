@@ -167,10 +167,14 @@ func _door_tint(kind: String, idx: int) -> Color:
 			if idx >= 0 and idx < Game.rooms.size():
 				var r: Dictionary = Game.rooms[idx]
 				if (r.get("teacher", {}) as Dictionary).is_empty():
-					return Color(0.85, 0.85, 0.85)   # unstaffed -- greyer,
-					                                   # the same "needs you"
-					                                   # signal an empty
-					                                   # applicant slot gives
+					# THE FIX: a flat 0.85 grey just darkens the same teal
+					# the plain "home" door already is -- confirmed by a
+					# zoomed screenshot to be nearly indistinguishable at
+					# a glance, which defeats the entire point of tinting
+					# by kind. A warm red-orange reads as "needs you"
+					# clearly, and shares no hue with office (gold) or a
+					# staffed room (blue).
+					return Color(1.3, 0.55, 0.4)
 			return Color(0.75, 0.9, 1.15)       # staffed -- cool blue
 		"open":
 			return Color(0.55, 0.55, 0.6)       # dim -- not really a room yet

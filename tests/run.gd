@@ -2187,6 +2187,7 @@ func test_two_buttons_one_landmark() -> void:
 	Game.new_run(SEED)
 	await step(2)
 	var p: Actor = world.player
+	var hud := _hud()
 
 	# The picker used to keep ONE target for both buttons, so whenever two
 	# interactables shared a tile the loser was silently unreachable and the
@@ -2209,6 +2210,40 @@ func test_two_buttons_one_landmark() -> void:
 		return t != null and t.prompt_text().begins_with("Unit test")).call(),
 		p.targets["interact"])
 	chk("both are on offer together", p.offers().size() == 2, p.offers().size())
+
+	# --- three at once: E (mess), F (end lesson) and Q (quiz), together ---
+	#
+	# THE BUG THIS CATCHES. The prompt bar's own budget reserved space for
+	# exactly ONE "   " joiner, correct back when only two things could
+	# ever be live (E and F) -- the key remap made a third live verb (Q)
+	# an ordinary thing, and two joiners need twice the reserved space.
+	# The shortfall was eaten by the OUTER clip with no ellipsis, landing
+	# wherever the tail happened to fall: "Q - Quick quiz" silently
+	# rendered as "Q - Quick q". Confirmed by screenshot, reproduced here
+	# by forcing a mess onto the podium's own tile.
+	#
+	# A clean Game.new_run() first: quiz_done and mess state both carry
+	# across sections otherwise, and this block runs after two other
+	# scenarios in the same section already exercised the podium.
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()          # not a raw phase-set: this is what
+	await step(2)                 # actually re-arms Game.quiz_done
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	var _mess := RoomBuilder.build_mess(world, Layout.PODIUM + Vector2i(0, 1), "trash")
+	world.messes.append(_mess)
+	await step(3)
+	chk("all three are live at once", p.offers().size() == 3, p.offers().size())
+	hud._update_prompt()
+	chk("the quiz prompt is not silently cut off",
+		hud.prompt.text.contains("Quick quiz") or hud.prompt.text.ends_with("."),
+		hud.prompt.text)
+	chk("nothing in the bar is a bare truncated fragment with no marker",
+		not hud.prompt.text.contains("[.") or hud.prompt.text.contains("[......]"),
+		hud.prompt.text)
+
+	Game.new_run(SEED)             # fully isolated from whatever follows
+	await step(2)
 
 	# --- a desk: help on E, move it on its own dedicated key ---
 	Game.set_phase(Game.Phase.AFTERNOON)
@@ -4957,6 +4992,19 @@ func test_dashboard() -> void:
 	await tap("dashboard")
 	chk("pressing the dashboard key opens it from the world",
 		hud.mode == hud.Mode.DASHBOARD, hud.mode)
+	hud.close()
+
+	# THE BUG THIS CATCHES: show_dashboard() never set title.text, and
+	# _open() does not clear it either -- so the dashboard silently kept
+	# whatever the PREVIOUS screen's title was. Confirmed by screenshot:
+	# open Career, close it, open the dashboard, and it read "YOUR
+	# CAREER 6/23" over the tab strip. Reproduce that exact sequence.
+	hud.show_career()
+	hud.close()
+	hud._dash = hud.Dash.OVERVIEW
+	hud.show_dashboard()
+	chk("the dashboard sets its own title rather than keeping the last one",
+		hud.title.text == "YOUR DASHBOARD", hud.title.text)
 	hud.close()
 
 	# --- page 1: overview ---

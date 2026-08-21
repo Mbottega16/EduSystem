@@ -359,16 +359,24 @@ func _update_prompt() -> void:
 	prompt.visible = showing
 	prompt_box.visible = showing
 	if showing:
-		# Fit BOTH halves, taking the room from whichever is longer.
+		# Fit every live part, taking the room from whichever is longest.
 		#
-		# Clipping the joined line lopped the tail off the second prompt, so
+		# Clipping the joined line lopped the tail off the last prompt, so
 		# a hold meter could appear with no words after it. Splitting the
 		# budget evenly then over-clipped: "E - Quick quiz" needs 14 of its
 		# 22 and "hold F [......] End the lesson early" needs 36, and an
 		# even split turned the second into "End t.". So the short one keeps
 		# what it needs and the long one gets the rest.
 		if parts.size() > 1:
-			var budget: int = LINE_CHARS - 3
+			# THE BUG THIS FIXES: budget reserved space for exactly ONE
+			# "   " joiner, which was correct back when only two things
+			# could ever be live at once (E and F). The key remap made a
+			# 3-way collision (E, F and Q at once, say) an ordinary thing,
+			# and two joiners need 6 characters, not 3 -- the shortfall
+			# was silently eaten by the OUTER _clip() below with no
+			# ellipsis, landing wherever the tail happened to fall. Caught
+			# by screenshot: "Q - Quick quiz" rendered as "Q - Quick q".
+			var budget: int = LINE_CHARS - 3 * (parts.size() - 1)
 			var total := 0
 			for part: String in parts:
 				total += part.length()
@@ -384,7 +392,11 @@ func _update_prompt() -> void:
 				parts[longest] = parts[longest].substr(
 					0, parts[longest].length() - trim - 1) + "."
 				total -= trim
-		prompt.text = _clip("   ".join(parts))
+		# Belt and braces: the fitting above should always land inside
+		# LINE_CHARS now, but if a future case ever slips past it, make
+		# the cut visible rather than silent -- same fix as the status
+		# strip's own _clip_visibly() already uses, and the same reason.
+		prompt.text = _clip_visibly("   ".join(parts))
 
 
 # ---------------------------------------------------------------- overlays
@@ -566,6 +578,12 @@ var _hint_until: float = 0.0
 ## job; this is a mirror, not a second till).
 func show_dashboard() -> void:
 	_open(Mode.DASHBOARD)
+	# THE BUG THIS FIXES: every other screen sets its own title.text, but
+	# this one never did -- _open() does not clear it, so the dashboard
+	# silently kept showing whatever the PREVIOUS screen's title was.
+	# Open Career, close it, then open the dashboard with I, and it read
+	# "YOUR CAREER 6/23" over the tab strip. Confirmed by screenshot.
+	title.text = "YOUR DASHBOARD"
 	body.visible = false
 	rich.visible = true
 	rich.add_theme_constant_override("line_separation", 4)
