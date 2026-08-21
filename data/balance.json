@@ -768,6 +768,19 @@
     "daily_wage": 18,
     "collect_seconds": 2.2
   },
+  "janitor": {
+    "_note": "Same shape as the aide, one door over: hired in the staff room, paid every day, and they clean the room's own daily mess (mess.gd) FOR you -- one piece per interval, any time of day, not lesson-gated like the aide, because mess isn't either. Same legwork/judgement line: there is no judgement in a spill, so there is nothing here hiring somebody out of.",
+    "hire_cost": 220,
+    "daily_wage": 15,
+    "clean_seconds": 3.0
+  },
+  "staff_levels": {
+    "_note": "Both the aide and the janitor can be trained up once hired -- E on their row again spends coins to raise their level, which shortens their own interval (collect_seconds / clean_seconds). Same rising-cost-per-level shape as buying a bigger room. Capped at max_level so a levelled aide is faster, never instant.",
+    "max_level": 5,
+    "level_cost_base": 40,
+    "level_cost_growth": 1.6,
+    "speedup_per_level": 0.15
+  },
   "school": {
     "_note": "Rooms you do not stand in. A delegated room is RESOLVED BY RUNNING THE LESSON with a hired teacher's policy driving it -- the same work, stall, disruption and grade models the player is subject to. A formula would have been far easier and every number it produced would have been a lie the player could not have produced by playing.",
     "_furniture_note": "A delegated room's furniture is bought as a LEVEL rather than placed tile by tile. Placing furniture is a spatial puzzle about range, and the puzzle is only interesting in a room you can see. Buying the outcome is honest about that.",

@@ -42,9 +42,18 @@ func interact(by: Node) -> void:
 	_presses += 1
 	Sfx.play_varied("paper")
 	used.emit(by)
-	if _presses < Balance.mess_clean_presses:
-		return
+	if _presses >= Balance.mess_clean_presses:
+		_finish()
 
+
+## The janitor does this instantly, in one go -- they don't mash E, they
+## just do the job. Same payout and the same removal as finishing it by
+## hand; only the path there differs.
+func auto_complete() -> void:
+	_finish()
+
+
+func _finish() -> void:
 	Game.add_coins(Balance.mess_clean_reward)
 	cleaned.emit(self, kind)
 	# Freeing THIS node only removed the invisible Area2D that answers E --

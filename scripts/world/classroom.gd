@@ -417,6 +417,15 @@ func _physics_process(delta: float) -> void:
 			else:
 				lesson_auto_ended.emit(end_lesson())
 	_refresh_bubbles()
+	# The janitor, unlike the aide above, is NOT inside the LESSON-only
+	# block: mess isn't lesson-gated (see mess.gd), so cleaning it up for
+	# you shouldn't be either.
+	if Game.tick_janitor(delta) and not messes.is_empty():
+		var swept: Interactable = messes[0]
+		var at: Vector2 = swept.get_parent().global_position
+		swept.auto_complete()
+		Floater.pop(self, at + Vector2(0, -20), "janitor",
+			Color(0.72, 0.86, 1.0))
 
 
 ## The "?" over a stuck student and the finished sheet on their desk, both

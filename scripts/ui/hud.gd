@@ -2120,10 +2120,10 @@ func _shop_rows() -> Array:
 		# open the shop, and there is no useful action attached to it.
 		return Items.available_in_category(String(cats[_cat]))
 	if _shop == Shop.STAFF:
-		# The aide sits at the top of the same list as the perks, so the
-		# screen keeps ONE cursor. A second selection model on one screen is
-		# how a UI starts needing a diagram.
-		var staff: Array = ["aide"]
+		# The aide and janitor sit at the top of the same list as the
+		# perks, so the screen keeps ONE cursor. A second selection model
+		# on one screen is how a UI starts needing a diagram.
+		var staff: Array = ["aide", "janitor"]
 		staff.append_array(Progress.perk_order())
 		return staff
 	if _shop == Shop.ROOM:
@@ -2309,6 +2309,27 @@ func _reach_words(reach: int, bonus: float) -> String:
 	return "helps %s, %s" % [strength, span]
 
 
+## One line for the aide or the janitor: hired state, level dots, wage.
+## Shared because the two are the same shape end to end -- see
+## Game.level_up_staff()'s own comment.
+func _staff_row(idx: int, label: String, hired: bool, level: int,
+		wage: int, cost: int) -> String:
+	Balance.ensure_loaded()
+	var status: String
+	if not hired:
+		status = "%d coins" % cost
+	elif level >= Balance.staff_level_max:
+		status = "hired, MAX, %d/day" % wage
+	else:
+		status = "hired, %d/day, next %d" % [wage, Game.staff_level_cost(level)]
+	var dots := ""
+	if hired:
+		dots = " " + BAR_FULL.repeat(level) + BAR_EMPTY.repeat(Balance.staff_level_max - level)
+	return "%s [color=#%s]%-17s[/color]%s [color=#%s]%s[/color]" % [
+		">" if _sel == idx else " ", C_ROOM, label, dots,
+		C_GOOD if hired else C_COIN, status]
+
+
 ## The staff-room board: what you have learned to do better.
 func _render_staff() -> Array[String]:
 	Balance.ensure_loaded()
@@ -2318,13 +2339,11 @@ func _render_staff() -> Array[String]:
 		"" if Game.perk_points_free() == 1 else "s"])
 	lines.append("")
 
-	# row 0: the aide
-	var hired: bool = Game.has_aide
-	lines.append("%s [color=#%s]%-17s[/color] [color=#%s]%s[/color]" % [
-		">" if _sel == 0 else " ", C_ROOM, "Teacher's aide",
-		C_GOOD if hired else C_COIN,
-		"hired, %d/day" % Balance.aide_wage if hired
-			else "%d coins" % Balance.aide_cost])
+	# rows 0-1: the aide and the janitor, same shape, same controls
+	lines.append(_staff_row(0, "Teacher's aide", Game.has_aide,
+		Game.aide_level, Balance.aide_wage, Balance.aide_cost))
+	lines.append(_staff_row(1, "Janitor", Game.has_janitor,
+		Game.janitor_level, Balance.janitor_wage, Balance.janitor_cost))
 
 	var order := Progress.perk_order()
 	for i in order.size():
@@ -2333,17 +2352,23 @@ func _render_staff() -> Array[String]:
 		var have := Game.perk_rank(id)
 		var cap := Progress.max_rank(id)
 		lines.append("%s %-17s [color=#%s]%s[/color]" % [
-			">" if i + 1 == _sel else " ", String(d.get("name", id)),
+			">" if i + 2 == _sel else " ", String(d.get("name", id)),
 			C_LESSON if have > 0 else DIM,
 			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
 	lines.append("")
-	if _sel == 0:
+	if _sel == 0 or _sel == 1:
+		var hired: bool = Game.has_aide if _sel == 0 else Game.has_janitor
+		var maxed: bool = (Game.aide_level if _sel == 0 else Game.janitor_level) \
+			>= Balance.staff_level_max
+		var blurb := "They collect finished work so you can stay at the front." \
+			if _sel == 0 else "They clean the room's mess for you, any time of day."
 		lines.append("[color=#%s]%s[/color]" % [DIM,
-			"They collect finished work so you can stay at the front."
-			if not hired else "E again to let them go."])
+			blurb if not hired
+			else ("Fully trained." if maxed else "E again to train them up a level.")
+			+ ("" if not hired else "  Left arrow to let them go.")])
 	elif not order.is_empty():
 		lines.append("[color=#%s]%s[/color]" % [DIM,
-			String(Progress.perk_def(order[_sel - 1]).get("blurb", ""))])
+			String(Progress.perk_def(order[_sel - 2]).get("blurb", ""))])
 	return lines
 
 
@@ -2704,6 +2729,14 @@ func _handle_input() -> void:
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()
+		elif (_shop == Shop.STAFF and (_sel == 0 or _sel == 1)
+				and Input.is_action_just_pressed("move_left")):
+			# Letting go, not levelling -- a separate key from E on purpose,
+			# so a mis-timed mash of the hire/train button can never fire
+			# somebody by accident.
+			var fe := Game.set_aide(false) if _sel == 0 else Game.set_janitor(false)
+			Sfx.play("deny" if fe != "" else "blip")
+			_render_catalogue()
 		elif Input.is_action_just_pressed("menu"):
 			_shop = (_shop + 1) % 4      # buy -> sell -> staff -> the room
 			_sel = 0
@@ -2724,10 +2757,15 @@ func _handle_input() -> void:
 				Sfx.play("deny" if e != "" else "coins")
 				_render_catalogue()
 			elif _shop == Shop.STAFF:
-				if _sel == 0:
-					# hiring, or letting them go
-					var ae := Game.set_aide(not Game.has_aide)
-					Sfx.play("deny" if ae != "" else "coins")
+				if _sel == 0 or _sel == 1:
+					var which := "aide" if _sel == 0 else "janitor"
+					var hired: bool = Game.has_aide if _sel == 0 else Game.has_janitor
+					# Not hired yet: E hires. Already hired: E trains them
+					# up a level instead -- letting them go is move_left,
+					# above, a deliberately different key.
+					var se := (Game.set_aide(true) if _sel == 0 else Game.set_janitor(true)) \
+						if not hired else Game.level_up_staff(which)
+					Sfx.play("deny" if se != "" else "coins")
 				else:
 					var err := Game.buy_perk(String(rows[_sel]))
 					Sfx.play("deny" if err != "" else "confirm")

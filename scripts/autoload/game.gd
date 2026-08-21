@@ -425,6 +425,10 @@ func new_run(seed_value: int = 0) -> void:
 	teaching = false
 	has_aide = false
 	_aide_timer = 0.0
+	aide_level = 1
+	has_janitor = false
+	_janitor_timer = 0.0
+	janitor_level = 1
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -1340,6 +1344,17 @@ var quiz_focus: bool = false
 var has_aide: bool = false
 ## Seconds until the aide reaches the next finished desk.
 var _aide_timer: float = 0.0
+## 1..Balance.staff_level_max. Each level shortens aide_interval() by
+## Balance.staff_speedup_per_level, compounding -- see aide_interval().
+var aide_level: int = 1
+
+## Have you hired a janitor? Same shape as the aide, one door over: they
+## clean the room's own daily mess (mess.gd) for you, one piece per
+## interval, any time of day rather than only during a lesson -- mess
+## itself isn't lesson-gated, so neither is this.
+var has_janitor: bool = false
+var _janitor_timer: float = 0.0
+var janitor_level: int = 1
 
 # --- consumables -------------------------------------------------------
 ## A treat for TODAY, bought at the noticeboard rather than placed in the
@@ -1392,6 +1407,9 @@ func _reset_consumables() -> void:
 	consumables_used_today.clear()
 
 signal aide_hired(on: bool)
+signal janitor_hired(on: bool)
+## `which` is "aide" or "janitor".
+signal staff_leveled(which: String, level: int)
 
 var attention: float = 0.0
 ## Whether the teacher is teaching RIGHT NOW, for the animation and the HUD.
@@ -1488,6 +1506,8 @@ func set_aide(on: bool) -> String:
 			return "You cannot afford an aide."
 	has_aide = on
 	_aide_timer = 0.0
+	if not on:
+		aide_level = 1   # letting them go loses the training you paid for
 	aide_hired.emit(has_aide)
 	return ""
 
@@ -1504,12 +1524,91 @@ func tick_aide(delta: float) -> StudentData:
 	_aide_timer -= delta
 	if _aide_timer > 0.0:
 		return null
-	_aide_timer = Balance.aide_collect
+	_aide_timer = aide_interval()
 	for s: StudentData in roster:
 		if s.has_work_to_collect():
 			s.collect_work()
 			return s
 	return null
+
+
+## How long between the aide's collections, right now. Level 1 is
+## Balance.aide_collect unchanged; each level above that compounds a
+## Balance.staff_speedup_per_level reduction, so a levelled aide gets
+## faster without ever hitting zero.
+func aide_interval() -> float:
+	Balance.ensure_loaded()
+	return Balance.aide_collect \
+		* pow(1.0 - Balance.staff_speedup_per_level, aide_level - 1)
+
+
+func janitor_interval() -> float:
+	Balance.ensure_loaded()
+	return Balance.janitor_clean \
+		* pow(1.0 - Balance.staff_speedup_per_level, janitor_level - 1)
+
+
+## Coins to raise EITHER staff member from `level` to `level + 1`. Same
+## rising-cost shape Grid expansion already uses, just base/growth read
+## from balance.json's staff_levels instead of school.room_cost*.
+func staff_level_cost(level: int) -> int:
+	Balance.ensure_loaded()
+	return int(round(Balance.staff_level_cost_base
+		* pow(Balance.staff_level_cost_growth, level - 1)))
+
+
+## `which` is "aide" or "janitor". Returns "" on success or why not.
+func level_up_staff(which: String) -> String:
+	Balance.ensure_loaded()
+	var hired: bool = has_aide if which == "aide" else has_janitor
+	if not hired:
+		return "Hire one first."
+	var level: int = aide_level if which == "aide" else janitor_level
+	if level >= Balance.staff_level_max:
+		return "Already fully trained."
+	if not spend(staff_level_cost(level)):
+		return "You cannot afford that."
+	level += 1
+	if which == "aide":
+		aide_level = level
+	else:
+		janitor_level = level
+	staff_leveled.emit(which, level)
+	return ""
+
+
+## Hire, or let go. Returns "" on success or why not.
+func set_janitor(on: bool) -> String:
+	Balance.ensure_loaded()
+	if on == has_janitor:
+		return "Nothing to change."
+	if on:
+		if not spend(Balance.janitor_cost):
+			return "You cannot afford a janitor."
+	has_janitor = on
+	_janitor_timer = 0.0
+	if not on:
+		janitor_level = 1
+	janitor_hired.emit(has_janitor)
+	return ""
+
+
+## The janitor works the room at any time of day -- mess isn't
+## lesson-gated, so neither is this, unlike tick_aide().
+##
+## Unlike the aide, Game does not own the room's mess list (that is
+## classroom.gd's), so this only answers the timing question: true means
+## "clean whatever is closest to hand right now", and the caller (which
+## does own the list) decides what that means.
+func tick_janitor(delta: float) -> bool:
+	Balance.ensure_loaded()
+	if not has_janitor:
+		return false
+	_janitor_timer -= delta
+	if _janitor_timer > 0.0:
+		return false
+	_janitor_timer = janitor_interval()
+	return true
 
 
 ## Feed or drain the class's attention. `at_front` is whether the teacher is
@@ -1691,6 +1790,8 @@ func advance_day() -> Dictionary:
 	# rather than a purchase you make once and forget about.
 	if has_aide:
 		upkeep += Balance.aide_wage
+	if has_janitor:
+		upkeep += Balance.janitor_wage
 	# every teacher you employ, every day, taught or not
 	upkeep += wage_bill()
 	coins = maxi(0, coins - upkeep)
@@ -1993,6 +2094,9 @@ func to_dict() -> Dictionary:
 		"term": term,
 		"specialism": specialism,
 		"has_aide": has_aide,
+		"aide_level": aide_level,
+		"has_janitor": has_janitor,
+		"janitor_level": janitor_level,
 		"chosen_lesson": chosen_lesson,
 		"assignment": assignment,
 		"term_history": term_history,
@@ -2039,6 +2143,9 @@ func from_dict(d: Dictionary) -> void:
 	term = int(d.get("term", 1))
 	specialism = String(d.get("specialism", ""))
 	has_aide = bool(d.get("has_aide", false))
+	aide_level = int(d.get("aide_level", 1))
+	has_janitor = bool(d.get("has_janitor", false))
+	janitor_level = int(d.get("janitor_level", 1))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))

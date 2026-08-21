@@ -1550,6 +1550,21 @@ func test_mess() -> void:
 		chk("the whole prop -- sprite included -- is gone, not just the "
 			+ "invisible interact area", not is_instance_valid(body))
 
+	# --- a hired janitor cleans the room on their own, no E needed ---
+	world._spawn_mess()   # a known, non-empty starting point
+	var jm_before: int = world.messes.size()
+	chk("something to clean, for the janitor to find", jm_before > 0)
+	Game.coins = 5000
+	chk("hiring a janitor", Game.set_janitor(true) == "")
+	var jcoins_before: int = Game.coins   # AFTER the hire cost, not before
+	Game._janitor_timer = 0.0   # due immediately, rather than waiting real seconds
+	await step(2)
+	chk("the janitor cleaned something without a single E press",
+		world.messes.size() < jm_before, world.messes.size())
+	chk("and it paid the same coin tip a manual clean would",
+		Game.coins == jcoins_before + Balance.mess_clean_reward, Game.coins)
+	Game.set_janitor(false)
+
 	Game.new_run(SEED)
 	await step(2)
 
@@ -4734,14 +4749,75 @@ func test_autopilot_and_aide() -> void:
 	chk("their wage is in the day's upkeep",
 		int(report["upkeep"]) >= Balance.aide_wage, report["upkeep"])
 
+	# --- levelling the aide up ---
+	Game.coins = 5000
+	var interval_before: float = Game.aide_interval()
+	chk("level 1 is the unmodified interval",
+		is_equal_approx(interval_before, Balance.aide_collect), interval_before)
+	var lvl_before: int = Game.coins
+	chk("levelling up costs coins and raises the level",
+		Game.level_up_staff("aide") == "" and Game.aide_level == 2,
+		Game.aide_level)
+	chk("and it costs what staff_level_cost(1) says",
+		Game.coins == lvl_before - Game.staff_level_cost(1), Game.coins)
+	chk("a levelled aide is faster, not just numbered differently",
+		Game.aide_interval() < interval_before, Game.aide_interval())
+	Game.coins = 0
+	chk("cannot afford the next level on nothing",
+		Game.level_up_staff("aide") != "")
+	Game.coins = 999999
+	for i in Balance.staff_level_max:
+		Game.level_up_staff("aide")
+	chk("levelling is capped at staff_level_max",
+		Game.aide_level == Balance.staff_level_max, Game.aide_level)
+	chk("and trying past the cap says so rather than overshooting",
+		Game.level_up_staff("aide") != "")
+
 	Game.set_aide(false)
 	chk("and you can let them go", not Game.has_aide)
+	chk("letting them go loses the training you paid for",
+		Game.aide_level == 1, Game.aide_level)
 
 	Game.save_game()
 	Game.set_aide(true)
 	Game.load_game()
 	chk("whether you have one survives a save", not Game.has_aide)
 	Game.delete_save()
+
+	# --- the janitor: same shape as the aide, one door over ---
+	Game.new_run(SEED)
+	await step(2)
+	chk("you start without a janitor either", not Game.has_janitor)
+	Game.coins = 0
+	chk("and cannot afford one on nothing", Game.set_janitor(true) != "")
+	Game.coins = Balance.janitor_cost + 10
+	chk("hiring works", Game.set_janitor(true) == "")
+	chk("and it cost what it says", Game.coins == 10, Game.coins)
+
+	# unlike the aide, this works in ANY phase -- mess isn't lesson-gated
+	Game.set_phase(Game.Phase.MORNING)
+	var acted := false
+	for i in 400:
+		if Game.tick_janitor(1.0 / 60.0):
+			acted = true
+	chk("the janitor's timer fires outside a lesson too", acted)
+
+	Game.coins = 5000
+	var jbefore: float = Game.janitor_interval()
+	chk("levelling the janitor up speeds them up the same way",
+		Game.level_up_staff("janitor") == "" and Game.janitor_level == 2
+		and Game.janitor_interval() < jbefore, Game.janitor_interval())
+
+	Game.set_phase(Game.Phase.AFTERNOON)
+	Game.coins = 5000
+	var jday_before: int = Game.coins
+	var jreport := Game.advance_day()
+	chk("the janitor's wage is in the day's upkeep too",
+		int(jreport["upkeep"]) >= Balance.janitor_wage, jreport["upkeep"])
+
+	Game.set_janitor(false)
+	chk("letting the janitor go also resets their training",
+		not Game.has_janitor and Game.janitor_level == 1, Game.janitor_level)
 
 	Game.new_run(SEED)
 	await step(2)
@@ -7098,7 +7174,8 @@ func test_shop_and_staff() -> void:
 	Game.add_teacher_xp(Balance.teacher_xp_per_level * 3)
 	await tap("menu")
 	await tap("menu")
-	# THE AIDE is row 0 of the staff room now, so the perks start at row 1.
+	# THE AIDE is row 0 and the JANITOR row 1 of the staff room now, so
+	# the perks start at row 2.
 	Game.coins = 5000
 	var coins_before: int = Game.coins
 	chk("the staff room opens on the aide", hud._sel == 0, hud._sel)
@@ -7106,9 +7183,19 @@ func test_shop_and_staff() -> void:
 	chk("E hires them", Game.has_aide)
 	chk("and it costs what it says", Game.coins == coins_before - Balance.aide_cost,
 		"%d -> %d" % [coins_before, Game.coins])
-	await tap("interact")
-	chk("E again lets them go", not Game.has_aide)
 
+	var before_level_up: int = Game.coins
+	await tap("interact")
+	chk("E again, now hired, trains them up a level instead of firing them",
+		Game.has_aide and Game.aide_level == 2, Game.aide_level)
+	chk("and that costs coins too",
+		Game.coins == before_level_up - Game.staff_level_cost(1), Game.coins)
+
+	await tap("move_left")
+	chk("move_left lets them go instead", not Game.has_aide)
+	chk("and the training is lost with them", Game.aide_level == 1, Game.aide_level)
+
+	await tap("move_down")
 	await tap("move_down")
 	var spent_before: int = Game.perk_points_spent()
 	await tap("interact")

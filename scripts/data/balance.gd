@@ -96,6 +96,17 @@ static var aide_cost: int = 260
 static var aide_wage: int = 18
 static var aide_collect: float = 2.2
 
+# --- the janitor -----------------------------------------------------------
+static var janitor_cost: int = 220
+static var janitor_wage: int = 15
+static var janitor_clean: float = 3.0
+
+# --- levelling the aide/janitor up ----------------------------------------
+static var staff_level_max: int = 5
+static var staff_level_cost_base: int = 40
+static var staff_level_cost_growth: float = 1.6
+static var staff_speedup_per_level: float = 0.15
+
 # --- autopilot -----------------------------------------------------------
 static var auto_speed: float = 1.35
 static var auto_arrive: int = 1
@@ -323,6 +334,17 @@ static func apply(d: Dictionary) -> void:
 	aide_cost = int(ai.get("hire_cost", aide_cost))
 	aide_wage = int(ai.get("daily_wage", aide_wage))
 	aide_collect = float(ai.get("collect_seconds", aide_collect))
+
+	var ja: Dictionary = d.get("janitor", {})
+	janitor_cost = int(ja.get("hire_cost", janitor_cost))
+	janitor_wage = int(ja.get("daily_wage", janitor_wage))
+	janitor_clean = float(ja.get("clean_seconds", janitor_clean))
+
+	var sl: Dictionary = d.get("staff_levels", {})
+	staff_level_max = int(sl.get("max_level", staff_level_max))
+	staff_level_cost_base = int(sl.get("level_cost_base", staff_level_cost_base))
+	staff_level_cost_growth = float(sl.get("level_cost_growth", staff_level_cost_growth))
+	staff_speedup_per_level = float(sl.get("speedup_per_level", staff_speedup_per_level))
 
 	var ap: Dictionary = d.get("autopilot", {})
 	auto_speed = float(ap.get("speed_multiplier", auto_speed))
