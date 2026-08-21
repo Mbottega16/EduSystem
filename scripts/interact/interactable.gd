@@ -26,13 +26,27 @@ func set_pick_radius(r: float) -> void:
 		if c is CollisionShape2D and (c as CollisionShape2D).shape is CircleShape2D:
 			((c as CollisionShape2D).shape as CircleShape2D).radius = r
 
-## Which button works this thing.
-##   USE    - the constant, safe, repeated verbs: help, collect, hand in.
-##   MANAGE - the deliberate, session-level ones: start or end a lesson,
-##            ring the bell, open the shop.
-## Splitting these is the whole point: you mash USE all lesson long, and it
-## must never be able to end the lesson.
-enum Key { USE, MANAGE }
+## Which key works this thing.
+##
+##   USE       - the constant, safe, repeated verb: help a stuck child,
+##               hand in finished classwork, clean up a mess. Mashable,
+##               and it must never be able to end a lesson.
+##   MANAGE    - the deliberate, session-level ones: start or end a
+##               lesson, ring the bell, open the furniture shop.
+##   QUIZ      - call a quick quiz, at the podium, mid-lesson.
+##   HOMEWORK  - mark the homework you have collected, at your own desk.
+##   MOVE_DESK - pick up one specific desk and carry it.
+##
+## *(Aug 2026 -- three verbs that used to share USE or MANAGE contextually
+## got their own dedicated key each, on user request: quiz off USE, and
+## homework/desk-move off their old landmarks, so what a key does no
+## longer depends on which desk you happen to be standing at.)*
+enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK }
+
+## Every action a landmark can be bound to, in the same order as the enum
+## above -- the one place that mapping lives, so action_name() is a lookup
+## rather than a chain of special cases that could disagree with itself.
+const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk"]
 
 ## Seconds the button must be HELD. Zero is instant. Anything irreversible
 ## gets a hold, so a stray press cannot cost you a lesson.
@@ -70,7 +84,7 @@ func interact(_by: Node) -> void:
 
 ## The action name this interactable listens for.
 func action_name() -> String:
-	return "manage" if uses_key == Key.MANAGE else "interact"
+	return KEY_ACTIONS[uses_key]
 
 
 ## What the prompt should tell the player to press.

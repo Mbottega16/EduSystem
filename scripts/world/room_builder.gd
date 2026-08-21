@@ -26,6 +26,7 @@ const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
 const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
 const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
+const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
@@ -285,6 +286,11 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(MARKING_DESK_SCRIPT)
 	body.add_child(it)
+	# Same tile, other new key: marking homework used to share this
+	# Interactable's own prompt: see homework_desk.gd for why it split off.
+	var hw := Interactable.new()
+	hw.set_script(HOMEWORK_DESK_SCRIPT)
+	body.add_child(hw)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it

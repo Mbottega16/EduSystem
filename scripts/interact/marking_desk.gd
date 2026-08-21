@@ -1,10 +1,15 @@
 extends Interactable
 
-## Your own desk. Two jobs, by priority: take the classwork out of your arms,
-## then mark the homework you've collected.
+## Your own desk, on USE (E): take the classwork out of your arms.
+##
+## Used to also open the homework marking screen from here, on the same
+## key -- split off onto its own HOMEWORK key (H) and its own Interactable,
+## homework_desk.gd, sharing this same tile. See that file for why: two
+## unrelated jobs stacked on one prompt meant the desk sometimes offered
+## "Hand in" when what you actually walked over for was "Mark", with no way
+## to ask for the other one directly.
 
 signal work_handed_in(count: int)
-signal marking_requested()
 
 var handed_in: int = 0
 
@@ -25,7 +30,7 @@ func can_interact() -> bool:
 	var c := _carrier()
 	if c == null:
 		return false
-	return c.carrying > 0 or c.carrying_hw > 0
+	return c.carrying > 0
 
 
 func prompt_text() -> String:
@@ -34,20 +39,15 @@ func prompt_text() -> String:
 		return ""
 	if c.carrying > 0:
 		return "Hand in %d sheet%s" % [c.carrying, "" if c.carrying == 1 else "s"]
-	if c.carrying_hw > 0:
-		return "Mark %d homework" % c.carrying_hw
 	return ""
 
 
 func interact(by: Node) -> void:
 	var c: Node = by if (by != null and by.has_method("carry_work")) else _carrier()
-	if c == null:
+	if c == null or c.carrying <= 0:
 		return
-	if c.carrying > 0:
-		handed_in += c.carrying
-		Sfx.play("paper")
-		c.drop_all_work()
-		work_handed_in.emit(handed_in)
-	elif c.carrying_hw > 0:
-		marking_requested.emit()
+	handed_in += c.carrying
+	Sfx.play("paper")
+	c.drop_all_work()
+	work_handed_in.emit(handed_in)
 	used.emit(by)

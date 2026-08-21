@@ -22,7 +22,12 @@ signal carrying_changed(count: int)
 ## whenever two things overlapped one of them was silently unreachable and
 ## the tie was broken by node order. Every landmark that has grown a second
 ## verb since has run into it.
-var targets: Dictionary = {"interact": null, "manage": null}
+## One slot per action an Interactable can be bound to -- see
+## Interactable.KEY_ACTIONS, the single source for this list.
+var targets: Dictionary = {
+	"interact": null, "manage": null,
+	"quiz": null, "homework": null, "move_desk": null,
+}
 
 ## The one to describe in the prompt. USE wins when both are live: it is the
 ## button you are already holding a finger over.
@@ -214,9 +219,11 @@ func _repick() -> void:
 	var before: Interactable = target
 	for action: String in targets.keys():
 		targets[action] = _pick_target(action)
-	target = _live("interact")
-	if target == null:
-		target = _live("manage")
+	target = null
+	for action: String in Interactable.KEY_ACTIONS:
+		target = _live(action)
+		if target != null:
+			break
 	if target != before:
 		target_changed.emit(target)
 
@@ -225,7 +232,7 @@ func _repick() -> void:
 ## than only mentioning whichever one happened to win.
 func offers() -> Array[Interactable]:
 	var out: Array[Interactable] = []
-	for action: String in ["interact", "manage"]:
+	for action: String in Interactable.KEY_ACTIONS:
 		var t := _live(action)
 		if t != null:
 			out.append(t)
@@ -254,7 +261,7 @@ var _holding: String = ""
 ## and on top of that, the two that cannot be undone need the key held.
 func _tick_hold(delta: float) -> void:
 	hold_progress = 0.0
-	for action: String in ["interact", "manage"]:
+	for action: String in Interactable.KEY_ACTIONS:
 		_tick_one(action, delta)
 
 

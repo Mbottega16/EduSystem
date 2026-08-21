@@ -93,6 +93,21 @@ These are not optional work; they are the queue. Prompts live in
 
 ## B. Real gaps, found by counting — highest value first
 
+- [ ] **B0. A grid-out-of-bounds error prints on every single room
+      build.** *(Found Aug 2026, not chased -- unrelated to the task in
+      progress at the time.)* `set_point_solid`/`block_rect` in
+      `grid.gd`, called from `room_builder.gd`'s `build_walls()`, tries
+      to mark points outside the AStarGrid2D's actual bounds (seen:
+      `(20,0)`, `(21,0)`, `(22,0)`, `(20,1)`... against a `20x11` grid) --
+      repeating dozens of times per build. Non-fatal: the suite passes,
+      screenshots render correctly, walking/collision all work as
+      expected in every manual check so far. Only surfaced because a
+      full stderr capture was taken for once instead of the usual
+      tail -- an error this noisy, printing on literally every room
+      build including every test's own setup, went unnoticed for who
+      knows how long. Worth tracing `build_walls()`'s loop bounds
+      properly rather than living with a wall of caught-but-ignored
+      engine errors on every run.
 - [x] **B1. What a concept is for.** *(Decided and implemented Aug 2026.)*
       The finding was bigger than "112 aren't linked": `concept_bonus`
       caps at **ten** concepts, so 110 of the 120 move no number at all.
@@ -348,6 +363,52 @@ for no reason.
 ---
 
 ## Done
+
+- [x] **One dedicated key per verb: quiz, homework and desk-move each got
+      their own.** *(Aug 2026 -- direct user instruction: "H to collect
+      homework / E to answer questions... / F to move furniture / Q to
+      pop a quiz / D to move a desk", with three genuine conflicts
+      resolved by asking rather than guessing: D already meant
+      walk-right, Q already meant settle, and lesson/bell had no key
+      left in the list at all.)* This revises the project's own "two
+      buttons per landmark" hard constraint, which held until a THIRD
+      landmark verb (the quiz) needed somewhere to live with nowhere
+      left that wasn't a lie about what E or F meant. `Interactable.Key`
+      grew from `{USE, MANAGE}` to five values, each a real, distinct,
+      registered input action (`Interactable.KEY_ACTIONS` is the single
+      list); `player.gd`'s picker, prompt and hold logic all generalised
+      from a hardcoded pair to iterating that list, rather than special-
+      casing three more times.
+      Split cleanly along existing lines: quiz_caller.gd and
+      desk_mover.gd just changed which key they answer to; the teacher's
+      desk split into two Interactables sharing one tile (marking_desk.gd
+      keeps "hand in classwork" on E, new homework_desk.gd owns "mark
+      homework" on H), wired through classroom.gd exactly the way the
+      curriculum board already shares the noticeboard's tile -- a
+      classroom-level signal relay, not a special case.
+      Two silent-overflow bugs caught by screenshot, not assumed: the
+      Principal's Office's own flat tutorial list (already windowed
+      elsewhere this session) needed no further change, but the title
+      screen's CONTROLS page -- a plain, non-scrolling Label -- had never
+      been screenshotted at all, and three new rebindable actions pushed
+      its list into the footer's own row. Built `tools/title_shot.gd`/
+      `.tscn` (the title scene was never reachable through `shot.gd`,
+      which only ever loads `main.tscn`) specifically to catch this, and
+      windowed the Controls list the same way Career already pages past
+      thirty milestones.
+      `Audit the Room.bat` extended from two columns (E/F) to five
+      (E/F/Q/H/M) -- an audit tool blind to three of five possible
+      actions would have been actively misleading about what changed.
+      Re-ran it, `Trace a Day.bat` and `Simulate a Term.bat`: every
+      landmark answers on the right key in every phase, contract
+      unmoved (key rebinding touches no grade input).
+      1189 -> 1193 assertions, including a genuine walk-up-and-press
+      test for the new homework key that was never covered even for the
+      OLD key (previous tests called `hud.open_marking()` directly).
+      Also noted, not fixed (pre-existing, unrelated): a
+      `set_point_solid` / grid-out-of-bounds error prints on every room
+      build, caught only because a full stderr capture was taken for the
+      first time rather than the usual tail. Worth a real look later.
 
 - [x] **A `/deep_critique` pass, and all ten findings implemented.**
       *(Aug 2026 -- user: "give me a list of the 10 most important

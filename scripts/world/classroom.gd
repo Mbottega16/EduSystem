@@ -31,6 +31,7 @@ signal voice_raised(settled: int)
 ## The inspector has seen enough.
 signal inspected(report: Dictionary)
 signal curriculum_requested()
+signal marking_requested()
 signal test_requested(lesson_id: String)
 signal room_rebuilt()
 
@@ -124,6 +125,9 @@ func build() -> void:
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
 			c.curriculum_opened.connect(_on_curriculum_requested)
+	for hw in get_tree().get_nodes_in_group("homework_desk"):
+		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
+			hw.marking_requested.connect(_on_marking_requested)
 	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
@@ -314,6 +318,9 @@ func rebuild_room() -> void:
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
 			c.curriculum_opened.connect(_on_curriculum_requested)
+	for hw in get_tree().get_nodes_in_group("homework_desk"):
+		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
+			hw.marking_requested.connect(_on_marking_requested)
 	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
@@ -727,6 +734,10 @@ func _on_quiz_requested() -> void:
 
 func _on_curriculum_requested() -> void:
 	curriculum_requested.emit()
+
+
+func _on_marking_requested() -> void:
+	marking_requested.emit()
 
 
 func _on_test_requested(lesson_id: String) -> void:

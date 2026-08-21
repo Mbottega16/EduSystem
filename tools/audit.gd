@@ -55,12 +55,22 @@ func offer(action: String) -> String:
 	return it.prompt_text() if it.can_interact() else ""
 
 
+## Every action a landmark could answer on now, not just E/F -- quiz,
+## homework and move_desk each got their own dedicated key when the
+## whole scheme changed, Aug 2026, and an audit tool that only ever
+## printed two of five possible columns would be misleading players
+## into thinking the other three still shared E or F contextually.
 func row(label: String, tile: Vector2i, facing: int) -> void:
 	await stand_at(tile, facing)
 	var e := offer("interact")
 	var f := offer("manage")
-	print("   %-16s E: %-30s F: %s" % [label, e if e != "" else "-",
-		f if f != "" else "-"])
+	var q := offer("quiz")
+	var h := offer("homework")
+	var m := offer("move_desk")
+	print("   %-16s E: %-24s F: %-20s Q: %-14s H: %-14s M: %s" % [
+		label, e if e != "" else "-", f if f != "" else "-",
+		q if q != "" else "-", h if h != "" else "-",
+		m if m != "" else "-"])
 
 
 func _audit() -> void:

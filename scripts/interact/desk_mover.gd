@@ -3,10 +3,11 @@ extends Interactable
 ## Pick up a whole desk — desk, chair, and whoever is sitting at it — and put
 ## it somewhere else.
 ##
-## On MANAGE (F), not USE (E). E is the verb you mash all lesson long to help
-## and collect; rearranging the furniture is emphatically not that, and the
-## whole reason the two buttons were split was that one key doing everything
-## meant reaching to help a student could end the lesson.
+## On its own dedicated MOVE_DESK key (M), not USE (E). E is the verb you
+## mash all lesson long to help and collect; rearranging the furniture is
+## emphatically not that. Used to share MANAGE (F) with the podium/bell/
+## shop; split onto its own key on user request, Aug 2026, so it no longer
+## depends on which landmark's contextual F job happened to be live.
 ##
 ## This shares a tile with the desk's own desk_station, and the picker keeps
 ## exactly one target, so the two must never both be live at once — see
@@ -21,7 +22,7 @@ var station: Interactable = null
 
 func _init() -> void:
 	super()
-	uses_key = Key.MANAGE
+	uses_key = Key.MOVE_DESK
 
 
 func can_interact() -> bool:

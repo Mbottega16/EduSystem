@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-20**, against build `b32`, with **1189 assertions
+> **Measured on 2026-08-20**, against build `b32`, with **1193 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -321,8 +321,8 @@ milestone and having taught it, not a number going up.
 | Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 16 modes |
-| Input actions | 15 (14 rebindable) |
-| Tests | **1189 assertions** across **81 sections** |
+| Input actions | 18 (17 rebindable) |
+| Tests | **1193 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -634,14 +634,22 @@ quieter during a test, restless when the room is noisy.
 - **640×352** (doubled Aug 2026, was 320×176 -- same 20×11 room, denser
   pixels, same 3x window scale). The whole room is one screen at the
   opening size; the camera only moves once you have bought a bigger room.
-- **Two buttons.** E is the mashable verb (help, collect, hand in); F is
-  session-level (lesson, bell, shop). *"You mash USE all lesson long, and it
-  must never be able to end the lesson."*
-- **One landmark carries a verb on each button** — the podium teaches on F
-  and quizzes on E. Shared tiles resolve **by key**, never by node order.
+- **One dedicated key per verb.** *(Revised Aug 2026 -- was "two
+  buttons," E mashable/F session-level and nothing else, until a THIRD
+  landmark verb needed somewhere to live.)* E stays the mash (help,
+  collect, hand in, clean up), always reversible, never ends anything.
+  F stays session-level (lesson, bell, shop). Every other verb --
+  quiz, marking, moving a desk -- gets its own permanent global key
+  (Q, H, M) rather than sharing E/F contextually depending which
+  landmark you stand at. See `Interactable.Key` in `interactable.gd`.
+- **A landmark can carry more than one verb at once**, each on its own
+  key — the podium teaches on F and quizzes on Q, a desk offers help on
+  E and a move on M, your own desk offers hand-in on E and marking on
+  H. Shared tiles resolve **by key**, never by node order, and the
+  prompt bar names every live one rather than picking a winner.
 - **Anything irreversible is HELD**, with a bar in the prompt.
-- **Panel budget: 11 rows at font 16** in a 576×256 body (doubled Aug
-  2026, was font 8 in 288×128 -- the row count is unchanged, only the
+- **Panel budget: 11 rows at font 16** in a 640×352 body (doubled Aug
+  2026, was font 8 in 320×176 -- the row count is unchanged, only the
   pixels). Both the prompt bar and the status strip are Labels and clip
   in silence, so both are fit-tested.
 - **The prompt bar names both buttons** whenever both are live.

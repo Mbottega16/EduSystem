@@ -63,20 +63,46 @@ repeatedly by edits that seemed obviously right:
   something costs or how far along you are, it is fine.
 - **Legwork, not judgement.** Automation may do the walking; it may never
   make the decision about a particular child.
-- **Two buttons per landmark.** E is the mashable verb (help, collect,
-  hand in). F is session-level (lesson, bell, shop). Anything irreversible
-  is HELD. This is about what one landmark can offer, not the whole
-  keyboard -- the game already had Tab/B/Q/P as dedicated global keys
-  before this rule was ever written down, and a new global key (`I`, the
-  dashboard) is the same kind of thing, not an exception to it. What
-  would actually break the rule is a THIRD verb on a landmark, or E/F
-  gaining a job that is not mashable/session-level respectively.
+- **One dedicated key per verb.** *(Revised Aug 2026, on user request --
+  see `Interactable.Key` in `scripts/interact/interactable.gd` for the
+  authoritative list.)* Used to be "two buttons per landmark": E the
+  mashable verb, F the session-level one, and nothing else. That held
+  for a while, then broke down the moment a landmark needed a THIRD
+  verb (a quiz, at the podium, alongside teach/end-lesson) -- there was
+  nowhere left to put it that wasn't a lie about what E or F meant.
+  The fix was not a third contextual button. It was giving each verb
+  its own PERMANENT key, global rather than landmark-contextual: E
+  stays the mash (help, collect, hand in, clean up) and can never do
+  anything irreversible; F stays session-level (lesson, bell, shop);
+  quiz, marking and moving a desk each got their own key (Q, H, M)
+  instead of sharing E or F depending which landmark you stood at.
+  Two rules replace the old one:
+    1. **E must never gain a job that is not mashable and reversible.**
+       The instant helping a stuck child could end a lesson, the whole
+       point of splitting keys is gone.
+    2. **A verb that appears at more than one landmark, or that could
+       ever be confused with another verb sharing its key, gets its
+       own dedicated action** rather than being folded back into E or
+       F contextually. `Interactable.KEY_ACTIONS` is the single list;
+       add to it rather than overloading an existing entry.
+  Tab/B/C/P/I/V remain dedicated global keys for verbs that were never
+  about a landmark at all (the class list, rearranging the room,
+  settling it, pausing, your dashboard, watching a delegated room) --
+  unaffected by this, and the precedent this whole scheme now follows.
 - **A dev tool must never write the player's save.** `Game.save_path` is a
   var for exactly this reason — the suite and simulators point it elsewhere.
-- **Panel budget:** 11 rows at font 16 in a 576×256 body (doubled Aug 2026
-  alongside the whole game's resolution -- was font 8 in 288×128; the ROW
+- **Panel budget:** 11 rows at font 16 in a 640×352 body (doubled Aug 2026
+  alongside the whole game's resolution -- was font 8 in 320×176; the ROW
   COUNT a screen can hold is unchanged, since font size and body both
-  scaled together). Labels clip in silence, so every panel is fit-tested.
+  scaled together). Labels clip in silence, so every panel is fit-tested --
+  found twice more since this rule was written: a 10-line flat list in the
+  Principal's Office clipped past the 4th entry with no scrollbar to say
+  so, and the Controls screen's own action list overflowed into its
+  footer the moment three new rebindable actions landed. Both are now
+  windowed the way Career already was; confirm with a real screenshot,
+  not a line count, since the true cutoff sits below what raw `\n`
+  counting suggests once font size and line spacing are both accounted
+  for.
 
 ---
 
@@ -87,7 +113,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1189 assertions — must pass, count must not drop
+Run Tests.bat            1193 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -99,9 +125,17 @@ Or **`Verify.bat`** — the suite, the docs and the contract in one command,
 replacing three of the five double-clicks above.
 
 Then **look at it**: `Take a Screenshot.bat [screen]` runs the real scene
-and saves a PNG into `shots/` (gitignored). Pass no argument for the title
-screen, or one of the 23 named in the batch file's own comment. Headless
-proves code does not crash; it never proves anything is on screen.
+and saves a PNG into `shots/` (gitignored). Pass no argument for the HUD's
+own TITLE overlay, or one of the 40 named in the batch file's own comment.
+Headless proves code does not crash; it never proves anything is on screen.
+
+**That tool only ever loads `scenes/main.tscn`**, so it has never been
+able to see the ACTUAL start screen (`scenes/ui/title.tscn` — the chalk
+dust, the logo, Settings/Controls/Credits) at all. For those, use
+`godot --path . res://tools/title_shot.tscn -- out.png [page]`, `page`
+being one of Title.Page's names (main, settings, controls, howto,
+credits, confirm_wipe). Built the same session Controls grew past ten
+rows and needed to be screenshotted to confirm it, rather than assumed.
 
 Two more checkers, run the same way as `check_docs.py`:
 
@@ -151,7 +185,7 @@ a deliberate WIP commit.
 | `scripts/ui/hud.gd` | Every screen. 16 modes; ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1189 assertions, 81 sections |
+| `tests/run.gd` | The suite — 1193 assertions, 81 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

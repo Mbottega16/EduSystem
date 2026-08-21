@@ -2210,7 +2210,7 @@ func test_two_buttons_one_landmark() -> void:
 		p.targets["interact"])
 	chk("both are on offer together", p.offers().size() == 2, p.offers().size())
 
-	# --- a desk: help on E, move it on F ---
+	# --- a desk: help on E, move it on its own dedicated key ---
 	Game.set_phase(Game.Phase.AFTERNOON)
 	var s0: StudentData = Game.roster[0]
 	s0.work_state = StudentData.Work.DONE
@@ -2229,11 +2229,36 @@ func test_two_buttons_one_landmark() -> void:
 
 	s0.work_state = StudentData.Work.COLLECTED       # nothing left to do for them
 	await step(2)
-	chk("with nothing to do for the child, MANAGE offers the move instead",
+	chk("with nothing to do for the child, MOVE_DESK offers the move instead",
 		(func() -> bool:
-			var t: Interactable = p.targets["manage"]
+			var t: Interactable = p.targets["move_desk"]
 			return t != null and t.prompt_text().contains("desk")).call(),
-		p.targets["manage"])
+		p.targets["move_desk"])
+
+	# --- your own desk: hand in on E, mark homework on its own key ---
+	# Walked, not called directly on hud -- open_marking() being reachable
+	# in isolation was never proof the button that is supposed to reach it
+	# actually does, and this specific chain (a new Interactable, a new
+	# classroom-level signal, a new main.gd connection) had no walk-up-and-
+	# press coverage at all before this.
+	p.carrying = 0
+	s0.hw_state = StudentData.HW.COLLECTED
+	s0.hw_true_accuracy = 0.9
+	s0.hw_sheet = Questions.make_sheet(0.9, Game.rng)
+	p.carry_homework(1)
+	await place_player(Layout.TEACHER_DESK[0] + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	chk("carrying homework, USE offers nothing (you have no classwork)",
+		p.targets["interact"] == null)
+	chk("HOMEWORK offers to mark it", (func() -> bool:
+		var t: Interactable = p.targets["homework"]
+		return t != null and t.prompt_text().contains("Mark")).call(),
+		p.targets["homework"])
+	await tap("homework")
+	chk("pressing it opens the marking screen", _hud().mode == _hud().Mode.MARKING)
+	_hud().close()
+	p.carrying_hw = 0
+	await step(2)
 
 	# THE CRASH THIS GUARDS. Reading a freed node into a TYPED variable
 	# throws "Trying to assign invalid previously freed instance", which
@@ -6344,18 +6369,20 @@ func test_buttons() -> void:
 	await step(2)
 	chk("the lesson is running", Game.phase == Game.Phase.LESSON)
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
-	# The podium has two verbs now (E quizzes, F ends the lesson), so the
+	# The podium has two verbs now (Q quizzes, F ends the lesson), so the
 	# question is which button points at it, not what the single target is.
 	chk("the podium is what MANAGE is pointing at",
 		world.player.targets["manage"] == world.podium)
-	# E at the podium is the QUICK QUIZ now. That is the point of the split:
-	# the mashable button reaches only the safe, reversible verb, however
-	# many times you hit it.
+	# Q at the podium is the QUICK QUIZ -- its own dedicated key, not the
+	# mashable USE button, since Aug 2026's key remap. Mashing E here must
+	# still do nothing at all: neither ending the lesson nor calling a quiz.
 	for i in 4:
 		await tap("interact")
 	chk("mashing the USE button at the podium cannot end the lesson",
 		Game.phase == Game.Phase.LESSON, Game.phase)
-	chk("all it can do is call a quiz", Game.quiz_done)
+	chk("and mashing it does not call a quiz either", not Game.quiz_done)
+	await tap("quiz")
+	chk("its own key does", Game.quiz_done)
 	_hud().close()          # the quiz report must not leak into the next test
 	await step(2)
 

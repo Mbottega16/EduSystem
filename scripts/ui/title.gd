@@ -310,7 +310,16 @@ func _render() -> void:
 			heading.text = "CONTROLS"
 			logo.visible = false
 			menu.offset_top = 64.0   # doubled Aug 2026
-			for i in rows.size():
+			# Windowed, the same way Career/Office page past a list longer
+			# than the panel -- confirmed necessary by screenshot, not
+			# assumed: this Label does not scroll, and three more actions
+			# (quiz, homework, move_desk, added when the whole key scheme
+			# changed) pushed the flat list into the footer's own row.
+			var shown_rows := 10
+			var lo := 0
+			if rows.size() > shown_rows:
+				lo = clampi(sel - shown_rows / 2, 0, rows.size() - shown_rows)
+			for i in range(lo, mini(rows.size(), lo + shown_rows)):
 				var id := String(rows[i])
 				if id == "back" or id == "reset":
 					lines.append("%s %s" % [
@@ -321,6 +330,9 @@ func _render() -> void:
 						else Settings.binding_text(id)
 					lines.append("%s %-13s %s" % [
 						">" if i == sel else " ", _label_for(id), shown])
+			if rows.size() > shown_rows:
+				lines.append("")
+				lines.append("  %d-%d of %d" % [lo + 1, mini(rows.size(), lo + shown_rows), rows.size()])
 			footer.text = message if message != "" else "E to rebind, Esc to go back"
 
 		Page.HOWTO:

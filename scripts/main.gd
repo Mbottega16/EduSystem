@@ -22,6 +22,7 @@ func _ready() -> void:
 	# connected once.
 	world.quiz_requested.connect(_run_quiz)
 	world.curriculum_requested.connect(hud.show_curriculum)
+	world.marking_requested.connect(hud.open_marking)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
 	world.lesson_auto_ended.connect(_on_lesson_ended)
 	world.inspected.connect(func(r: Dictionary) -> void:
@@ -102,7 +103,6 @@ func _wire_room() -> void:
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
-		[world.teacher_desk, "marking_requested", hud.open_marking],
 		[world.hall_door, "chosen", _enter_hallway],
 	]
 	for row: Array in pairs:

@@ -13,9 +13,12 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | key | | rebindable |
 |---|---|---|
 | Arrows / WASD | walk | yes |
-| **E** / Space | **help, collect, hand in, call a quiz, sit a test** | yes |
-| **F** | **start or end a lesson, ring the bell, open the shop, move a desk, step through a door** | yes |
-| **Q** | **settle the room within earshot** | yes |
+| **E** / Space | **help a stuck child, collect finished work, hand it in, clean up a mess** | yes |
+| **F** | **start or end a lesson, ring the bell, open the shop, step through a door** | yes |
+| **Q** | **call a quick quiz** | yes |
+| **H** | **mark the homework you've collected** | yes |
+| **M** | **move a desk** | yes |
+| **C** | **settle the room within earshot** | yes |
 | **B** | **rearrange the room from a free cursor** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
@@ -25,26 +28,21 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | Esc | back out | no, always Escape |
 | F1/F2, **`**, or **Shift+D** to toggle | live tuning + cheats panel (Tab for the CHEATS page; try "EVERYTHING") | dev only, not rebindable |
 
-**E and F are deliberately separate.** E is the button you mash all lesson
-long — helping, collecting, handing in — and it can never do anything
-session-level. Everything that changes the state of the day is on F, and the
-two that cannot be undone (ending a lesson early, ending the day) must be
-**held**, with a bar in the prompt showing the hold. Before this, one key did
-all of it, and reaching to help a student who happened to be near the podium
-ended the whole lesson.
+**Every verb has one dedicated key**, on user request as of Aug 2026 —
+what a key does no longer depends on which landmark you happen to be
+standing at. E stays the one you mash all lesson long (help, collect,
+hand in, clean up) and it can never do anything irreversible; F stays
+the session-level one (lesson, bell, shop), and anything on F that
+cannot be undone still needs a **hold**, with a bar in the prompt
+showing it. Quiz, marking and moving a desk used to share E or F
+contextually — a quiz was E-at-the-podium, marking was E-at-your-desk,
+moving a desk was F-at-that-desk — and each now answers to its own key
+everywhere, rather than only where the game remembered to offer it.
 
-One landmark can carry a verb on **each** button, and several now do: the
-podium teaches on F and quizzes on E, a desk offers help on E and picks
-itself up on F, the noticeboard is the shop on F and the curriculum on E.
-
-**A growing game needs more than two KEYS, not more than two VERBS.**
-E and F stay exactly what they are — the mashable one and the session
-one, tied to whatever landmark you are standing at. Everything that is
-not about a landmark gets its own dedicated key instead of a third job
-bolted onto E or F: Tab for the class list and shop, B to rearrange the
-room, Q to settle it, and now **I** for your own dashboard. The pillar
-was never "two buttons total" — it is "no landmark ever needs more than
-two", and that is still true everywhere in the game.
+More than one of these can be live on the same tile at once (a desk
+offers help on E and a move on M at the same moment, your own desk
+offers hand-in on E and marking on H), and the prompt bar names all of
+them rather than picking a winner.
 
 **Settings** covers master and sound volume, window size, fullscreen and
 whether hints appear. **Controls** rebinds any key — taking a key from
@@ -114,7 +112,7 @@ to concentrate and you will find out.
 
 ## Your voice
 
-**Q** settles every disruptive child *within earshot*. It is the only verb
+**C** settles every disruptive child *within earshot*. It is the only verb
 in the game not attached to a landmark — and it still depends on where you
 are standing, which is the line that keeps walking the room the game.
 
@@ -400,7 +398,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1189 assertions
+Run Tests.bat            1193 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
@@ -489,8 +487,8 @@ scripts/
   world/     layout, grid, room_builder, classroom, placement
   actors/    actor, player, student
   interact/  podium, bell, desk_station, desk_mover, marking_desk,
-             noticeboard, curriculum_board, quiz_caller, test_caller,
-             placed_item
+             homework_desk, noticeboard, curriculum_board, quiz_caller,
+             test_caller, placed_item
   data/      balance, items, questions, events, names, curriculum,
              progress, traits, student_data
   ui/        hud, floater, debug_panel

@@ -2,10 +2,12 @@ extends Interactable
 
 ## "Right, everyone — quick quiz." Called from the podium, mid-lesson.
 ##
-## On USE (E), while the podium's own start/end-the-lesson verb stays on
-## MANAGE (F). A quiz is safe and reversible in a way that ending a lesson
-## emphatically is not, so it belongs on the mashable button — and the two
-## being different keys is what makes it safe to put them on one landmark.
+## On its own dedicated QUIZ key (Q), separate from both the podium's own
+## start/end-the-lesson verb (MANAGE/F) and the mashable USE/E a quiz used
+## to share with helping and collecting. It moved off USE on user request,
+## Aug 2026 -- a quiz calling itself while you mash E to help a stuck
+## child was a real risk the moment quiz and help could ever land on the
+## same tile's prompt.
 ##
 ## THE TRADE, and it is the whole design: a quiz costs LESSON SECONDS, which
 ## is the one resource a lesson cannot make more of. What you buy is
@@ -17,7 +19,7 @@ signal quiz_requested()
 
 func _init() -> void:
 	super()
-	uses_key = Key.USE
+	uses_key = Key.QUIZ
 
 
 func can_interact() -> bool:
