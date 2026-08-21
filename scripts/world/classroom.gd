@@ -78,10 +78,11 @@ var _purchased: Array = []
 var _purchased_tiles: Array[Vector2i] = []
 
 ## Daily clutter -- trash and spills, mess.gd -- currently on the floor,
-## waiting to be cleaned. Purely cosmetic housekeeping: legwork, not a
-## number the balance contract or anything else reads. How many spawn and
-## which kinds, same reasoning as WEATHER above -- nothing here is graded,
-## so it is allowed to be a code const rather than a balance.json entry.
+## waiting to be cleaned. Legwork with a flat coin tip (Balance.
+## mess_clean_reward, see room_upkeep in balance.json) -- not a grade
+## input, so the balance contract is untouched. How many spawn and which
+## kinds ARE still a code const, same reasoning as WEATHER above: nothing
+## about the SPAWNING is graded either, only the cleaning pays out.
 const MESS_MIN := 1
 const MESS_MAX := 3
 const MESS_KINDS := ["trash", "trash", "spill"]   # trash twice as likely
@@ -138,7 +139,14 @@ func build() -> void:
 func _clear_mess() -> void:
 	for m in messes:
 		if is_instance_valid(m):
-			m.queue_free()
+			# Same reason mess.gd frees its own parent rather than itself:
+			# `m` is the invisible Area2D, the sprite lives one level up on
+			# the prop body -- freeing `m` alone would leave the art behind.
+			var body := m.get_parent()
+			if body != null:
+				body.queue_free()
+			else:
+				m.queue_free()
 	messes.clear()
 
 

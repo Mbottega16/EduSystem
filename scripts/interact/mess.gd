@@ -1,20 +1,18 @@
 extends Interactable
 
 ## A dropped bit of clutter -- trash on the floor, a spill -- left over from
-## a previous day (or from the day just starting). Cleaning it is the same
-## verb as everything else on E: stand near it and hold. Nothing about it
-## cares what phase the day is in, so it can be done before the lesson, mid
-## lesson, or after -- there's no gate to add.
+## a previous day (or from the day just starting). Cleaning it is a MASH,
+## not a hold: press E repeatedly (Balance.mess_clean_presses times) rather
+## than hold it down, same as collecting a finished sheet already is --
+## hold_time stays 0, so player.gd's own claim_action()/just_pressed gate is
+## what makes each press count once. Nothing about it cares what phase the
+## day is in, so it can be done before the lesson, mid lesson, or after --
+## there's no gate to add.
 ##
-## Deliberately NOT scored. This is legwork, same as walking to a desk; it
-## pays no coins, no XP, and touches nothing the balance contract measures.
-## A cleanliness number that fed back into the grade would be exactly the
-## kind of thing CLAUDE.md's "the balance contract must hold" rule exists
-## to catch, and there is no request for one here.
-
-## How long the clean-up hold takes. A UX timing, not a balance number --
-## same precedent as Bell/Podium/TestCaller's own hold_time constants.
-const CLEAN_HOLD_TIME := 2.3
+## A flat coin tip on the final press (Balance.mess_clean_reward), not a
+## grade input. It is still legwork -- the balance contract measures GRADE,
+## and this touches nothing grade reads (grade.room_base etc). See
+## room_upkeep's own note in balance.json.
 
 ## Carries `self` -- not just the kind -- because queue_free() is deferred:
 ## is_instance_valid(self) is still TRUE for the rest of this frame, so a
@@ -25,21 +23,36 @@ signal cleaned(mess: Interactable, kind: String)
 
 ## "trash" or "spill" -- picks the art and the prompt wording.
 var kind: String = "trash"
+var _presses: int = 0
 
 
 func _init() -> void:
 	super()
 	uses_key = Key.USE
-	hold_time = CLEAN_HOLD_TIME
 	set_pick_radius(28.0)
 
 
 func prompt_text() -> String:
-	return "Wipe up the spill" if kind == "spill" else "Sweep up the mess"
+	var left: int = Balance.mess_clean_presses - _presses
+	var verb := "Wipe up the spill" if kind == "spill" else "Sweep up the mess"
+	return "%s (%d)" % [verb, left] if left < Balance.mess_clean_presses else verb
 
 
 func interact(by: Node) -> void:
+	_presses += 1
 	Sfx.play_varied("paper")
-	cleaned.emit(self, kind)
 	used.emit(by)
-	queue_free()
+	if _presses < Balance.mess_clean_presses:
+		return
+
+	Game.add_coins(Balance.mess_clean_reward)
+	cleaned.emit(self, kind)
+	# Freeing THIS node only removed the invisible Area2D that answers E --
+	# the sprite and its shadow live one level up, on the prop body
+	# RoomBuilder.build_mess() made this a child of, so the art was left
+	# behind forever. Free the whole prop instead.
+	var body := get_parent()
+	if body != null:
+		body.queue_free()
+	else:
+		queue_free()

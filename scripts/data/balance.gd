@@ -216,6 +216,10 @@ static var perk_practised_marker_sheets: int = 2
 static var not_done_forgiveness: bool = true
 static var verdict_weight: float = 0.5
 
+# --- daily room mess ------------------------------------------------------
+static var mess_clean_presses: int = 5
+static var mess_clean_reward: int = 5
+
 # --- items -------------------------------------------------------------
 static var items: Dictionary = {}
 static var traits: Dictionary = {}
@@ -439,6 +443,10 @@ static func apply(d: Dictionary) -> void:
 	var h: Dictionary = d.get("homework", {})
 	not_done_forgiveness = bool(h.get("not_done_forgiveness", not_done_forgiveness))
 	verdict_weight = float(h.get("verdict_weight", verdict_weight))
+
+	var ru: Dictionary = d.get("room_upkeep", {})
+	mess_clean_presses = int(ru.get("clean_presses", mess_clean_presses))
+	mess_clean_reward = int(ru.get("clean_reward_coins", mess_clean_reward))
 
 	if d.has("items"):
 		items = d["items"]

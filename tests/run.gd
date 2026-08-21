@@ -1517,18 +1517,38 @@ func test_mess() -> void:
 	chk("there is something to clean", before > 0)
 	if before > 0:
 		var target: Interactable = world.messes[0]
+		var body: Node = target.get_parent()
 		chk("it offers to be cleaned", target.can_interact()
 			and target.prompt_text() != "")
+
+		# A mash, not a hold: N-1 presses leave it standing, art and all.
+		for i in Balance.mess_clean_presses - 1:
+			target.interact(world.player)
+		chk("it is not cleaned before the last press",
+			world.messes.size() == before and is_instance_valid(body))
+		chk("the prompt counts down the presses still needed",
+			target.prompt_text().contains("(1)"), target.prompt_text())
+
+		var coins_before: int = Game.coins
 		# A one-element Array, not a bool -- a GDScript lambda captures an
 		# outer local BY VALUE, so `saw_signal = true` inside one would set
 		# a copy and never touch this variable. Index-assignment into a
 		# shared Array does reach it.
 		var saw_signal := [false]
 		target.cleaned.connect(func(_m, _k): saw_signal[0] = true)
-		target.interact(world.player)
+		target.interact(world.player)   # the final press
 		chk("cleaning emits its signal", saw_signal[0])
 		chk("cleaning removes it from the tracked list",
 			world.messes.size() == before - 1, world.messes.size())
+		chk("cleaning pays the flat coin tip",
+			Game.coins == coins_before + Balance.mess_clean_reward,
+			Game.coins)
+		# queue_free() is deferred -- is_instance_valid(body) is still true
+		# for the rest of THIS frame, so the actual removal isn't
+		# observable until a frame has actually turned over.
+		await step(1)
+		chk("the whole prop -- sprite included -- is gone, not just the "
+			+ "invisible interact area", not is_instance_valid(body))
 
 	Game.new_run(SEED)
 	await step(2)

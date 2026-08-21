@@ -65,9 +65,11 @@ Not purchasable and not in the shop's `ITEMS` catalogue — transient
 clutter `scripts/world/classroom.gd` spawns fresh each day
 (`Classroom._spawn_mess()`), placed by `RoomBuilder.build_mess()` on an
 open floor tile that stays walkable. Cleaned via the ordinary E verb
-(`scripts/interact/mess.gd`), held for a couple of seconds, any time —
-before the lesson, mid-lesson, or after. Purely cosmetic legwork: it pays
-no coins or XP and touches nothing the balance contract measures.
+(`scripts/interact/mess.gd`) — mashed, not held, `Balance.
+mess_clean_presses` times — any time before the lesson, mid-lesson, or
+after. Pays a flat `Balance.mess_clean_reward` coins on the last press
+(`room_upkeep` in `data/balance.json`); still legwork, not a grade input,
+so it touches nothing the balance contract measures.
 
 | file | role |
 |---|---|

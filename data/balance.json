@@ -56,6 +56,11 @@
     "not_done_forgiveness": true,
     "verdict_weight": 0.5
   },
+  "room_upkeep": {
+    "_note": "Daily clutter -- trash and spills, scripts/interact/mess.gd. Legwork with a flat coin tip, not a grade input: nothing here touches grade/room_base or anything the balance contract measures, so it is exempt from that contract on purpose.",
+    "clean_presses": 5,
+    "clean_reward_coins": 5
+  },
   "items": {
     "stool": {
       "name": "Wooden Stool",
