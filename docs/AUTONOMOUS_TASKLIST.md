@@ -349,6 +349,76 @@ for no reason.
 
 ## Done
 
+- [x] **A `/deep_critique` pass, and all ten findings implemented.**
+      *(Aug 2026 -- user: "give me a list of the 10 most important
+      improvements... macro and micro", then "I agree entirely implement
+      all".)* Ran the skeptical-outsider critique for real: `Trace a
+      Day.bat`, `Audit the Room.bat`, `Simulate a Term.bat`, and screenshots
+      of the hallway/office/shop/consumables rather than reasoning about
+      them. Findings and fixes:
+      1. Principal portrait crop -- investigated, found ALREADY fixed by
+         an earlier commit; no code change needed, corrected the record.
+      2. Hallway doors were all identical -- now tinted per kind (home
+         plain, office gold, a staffed room cool blue, unstaffed room
+         greyer, a locked slot dim), confirmed by screenshot.
+      3. The status bar silently dropped `need N` off the end once the
+         coin count got long enough (LINE_CHARS=47, unchanged since
+         before the resolution doubled) -- reordered so the term target
+         comes right after the day counter rather than last, and added
+         `_clip_visibly()` so ANY future overflow ends in a visible `…`
+         rather than silence.
+      4. Consumables could buy grade: `photocopies` used `lesson_mult`,
+         which longer lesson time turns straight into more work done --
+         a day EVENT doing that is random, a purchasable one is a
+         guaranteed no-downside nudge the contract's own simulator never
+         models buying. Moved to `stall_mult`, the same lever `coffee`
+         already uses.
+      5. The shop's item preview was a distorted blob for anything not
+         shaped like a 32x48 character portrait -- the shared portrait
+         `TextureRect` used `stretch_mode = 0` (distort-to-fill). Fixed
+         at the node, once, for every item and character screen at once
+         (`stretch_mode = 5`, keep-aspect-centered).
+      6. Room mess and the janitor had zero screenshot coverage --
+         two new `shot.gd` cases, and found in the process that a
+         freshly-hired janitor's first clean fires on the very next
+         physics frame (timer starts at 0.0), not after a real interval.
+      7. The Principal's Office tutorial shelf only covered the four
+         original hints -- five more added (consumables, mess, the
+         janitor, weather, milestones) and, since ten flat lines silently
+         clipped past the fourth with no sign anything was missing (the
+         exact failure this project keeps a rule against), the section is
+         now windowed and scrollable the same way Career already pages
+         past thirty milestones.
+      8. `Audit the Room.bat` showed the noticeboard losing its own F
+         prompt to "Move Ava's desk" in the afternoon -- every desk's
+         move-offer used the Interactable default 40px pick radius with
+         no per-desk tuning, unlike every other landmark sharing ground
+         with a neighbour. Shrunk to 16px; re-ran the audit and confirmed
+         the shop (and the teacher's own desk, which had the same bleed)
+         both answer correctly again.
+      9. Macro finding, no code fix by nature: eight systems have shipped
+         around the core loop without once changing it, each
+         individually justified but collectively a lot of surface for a
+         new player to cross. Written into `docs/GDD.md`'s roadmap as a
+         real decision -- the next block of work is a consolidation pass
+         (count what a first twenty minutes actually introduces, defer
+         what can be deferred), not another new system, before Phase 4.
+      10. "Prose, never numbers" was being read two ways as more numeric
+          screens (prices, milestone counts, day counters) shipped --
+          the rule's actual, already-enforced scope (bans a number
+          standing in for a CHILD's ability; never banned prices or
+          counts) is now written into `CLAUDE.md` explicitly.
+      Also fixed in passing, found only by manually re-verifying every
+      change with a real screenshot rather than trusting the diff:
+      `Take a Screenshot.bat` computed `SCREEN=title` for the output
+      filename when called with no argument, but still passed the
+      original EMPTY argument to Godot -- so the plain, no-argument form
+      never actually opened the title screen, just saved whatever the
+      default classroom state was under that name.
+      1189 assertions throughout (no new tests needed beyond one updated
+      assertion for the photocopies effect change). Contract re-verified
+      unmoved. Build bumped to b32.
+
 - [x] **Consumables: a fifth shop tab, spent the same day rather than
       placed.** *(Aug 2026 -- user request, part of a three-part ask: "I
       want to implement some sort of consumable for each day. something

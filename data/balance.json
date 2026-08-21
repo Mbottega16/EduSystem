@@ -404,9 +404,9 @@
       "art": "photocopies",
       "w": 1,
       "cat": "consumable",
-      "blurb": "A few more minutes before the bell today.",
+      "blurb": "Nothing gets held up chasing a spare sheet.",
       "effect": {
-        "lesson_mult": 1.12
+        "stall_mult": 0.93
       }
     }
   },

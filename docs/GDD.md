@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-19**, against build `b31`, with **1189 assertions
+> **Measured on 2026-08-20**, against build `b32`, with **1189 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -650,32 +650,62 @@ quieter during a test, restless when the room is noisy.
 
 ## 15. Production roadmap
 
-The honest observation first: **the school layer is a bigger job than
-everything built so far combined**, and it re-decides both the economy and
-the core loop. Phase 0 is deliberately not "start the school".
+**Phases 0 through 3 below are now built** — milestones, delegated rooms,
+hiring, the school view, reputation and the career screen all shipped
+across a handful of sessions in August 2026, each individually justified
+and each individually verified against the suite and the balance contract.
 
-### Phase 0 — Harden what exists
+**What a skeptical-outsider critique pass then found, looking at the total
+rather than any one piece:** not one of those systems changes what
+actually happens between the player and a stuck child at a desk — the
+thing an outsider picks this game up for. Hallway, office, dashboard,
+consumables, a janitor, ambient weather, delegated rooms, milestones —
+eight systems layered on around a core loop that is identical to what it
+was before any of them existed. Individually sound, collectively a lot of
+surface area for a new player to cross before reaching the part that was
+already good.
+
+**The decision, taken rather than just noted:** the next block of work on
+this project is **consolidation, not another system.** Concretely --
+before anything in Phase 4 or beyond is started:
+- Watch (or trace) an actual first twenty minutes end to end and count
+  how many named systems a brand-new player has been introduced to before
+  they have taught a single full lesson unassisted.
+- Anywhere that count can be cut by DEFERRING a system's introduction
+  rather than removing it (most of what shipped is worth keeping, just
+  not all at once), defer it.
+- Only once that pass is done and re-checked does new scope get added
+  again. A roadmap phase is not "next" just because it comes after the
+  last one finished — it is next when the game underneath it is legible.
+
+### Phase 0 — Harden what exists ✅ done
 - Milestones (§8) — the missing piece for an endless game
 - Re-simulate the economy with an eye on multi-room scaling
-- Buying additional desks (noted as unbuilt; class cap is hard-wired at 8)
-- Fold `docs/PLAN-tiers-buffs-shop.md` into this document and retire it
+- Buying additional desks (class cap raised from a hard 8 to a bought-up
+  `class_hard_cap`)
+- `docs/PLAN-tiers-buffs-shop.md` — still separate; folding it in remains
+  open
 
-### Phase 1 — One extra room, simulated
-- Make the class, the room and the furniture plural
+### Phase 1 — One extra room, simulated ✅ done
+- The class, the room and the furniture are plural (`Game.rooms`)
 - One hired teacher, one delegated room, resolved by policy
-- The evening results board
-- **Gate:** is a delegated term worth reading? If not, stop and rethink.
+  (`RoomSim.play_day()`)
+- The evening results board, and since then a WATCHABLE one (§ambient
+  weather / the hallway's own screen)
+- **Gate, run:** `Simulate the School.bat` — yes, a delegated term is
+  worth reading; hiring measurably matters and the board moves.
 
-### Phase 2 — The manager altitude
+### Phase 2 — The manager altitude ✅ done
 - The school view, assignment, the choice of where to spend the day
-- Hiring, wages, the staff pool
-- Room types / year groups (the tier design)
+- Hiring, wages, the staff pool (twelve archetypes)
+- Room types / year groups (the tier design) — **still open**, the one
+  piece of this phase not built
 
-### Phase 3 — The career
+### Phase 3 — The career ✅ done
 - Reputation, school failure, the career screen
-- Milestones surfaced, achievements
+- Milestones surfaced, achievements (23, up from 15)
 
-### Phase 4 — Release
+### Phase 4 — Release (blocked on the consolidation pass above)
 - Audio (score + ambience), school-layer art
 - Steam furniture: achievements, cloud saves, a settings pass
 - Balance across a full career rather than a term

@@ -1034,9 +1034,17 @@ func test_items() -> void:
 	var coins_before_bake := Game.coins
 	chk("a bake sale is a flat bonus, banked at the bell",
 		Game.use_consumable("bake_sale") == "" and Game.consumable_bonus_coins == 60)
-	chk("photocopies buy more lesson time today",
+	# Deliberately NOT lesson_mult -- see photocopies' own entry in
+	# balance.json. A day EVENT rolling more lesson time is a random
+	# occurrence; a CONSUMABLE doing the same would be an every-day,
+	# no-downside grade nudge for coins, which the balance contract's own
+	# simulator (tools/sim.gd) never models buying and so could never
+	# have caught. Kept on stall_mult instead, the same lever coffee uses.
+	var stall_before_photocopies := Game.event_stall_multiplier()
+	chk("photocopies calm the room down today, not lengthen the lesson",
 		Game.use_consumable("photocopies") == ""
-		and Game.lesson_length() > Balance.lesson_seconds)
+		and Game.event_stall_multiplier() < stall_before_photocopies
+		and is_equal_approx(Game.lesson_length(), Balance.lesson_seconds))
 
 	# the bell resets all of it for the next day, same as a day event does
 	var report := Game.advance_day()

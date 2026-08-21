@@ -88,6 +88,18 @@ func _clip(text: String) -> String:
 	return text if text.length() <= LINE_CHARS else text.substr(0, LINE_CHARS)
 
 
+## The one caller where truncating is NOT honest: the status strip is an
+## assembled sentence, not a fixed-width column, and a long coin count (a
+## six-figure career total, or a dev-room cheat) can push its tail past
+## LINE_CHARS with nothing to say so. Silent clipping is the exact failure
+## mode this project has been burned by before -- this is the same shape
+## of bug in a new place, closed the same way: if a cut happened, say so.
+func _clip_visibly(text: String) -> String:
+	if text.length() <= LINE_CHARS:
+		return text
+	return text.substr(0, LINE_CHARS - 1) + "…"
+
+
 ## First visible row so that _sel stays on screen, scrolling only when the
 ## selection would leave the window.
 func _window_start(total: int, shown: int) -> int:
@@ -242,12 +254,16 @@ func _update_status() -> void:
 		if Game.quiz_focus:
 			bits.append("FOCUSED")
 	else:
+		# What you are actually playing towards, ordered right after the
+		# day counter rather than last -- a long coin count (a six-figure
+		# career total, or a dev-room cheat) can push the tail of this
+		# line past LINE_CHARS, and "need N" silently disappearing is
+		# losing the one number the rest of the line exists to explain.
+		# Whatever else gets clipped, this survives.
+		bits.append("need %d" % Game.term_target())
 		bits.append("%s %s" % [Curriculum.short_name(Game.lesson),
 			"*".repeat(Curriculum.difficulty(Game.lesson))])
 		bits.append("%d coins" % Game.coins)
-		# What you are actually playing towards. It used to appear for the
-		# first time on the screen that judged you by it.
-		bits.append("need %d" % Game.term_target())
 		if left <= 3:
 			bits.append("LAST %d DAYS" % left)
 
@@ -285,7 +301,7 @@ func _update_status() -> void:
 	if waiting > 0:
 		bits.append("%d ready" % waiting)
 
-	status.text = _clip("   ".join(bits))
+	status.text = _clip_visibly("   ".join(bits))
 
 
 func _update_prompt() -> void:
@@ -1483,6 +1499,11 @@ const TUTORIALS := [
 	"Collecting: finished work only counts once you collect it.",
 	"The room: furniture cannot be rearranged while the class works.",
 	"The hallway: every room you hold has a door in it now.",
+	"Consumables: bought and spent the same day, never placed.",
+	"A mess: press E on it. Any time -- before, during or after class.",
+	"The janitor: staff who clean the room without being asked to.",
+	"Some days look different. That is today's event, not decoration.",
+	"Milestones: no reward but the moment itself, and no penalty for missing one.",
 ]
 
 
@@ -1518,24 +1539,44 @@ func show_office() -> void:
 	var lines: Array[String] = []
 	lines.append("[color=#%s]The school is %s, and that is because of you.[/color]" % [
 		DIM, Game.reputation_words()])
-	lines.append("")
 	lines.append("[color=#%s]Milestones[/color]  [color=#%s]%s[/color][color=#3a3a42]%s[/color]  %d/%d" % [
 		C_COIN, C_COIN, BAR_FULL.repeat(n), BAR_EMPTY.repeat(20 - n), earned, all.size()])
 	lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
 		DIM, Game.term_history.size(), Game.graduated.size()])
 	lines.append("")
-	lines.append("[color=#%s]TUTORIALS[/color]" % C_COIN)
-	for t: String in TUTORIALS:
-		lines.append("[color=#%s]%s[/color]" % [DIM, t])
+
+	# TUTORIALS is windowed, the same way Career pages past thirty
+	# milestones -- confirmed by screenshot rather than assumed: with all
+	# ten printed flat, the panel cut off after the fourth with no sign
+	# anything was missing, the exact silent-clip failure mode this
+	# project keeps a rule against. A shelf that is meant to grow with the
+	# game cannot be a fixed list that quietly stops being fully visible
+	# the day it does.
+	var shown := 5
+	_sel = clampi(_sel, 0, maxi(0, TUTORIALS.size() - 1))
+	var lo := _window_start(TUTORIALS.size(), shown)
+	lines.append("[color=#%s]TUTORIALS[/color]  [color=#%s]%d-%d of %d[/color]" % [
+		C_COIN, DIM, lo + 1, mini(TUTORIALS.size(), lo + shown), TUTORIALS.size()])
+	for i in range(lo, mini(TUTORIALS.size(), lo + shown)):
+		lines.append("[color=#%s]%s%s[/color]" % [
+			DIM, ">" if i == _sel else " ", TUTORIALS[i]])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.3)
-	hint.text = "E - full career list   Esc - close"
+	hint.text = "Up/Down more tips   E - full career list   Esc - close"
 
 
 func _handle_office_input() -> void:
 	if Input.is_action_just_pressed("cancel"):
 		Sfx.play("blip")
 		close()
+	elif Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % TUTORIALS.size()
+		Sfx.play("blip")
+		show_office()
+	elif Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + TUTORIALS.size()) % TUTORIALS.size()
+		Sfx.play("blip")
+		show_office()
 	elif Game.claim_interact():
 		Sfx.play("blip")
 		show_career()

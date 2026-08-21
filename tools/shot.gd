@@ -198,6 +198,7 @@ func _open_screen(main: Node, screen: String) -> void:
 				if Game.milestones.size() >= 6:
 					break
 				Game.milestones.append(String(m["id"]))
+			hud._sel = 0
 			hud.show_office()
 		"principal":
 			hud.principal_says("shot_demo",
@@ -324,6 +325,23 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.roster[1].confusion = 1.0
 			Game.roster[1].trait_id = "steady"
 			Game.roster[2].quiz_flagged = true
+		"mess":
+			# The room-mess/janitor systems shipped with zero screenshot
+			# coverage -- headless proves _spawn_mess() does not crash,
+			# never that the props are actually on screen. MESS_MIN is 1,
+			# so a forced re-seed always gives at least one to look at.
+			# No janitor here on purpose: tick_janitor()'s first tick fires
+			# on the very next physics frame (its timer starts at 0.0), so
+			# hiring one before the reveal wait swept the mess before this
+			# shot could ever see it -- found by looking, not assumed.
+			world._spawn_mess()
+		"mess_janitor":
+			# The other half: a janitor already on staff, working the room
+			# with nobody stood at the podium -- confirms tick_janitor()
+			# really does run outside the LESSON-only block.
+			Game.add_coins(500)
+			Game.set_janitor(true)
+			world._spawn_mess()
 		"day":
 			while Game.enrol() != null:
 				pass

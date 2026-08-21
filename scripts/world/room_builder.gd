@@ -238,6 +238,15 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		mover.seat_index = i
 		mover.station = station      # it yields to whatever E offers
 		body.add_child(mover)
+		# One of these exists per desk -- up to 24 of them, all sharing F
+		# with the noticeboard and the bell. At the default radius, a desk
+		# placed adjacent to either could out-score it for the prompt: the
+		# picker is pure proximity/facing, with no notion that "furniture
+		# shop" matters more than "move this desk". `Audit the Room.bat`
+		# caught exactly that at seed 4242 -- the noticeboard answered
+		# "Move Ava's desk" in the afternoon. Same fix as the noticeboard
+		# and curriculum board already use: shrink what shares a border.
+		mover.set_pick_radius(16.0)
 
 		grid.set_cell(seat, Grid.Cell.SEAT)
 		grid.set_cell(desk, Grid.Cell.BLOCKED)

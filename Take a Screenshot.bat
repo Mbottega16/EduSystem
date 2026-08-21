@@ -6,6 +6,7 @@ REM   student shop room staff class_list at_board at_bell title
 REM   inspection inspector_here teaching noise day run_over new_term exam
 REM   dashboard dashboard_items dashboard_skills marking
 REM   dev_room dev_room_bare weather hallway door office principal consumables
+REM   mess mess_janitor
 REM   consumables_report
 REM Saves into shots\ (gitignored), named after the screen so repeat runs
 REM do not overwrite each other and nothing lands in the tracked root the
@@ -26,7 +27,7 @@ if not exist "%GODOT%" (
   exit /b 1
 )
 
-"%GODOT%" --path "%PROJECT%" res://tools/shot.tscn -- "%PROJECT%\shots\%SCREEN%.png" 90 640 352 0 %1
+"%GODOT%" --path "%PROJECT%" res://tools/shot.tscn -- "%PROJECT%\shots\%SCREEN%.png" 90 640 352 0 %SCREEN%
 echo.
 echo Saved to shots\%SCREEN%.png
 pause

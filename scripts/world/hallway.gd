@@ -116,15 +116,26 @@ func rebuild() -> void:
 		# The door itself: the classroom's own two-tile door art, bottom
 		# edge on the floor line, same "bottom row meets the floor"
 		# anchor every other prop in this game uses.
+		#
+		# TINTED BY KIND -- every door used the same untinted art, so
+		# telling "home" from "the office" from "a room you hold" meant
+		# walking up and reading the prompt, confirmed by screenshot as a
+		# real "which one is which" problem rather than assumed. A colour
+		# is not full signage, but it is the smallest change that turns
+		# four identical doors into four doors you can tell apart from
+		# across the corridor.
+		var tint := _door_tint(kind, idx)
 		var top_spr := Sprite2D.new()
 		top_spr.texture = DOOR_TOP
 		top_spr.centered = false
+		top_spr.modulate = tint
 		top_spr.position = Vector2(dx - 16.0, HEIGHT - 64.0)   # doubled, door art is 32x32/tile now
 		add_child(top_spr)
 		_door_art.append(top_spr)
 		var bottom_spr := Sprite2D.new()
 		bottom_spr.texture = DOOR_BOTTOM
 		bottom_spr.centered = false
+		bottom_spr.modulate = tint
 		bottom_spr.position = Vector2(dx - 16.0, HEIGHT - 32.0)
 		add_child(bottom_spr)
 		_door_art.append(bottom_spr)
@@ -140,6 +151,31 @@ func rebuild() -> void:
 		d.chosen.connect(func(k: String, ri: int) -> void: door_chosen.emit(k, ri))
 		add_child(d)
 		doors.append(d)
+
+
+## The colour each door kind gets tinted, so the row reads at a glance
+## rather than only on approach. Muted rather than saturated -- these are
+## still the same door art, not a different prop, and a loud tint would
+## fight the room's own palette rather than sit inside it.
+func _door_tint(kind: String, idx: int) -> Color:
+	match kind:
+		"office":
+			return Color(1.15, 1.0, 0.7)      # warm gold -- matches the
+			                                    # principal's own colour
+			                                    # everywhere else it appears
+		"room":
+			if idx >= 0 and idx < Game.rooms.size():
+				var r: Dictionary = Game.rooms[idx]
+				if (r.get("teacher", {}) as Dictionary).is_empty():
+					return Color(0.85, 0.85, 0.85)   # unstaffed -- greyer,
+					                                   # the same "needs you"
+					                                   # signal an empty
+					                                   # applicant slot gives
+			return Color(0.75, 0.9, 1.15)       # staffed -- cool blue
+		"open":
+			return Color(0.55, 0.55, 0.6)       # dim -- not really a room yet
+		_:
+			return Color.WHITE                   # home: the door as drawn
 
 
 ## Where a fresh arrival stands: just past the home door, facing in.

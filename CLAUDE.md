@@ -50,7 +50,17 @@ repeatedly by edits that seemed obviously right:
   this.** It is why the quiz pays no grade and why assignment rarity pays
   coins and XP but never grade.
 - **Prose, never numbers, in player-facing text.** "The room is doing its
-  job", not "0.62". Enforced by a test.
+  job", not "0.62". Enforced by a test. **Scope, made explicit after a
+  design-critique pass found the rule was being read two ways as more
+  numeric screens shipped:** this bans a number standing in for a CHILD'S
+  ability, teaching, or outcome -- anything the game is otherwise careful
+  to phrase as a judgement rather than a score. It does not ban prices,
+  coin totals, day counters, or a milestone's own count (6/23) -- those
+  are the sanctioned exception the rule was always written around, not a
+  loophole in it. If a new screen is unsure which side of that line it's
+  on: would printing this number replace a sentence that currently makes
+  a claim about a *child*? If yes, it is banned. If it is just what
+  something costs or how far along you are, it is fine.
 - **Legwork, not judgement.** Automation may do the walking; it may never
   make the decision about a particular child.
 - **Two buttons per landmark.** E is the mashable verb (help, collect,
