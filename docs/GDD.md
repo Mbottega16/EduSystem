@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-22**, against build `b36`, with **1238 assertions
+> **Measured on 2026-08-22**, against build `b36`, with **1244 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -331,8 +331,8 @@ milestone and having taught it, not a number going up.
 | Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
-| Input actions | 19 (18 rebindable) |
-| Tests | **1238 assertions** across **81 sections** |
+| Input actions | 20 (19 rebindable) |
+| Tests | **1244 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -373,6 +373,15 @@ screen; an unstaffed one opens hiring; the last door, shown only when
 door along, always there, is the **principal's office** — milestones,
 career totals and a tutorial shelf, reached by walking rather than by a
 key. See §7.
+
+**Also built, Aug 2026:** staff you can let go. `Game.fire()` clears a
+room back to unstaffed for `Balance.fire_cost`, and `hire()` now refuses
+an already-staffed room outright rather than silently overwriting
+whoever was there for free — found via `/deep_critique` running
+`Simulate the School.bat`: a delegated room that stalled had NO recovery
+short of never touching it again for the rest of the run. The severance
+cost is what keeps undoing a bad hire a real decision rather than a
+reset button.
 
 **Also built, same batch:** the principal as the game's tutorial mascot.
 `hud.principal_says(id, text)` is `hint_once()` with a face on it —

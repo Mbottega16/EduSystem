@@ -1379,6 +1379,7 @@ func _render_hand() -> void:
 ## Your own room is the first line and is marked as yours: it is played, not
 ## resolved, and the point of the screen is the comparison.
 func show_school() -> void:
+	Balance.ensure_loaded()
 	_open(Mode.SCHOOL)
 	body.visible = false
 	rich.visible = true
@@ -1417,6 +1418,8 @@ func show_school() -> void:
 		else:
 			lines.append("[color=#%s]%s[/color]  [color=#%s]but %s[/color]" % [
 				C_GOOD, Staff.strengths(t2), C_BAD, Staff.weakness(t2)])
+			lines.append("[color=#%s]letting them go costs %d coins[/color]" % [
+				DIM, Balance.fire_cost])
 		lines.append("[color=#%s]furniture %s   %d/day in wages[/color]" % [
 			DIM, _furniture_bar(int(sel.get("furniture", 0))), Game.wage_bill()])
 
@@ -1424,9 +1427,22 @@ func show_school() -> void:
 	_reveal_rich(0.3)
 	var watch_hint := ""
 	if _can_watch(_sel):
-		watch_hint = "V watch   "
-	hint.text = _clip("Up/Down room   E hire   F furnish   %sN new room (%d)   Esc" % [
-		watch_hint, Game.room_cost()])
+		watch_hint = "V watch  "
+	var sel_staffed: bool = Game.rooms.is_empty() or \
+		not (Game.rooms[_sel].get("teacher", {}) as Dictionary).is_empty()
+	# Whichever of hire/fire actually applies to the selected room, never
+	# both -- a staffed room cannot be hired into (see hire()'s own refusal)
+	# and an empty one has nobody to let go, so offering the wrong verb
+	# would just train the player to expect a press that does nothing. The
+	# cost lives in the body text above, not here -- adding "G fire" pushed
+	# this line past LINE_CHARS with every other verb still spelled out in
+	# full, so Up/Down and Esc (arrows-to-navigate and Escape-to-back-out
+	# both being true on nearly every screen this game has) are the two
+	# left unstated to make room. Found by screenshotting the actual
+	# result, not by counting characters -- the truncation was silent.
+	var staff_hint := "G fire" if sel_staffed else "E hire"
+	hint.text = _clip("%s  F furnish  %sB new(%d)" % [
+		staff_hint, watch_hint, Game.room_cost()])
 
 
 ## Whether room `i` has a day worth watching -- staffed and resolved at
@@ -2826,7 +2842,13 @@ func _handle_input() -> void:
 		elif n > 0 and _can_watch(_sel) and Input.is_action_just_pressed("watch"):
 			Sfx.play("blip")
 			show_watch(_sel)
-		elif n > 0 and Game.claim_interact():
+		elif n > 0 and not (Game.rooms[_sel].get("teacher", {}) as Dictionary).is_empty() \
+				and Game.claim_action("fire"):
+			var err4 := Game.fire(_sel)
+			Sfx.play("deny" if err4 != "" else "confirm")
+			show_school()
+		elif n > 0 and (Game.rooms[_sel].get("teacher", {}) as Dictionary).is_empty() \
+				and Game.claim_interact():
 			_hiring_for = _sel
 			_sel = 0
 			show_hiring()

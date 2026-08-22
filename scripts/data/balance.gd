@@ -130,6 +130,9 @@ static var school_class_size: int = 6
 static var furniture_step_cost: int = 240
 static var furniture_steps: int = 5
 static var applicant_count: int = 4
+## Firing a hired teacher is instant, but not free -- otherwise a bad hire
+## costs nothing to undo and "who you hire" stops being a real decision.
+static var fire_cost: int = 150
 
 # --- the paper you set ---------------------------------------------------
 ## A fresh count each morning, not always the same hand. See the note on
@@ -369,6 +372,7 @@ static func apply(d: Dictionary) -> void:
 	furniture_step_cost = int(sc.get("furniture_step_cost", furniture_step_cost))
 	furniture_steps = int(sc.get("furniture_steps", furniture_steps))
 	applicant_count = int(sc.get("applicants", applicant_count))
+	fire_cost = int(sc.get("fire_cost", fire_cost))
 
 	var asg: Dictionary = d.get("assignments", {})
 	assign_hand_size_min = int(asg.get("hand_size_min", assign_hand_size_min))

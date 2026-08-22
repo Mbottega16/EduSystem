@@ -24,7 +24,7 @@
     "e": 0.3
   },
   "lesson": {
-    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes — that is the whole pressure.",
+    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes \u2014 that is the whole pressure.",
     "work_seconds": 20.0,
     "lesson_seconds": 45.0,
     "stall_chance_per_second": 0.14,
@@ -790,7 +790,8 @@
     "class_size": 6,
     "furniture_step_cost": 240,
     "furniture_steps": 5,
-    "applicants": 4
+    "applicants": 4,
+    "fire_cost": 150
   },
   "reputation": {
     "_note": "What the school is thought of, 0..100. It is the ONLY thing a badly run room costs you. The simulator showed rooms are straightforwardly profitable -- each one earns more than its wages -- so without this, 'open another room' has an obvious yes and staffing it properly is optional. Reputation is what makes a room you cannot run a liability rather than free money.",

@@ -257,9 +257,38 @@ func hire(room_index: int, applicant_index: int) -> String:
 		return "No such room."
 	if applicant_index < 0 or applicant_index >= applicants.size():
 		return "Nobody by that name."
+	var room: Dictionary = rooms[room_index]
+	# Used to silently overwrite whoever was already there, for free, with
+	# no warning that a room even HAD a teacher -- found while adding
+	# fire(): a player could already "fix" a bad hire, just by accident,
+	# for nothing, which made a deliberate fire cost meaningless the moment
+	# it existed alongside a free back door to the same result.
+	if not (room.get("teacher", {}) as Dictionary).is_empty():
+		return "Already staffed — let them go first."
 	var t: Dictionary = applicants[applicant_index]
-	(rooms[room_index] as Dictionary)["teacher"] = t.duplicate()
+	room["teacher"] = t.duplicate()
 	applicants.remove_at(applicant_index)
+	school_changed.emit()
+	return ""
+
+
+## Undoing a bad hire. Instant, but never free -- Balance.fire_cost is the
+## whole reason this is a real decision rather than a reset button: a
+## delegated room that stalled out (see room_sim.gd's own honest simulation)
+## used to have no recovery at all short of never touching it again for the
+## rest of the run. Clears the room back to the same empty-teacher state
+## open_room() leaves a brand new one in, so hire() can staff it again the
+## normal way.
+func fire(room_index: int) -> String:
+	Balance.ensure_loaded()
+	if room_index < 0 or room_index >= rooms.size():
+		return "No such room."
+	var r: Dictionary = rooms[room_index]
+	if (r.get("teacher", {}) as Dictionary).is_empty():
+		return "Nobody there to let go."
+	if not spend(Balance.fire_cost):
+		return "Can't afford the severance."
+	r["teacher"] = {}
 	school_changed.emit()
 	return ""
 

@@ -5497,6 +5497,23 @@ func test_the_school() -> void:
 	chk("and they cost you every day", Game.wage_bill() == wage,
 		"%d vs %d" % [Game.wage_bill(), wage])
 
+	# --- firing: undoing a bad hire, not a free do-over ---
+	# hire() used to silently overwrite whoever was already there, for
+	# free -- which meant a bad hire was already "fixable" by accident,
+	# and made a deliberate severance cost pointless the moment both
+	# existed side by side.
+	chk("hiring into an already-staffed room is refused",
+		Game.hire(0, 0) != "")
+	var coins_before: int = Game.coins
+	chk("firing costs the severance", Game.fire(0) == "")
+	chk("and actually spends it",
+		Game.coins == coins_before - Balance.fire_cost,
+		"%d vs %d" % [Game.coins, coins_before - Balance.fire_cost])
+	chk("the room is empty again",
+		(Game.rooms[0]["teacher"] as Dictionary).is_empty())
+	chk("firing an already-empty room is refused", Game.fire(0) != "")
+	chk("and it can be hired into again", Game.hire(0, 0) == "")
+
 	var staffed: Dictionary = Game.resolve_rooms()[0]
 	chk("a staffed room actually teaches",
 		float(staffed["average"]) > float(empty["average"]),

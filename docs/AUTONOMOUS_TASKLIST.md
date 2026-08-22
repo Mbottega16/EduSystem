@@ -370,6 +370,46 @@ for no reason.
 
 ## Done
 
+- [x] **/deep_critique pass: fixed play-tracers, and a real "fire the
+      teacher" mechanic.** *(Aug 2026 -- user: "/deep_critique and loop
+      like 4-5 times... prioritize new mechanics.")* Ran the tools rather
+      than reasoning about the code, per the project's own golden rule,
+      and found two things worth fixing immediately:
+      1. **`Trace a Day.bat` and `Play a Whole Term.bat` were silently
+         dead on a fresh save.** Both instantiate `main.tscn` after
+         `Game.new_run()` and drive it with simulated key presses;
+         neither knew the storyline cutscene now exists, so both got
+         permanently stuck at `input_locked = true` on day 1 with no way
+         to press E through it -- confirmed by running `Trace a Day.bat`
+         and reading its own output, every line after boot showing
+         `locked=true` while "the bell did not ring". Fixed with one
+         line in each (`Game.intro_seen = true` right after `new_run()`)
+         -- these tools test the everyday loop, not the once-per-career
+         narration.
+      2. **A delegated room that went bad had no recovery, ever.**
+         `Simulate the School.bat`'s own output showed a room sitting at
+         "E !" (failing, disrupted) on every sampled evening across a
+         full 20-day term, and there was no `fire()` anywhere in
+         `game.gd` -- once you hired badly you paid that wage forever.
+         Added `Game.fire(room_index)` (its own key, **G**, at the
+         school screen): clears the room back to unstaffed for
+         `Balance.fire_cost` (150, tunable, `data/balance.json`'s
+         `school` section). **A real bug found while building this:**
+         `hire()` already silently let you overwrite an occupied room's
+         teacher, for free, with no warning it even had one -- which
+         would have made the new severance cost pointless the moment it
+         shipped alongside a free back door to the same result. `hire()`
+         now refuses an already-staffed room outright, so firing is the
+         one real way in.
+      Also fixed a stale hint-text bug hit along the way: the school
+      screen's own prompt said "N new room" for an action actually bound
+      to B (`Settings.DEFAULTS["build"]`), and the hint line overflowed
+      its 47-character budget the moment "G fire" was added to it --
+      both caught by screenshotting the real screen, not by reading the
+      string literal.
+      1238 -> 1244 assertions. Contract re-verified unmoved -- fire/hire
+      touch staffing, not the grade formula.
+
 - [x] **The storyline open became an actual cutscene, and homework marking
       became a real page.** *(Aug 2026 -- user: "now make me... a cutscene
       where he walks in and says all this from a text box above his

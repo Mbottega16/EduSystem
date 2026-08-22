@@ -34,6 +34,7 @@ career once you've walked through it.
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
 | **I** | **your dashboard -- who you are, what you own, your skills, your wardrobe** | yes |
 | **V** | **watch a delegated room's day, from the school screen** | yes |
+| **G** | **let go a hired teacher, from the school screen** | yes |
 | P | pause | yes |
 | Esc | back out | no, always Escape |
 | F1/F2, **`**, or **Shift+D** to toggle | live tuning + cheats panel (Tab for the CHEATS page; try "EVERYTHING") | dev only, not rebindable |
@@ -167,6 +168,10 @@ Walking into a delegated room does not let you teach it yourself. It is
 still resolved the way it always was — by running the real lesson model
 against its hired teacher's policy — the hallway is just a faster,
 physical way to reach that room's own screen than hunting through a menu.
+
+A bad hire is not a life sentence. **G**, at the school screen, lets them
+go — for a real severance cost, not a free do-over, and the room opens
+back up to hiring the moment they're gone.
 
 The second door along, always there, is the **principal's office** — your
 milestones, your career totals and a shelf of tutorials, in one room
@@ -426,7 +431,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1238 assertions
+Run Tests.bat            1244 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
