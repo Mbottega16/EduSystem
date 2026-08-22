@@ -331,6 +331,14 @@ func _shop() -> bool:
 		var d := Items.get_def(id)
 		if not Game.can_afford(int(d["cost"])):
 			continue
+		if String(d.get("cat", "")) == "consumable":
+			# No range, no bonus, no seat to place it at -- consumables
+			# predate this loop and were never added to it. hud.gd's own
+			# shop rendering guards the same gap for the same reason (see
+			# its "worth-bar... would both crash" comment); this simulated
+			# shopper skips them rather than crash reading a field a
+			# consumable never had.
+			continue
 		var value := float(d["bonus"]) / float(d["cost"])
 		if value > best_value:
 			best_value = value

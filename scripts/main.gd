@@ -65,6 +65,13 @@ func _ready() -> void:
 	# is made once here rather than re-made in _wire_room().
 	hallway.door_chosen.connect(_on_hallway_door)
 
+	# The storyline tutorial. Both conditions on purpose: intro_seen alone
+	# would replay it for anyone who had an existing save from before this
+	# shipped, the day it shipped -- day 1 with no term behind you yet is
+	# what actually means "this is a new career", not just an unset flag.
+	if not Game.intro_seen and Game.day <= 1 and Game.term_history.is_empty():
+		hud.show_intro()
+
 
 ## The fixed props are NEW NODES after the room is rebuilt at a bigger size,
 ## so their signals have to be reconnected to match.

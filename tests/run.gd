@@ -461,6 +461,25 @@ func test_scene() -> void:
 	add_child(main)
 	await step(2)
 	world = main.get_node_or_null("World")
+	var hud: Control = main.get_node("UI/HUD")
+
+	# THE RISK THIS CLOSES OUT: main.tscn is only ever instantiated HERE --
+	# every later test's own Game.new_run() resets state but does not
+	# re-run main.gd's _ready(), so a Game.new_run(SEED) at the very top
+	# of this function is exactly the "genuinely new career" condition
+	# the intro trigger checks for. If it is not walked through and
+	# closed here, hud silently sits in Mode.INTRO for however many
+	# tests run before the first one happens to open some other screen
+	# and overwrite it -- self-healing, but by accident, not by design.
+	chk("a new career opens on the storyline intro", hud.mode == hud.Mode.INTRO, hud.mode)
+	var pages: int = hud.INTRO_PAGES.size()
+	for i in pages:
+		chk("page %d fits the panel" % i, hud.body.text.split("\n").size() <= 11,
+			hud.body.text)
+		await tap("interact")
+	chk("walking through every page closes it", hud.mode == hud.Mode.NONE, hud.mode)
+	chk("and marks it seen, so it never replays for this career", Game.intro_seen)
+
 	chk("the World node exists and is y-sorted", world != null and world.y_sort_enabled)
 	chk("a UI CanvasLayer exists and is NOT inside the y-sorted world",
 		main.get_node_or_null("UI") is CanvasLayer)

@@ -200,6 +200,26 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		"intro":
+			# new_run(0) then force intro_seen back off: new_run() already
+			# resets it, but a case run right after another one in the same
+			# process (this harness reuses one Game autoload across every
+			# match branch it's ever handed) must not inherit a stale true.
+			Game.new_run(0)
+			Game.intro_seen = false
+			hud.show_intro()
+		"intro_2":
+			Game.new_run(0)
+			Game.intro_seen = false
+			hud.show_intro()
+			hud._sel = 1
+			hud._render_intro()
+		"intro_3":
+			Game.new_run(0)
+			Game.intro_seen = false
+			hud.show_intro()
+			hud._sel = 2
+			hud._render_intro()
 		"office":
 			for m: Dictionary in Milestones.all():
 				if Game.milestones.size() >= 6:

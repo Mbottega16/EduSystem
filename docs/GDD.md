@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-20**, against build `b34`, with **1217 assertions
+> **Measured on 2026-08-21**, against build `b35`, with **1223 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -330,9 +330,9 @@ milestone and having taught it, not a number going up.
 | Names | 96 first, 64 surnames, 8 sprite sheets |
 | Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
-| Screens | 16 modes |
+| Screens | 17 modes |
 | Input actions | 19 (18 rebindable) |
-| Tests | **1217 assertions** across **81 sections** |
+| Tests | **1223 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -381,6 +381,17 @@ a corner popup (`MascotBox`/`MascotPortrait` in `hud.tscn`, deliberately
 OUTSIDE `$Overlay` so it can appear while no screen is open, which is
 exactly when a tip is needed) rather than a disembodied line of text.
 Every existing hint now goes through it.
+
+**Also built, Aug 2026:** a three-page storyline open (`Game.intro_seen`,
+`hud.show_intro()`, `Mode.INTRO`), played once at the start of a genuinely
+new career (day 1, no term history yet — an existing save from before
+this shipped is not replayed into it). A disgruntled teacher's own voice,
+not the principal's — same mechanics the boot "how to play" page already
+states plainly, told instead in the voice of the person it is happening
+to. Its arc invents nothing: the "district" a career eventually runs is
+named honestly as what the school layer above already is — more rooms, a
+hallway, hired staff, a reputation — not a bigger promise than the second
+paragraph of this section can keep.
 
 **Not built:** choosing which room to spend your day TEACHING in. Walking
 to a delegated room now gets you to its watch/hire screen faster than the

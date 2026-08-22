@@ -10,6 +10,12 @@ the Desktop.
 It opens on a title screen: **Continue**, **New term**, **How to play**,
 **Settings**, **Controls**, **Credits** and **Erase save**.
 
+Start a genuinely new career and, before any of that, a three-page
+storyline open plays once — Monday, one disgruntled teacher, told in
+their own voice. Same facts as **How to play**, said instead by the
+person it's happening to. E moves it along; it never replays for that
+career once you've walked through it.
+
 | key | | rebindable |
 |---|---|---|
 | Arrows / WASD | walk | yes |
@@ -414,7 +420,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1217 assertions
+Run Tests.bat            1223 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

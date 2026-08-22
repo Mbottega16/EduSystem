@@ -13,7 +13,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO }
 enum Shop { BUY, SELL, STAFF, ROOM }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
@@ -1623,6 +1623,74 @@ const TUTORIALS := [
 ## thirty milestones and reveal a blurb only once earned). Duplicating
 ## that render here would be the two drifting apart the first time either
 ## one changes.
+## The storyline tutorial: three pages, played once, at the start of a
+## genuinely new career (Game.intro_seen gates it -- see main.gd). Same
+## mechanics the boot "How to play" page already states plainly; this is
+## the same information in the voice of the person it is happening to,
+## not a second reference for the same facts.
+##
+## THE ARC, told rather than mechanically built: nothing here invents a
+## "district" system -- there is no such layer, and inventing one just to
+## honour a line of dialogue would be exactly the kind of decoration this
+## project's own rules warn against. What is real and already built is
+## the school layer this game already has: more rooms, hired staff,
+## reputation, a career that keeps going. The last page names that
+## honestly as what is actually coming, not a bigger promise than the
+## game can keep.
+const INTRO_PAGES := [
+	[
+		"Twelve years teaching, and it still comes to this: one",
+		"whiteboard marker worn to a stub, eight children who have",
+		"never once all been quiet at the same time, and a staff",
+		"room that ran out of the good biscuits back in March.",
+		"",
+		"Nobody applies for what happens next. It just does.",
+	],
+	[
+		"WASD walks. E is the button you will wear out -- helping",
+		"a stuck child, collecting finished work, sweeping up",
+		"whatever the disaster in the corner just did.",
+		"",
+		"F starts the lesson. Do that first, or you will be",
+		"standing here all day achieving nothing, same as always.",
+	],
+	[
+		"Do this well enough, long enough, and the room stops",
+		"being the whole job. There will be a hallway. There will",
+		"be OTHER rooms, and other people's children in them, and",
+		"-- God help you -- eventually a reputation that precedes you.",
+		"",
+		"Nobody warns you about that part. Consider this the warning.",
+	],
+]
+
+
+func show_intro() -> void:
+	_open(Mode.INTRO)
+	_sel = 0
+	_render_intro()
+
+
+func _render_intro() -> void:
+	title.text = "" if _sel > 0 else "MONDAY"
+	body.add_theme_font_size_override("font_size", 18)
+	body.add_theme_constant_override("line_spacing", 4)
+	body.text = "\n".join(INTRO_PAGES[_sel])
+	hint.text = "E - go on" if _sel < INTRO_PAGES.size() - 1 else "E - right then"
+
+
+func _handle_intro_input() -> void:
+	if not Game.claim_interact():
+		return
+	Sfx.play("blip")
+	if _sel < INTRO_PAGES.size() - 1:
+		_sel += 1
+		_render_intro()
+	else:
+		Game.intro_seen = true
+		close()
+
+
 func show_office() -> void:
 	_open(Mode.OFFICE)
 	body.visible = false
@@ -2738,6 +2806,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.OFFICE:
 		_handle_office_input()
+		return
+
+	if mode == Mode.INTRO:
+		_handle_intro_input()
 		return
 
 	if mode == Mode.SPECIALISM:

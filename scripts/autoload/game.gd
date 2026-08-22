@@ -388,6 +388,13 @@ var unlimited_coins: bool = false
 ## milestone -- see scripts/data/milestones.gd.
 var met_principal: bool = false
 
+## Set once the day-one story intro has played. Persisted, unlike the
+## smaller narrative beats (first lesson, first room, first hire), which
+## reuse hud.gd's own once-per-session `_shown_hints` the same way every
+## existing hint already does -- a single throwaway line reappearing after
+## a reload is a shrug, the whole opening scene doing it is not.
+var intro_seen: bool = false
+
 signal teacher_levelled(level: int)
 
 var rng := RandomNumberGenerator.new()
@@ -431,6 +438,7 @@ func new_run(seed_value: int = 0) -> void:
 	cheated = false
 	unlimited_coins = false
 	met_principal = false
+	intro_seen = false
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -2116,6 +2124,7 @@ func to_dict() -> Dictionary:
 		"graduated": graduated,
 		"cheated": cheated,
 		"met_principal": met_principal,
+		"intro_seen": intro_seen,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -2163,6 +2172,7 @@ func from_dict(d: Dictionary) -> void:
 	teacher_xp = int(d.get("teacher_xp", 0))
 	cheated = bool(d.get("cheated", false))
 	met_principal = bool(d.get("met_principal", false))
+	intro_seen = bool(d.get("intro_seen", false))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	graduated = d.get("graduated", []).duplicate()

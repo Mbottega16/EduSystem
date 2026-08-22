@@ -370,6 +370,52 @@ for no reason.
 
 ## Done
 
+- [x] **A storyline tutorial open: a disgruntled teacher, Monday, one
+      career.** *(Aug 2026 -- user: "MAKE A STORYLINE TUTORIAL OF HOW TO
+      PLAY THE GAME, HAVE THE PLAYER BE A DISGRUNTLED TEACHER WHO
+      INEVITABLY ENDS UP RUNNING THE SCHOOL AND TAKING OVER THE
+      DISTRICT.")* Three pages (`hud.INTRO_PAGES`), `Mode.INTRO`, played
+      once at the start of a genuinely new career and gated on TWO
+      conditions on purpose -- `Game.intro_seen` alone would replay it
+      for every existing save the moment this shipped; `Game.day <= 1
+      and Game.term_history.is_empty()` is what actually distinguishes
+      "new career" from "unset flag on an old one."
+      **The scoping decision that matters more than the code:** there is
+      no "district" system in this game, and the user's line asked for
+      one by name. Inventing a disconnected mechanical layer purely to
+      honour a piece of flavour text would be exactly the kind of
+      decoration this project's own rules warn against -- so the arc is
+      told, not mechanically built, around what is REAL and already
+      shipped: the hallway, hired staff in other rooms, a reputation, a
+      career that keeps going. The last page names that honestly as
+      what's actually coming, not a bigger promise than the game can
+      keep.
+      Persisted like `met_principal` (`to_dict()`/`from_dict()`, reset in
+      `new_run()`) rather than reusing `hud._shown_hints`, the pattern
+      every smaller narrative beat already uses -- a throwaway hint
+      reappearing after a reload is a shrug; the whole opening scene
+      doing it is not.
+      Test coverage lives inside `test_scene()`, the only place
+      `main.tscn` is ever instantiated in the whole suite -- and so the
+      only place `main.gd`'s one-time trigger can be exercised at all.
+      Walks all three pages, asserts each fits the panel budget
+      (`<= 11` lines), asserts it closes clean and marks itself seen.
+      Screenshotted all three pages for real (`intro`, `intro_2`,
+      `intro_3` in `tools/shot.gd`) rather than trusting the line-count
+      assertion alone -- this project has been burned before by a check
+      that passed while the screen looked wrong.
+      **Found and fixed along the way, unrelated to the feature itself:**
+      `Simulate a Term.bat` was throwing a SCRIPT ERROR on every
+      simulated purchase decision -- `tools/sim.gd`'s shopping loop
+      predates consumables and read a `"bonus"` key none of the four
+      consumable items have. `hud.gd`'s own shop rendering already
+      guards this exact gap with a comment; `_shop()` now skips
+      consumables the same way. The contract was never actually at risk
+      (`_shop()` treats the error as "nothing affordable" and moves on)
+      but the noise was real and the fix was one `continue`.
+      1217 -> 1223 assertions. Contract re-verified unmoved: 0.63/C,
+      0.71/C, 0.97/A, all still exact. Build b35.
+
 - [x] **Auto-teach: a toggle that resolves your own lesson the same
       honest way a delegated room is.** *(Aug 2026 -- user: "make
       teaching completely automated... have it be a toggle." This runs
