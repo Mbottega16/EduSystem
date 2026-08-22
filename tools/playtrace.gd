@@ -26,6 +26,14 @@ var _step := 0
 func _ready() -> void:
 	Balance.ensure_loaded()
 	Game.new_run(12345)
+	# This tool traces the EVERYDAY loop, not the once-per-career storyline
+	# cutscene -- and it drives input by simulating key presses, never a real
+	# frame of "press E to advance the slate", so a fresh new_run() above
+	# would otherwise leave main.gd's cutscene locking player input forever
+	# with nothing here that knows to clear it. Found by running this tool
+	# and reading the output: every line after boot showed locked=true and
+	# every action after that was silently a no-op.
+	Game.intro_seen = true
 	main = MAIN.instantiate()
 	add_child(main)
 	await get_tree().process_frame

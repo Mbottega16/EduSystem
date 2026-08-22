@@ -46,6 +46,11 @@ func _ready() -> void:
 	Balance.ensure_loaded()
 	Engine.time_scale = SPEED
 	Game.new_run(777)
+	# Same reasoning as playtrace.gd: this drives twenty real days through
+	# the real buttons, not the once-per-career storyline cutscene, and
+	# nothing here presses E to advance it -- a fresh new_run() would
+	# otherwise leave the player permanently input_locked on day 1.
+	Game.intro_seen = true
 	main = MAIN.instantiate()
 	add_child(main)
 	await get_tree().process_frame
