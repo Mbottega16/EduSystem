@@ -326,6 +326,12 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.refresh_hat()
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
+		"auto_teach":
+			Game.auto_teach = true
+			Game.set_phase(Game.Phase.MORNING)
+			world.start_lesson()
+			hud._watch_i = mini(10, hud._watch_frames.size() - 1)
+			hud._render_watch_frame()
 		"weather":
 			Game.event = DayEvent.by_id("wet_play")
 			world.start_lesson()

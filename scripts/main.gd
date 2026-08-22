@@ -25,6 +25,7 @@ func _ready() -> void:
 	world.marking_requested.connect(hud.open_marking)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
 	world.lesson_auto_ended.connect(_on_lesson_ended)
+	world.auto_lesson_resolved.connect(_on_auto_lesson_resolved)
 	world.inspected.connect(func(r: Dictionary) -> void:
 		_bump(3.0 if not bool(r.get("passed", false)) else 1.5)
 		hud.show_inspection(r))
@@ -171,6 +172,31 @@ func _bump(strength: float = 2.0) -> void:
 ## Deliberately not available mid-lesson, which is the rule every other way
 ## of moving furniture already follows: sliding desks about while the class
 ## works would dodge the point of planning the room in advance.
+## Turning it ON while a real lesson is already running resolves THAT
+## lesson instantly rather than making the player wait for the next one --
+## the toggle is meant to be usable the moment you decide you are done
+## walking today's floor, not just at the podium beforehand.
+func _toggle_auto_teach() -> void:
+	Game.auto_teach = not Game.auto_teach
+	Sfx.play("blip")
+	if Game.auto_teach and Game.phase == Game.Phase.LESSON and not Game.test_active:
+		_on_auto_lesson_resolved(world.run_auto_lesson())
+
+
+## Show the day RoomSim just resolved, the same way a delegated room's is
+## shown -- watchable, at your own pace, or skippable with the "watch" key.
+## Closing it hands off to the ordinary lesson report, exactly where a
+## manually-played lesson's own end would have landed.
+func _on_auto_lesson_resolved(data: Dictionary) -> void:
+	# On an inspection day, run_auto_lesson()'s own end_lesson() call has
+	# already fired world.inspected -> hud.show_inspection() by the time
+	# this runs -- that verdict outranks the watch replay, so leave it on
+	# screen rather than paving over it.
+	if hud.mode == hud.Mode.REPORT:
+		return
+	hud.show_own_watch(data.get("history", []), data.get("results", []))
+
+
 func _toggle_build() -> void:
 	if placement.active:
 		placement.finish()

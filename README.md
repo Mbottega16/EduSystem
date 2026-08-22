@@ -20,6 +20,8 @@ It opens on a title screen: **Continue**, **New term**, **How to play**,
 | **M** | **move a desk** | yes |
 | **C** | **settle the room within earshot** | yes |
 | **B** | **rearrange the room from a free cursor** | yes |
+| **R** | **autopilot -- walks your feet, never presses your buttons** | yes |
+| **T** | **auto-teach -- toggle: resolve the lesson like a delegated room** | yes |
 | Shift | hurry (1.7x) | yes |
 | Tab | class list, and cycles buy / sell / staff room / the room | yes |
 | **I** | **your dashboard -- who you are, what you own, your skills, your wardrobe** | yes |
@@ -167,7 +169,7 @@ until you collect it, that every room now has a door — they appear in the
 corner and say so, once, then get out of the way. Turn it off in
 **Settings** if you would rather work it out yourself.
 
-## Three things that carry the load for you
+## Four things that carry the load for you
 
 **Autopilot (R)** walks you to whoever needs you next — settling outranks
 unsticking, which outranks the quiz flag, which outranks collecting, the
@@ -182,6 +184,20 @@ deliberate — collecting is legwork, helping is a judgement about a
 particular child, and hiring out the judgement would be hiring somebody to
 play the game. The daily wage makes keeping one a standing decision rather
 than a purchase you forget.
+
+**A janitor**, hired the same way, cleans the day's mess — trash and spills
+— for you, any time of day, not just during a lesson. There is no judgement
+in a spill, so there is nothing here hiring somebody out of.
+
+**Auto-teach (T)** is the one deliberate exception to all of the above, and
+it exists on your own request: toggle it and a lesson — the one you are
+about to start, or the one you are already standing in — is resolved the
+same honest way a delegated room is. RoomSim actually runs the lesson
+model against your own roster with a policy (Steady, not the unbeatable
+Veteran — there is still real room for a player who walks the floor to
+beat it) making the calls, and the result is graded on YOUR real
+furniture, not a formula. You can watch it happen, at your own pace, or
+skip straight to the bell.
 
 ## Setting work is a hand of cards
 
@@ -398,7 +414,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1205 assertions
+Run Tests.bat            1217 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

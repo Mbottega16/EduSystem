@@ -143,6 +143,10 @@ var _watch_frames: Array = []
 var _watch_result: Dictionary = {}
 var _watch_i: int = 0
 var _watch_clock: float = 0.0
+## Set only when watching your OWN auto-taught lesson rather than a
+## delegated room -- closing that watch hands off to the ordinary lesson
+## report (these results) instead of back to the school board.
+var _watch_own_results: Array = []
 ## Seconds of real time per frame (each frame is one simulated second).
 const WATCH_FRAME_SECONDS := 0.12
 
@@ -232,6 +236,12 @@ func _update_status() -> void:
 	var bits: Array[String] = ["%sDay %d/%d" % [
 		"T%d " % Game.term if Game.term > 1 else "",
 		Game.day, Balance.term_days]]
+	# A mode you cannot see is a mode you forget is on -- same reasoning
+	# as autopilot's own tag below. Shown regardless of phase: auto-teach
+	# resolves a lesson the instant it starts, so there is barely a
+	# "teaching" phase for a lesson-only tag to ever actually be seen in.
+	if Game.auto_teach:
+		bits.append("AUTO-TEACH")
 
 	if teaching:
 		var room := get_tree().get_first_node_in_group("classroom")
@@ -1432,16 +1442,39 @@ func show_watch(i: int) -> void:
 	_render_watch_frame()
 
 
+## Auto-teach resolved YOUR OWN lesson. Same screen, same stepping, same
+## "watch" key to skip to the bell -- the whole point of reusing it is
+## that a room you delegate and a lesson you auto-teach are shown the
+## same honest way. `_watch_room = -1` is what tells _render_watch_frame()
+## and the WATCH input handler this is not a room in Game.rooms.
+func show_own_watch(history: Array, results: Array) -> void:
+	_watch_room = -1
+	_watch_own_results = results
+	_watch_result = {"letter": Game.grade_letter(Game.class_average())}
+	_watch_frames = history
+	_watch_i = 0
+	_watch_clock = 0.0
+	_open(Mode.WATCH)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
+	title.text = "WATCHING  -  Auto-teach"
+	_render_watch_frame()
+
+
 ## One frame: who is where, coloured the same way the rest of the game
 ## colours a struggling or noisy child, plus a running tally so the letter
 ## at the end does not land as a surprise.
 func _render_watch_frame() -> void:
 	var lines: Array[String] = []
 	var frame: Dictionary = _watch_frames[_watch_i] if _watch_i < _watch_frames.size() else {}
-	var teacher: Dictionary = (Game.rooms[_watch_room] as Dictionary).get("teacher", {})
+	var teacher_name := "Auto-teach"
+	if _watch_room >= 0:
+		teacher_name = String((Game.rooms[_watch_room] as Dictionary).get("teacher", {}).get("name", ""))
 	var at_front: bool = bool(frame.get("at_front", false))
 	lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
-		C_LESSON, String(teacher.get("name", "")),
+		C_LESSON, teacher_name,
 		C_GOOD if at_front else DIM,
 		"at the front, teaching" if at_front else "away from the front"])
 	lines.append("")
@@ -2674,7 +2707,14 @@ func _handle_input() -> void:
 	if mode == Mode.WATCH:
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("blip")
-			show_school()
+			# Your own auto-taught lesson hands off to the ordinary lesson
+			# report -- exactly where a manually-played lesson's end would
+			# have landed -- rather than back to the school board, which
+			# is where watching a DELEGATED room's day always goes.
+			if _watch_room == -1:
+				show_lesson_report(_watch_own_results)
+			else:
+				show_school()
 		elif Input.is_action_just_pressed("watch"):
 			# skip straight to the bell
 			_watch_i = maxi(0, _watch_frames.size() - 1)

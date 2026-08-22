@@ -18,6 +18,9 @@ signal lesson_timed_out()
 ## The clock ran out on its own, rather than the teacher calling time. The
 ## results still have to reach a screen, exactly as they do from the podium.
 signal lesson_auto_ended(results: Array)
+## Auto-teach resolved the whole lesson instantly. `data` is
+## {"history": Array, "results": Array} -- see run_auto_lesson().
+signal auto_lesson_resolved(data: Dictionary)
 signal test_auto_ended(results: Array)
 
 signal work_finished(seat_index: int)
@@ -529,12 +532,37 @@ func start_lesson() -> int:
 	Game.quiz_done = false        # one quiz per lesson, so a new one re-arms it
 	Game.quiz_focus = false       # and the focus it bought goes with it
 	lesson_left = Game.lesson_length()
+	# Auto-teach fully replaces the per-student setup below: RoomSim's own
+	# play_day() does its own reset_lesson()/assign_work() as part of
+	# resolving the whole day, so doing it again here would just re-roll
+	# a sheet nobody was ever going to see.
+	if Game.auto_teach:
+		auto_lesson_resolved.emit(run_auto_lesson())
+		return Game.roster.size()
 	var n := 0
 	for s: StudentData in Game.roster:
 		var node := student_node(s.seat_index)
 		if node != null and node.seated and s.assign_work():
 			n += 1
 	return n
+
+
+## THE PROMISE THIS KEEPS, same as a delegated room's: run the actual
+## lesson model against your OWN roster with a policy driving the
+## decisions your feet would otherwise make, rather than a formula. What
+## makes this different from a delegated room is the grading -- RoomSim's
+## own grade_for() takes a flat room_value because a delegated room has
+## no placed furniture to measure, but YOUR room does. So this throws
+## RoomSim's grade away and hands off to end_lesson() instead, which
+## grades through Game.grade_class() -- the exact function a lesson you
+## played yourself is graded through, reading your ACTUAL room_score().
+##
+## Steady, not Veteran -- see Game.auto_teach's own comment for why.
+func run_auto_lesson() -> Dictionary:
+	var sim := RoomSim.play_day(Game.roster, Staff.archetype("steady"),
+		0.0, Game.lesson, Game.rng)
+	var results := end_lesson()
+	return {"history": sim.get("history", []), "results": results}
 
 
 ## Podium, in the morning, on a unit you have taught enough times. Sits the

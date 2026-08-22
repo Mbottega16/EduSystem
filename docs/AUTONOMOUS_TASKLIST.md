@@ -370,6 +370,51 @@ for no reason.
 
 ## Done
 
+- [x] **Auto-teach: a toggle that resolves your own lesson the same
+      honest way a delegated room is.** *(Aug 2026 -- user: "make
+      teaching completely automated... have it be a toggle." This runs
+      directly into "Legwork, not judgement," the hardest-enforced rule
+      in the project, so it was confirmed with the user via
+      AskUserQuestion before anything was built -- three concrete
+      framings offered, the user picked "resolve your room like a
+      delegated one."*)
+      `Game.auto_teach`, toggled on its own key (T), off by default.
+      Turning it on does not automate one judgement at a time inside a
+      lesson you are still nominally playing -- that would be the exact
+      thing the rule forbids. It hands the WHOLE lesson to RoomSim, the
+      same simulation a delegated room already runs, driven by Staff's
+      existing "Steady" archetype -- Steady, not the unbeatable Veteran,
+      so a player who actually walks the floor still has real room to
+      beat it.
+      **The one design decision that makes this honest rather than a
+      shortcut:** RoomSim's own `grade_for()` takes a flat room_value,
+      the right abstraction for a delegated room with no placed
+      furniture to measure -- but the player's OWN room has real,
+      placed furniture. So `run_auto_lesson()` lets RoomSim decide what
+      happens to the roster (who gets helped, whose work is collected,
+      who gets quizzed) and then throws its grade away, handing off to
+      `end_lesson()` -- the exact function a manually-played lesson
+      already uses, reading the REAL `room_score()`. Proven with a
+      regression test that places a strong item, auto-teaches, then
+      repeats bare-room with the same seed: the grade has to move, or
+      the whole thing is a formula wearing RoomSim's clothes.
+      Watchable, reusing the delegated-room "watch" screen almost as-is
+      (`_watch_room = -1` is the sentinel for "not a room in
+      Game.rooms") -- RoomSim already builds a full tick-by-tick history
+      for exactly this purpose, so no new frame-tracking was needed.
+      Closing the watch hands off to the ordinary lesson report, not
+      the school board; an inspection day's own verdict (already shown
+      by the time this runs) is left alone rather than paved over.
+      Turning it on while a real lesson is already under way resolves
+      THAT lesson immediately, not just the next one.
+      `CLAUDE.md`/`docs/GDD.md` both name this as the one deliberate,
+      documented exception to "Legwork, not judgement" -- written down
+      so a future session does not mistake it for the rule quietly
+      eroding, or assume it covers a DIFFERENT future automation request
+      that presses buttons inside a lesson still being played.
+      1205 -> 1217 assertions. Contract re-verified unmoved -- structurally
+      guaranteed, since the grade path is the same one manual play uses.
+
 - [x] **Cosmetics: hats and backgrounds, the hook the dashboard has had
       since it was built.** *(Aug 2026 -- user: "keep going" / adding
       things to the game, following a monetization discussion that

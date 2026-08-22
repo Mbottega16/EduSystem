@@ -151,6 +151,10 @@ func _physics_process(delta: float) -> void:
 			var room := get_tree().get_first_node_in_group("classroom")
 			if room != null and room.has_method("raise_voice"):
 				room.raise_voice()
+		if Game.claim_action("auto_teach"):
+			var m2 := get_tree().get_first_node_in_group("main_wiring")
+			if m2 != null and m2.has_method("_toggle_auto_teach"):
+				m2._toggle_auto_teach()
 
 
 ## Nearest interactable, but strongly preferring whatever you are facing.

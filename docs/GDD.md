@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-20**, against build `b33`, with **1205 assertions
+> **Measured on 2026-08-20**, against build `b34`, with **1217 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -106,6 +106,16 @@ The rule that governs every piece of automation, present and future.
 **This is the rule that will govern the entire school layer.** Delegating a
 room is allowed. Delegating the decision of what to do about one child, in
 the room you are standing in, is not.
+
+**One named exception, Aug 2026: `Game.auto_teach`.** A toggle, off by
+default, built on explicit request after the tension with this exact rule
+was raised and confirmed rather than assumed away. It does not automate
+one judgement at a time inside a lesson you are still playing -- that
+would be the thing this rule forbids. It hands the WHOLE lesson to the
+same honest RoomSim simulation a delegated room already runs, graded on
+your real room, and you can watch it happen rather than trust a number.
+Stepping outside the rule on purpose, once, with the reasoning written
+down, is not the same as the rule quietly eroding.
 
 ### Prose, not numbers
 The player is never shown a decimal. `scripts/ui/hud.gd`:
@@ -321,8 +331,8 @@ milestone and having taught it, not a number going up.
 | Homework questions | 89, 3 to a sheet |
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 16 modes |
-| Input actions | 18 (17 rebindable) |
-| Tests | **1205 assertions** across **81 sections** |
+| Input actions | 19 (18 rebindable) |
+| Tests | **1217 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

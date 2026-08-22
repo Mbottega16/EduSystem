@@ -361,6 +361,23 @@ var graduated: Array = []            ## [{name, level, readiness, day}]
 var hat_id: String = ""
 var background_id: String = ""
 
+## Toggle, on the player's own request (Aug 2026): resolve the lesson you
+## are ABOUT to teach -- or the one you are currently standing in -- the
+## same honest way a delegated room is, by running RoomSim against your
+## OWN roster and OWN room, rather than a formula. It never grades on
+## RoomSim's own flat room_value: classroom.gd's run_auto_lesson() lets
+## RoomSim decide what happens to the children, then hands off to the
+## SAME end_lesson()/grade_class() a manually-played day already uses,
+## so a room resolved this way is graded on your actual furniture, not
+## a delegated room's abstraction of it.
+##
+## Deliberately Steady's policy, not Veteran's -- Veteran is the one
+## archetype in the game meant to have no hole in it, and a free stand-in
+## for the best hired teacher in the game would make playing the lesson
+## yourself the WORSE option rather than an equal one. Steady still
+## leaves real room for a player who actually walks the floor to beat it.
+var auto_teach: bool = false
+
 ## Set the moment any cheat is used, and never cleared. Saved, shown on the
 ## end-of-term screen, and checked by the term simulator, which refuses to
 ## run on a cheated save -- a balance reading taken after a cheat is a lie.
@@ -420,6 +437,7 @@ func new_run(seed_value: int = 0) -> void:
 	perk_ranks.clear()
 	hat_id = ""
 	background_id = ""
+	auto_teach = false
 	graduated.clear()
 	taught.clear()
 	concepts.clear()
@@ -2108,6 +2126,7 @@ func to_dict() -> Dictionary:
 		"chosen_lesson": chosen_lesson,
 		"hat_id": hat_id,
 		"background_id": background_id,
+		"auto_teach": auto_teach,
 		"assignment": assignment,
 		"term_history": term_history,
 		"run_over": run_over,
@@ -2159,6 +2178,7 @@ func from_dict(d: Dictionary) -> void:
 	chosen_lesson = String(d.get("chosen_lesson", ""))
 	hat_id = String(d.get("hat_id", ""))
 	background_id = String(d.get("background_id", ""))
+	auto_teach = bool(d.get("auto_teach", false))
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()

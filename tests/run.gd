@@ -197,6 +197,7 @@ func _main() -> void:
 	await test_assignment_cards()
 	test_a_term_can_be_won()
 	await test_autopilot_and_aide()
+	await test_auto_teach()
 	await test_lesson_plan_folder()
 	await test_dashboard()
 	await test_milestones()
@@ -4886,6 +4887,74 @@ func test_autopilot_and_aide() -> void:
 	Game.set_janitor(false)
 	chk("letting the janitor go also resets their training",
 		not Game.has_janitor and Game.janitor_level == 1, Game.janitor_level)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## Resolve YOUR room the same honest way a delegated one is, on the
+## player's own request. THE PROMISE THAT MATTERS: the grade comes from
+## Game.grade_class() -- your real room_score() -- not RoomSim's own flat
+## room_value, which is what would make an auto-taught day a lie about
+## your furniture rather than an honest reading of it.
+func test_auto_teach() -> void:
+	section("AUTO-TEACH")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	chk("off by default", not Game.auto_teach)
+	await tap("auto_teach")
+	chk("its own key toggles it", Game.auto_teach)
+	await tap("auto_teach")
+	chk("and toggles it back off", not Game.auto_teach)
+	await tap("auto_teach")
+
+	# A real furniture difference has to show up in the grade, or this is
+	# a formula wearing RoomSim's clothes rather than an honest reading.
+	Game.room_items.clear()
+	Game.place_item("microscope", Vector2i(2, 4))   # strong, in range of seat 0
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	chk("starting the lesson resolves it instantly -- no real-time ticking",
+		Game.phase == Game.Phase.AFTERNOON, Game.phase)
+	chk("and opens the watch screen", hud.mode == hud.Mode.WATCH, hud.mode)
+	chk("naming auto-teach, not a hired archetype",
+		hud.title.text.contains("Auto-teach"), hud.title.text)
+	var furnished_grade := Game.roster[0].last_grade
+
+	await tap("watch")   # the "skip to the bell" key, same as a delegated room
+	chk("skipping lands on the last frame",
+		hud._watch_i == hud._watch_frames.size() - 1)
+	await tap("interact")
+	chk("closing it hands off to the ordinary lesson report, not the school board",
+		hud.mode == hud.Mode.REPORT, hud.mode)
+	hud.close()
+
+	# Same lesson, same seed, bare room this time -- the grade must move.
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	var bare_grade := Game.roster[0].last_grade
+	chk("furniture actually moved the auto-taught grade, not a formula",
+		furnished_grade > bare_grade, "%.3f vs %.3f" % [furnished_grade, bare_grade])
+	hud.close()
+
+	# --- toggling it ON mid-lesson resolves THAT lesson immediately ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	await step(3)
+	chk("a real lesson is genuinely under way", Game.phase == Game.Phase.LESSON)
+	var m := get_tree().get_first_node_in_group("main_wiring")
+	m._toggle_auto_teach()
+	chk("turning it on mid-lesson resolves that lesson too, not just the next one",
+		Game.phase == Game.Phase.AFTERNOON, Game.phase)
+	chk("and shows the watch screen the same way", hud.mode == hud.Mode.WATCH)
+	hud.close()
 
 	Game.new_run(SEED)
 	await step(2)

@@ -62,7 +62,20 @@ repeatedly by edits that seemed obviously right:
   a claim about a *child*? If yes, it is banned. If it is just what
   something costs or how far along you are, it is fine.
 - **Legwork, not judgement.** Automation may do the walking; it may never
-  make the decision about a particular child.
+  make the decision about a particular child. **The one deliberate,
+  named exception:** `Game.auto_teach` (Aug 2026, on explicit user
+  request, after being asked to confirm the tension before it was
+  built). Toggled, off by default, and it does not sneak past this rule
+  so much as step outside it on purpose -- it hands the WHOLE lesson to
+  RoomSim's Steady policy, the same honest simulation a delegated room
+  already runs, rather than quietly automating one judgement at a time
+  inside a lesson you are still nominally playing. Graded through the
+  ordinary `Game.grade_class()`, on your real `room_score()`, not
+  RoomSim's own flat abstraction -- see `run_auto_lesson()`'s own
+  comment. If a future request asks for automation that presses
+  buttons WHILE you are still standing in and playing your own lesson,
+  that is the thing this rule still forbids; confirm the distinction
+  with the user rather than assuming this precedent already covers it.
 - **One dedicated key per verb.** *(Revised Aug 2026, on user request --
   see `Interactable.Key` in `scripts/interact/interactable.gd` for the
   authoritative list.)* Used to be "two buttons per landmark": E the
@@ -113,7 +126,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1205 assertions — must pass, count must not drop
+Run Tests.bat            1217 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -126,7 +139,7 @@ replacing three of the five double-clicks above.
 
 Then **look at it**: `Take a Screenshot.bat [screen]` runs the real scene
 and saves a PNG into `shots/` (gitignored). Pass no argument for the HUD's
-own TITLE overlay, or one of the 40 named in the batch file's own comment.
+own TITLE overlay, or one of the 43 named in the batch file's own comment.
 Headless proves code does not crash; it never proves anything is on screen.
 
 **That tool only ever loads `scenes/main.tscn`**, so it has never been
@@ -185,7 +198,7 @@ a deliberate WIP commit.
 | `scripts/ui/hud.gd` | Every screen. 16 modes; ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1205 assertions, 81 sections |
+| `tests/run.gd` | The suite — 1217 assertions, 81 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
