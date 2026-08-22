@@ -65,12 +65,39 @@ func _ready() -> void:
 	# is made once here rather than re-made in _wire_room().
 	hallway.door_chosen.connect(_on_hallway_door)
 
-	# The storyline tutorial. Both conditions on purpose: intro_seen alone
-	# would replay it for anyone who had an existing save from before this
-	# shipped, the day it shipped -- day 1 with no term behind you yet is
-	# what actually means "this is a new career", not just an unset flag.
+	# The storyline cutscene. hud.gd owns the WORDS and their paging; this is
+	# the wiring that turns "the slate was dismissed" into an actual teacher
+	# walking across an actual room, and "a page turned" into a line above
+	# their own head instead of hud reaching into world.player directly.
+	hud.intro_walk_requested.connect(_start_intro_cutscene)
+	hud.intro_line_changed.connect(func(t: String) -> void:
+		world.player.say(t))
+	hud.intro_finished.connect(func() -> void:
+		world.player.input_locked = false
+		world.player.hide_bubble())
+
+	# Both conditions on purpose: intro_seen alone would replay it for
+	# anyone who had an existing save from before this shipped, the day it
+	# shipped -- day 1 with no term behind you yet is what actually means
+	# "this is a new career", not just an unset flag.
 	if not Game.intro_seen and Game.day <= 1 and Game.term_history.is_empty():
+		# Locked here rather than left to hud._open()'s own best-effort
+		# lock: that one goes through a _player reference hud only
+		# discovers lazily in _process(), so it can still be null on the
+		# very first frame -- harmless while a full slate covers the
+		# screen, but this cutscene shows the room FROM that first frame.
+		world.player.input_locked = true
 		hud.show_intro()
+
+
+## The storyline cutscene's second beat: the slate is gone, the room is
+## visible, and the teacher walks in from the door rather than already
+## standing at the front the way every other boot leaves them. Triggered by
+## hud's own intro_walk_requested, fired once the slate is dismissed -- see
+## hud.gd's INTRO_SLATE/INTRO_PAGES split.
+func _start_intro_cutscene() -> void:
+	world.player.global_position = Grid.tile_to_world(Layout.DOOR + Vector2i(1, 0))
+	world.player.start_scripted_walk(world.teacher_start_world())
 
 
 ## The fixed props are NEW NODES after the room is rebuilt at a bigger size,

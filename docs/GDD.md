@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-21**, against build `b35`, with **1223 assertions
+> **Measured on 2026-08-22**, against build `b36`, with **1238 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -332,7 +332,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
 | Input actions | 19 (18 rebindable) |
-| Tests | **1223 assertions** across **81 sections** |
+| Tests | **1238 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -382,16 +382,29 @@ OUTSIDE `$Overlay` so it can appear while no screen is open, which is
 exactly when a tip is needed) rather than a disembodied line of text.
 Every existing hint now goes through it.
 
-**Also built, Aug 2026:** a three-page storyline open (`Game.intro_seen`,
+**Also built, Aug 2026:** a storyline cutscene (`Game.intro_seen`,
 `hud.show_intro()`, `Mode.INTRO`), played once at the start of a genuinely
 new career (day 1, no term history yet — an existing save from before
-this shipped is not replayed into it). A disgruntled teacher's own voice,
-not the principal's — same mechanics the boot "how to play" page already
-states plainly, told instead in the voice of the person it is happening
-to. Its arc invents nothing: the "district" a career eventually runs is
-named honestly as what the school layer above already is — more rooms, a
-hallway, hired staff, a reputation — not a bigger promise than the second
-paragraph of this section can keep.
+this shipped is not replayed into it). A title slate ("MONDAY"), then the
+teacher walks in from the door and takes their place at the front
+(`player.gd`'s `start_scripted_walk()`), saying it all from a `SpeechBubble`
+above their own head rather than a panel — a disgruntled teacher's own
+voice, not the principal's, over the same mechanics the boot "how to
+play" page already states plainly. Its arc invents nothing: the
+"district" a career eventually runs is named honestly as what the school
+layer above already is — more rooms, a hallway, hired staff, a
+reputation — not a bigger promise than the second paragraph of this
+section can keep.
+
+**And, same batch:** homework marking is a drawn page
+(`scripts/ui/homework_sheet.gd`), not a worded description of one —
+college-ruled paper, each answer in the student's own hand. The
+underlying tells are unchanged (`Questions.make_sheet()`'s deliberately
+unreliable `neat`/`working`, see its own `TELL_RELIABILITY` comment);
+only how they are SHOWN changed. A neat tell draws as legible ink, a
+rushed one as a scribble you genuinely cannot read — still a judgement,
+not a lookup. Your own pass/fail verdict, not the truth, is what stamps
+a checkmark or a cross on the page once you give it.
 
 **Not built:** choosing which room to spend your day TEACHING in. Walking
 to a delegated room now gets you to its watch/hire screen faster than the

@@ -13,6 +13,7 @@ signal carrying_changed(count: int)
 @onready var zone: Area2D = $InteractZone
 @onready var carry_icon: Sprite2D = $CarryIcon
 @onready var hat_sprite: Sprite2D = $HatSprite
+@onready var bubble: SpeechBubble = $SpeechBubble
 
 ## What each BUTTON is pointing at. Two interactables may share a tile so
 ## long as they use different keys -- the podium offers "teach today's
@@ -51,6 +52,42 @@ signal autopilot_changed(on: bool)
 
 ## Where autopilot is currently heading, for the HUD. Empty when idle.
 var auto_target_name: String = ""
+
+## Cutscene-only movement: walk toward a fixed point under SCRIPT control
+## rather than input, for the storyline intro's walk-in. Deliberately its
+## own thing rather than a mode of autopilot -- autopilot chases whoever
+## currently needs you and re-aims every frame; this walks toward one fixed
+## point once and is done, a stage direction rather than a standing policy.
+var _walk_target: Vector2 = Vector2.ZERO
+var _walking_scripted: bool = false
+
+
+func start_scripted_walk(target: Vector2) -> void:
+	_walk_target = target
+	_walking_scripted = true
+
+
+func is_walking_scripted() -> bool:
+	return _walking_scripted
+
+
+func _scripted_walk_direction() -> Vector2:
+	var to: Vector2 = _walk_target - global_position
+	if to.length() <= 3.0:
+		_walking_scripted = false
+		return Vector2.ZERO
+	return to.normalized()
+
+
+## The player's own voice, above their own head -- see SpeechBubble.
+func say(text: String) -> void:
+	if bubble != null:
+		bubble.say(text)
+
+
+func hide_bubble() -> void:
+	if bubble != null:
+		bubble.hide_bubble()
 
 
 ## The desk that most needs the teacher, by the same priority the desk
@@ -111,7 +148,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	tick_pose(delta)
 	var dir := Vector2.ZERO
-	if not input_locked:
+	if _walking_scripted:
+		dir = _scripted_walk_direction()
+	elif not input_locked:
 		dir = Vector2(
 			Input.get_axis("move_left", "move_right"),
 			Input.get_axis("move_up", "move_down")

@@ -472,13 +472,42 @@ func test_scene() -> void:
 	# tests run before the first one happens to open some other screen
 	# and overwrite it -- self-healing, but by accident, not by design.
 	chk("a new career opens on the storyline intro", hud.mode == hud.Mode.INTRO, hud.mode)
+	chk("it opens on the title slate", hud._sel == -1, hud._sel)
+	chk("the slate fits the panel", hud.body.text.split("\n").size() <= 11, hud.body.text)
+
+	# The scene itself is said from a bubble above the teacher's own head
+	# (main.gd wires hud's words to world.player), not a panel hud owns
+	# outright -- so this listens for the same signal main.gd does rather
+	# than reading a Label hud no longer writes to for this part.
+	var last_line: String = ""
+	hud.intro_line_changed.connect(func(t: String) -> void: last_line = t)
+	var door_tile: Vector2 = world.player.global_position
+
+	await tap("interact")   # leaves the slate; also what starts the walk-in
+	chk("leaving the slate hides the panel and shows the room",
+		not hud.overlay.visible)
+	chk("and starts the teacher walking in from the door",
+		world.player.is_walking_scripted() or
+		world.player.global_position != door_tile)
+
 	var pages: int = hud.INTRO_PAGES.size()
 	for i in pages:
-		chk("page %d fits the panel" % i, hud.body.text.split("\n").size() <= 11,
-			hud.body.text)
+		chk("bubble %d fits above the teacher's head" % i,
+			last_line.split("\n").size() <= 2, last_line)
 		await tap("interact")
 	chk("walking through every page closes it", hud.mode == hud.Mode.NONE, hud.mode)
 	chk("and marks it seen, so it never replays for this career", Game.intro_seen)
+
+	# A handful of dialogue taps is nowhere near enough frames to cross the
+	# room, so let the scripted walk actually finish before judging where
+	# it ended.
+	var guard := 0
+	while world.player.is_walking_scripted() and guard < 300:
+		await step(1)
+		guard += 1
+	chk("the walk-in actually finished", not world.player.is_walking_scripted())
+	chk("and ended where every ordinary boot already starts you",
+		world.player.global_position.distance_to(world.teacher_start_world()) < 4.0)
 
 	chk("the World node exists and is y-sorted", world != null and world.y_sort_enabled)
 	chk("a UI CanvasLayer exists and is NOT inside the y-sorted world",
@@ -5916,17 +5945,32 @@ func test_marking() -> void:
 		hud._marking.size())
 	chk("it names whose sheet you're looking at",
 		hud.title.text.contains(Game.roster[0].display_name), hud.title.text)
-	chk("it shows the questions and the tells",
-		hud.body.text.contains("neat") or hud.body.text.contains("rushed"))
+	chk("it draws the sheet instead of describing it in words",
+		hud.sheet.visible and not hud.body.visible)
+	chk("the sheet actually holds this student's own items",
+		hud.sheet._sheet.get("items", []) == Game.roster[0].hw_sheet.get("items", []))
 
 	var left: int = hud._marking.size()
 	await tap("move_right")
 	await step(2)
-	chk("a verdict moves on to the next sheet", hud._marking.size() == left - 1)
+	chk("a verdict moves on to the next sheet immediately, state-wise",
+		hud._marking.size() == left - 1)
+	chk("and stamps the player's OWN verdict on the page, not the truth",
+		hud.sheet._stamp_pass == 1, hud.sheet._stamp_pass)
+
+	# The stamp holds for MARKING_STAMP_SECONDS of real pacing before the
+	# next sheet replaces it -- the point of drawing it at all. A test has
+	# no reason to sit through that any more than test_school() waits out
+	# WATCH's own frame clock (see its _watch_i / _render_watch_frame()
+	# just above): bypass it the same way, directly.
+	hud._marking_hold = 0.0
+	hud._finish_marking_if_ready()
 
 	var guard := 0
 	while hud.mode == hud.Mode.MARKING and guard < 20:
 		await tap("move_right")
+		hud._marking_hold = 0.0
+		hud._finish_marking_if_ready()
 		await step(2)
 		guard += 1
 	chk("marking every sheet finishes the batch", hud.mode == hud.Mode.REPORT, guard)

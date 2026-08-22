@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/ui/homework_sheet.gd" id="2_sheet"]
 
 [node name="HUD" type="Control"]
 anchors_preset = 15
@@ -105,6 +106,15 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.95, 0.91, 0.77, 1)
 theme_override_font_sizes/font_size = 20
 theme_override_constants/line_spacing = 8
+
+[node name="Sheet" type="Control" parent="Overlay"]
+visible = false
+offset_left = 32.0
+offset_top = 48.0
+offset_right = 608.0
+offset_bottom = 304.0
+mouse_filter = 2
+script = ExtResource("2_sheet")
 
 [node name="Rich" type="RichTextLabel" parent="Overlay"]
 visible = false

@@ -1,9 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Texture2D" path="res://art/shadow.png" id="9_shadow"]
 [ext_resource type="Script" path="res://scripts/actors/player.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://art/player.png" id="2_tex"]
 [ext_resource type="Texture2D" path="res://art/paper.png" id="3_paper"]
+[ext_resource type="Script" path="res://scripts/actors/speech_bubble.gd" id="4_bubble"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_feet"]
 size = Vector2(10, 7)
@@ -48,3 +49,35 @@ texture = ExtResource("3_paper")
 visible = false
 position = Vector2(0, -34)
 z_index = 1
+
+[node name="SpeechBubble" type="Node2D" parent="."]
+position = Vector2(0, -28)
+z_index = 5
+script = ExtResource("4_bubble")
+
+[node name="Tail" type="Polygon2D" parent="SpeechBubble"]
+color = Color(0.07, 0.05, 0.09, 0.94)
+polygon = PackedVector2Array(-8, -10, 8, -10, 0, -2)
+
+[node name="Box" type="ColorRect" parent="SpeechBubble"]
+clip_contents = true
+offset_left = -88.0
+offset_top = -62.0
+offset_right = 88.0
+offset_bottom = -10.0
+mouse_filter = 2
+color = Color(0.07, 0.05, 0.09, 0.94)
+
+[node name="Label" type="Label" parent="SpeechBubble/Box"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_top = 4.0
+offset_right = -6.0
+offset_bottom = -4.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.95, 0.91, 0.77, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

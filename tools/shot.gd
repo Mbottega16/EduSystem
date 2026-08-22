@@ -164,6 +164,17 @@ func _open_screen(main: Node, screen: String) -> void:
 				s.hw_true_accuracy = 0.7
 				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, Game.rng, "math")
 			hud.open_marking()
+		"marking_stamp":
+			# The player's own verdict, stamped -- checked separately from
+			# the plain sheet since the stamp only ever appears for the
+			# instant MARKING_STAMP_SECONDS holds it up.
+			Game.new_run(0)
+			for s: StudentData in Game.roster:
+				s.hw_state = StudentData.HW.COLLECTED
+				s.hw_true_accuracy = 0.7
+				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, Game.rng, "math")
+			hud.open_marking()
+			hud.sheet.stamp(true)
 		"school":
 			Game.coins = 999999
 			for ri in 3:
@@ -201,24 +212,38 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.visible = false
 			hallway.visible = true
 		"intro":
-			# new_run(0) then force intro_seen back off: new_run() already
-			# resets it, but a case run right after another one in the same
-			# process (this harness reuses one Game autoload across every
-			# match branch it's ever handed) must not inherit a stale true.
+			# The title slate. new_run(0) then force intro_seen back off:
+			# new_run() already resets it, but a case run right after another
+			# one in the same process (this harness reuses one Game autoload
+			# across every match branch it's ever handed) must not inherit a
+			# stale true.
 			Game.new_run(0)
 			Game.intro_seen = false
 			hud.show_intro()
-		"intro_2":
+		"intro_walk":
+			# The cutscene itself, mid-stride: the slate is gone, the room is
+			# visible, and the teacher is partway across it -- the harness's
+			# own post-open wait (see _ready() below) advances REAL frames
+			# afterward, same as any other running gameplay, so this is a
+			# genuine walk in progress by the time the shot is taken, not a
+			# frozen pose.
 			Game.new_run(0)
 			Game.intro_seen = false
 			hud.show_intro()
-			hud._sel = 1
+			world.player.global_position = Grid.tile_to_world(
+				Layout.DOOR + Vector2i(1, 0))
+			world.player.start_scripted_walk(world.teacher_start_world())
+			hud._sel = 0
 			hud._render_intro()
-		"intro_3":
+		"intro_line":
+			# Arrived, and on the longest bubble line in the script -- the
+			# worst case for panel fit, checked by eye rather than trusting
+			# the suite's own line-count assertion alone.
 			Game.new_run(0)
 			Game.intro_seen = false
 			hud.show_intro()
-			hud._sel = 2
+			world.player.global_position = world.teacher_start_world()
+			hud._sel = hud.INTRO_PAGES.size() - 1
 			hud._render_intro()
 		"office":
 			for m: Dictionary in Milestones.all():

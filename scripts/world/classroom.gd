@@ -244,6 +244,15 @@ func _spawn_player() -> void:
 	_attach_camera()
 
 
+## Where the teacher stands once they've taken their place. Every boot
+## already puts the player here directly (above); the storyline cutscene
+## is the one caller that wants a WALK ending at the same spot instead of
+## starting there, and main.gd only ever holds `world` as a generic
+## Node2D, so the constant isn't reachable from outside without this.
+func teacher_start_world() -> Vector2:
+	return Grid.tile_to_world(TEACHER_START)
+
+
 ## A camera that follows the teacher, clamped to the room.
 ##
 ## At the opening 20x11 the room is EXACTLY the viewport, so the limits pin

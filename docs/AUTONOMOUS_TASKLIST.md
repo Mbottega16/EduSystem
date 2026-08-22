@@ -370,6 +370,80 @@ for no reason.
 
 ## Done
 
+- [x] **The storyline open became an actual cutscene, and homework marking
+      became a real page.** *(Aug 2026 -- user: "now make me... a cutscene
+      where he walks in and says all this from a text box above his
+      head," plus, same message, "an overhaul to the homework... the game
+      will now be either making a x or a check mark on a pixelated
+      college ruled piece of paper... correct answers should have good
+      handwriting and bad answers should look scribbly.")*
+
+      **The cutscene.** The intro's 3 full-panel pages split into a title
+      slate ("MONDAY", unchanged) followed by the teacher walking in from
+      the door and taking their place at the front
+      (`player.start_scripted_walk()`, a fixed-point walk under script
+      control, deliberately separate from autopilot -- which chases a
+      live need and re-aims every frame; this walks toward one point once
+      and is done). The words move to a `SpeechBubble` above the
+      teacher's own head (`scripts/actors/speech_bubble.gd`, a plain
+      Node2D + Label the same way `floater.gd`'s pop-up numbers already
+      prove works in this project) instead of a panel talking about the
+      room while it sits hidden behind it -- hud.gd owns the paging
+      (`INTRO_PAGES`, now bubble-sized: 2 short lines, not "2 or 3", see
+      below), main.gd owns the world, and the two cross by signal
+      (`intro_walk_requested`, `intro_line_changed`, `intro_finished`)
+      rather than hud reaching into `world.player` directly.
+      **Two real bugs, both caught only by screenshotting, neither by the
+      suite:** the bubble Label's anchors were never set, so a negative
+      offset collapsed it to zero width and word-wrap devolved into one
+      letter per line down the left edge -- fixed by anchoring it to the
+      full parent rect. Separately, one bubble line ("Consider this the
+      warning.") was long enough to wrap a THIRD visual line inside a
+      2-line box, overflowing top and bottom at once -- fixed by
+      capping every page at 2 lines flat (was "2 or 3") and confirming
+      the actual longest line by shooting it deliberately
+      (`tools/shot.gd`'s `intro_line` case), not by counting characters.
+      A third, milder fit issue: the room's front row sits close enough
+      to the top wall that the original bubble geometry crowded the
+      status bar there, found the same way and fixed by shrinking the
+      bubble and lowering its anchor on the teacher's head.
+
+      **The homework sheet.** `scripts/ui/homework_sheet.gd`, a `Control`
+      that draws college-ruled paper, a red margin line, and each
+      problem in the STUDENT'S OWN HAND rather than a worded description
+      of one. Before building it, confirmed with the user which of two
+      readings was intended, since it is a fork that changes a protected
+      mechanic either way: does the checkmark/X reveal the true
+      right/wrong answer (removing the judgement call entirely), or does
+      legibility keep tracking the existing, deliberately unreliable
+      `neat`/`working` tells (`Questions.make_sheet()`'s own
+      `TELL_RELIABILITY`), with the stamp recording the PLAYER'S verdict
+      rather than the truth? User picked the latter -- the recommended
+      option, and the one that keeps "you could still be wrong" intact.
+      A neat tell draws as legible ink; a rushed one draws as an actual
+      illegible scribble (a jittered polyline, not a messy font) --
+      seeded from a hash of the item's own already-decided content, not
+      `Game.rng` and not `randomize()`, because the scribble is cosmetic
+      and has to redraw identically every time, never a fresh roll.
+      "Working shown" draws as small scratch marks above the line;
+      absent, not just faint, when there was none. The verdict itself
+      (still the same whole-sheet Left/Right as before -- this did not
+      become per-problem marking) stamps a checkmark or cross across the
+      page, held for `MARKING_STAMP_SECONDS` (0.25s) before the next
+      sheet replaces it, long enough to actually see it happen. The
+      state change (popping the queue, marking it graded) still lands
+      the same frame the verdict is given, same as before the stamp
+      existed -- only the SCREEN transition waits, which is what let the
+      existing "a verdict moves on to the next sheet" test keep meaning
+      exactly what it always meant. **One real bug found by
+      screenshotting, not by the suite:** the printed question text was
+      set to a pale tan almost the same value as the paper itself,
+      unreadable against it -- fixed to a real dark ink colour.
+
+      1238 assertions (1223 -> 1238). Contract re-verified unmoved --
+      neither change touches a grading formula, only how marking and the
+      intro are shown. Build b36.
+
 - [x] **A storyline tutorial open: a disgruntled teacher, Monday, one
       career.** *(Aug 2026 -- user: "MAKE A STORYLINE TUTORIAL OF HOW TO
       PLAY THE GAME, HAVE THE PLAYER BE A DISGRUNTLED TEACHER WHO

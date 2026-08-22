@@ -32,6 +32,15 @@ signal assignment_chosen(index: int)
 ## Long Reach changes the size of the player's pick zone, so it has to
 ## be rebuilt when a perk is bought.
 signal perk_bought()
+## The storyline cutscene's dialogue, one line at a time. hud.gd owns the
+## PAGING (INTRO_PAGES, _sel, when it is done); main.gd owns the WORLD
+## (the player who says it), so the words cross that boundary as a signal
+## rather than hud reaching into world.player directly.
+signal intro_line_changed(text: String)
+## Fired once, the moment the title slate is dismissed -- main.gd's cue to
+## move the teacher to the door and start the walk-in.
+signal intro_walk_requested()
+signal intro_finished()
 
 @onready var status: Label = $Status
 @onready var prompt: Label = $Prompt
@@ -43,6 +52,8 @@ signal perk_bought()
 ## A Label is one colour by definition, and the curriculum is a list of four
 ## different subjects -- which is exactly the thing colour is for.
 @onready var rich: RichTextLabel = $Overlay/Rich
+## The homework sheet, drawn as an actual page -- see homework_sheet.gd.
+@onready var sheet: HomeworkSheet = $Overlay/Sheet
 ## The reveal running on the rich body, kept so a screen opened twice in
 ## quick succession cannot leave two of them fighting over visible_ratio.
 var _reveal: Tween = null
@@ -115,6 +126,9 @@ func _window_start(total: int, shown: int) -> int:
 # marking state
 var _marking: Array = []       ## StudentData still to be judged
 var _marked_right: int = 0
+## Counts down MARKING_STAMP_SECONDS after a verdict, ticked in _process()
+## below. > 0 means a check/X is currently up and input is ignored.
+var _marking_hold: float = 0.0
 var _shown_hints := {}
 ## Whose file is open. One field rather than a mode stack: there is
 ## exactly one transition to remember (class list -> bio -> back).
@@ -170,6 +184,10 @@ func _process(_delta: float) -> void:
 			_watch_clock = 0.0
 			_watch_i += 1
 			_render_watch_frame()
+	if mode == Mode.MARKING and _marking_hold > 0.0:
+		_marking_hold = maxf(0.0, _marking_hold - _delta)
+		if _marking_hold <= 0.0:
+			_finish_marking_if_ready()
 
 
 ## ALL input, on ONE clock.
@@ -426,6 +444,7 @@ func _open(m: int) -> void:
 	portrait_bg.visible = false
 	# the same single line that stops one screen leaking into the next
 	rich.visible = false
+	sheet.visible = false
 	body.visible = true
 	# ...and this one. Closing the exam starts a term; closing anything else
 	# must not. show_exam() sets it again straight after this runs, so the
@@ -1637,57 +1656,79 @@ const TUTORIALS := [
 ## reputation, a career that keeps going. The last page names that
 ## honestly as what is actually coming, not a bigger promise than the
 ## game can keep.
+## The title card -- a film's slate, said once before the scene itself
+## starts. Panel-fit verified the same way every other screen is.
+const INTRO_SLATE := [
+	"Twelve years teaching, and it still comes to this: one",
+	"whiteboard marker worn to a stub, eight children who have",
+	"never once all been quiet at the same time, and a staff",
+	"room that ran out of the good biscuits back in March.",
+	"",
+	"Nobody applies for what happens next. It just does.",
+]
+
+## The scene itself, re-cut for the shape it is actually said in: a comic
+## bubble holds two SHORT lines, not a paragraph wrapped narrower -- and
+## fixed at two, not "two or three", because the room's own front row
+## (where this is said, once the teacher has walked in and taken their
+## place) sits close enough to the top wall that a taller bubble crowds
+## the status bar above it. Found by screenshotting the actual worst-case
+## page, not by counting characters.
+## Said from a bubble above the teacher's own head as they walk in and
+## take their place at the front -- see main.gd's _start_intro_cutscene().
 const INTRO_PAGES := [
-	[
-		"Twelve years teaching, and it still comes to this: one",
-		"whiteboard marker worn to a stub, eight children who have",
-		"never once all been quiet at the same time, and a staff",
-		"room that ran out of the good biscuits back in March.",
-		"",
-		"Nobody applies for what happens next. It just does.",
-	],
-	[
-		"WASD walks. E is the button you will wear out -- helping",
-		"a stuck child, collecting finished work, sweeping up",
-		"whatever the disaster in the corner just did.",
-		"",
-		"F starts the lesson. Do that first, or you will be",
-		"standing here all day achieving nothing, same as always.",
-	],
-	[
-		"Do this well enough, long enough, and the room stops",
-		"being the whole job. There will be a hallway. There will",
-		"be OTHER rooms, and other people's children in them, and",
-		"-- God help you -- eventually a reputation that precedes you.",
-		"",
-		"Nobody warns you about that part. Consider this the warning.",
-	],
+	["WASD walks.", "E is your button."],
+	["Help. Collect.", "Clean up the mess."],
+	["F starts the lesson.", "Do that first."],
+	["Or nothing gets", "done today."],
+	["Do this well enough,", "long enough..."],
+	["...and the room stops", "being the whole job."],
+	["There'll be a hallway.", "Other rooms."],
+	["Other people's kids.", "A reputation, even."],
+	["Nobody warns you", "about that part."],
+	["Consider this", "the warning."],
 ]
 
 
 func show_intro() -> void:
 	_open(Mode.INTRO)
-	_sel = 0
+	_sel = -1     # the slate; _sel >= 0 indexes INTRO_PAGES
 	_render_intro()
 
 
 func _render_intro() -> void:
-	title.text = "" if _sel > 0 else "MONDAY"
-	body.add_theme_font_size_override("font_size", 18)
-	body.add_theme_constant_override("line_spacing", 4)
-	body.text = "\n".join(INTRO_PAGES[_sel])
-	hint.text = "E - go on" if _sel < INTRO_PAGES.size() - 1 else "E - right then"
+	if _sel == -1:
+		overlay.visible = true
+		title.text = "MONDAY"
+		body.add_theme_font_size_override("font_size", 18)
+		body.add_theme_constant_override("line_spacing", 4)
+		body.text = "\n".join(INTRO_SLATE)
+		hint.text = "E - go on"
+		return
+	# The slate is gone and stays gone -- the room is visible behind the
+	# bubble for the rest of the scene, which is the whole point of a
+	# cutscene over a panel that talks ABOUT the room instead.
+	overlay.visible = false
+	intro_line_changed.emit("\n".join(INTRO_PAGES[_sel]))
+	prompt.text = "E - go on" if _sel < INTRO_PAGES.size() - 1 else "E - right then"
+	prompt.visible = true
+	prompt_box.visible = true
 
 
 func _handle_intro_input() -> void:
 	if not Game.claim_interact():
 		return
 	Sfx.play("blip")
-	if _sel < INTRO_PAGES.size() - 1:
+	if _sel == -1:
+		_sel = 0
+		intro_walk_requested.emit()
+		_render_intro()
+	elif _sel < INTRO_PAGES.size() - 1:
 		_sel += 1
 		_render_intro()
 	else:
 		Game.intro_seen = true
+		intro_finished.emit()
 		close()
 
 
@@ -2632,15 +2673,24 @@ func _show_graduation(rec: Dictionary) -> void:
 ## The homework marking game. One verdict per sheet, not per question —
 ## EduSystems found per-question marking hit 32-120 taps a lesson and had to
 ## be redesigned to exactly this. Don't rediscover that.
+## How long a just-given verdict's check/X stays up before the next sheet
+## replaces it -- long enough to actually SEE it happen (the whole point
+## of drawing it at all), not so long that marking a full roster drags.
+const MARKING_STAMP_SECONDS := 0.25
+
+
 func open_marking() -> void:
 	_marking.clear()
 	_marked_right = 0
+	_marking_hold = 0.0
 	for s: StudentData in Game.roster:
 		if s.homework_ready_to_mark():
 			_marking.append(s)
 	if _marking.is_empty():
 		return
 	_open(Mode.MARKING)
+	body.visible = false
+	sheet.visible = true
 	_render_sheet()
 
 
@@ -2649,42 +2699,52 @@ func _render_sheet() -> void:
 		return
 	var s: StudentData = _marking[0]
 	title.text = "%s  —  %d left" % [s.display_name, _marking.size()]
-	var lines: Array[String] = []
-	for it: Dictionary in s.hw_sheet.get("items", []):
-		# The tells are what you actually learn to read. They agree with the
-		# truth most of the time, but not always — so this stays a judgement
-		# rather than becoming a lookup.
-		var tells := "%s, %s" % [
-			"neat" if bool(it["neat"]) else "rushed",
-			"working shown" if bool(it["working"]) else "no working"]
-		lines.append("   %-10s = %-6s   %s" % [String(it["q"]), String(it["shown"]), tells])
-	lines.append("")
-	lines.append("   Does this deserve a pass?")
-	body.text = "\n".join(lines)
+	sheet.show_sheet(s.hw_sheet)
 	hint.text = "Left — Not yet          Got it — Right"
 
 
+## Ignoring input while a stamp is still up (rather than queuing it) is
+## deliberate: it is what stops a second verdict landing on a sheet that
+## has already been popped, if a press arrives mid-countdown.
 func _verdict(pass_it: bool) -> void:
+	if _marking_hold > 0.0:
+		return
 	var s: StudentData = _marking.pop_front()
 	s.hw_player_verdict = 1 if pass_it else 0
 	s.hw_state = StudentData.HW.MARKED
 	if pass_it == Questions.sheet_is_good(s.hw_sheet):
 		_marked_right += 1
-	if _marking.is_empty():
-		if _player != null and is_instance_valid(_player):
-			_player.drop_all_homework()
-		title.text = "MARKING DONE"
-		body.text = "\n".join([
-			"You judged %d of them the way the sheet actually" % _marked_right,
-			"deserved.",
-			"",
-			"A sheet you waved through won't flag its student as",
-			"struggling tomorrow — so you won't go and help them.",
-		])
-		hint.text = "E — close"
-		mode = Mode.REPORT
+	# The player's own call, stamped on the page -- not a reveal of the
+	# truth. See homework_sheet.gd's class comment.
+	sheet.stamp(pass_it)
+	Sfx.play("confirm" if pass_it else "deny")
+	_marking_hold = MARKING_STAMP_SECONDS
+
+
+## Runs once a stamped verdict's hold has counted down to zero -- see the
+## _process() tick below. Split out from _verdict() because the STATE
+## change (popping the queue, marking it graded) has to land immediately,
+## the same frame the verdict is given, or "a verdict moves on to the next
+## sheet" would need to know about a delay it has no reason to care about;
+## only the SCREEN change waits.
+func _finish_marking_if_ready() -> void:
+	if not _marking.is_empty():
+		_render_sheet()
 		return
-	_render_sheet()
+	if _player != null and is_instance_valid(_player):
+		_player.drop_all_homework()
+	title.text = "MARKING DONE"
+	body.visible = true
+	sheet.visible = false
+	body.text = "\n".join([
+		"You judged %d of them the way the sheet actually" % _marked_right,
+		"deserved.",
+		"",
+		"A sheet you waved through won't flag its student as",
+		"struggling tomorrow — so you won't go and help them.",
+	])
+	hint.text = "E — close"
+	mode = Mode.REPORT
 
 
 ## Input is POLLED, not handled as events, and that is deliberate.

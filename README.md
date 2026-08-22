@@ -10,10 +10,12 @@ the Desktop.
 It opens on a title screen: **Continue**, **New term**, **How to play**,
 **Settings**, **Controls**, **Credits** and **Erase save**.
 
-Start a genuinely new career and, before any of that, a three-page
-storyline open plays once — Monday, one disgruntled teacher, told in
-their own voice. Same facts as **How to play**, said instead by the
-person it's happening to. E moves it along; it never replays for that
+Start a genuinely new career and, before any of that, a storyline
+cutscene plays once — a title card (Monday), then the teacher actually
+walks in the door and takes their place at the front, saying it all
+from a bubble above their own head as they go. Same facts as **How to
+play**, said instead by the person it's happening to, in the room
+rather than on a panel. E moves it along; it never replays for that
 career once you've walked through it.
 
 | key | | rebindable |
@@ -67,9 +69,13 @@ Settings live in their own file, so erasing your save keeps them.
    is the reason you cannot stand still.
 4. Collect finished work from each desk, hand it in at **your** desk. Work
    you never picked up is worth half.
-5. Set homework, and next day collect and **mark** it. The answer key is
-   hidden — you are judging whether a sheet looks right. Wave a bad one
-   through and that student is secretly behind, and stalls more tomorrow.
+5. Set homework, and next day collect and **mark** it — a real page,
+   college-ruled, each answer written in the student's own hand: neat and
+   legible, or a genuine scribble you cannot read. The answer key is
+   hidden — you are judging whether the sheet LOOKS right, same as a real
+   teacher would, and stamping your own verdict on the page once you
+   decide. Wave a bad one through and that student is secretly behind,
+   and stalls more tomorrow.
 6. Ring the **bell**. Grades pay coins; furniture costs upkeep.
 7. Buy furniture at the **noticeboard**. Range matters — while placing, the
    desks it would actually help light up green.
@@ -420,7 +426,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1223 assertions
+Run Tests.bat            1238 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
