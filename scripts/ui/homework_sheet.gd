@@ -33,17 +33,76 @@ const BAD := Color(0.84, 0.26, 0.26, 0.95)
 var _sheet: Dictionary = {}
 var _stamp_pass: int = -1     ## -1 none yet, 0 an X, 1 a checkmark
 
+## --- gesture marking -----------------------------------------------------
+## Trace the verdict with the mouse instead of pressing a key: one
+## continuous stroke reads as a checkmark (pass), two separate strokes read
+## as an X (fail) -- the natural way each is actually drawn by hand. Real
+## shape recognition (angle/curvature matching) would need visual tuning
+## this session cannot do headlessly, so stroke COUNT is the deliberate,
+## honest signal instead: nobody draws an X without lifting the pen once.
+const _GESTURE_INK := Color(0.75, 0.1, 0.1, 0.9)
+## How long to wait, after a stroke ends, for a possible second stroke
+## before deciding it was a checkmark. Long enough for a real second
+## stroke, short enough that a genuine single check does not feel delayed.
+const _GESTURE_WINDOW := 0.45
+
+signal gesture_verdict(pass_it: bool)
+
+var _strokes: Array[PackedVector2Array] = []
+var _current_stroke: PackedVector2Array = PackedVector2Array()
+var _gesture_wait: float = 0.0
+
 
 func show_sheet(sheet: Dictionary) -> void:
 	_sheet = sheet
 	_stamp_pass = -1
+	_strokes.clear()
+	_current_stroke = PackedVector2Array()
+	_gesture_wait = 0.0
 	queue_redraw()
 
 
 ## The player's own verdict, stamped once given -- see the class comment.
 func stamp(pass_it: bool) -> void:
 	_stamp_pass = 1 if pass_it else 0
+	_strokes.clear()
+	_current_stroke = PackedVector2Array()
+	_gesture_wait = 0.0
 	queue_redraw()
+
+
+func _gui_input(event: InputEvent) -> void:
+	if _stamp_pass != -1:
+		return   # already marked -- ignore stray input until the next sheet
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_current_stroke = PackedVector2Array([mb.position])
+		elif not _current_stroke.is_empty():
+			if _current_stroke.size() > 1:   # a real drag, not just a click
+				_strokes.append(_current_stroke)
+			_current_stroke = PackedVector2Array()
+			_gesture_wait = _GESTURE_WINDOW
+		queue_redraw()
+	elif event is InputEventMouseMotion and not _current_stroke.is_empty():
+		_current_stroke.append((event as InputEventMouseMotion).position)
+		queue_redraw()
+
+
+## Ticked by hud.gd's own _process the same way it ticks everything else in
+## MARKING mode, rather than this Control owning its own timer node.
+func tick_gesture(delta: float) -> void:
+	if _gesture_wait <= 0.0 or not _current_stroke.is_empty():
+		return
+	_gesture_wait -= delta
+	if _gesture_wait > 0.0:
+		return
+	if _strokes.is_empty():
+		return
+	var pass_it: bool = _strokes.size() == 1   # one stroke = check, two+ = X
+	gesture_verdict.emit(pass_it)
 
 
 func _draw() -> void:
@@ -77,6 +136,15 @@ func _draw() -> void:
 		_draw_check(Vector2(s.x - 60.0, 20.0))
 	elif _stamp_pass == 0:
 		_draw_cross(Vector2(s.x - 58.0, 18.0))
+	else:
+		# The player's own pen, mid-gesture -- a finished stroke stays on
+		# the page as real red ink while the game waits to see if a second
+		# one is coming (see tick_gesture()'s _GESTURE_WINDOW).
+		for stroke: PackedVector2Array in _strokes:
+			if stroke.size() > 1:
+				draw_polyline(stroke, _GESTURE_INK, 3.0, true)
+		if _current_stroke.size() > 1:
+			draw_polyline(_current_stroke, _GESTURE_INK, 3.0, true)
 
 
 ## A small, STABLE seed drawn from the item's own already-decided content --

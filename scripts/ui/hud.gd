@@ -170,6 +170,9 @@ func _ready() -> void:
 	Game.run_started.connect(func() -> void:
 		if mode != Mode.TITLE:
 			close())
+	# Trace an X or a check with the mouse instead of pressing a key -- see
+	# homework_sheet.gd's own comment for why stroke COUNT is the signal.
+	sheet.gesture_verdict.connect(_verdict)
 
 
 ## Display only. Every INPUT read lives on the physics tick below.
@@ -184,10 +187,12 @@ func _process(_delta: float) -> void:
 			_watch_clock = 0.0
 			_watch_i += 1
 			_render_watch_frame()
-	if mode == Mode.MARKING and _marking_hold > 0.0:
-		_marking_hold = maxf(0.0, _marking_hold - _delta)
-		if _marking_hold <= 0.0:
-			_finish_marking_if_ready()
+	if mode == Mode.MARKING:
+		sheet.tick_gesture(_delta)
+		if _marking_hold > 0.0:
+			_marking_hold = maxf(0.0, _marking_hold - _delta)
+			if _marking_hold <= 0.0:
+				_finish_marking_if_ready()
 
 
 ## ALL input, on ONE clock.
@@ -2865,7 +2870,7 @@ func _render_sheet() -> void:
 	var s: StudentData = _marking[0]
 	title.text = "%s  —  %d left" % [s.display_name, _marking.size()]
 	sheet.show_sheet(s.hw_sheet)
-	hint.text = "Left — Not yet          Got it — Right"
+	hint.text = "Trace a check or an X on the page          Left/Right also work"
 
 
 ## Ignoring input while a stamp is still up (rather than queuing it) is
