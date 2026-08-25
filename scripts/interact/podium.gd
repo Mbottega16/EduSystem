@@ -13,7 +13,7 @@ signal hand_requested()
 
 func _init() -> void:
 	super()
-	uses_key = Key.MANAGE
+	uses_key = Key.TEACH
 signal lesson_ended(results: Array)
 signal test_ended(results: Array)
 

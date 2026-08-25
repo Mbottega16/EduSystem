@@ -17,7 +17,7 @@ signal carrying_changed(count: int)
 
 ## What each BUTTON is pointing at. Two interactables may share a tile so
 ## long as they use different keys -- the podium offers "teach today's
-## lesson" on F and "unit test" on E at the same moment, and a desk offers
+## lesson" on L and "unit test" on E at the same moment, and a desk offers
 ## "help" on E and "move this desk" on F.
 ##
 ## This used to be a single target for both buttons, which meant that
@@ -28,7 +28,7 @@ signal carrying_changed(count: int)
 ## Interactable.KEY_ACTIONS, the single source for this list.
 var targets: Dictionary = {
 	"interact": null, "manage": null,
-	"quiz": null, "homework": null, "move_desk": null,
+	"quiz": null, "homework": null, "move_desk": null, "teach": null,
 }
 
 ## The one to describe in the prompt. USE wins when both are live: it is the
@@ -90,6 +90,89 @@ func hide_bubble() -> void:
 		bubble.hide_bubble()
 
 
+## Built entirely in code (no new scene/art), the same way the yearbook
+## screen was: a badge per key currently on offer, floating above the
+## teacher's head so a new player can SEE what pressing E, H, L etc. does
+## without opening a menu first. One row, positioned above SpeechBubble
+## (which sits at y -28) so the two never overlap.
+const _KEY_PROMPT_Y := -46.0
+const _KEY_PROMPT_COLORS := {
+	"interact": Color(0.55, 0.85, 1.0), "manage": Color(1.0, 0.75, 0.4),
+	"teach": Color(1.0, 0.55, 0.75), "quiz": Color(0.7, 0.6, 1.0),
+	"homework": Color(0.6, 1.0, 0.65), "move_desk": Color(0.85, 0.85, 0.6),
+}
+var _key_prompts_root: Node2D = null
+var _key_prompt_badges: Dictionary = {}   ## action -> {"box": ColorRect, "label": Label, "tween": Tween}
+
+
+func _build_key_prompts_root() -> void:
+	_key_prompts_root = Node2D.new()
+	_key_prompts_root.position = Vector2(0, _KEY_PROMPT_Y)
+	_key_prompts_root.z_index = 5
+	add_child(_key_prompts_root)
+
+
+## Rebuilds the badge row from player.offers() every physics frame. Cheap:
+## at most a handful of Interactables are ever in range at once, and this
+## only touches nodes when the SET of offered actions actually changed --
+## an existing badge just has its text/afford-state refreshed in place, so
+## the glow tween underneath it is never restarted needlessly.
+func _update_key_prompts() -> void:
+	if _key_prompts_root == null:
+		return
+	var live: Array[Interactable] = offers()
+	var wanted: Dictionary = {}
+	for t: Interactable in live:
+		if not t.can_interact():
+			continue
+		wanted[t.action_name()] = t
+
+	# drop badges whose action is no longer on offer
+	for action: String in _key_prompt_badges.keys().duplicate():
+		if not wanted.has(action):
+			var gone: Dictionary = _key_prompt_badges[action]
+			(gone["tween"] as Tween).kill()
+			(gone["box"] as ColorRect).queue_free()
+			_key_prompt_badges.erase(action)
+
+	var x := 0.0
+	# KEY_ACTIONS order, so the row reads in a stable left-to-right order
+	# instead of jumping around as targets are picked up and dropped.
+	for action: String in Interactable.KEY_ACTIONS:
+		if not wanted.has(action):
+			continue
+		var t: Interactable = wanted[action]
+		if not _key_prompt_badges.has(action):
+			_key_prompt_badges[action] = _spawn_key_badge(action)
+		var badge: Dictionary = _key_prompt_badges[action]
+		var box := badge["box"] as ColorRect
+		var label := badge["label"] as Label
+		label.text = "%s  %s" % [t.key_hint(), t.prompt_text()]
+		box.size = label.get_minimum_size() + Vector2(10, 6)
+		box.position = Vector2(x, 0)
+		x += box.size.x + 6.0
+
+
+func _spawn_key_badge(action: String) -> Dictionary:
+	var box := ColorRect.new()
+	box.color = _KEY_PROMPT_COLORS.get(action, Color(0.8, 0.8, 0.8))
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color.BLACK)
+	label.position = Vector2(5, 3)
+	box.add_child(label)
+	_key_prompts_root.add_child(box)
+
+	# The "glow": a slow, looping pulse on the badge's own alpha, so it
+	# reads as lit up rather than as flat, static HUD chrome. Cheap --
+	# one Tween per badge, killed the moment the badge is dropped.
+	var tw := create_tween().set_loops()
+	tw.tween_property(box, "modulate:a", 0.55, 0.6).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(box, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+
+	return {"box": box, "label": label, "tween": tw}
+
+
 ## The desk that most needs the teacher, by the same priority the desk
 ## itself uses. Null when the room is calm.
 func _who_needs_me() -> StudentData:
@@ -143,6 +226,7 @@ func _ready() -> void:
 	add_to_group("carrier")
 	_refresh_carry_icon()
 	refresh_hat()
+	_build_key_prompts_root()
 
 
 func _physics_process(delta: float) -> void:
@@ -176,6 +260,7 @@ func _physics_process(delta: float) -> void:
 	# frame behind transform changes, so picking before moving would select
 	# against where you were last frame.
 	_repick()
+	_update_key_prompts()
 
 	_teach_anim(delta)
 	if not input_locked:

@@ -1,5 +1,6 @@
 .godot/
 build/
+dist/
 shot*.png
 __pycache__/
 shots/

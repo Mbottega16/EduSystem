@@ -219,6 +219,17 @@ static var coach_parents_step: float = 0.07
 static var coach_cost_growth: float = 1.7
 static var coach_max_per_student: int = 4
 
+# --- lesson crafting ------------------------------------------------------
+static var craft_unlock_day: int = 5
+static var craft_base_cost: int = 120
+static var craft_cost_growth: float = 1.6
+static var craft_days_per_attempt: int = 2
+static var craft_success_chance: float = 0.65
+static var craft_work_mult_per_level: float = 0.02
+static var craft_stall_mult_per_level: float = 0.015
+static var craft_level_cap_for_bonus: int = 5
+static var craft_min_work_mult: float = 0.9
+
 # --- perks --------------------------------------------------------------
 static var perks: Dictionary = {}
 static var perk_brisk_walk_speed: float = 30.0   ## doubled Aug 2026
@@ -456,6 +467,17 @@ static func apply(d: Dictionary) -> void:
 	coach_parents_step = float(co.get("parents_step", coach_parents_step))
 	coach_cost_growth = float(co.get("cost_growth", coach_cost_growth))
 	coach_max_per_student = int(co.get("max_per_student", coach_max_per_student))
+
+	var lc: Dictionary = d.get("lesson_crafting", {})
+	craft_unlock_day = int(lc.get("unlock_day", craft_unlock_day))
+	craft_base_cost = int(lc.get("base_cost", craft_base_cost))
+	craft_cost_growth = float(lc.get("cost_growth", craft_cost_growth))
+	craft_days_per_attempt = int(lc.get("days_per_attempt", craft_days_per_attempt))
+	craft_success_chance = float(lc.get("success_chance", craft_success_chance))
+	craft_work_mult_per_level = float(lc.get("work_mult_per_level", craft_work_mult_per_level))
+	craft_stall_mult_per_level = float(lc.get("stall_mult_per_level", craft_stall_mult_per_level))
+	craft_level_cap_for_bonus = int(lc.get("craft_level_cap_for_bonus", craft_level_cap_for_bonus))
+	craft_min_work_mult = float(lc.get("min_work_mult", craft_min_work_mult))
 
 	if d.has("perks"):
 		perks = d["perks"]

@@ -175,7 +175,21 @@ func _door_tint(kind: String, idx: int) -> Color:
 					# clearly, and shares no hue with office (gold) or a
 					# staffed room (blue).
 					return Color(1.3, 0.55, 0.4)
-			return Color(0.75, 0.9, 1.15)       # staffed -- cool blue
+				# A STAFFED room used to read identically whether its
+				# teacher was thriving or had been failing for the whole
+				# term -- found via /deep_critique running Simulate the
+				# School.bat, which showed exactly that: a room stuck on a
+				# failing grade for twenty straight days with nothing
+				# anywhere hinting you should go deal with it short of
+				# opening the school board and checking every room by
+				# hand. A muted amber, distinct from unstaffed's stronger
+				# red-orange (this room HAS a teacher, just a bad one), so
+				# the hallway itself becomes the place you notice fire()
+				# is worth using, not just the screen it lives on.
+				var letter := String((r.get("last", {}) as Dictionary).get("letter", ""))
+				if letter in ["D", "E"]:
+					return Color(1.15, 0.75, 0.45)
+			return Color(0.75, 0.9, 1.15)       # staffed and fine -- cool blue
 		"open":
 			return Color(0.55, 0.55, 0.6)       # dim -- not really a room yet
 		_:

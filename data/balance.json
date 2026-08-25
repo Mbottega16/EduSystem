@@ -527,6 +527,18 @@
     "cost_growth": 1.7,
     "max_per_student": 4
   },
+  "lesson_crafting": {
+    "_note": "Cost to craft-attempt a lesson grows per craft_level already banked for THAT lesson (coaching-style). Quality effect is a small multiplier on difficulty_mults(), never a new grade term, capped so a fully-crafted lesson still cannot exceed the existing lesson_cap ceiling -- see Game.difficulty_mults()/craft_work_mult().",
+    "unlock_day": 1,
+    "base_cost": 120,
+    "cost_growth": 1.6,
+    "days_per_attempt": 2,
+    "success_chance": 0.65,
+    "work_mult_per_level": 0.02,
+    "stall_mult_per_level": 0.015,
+    "craft_level_cap_for_bonus": 5,
+    "min_work_mult": 0.9
+  },
   "perks": {
     "brisk_walk": {
       "name": "Brisk Walk",

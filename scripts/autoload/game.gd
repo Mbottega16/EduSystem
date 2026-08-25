@@ -477,6 +477,8 @@ func new_run(seed_value: int = 0) -> void:
 	auto_teach = false
 	graduated.clear()
 	taught.clear()
+	lesson_crafts.clear()
+	pending_craft.clear()
 	concepts.clear()
 	quiz_done = false
 	# and the focus a quiz leaves behind. Without this the buff leaked
@@ -918,6 +920,7 @@ func next_term() -> Dictionary:
 			graduated.append({
 				"name": s.display_name, "level": s.level,
 				"readiness": s.readiness(), "day": day, "term": term,
+				"art": s.art,
 			})
 		else:
 			stayed.append(s)
@@ -1084,6 +1087,81 @@ var taught: Dictionary = {}
 var concepts: Array = []
 
 signal concepts_learned(ids: Array)
+
+# --- lesson crafting --------------------------------------------------
+## lesson id -> {craft_level: int, invested_coins: int, invested_days: int}
+var lesson_crafts: Dictionary = {}
+## {} when nothing in flight, else {lesson_id: String, days_left: int}.
+## Single pending craft at a time -- no queue in this first slice.
+var pending_craft: Dictionary = {}
+
+
+## A flat day-count gate for now (see docs/AUTONOMOUS_TASKLIST.md /
+## the vision interview this was built from) -- swappable later without
+## touching any UI/save code, since every caller goes through here.
+func lesson_crafting_unlocked() -> bool:
+	return day >= Balance.craft_unlock_day
+
+
+## Cost to attempt the NEXT craft level for this lesson (coaching-style
+## growing cost: base_cost * cost_growth ^ current_level).
+func craft_next_cost(lesson_id: String) -> int:
+	var level: int = int(lesson_crafts.get(lesson_id, {}).get("craft_level", 0))
+	return int(round(Balance.craft_base_cost * pow(Balance.craft_cost_growth, level)))
+
+
+## Spend + start a pending craft. False (no state change) if a craft is
+## already pending, the lesson id is unknown, or it is unaffordable --
+## mirrors buy_desk()'s look-up-cost -> spend -> mutate shape.
+func commit_lesson_craft(lesson_id: String) -> bool:
+	if not pending_craft.is_empty():
+		return false
+	if String(Curriculum.by_id(lesson_id).get("id", "")) != lesson_id:
+		return false
+	var cost := craft_next_cost(lesson_id)
+	if not spend(cost):
+		return false
+	pending_craft = {"lesson_id": lesson_id, "days_left": Balance.craft_days_per_attempt}
+	var entry: Dictionary = lesson_crafts.get(lesson_id, {"craft_level": 0, "invested_coins": 0, "invested_days": 0}).duplicate()
+	entry["invested_coins"] = int(entry.get("invested_coins", 0)) + cost
+	lesson_crafts[lesson_id] = entry
+	return true
+
+
+## Called once per real advance_day() while a craft is in flight. Resolves
+## through Game.rng at 0 days left -- the same seeded stream every other
+## daily roll uses, so a fixed seed reproduces the same outcome.
+func _tick_pending_craft() -> void:
+	if pending_craft.is_empty():
+		return
+	var lesson_id: String = String(pending_craft["lesson_id"])
+	var entry: Dictionary = lesson_crafts.get(lesson_id, {"craft_level": 0, "invested_coins": 0, "invested_days": 0}).duplicate()
+	entry["invested_days"] = int(entry.get("invested_days", 0)) + 1
+	lesson_crafts[lesson_id] = entry
+
+	pending_craft["days_left"] = int(pending_craft["days_left"]) - 1
+	if int(pending_craft["days_left"]) > 0:
+		return
+
+	if rng.randf() < Balance.craft_success_chance:
+		entry = lesson_crafts[lesson_id].duplicate()
+		entry["craft_level"] = int(entry.get("craft_level", 0)) + 1
+		lesson_crafts[lesson_id] = entry
+	pending_craft = {}
+
+
+## [work_length_mult, stall_mult] adjustment from this lesson's craft
+## level, clamped so a fully-crafted lesson still cannot push a room past
+## what perfect vanilla play could already reach -- see the balance
+## contract note in data/balance.json's lesson_crafting section.
+func craft_work_mult(lesson_id: String) -> float:
+	var level: int = min(int(lesson_crafts.get(lesson_id, {}).get("craft_level", 0)), Balance.craft_level_cap_for_bonus)
+	return max(1.0 - level * Balance.craft_work_mult_per_level, Balance.craft_min_work_mult)
+
+
+func craft_stall_mult(lesson_id: String) -> float:
+	var level: int = min(int(lesson_crafts.get(lesson_id, {}).get("craft_level", 0)), Balance.craft_level_cap_for_bonus)
+	return max(1.0 - level * Balance.craft_stall_mult_per_level, Balance.craft_min_work_mult)
 
 
 ## Record a lesson as taught and hand back whatever that just unlocked.
@@ -1547,9 +1625,17 @@ func difficulty_mults(seat_index: int) -> Array:
 	if paper_steps > 0.0:
 		paper_steps *= relief
 
+	# A crafted lesson makes the SAME material go down easier -- shorter
+	# effective work, fewer stalls -- rather than adding a new grade term.
+	# See data/balance.json's lesson_crafting section for why this plugs in
+	# here instead of grade_for() directly.
+	var lesson_id: String = String(lesson.get("id", ""))
+	var craft_work: float = craft_work_mult(lesson_id) if lesson_id != "" else 1.0
+	var craft_stall: float = craft_stall_mult(lesson_id) if lesson_id != "" else 1.0
+
 	return [
-		maxf(0.25, 1.0 + paper_steps * Balance.diff_per_step_work),
-		maxf(0.25, 1.0 + subject_steps * Balance.diff_per_step_stall),
+		maxf(0.25, 1.0 + paper_steps * Balance.diff_per_step_work) * craft_work,
+		maxf(0.25, 1.0 + subject_steps * Balance.diff_per_step_stall) * craft_stall,
 	]
 
 
@@ -1884,6 +1970,7 @@ func advance_day() -> Dictionary:
 
 	homework_out = false
 	day += 1
+	_tick_pending_craft()
 
 	# Word gets round. A new student arrives only if you're actually doing
 	# the job — otherwise the class stops growing, which is feedback in
@@ -2169,6 +2256,8 @@ func to_dict() -> Dictionary:
 		"term_history": term_history,
 		"run_over": run_over,
 		"milestones": milestones,
+		"lesson_crafts": lesson_crafts,
+		"pending_craft": pending_craft,
 		"rooms": rooms.map(func(r: Dictionary) -> Dictionary:
 			return {
 				"name": r.get("name", ""), "teacher": r.get("teacher", {}),
@@ -2237,6 +2326,8 @@ func from_dict(d: Dictionary) -> void:
 	reputation = float(d.get("reputation", Balance.rep_start))
 	term_history = d.get("term_history", []).duplicate()
 	taught = d.get("taught", {}).duplicate()
+	lesson_crafts = d.get("lesson_crafts", {}).duplicate()
+	pending_craft = d.get("pending_craft", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()
 	# where the desks were left. An older save has no "seats" key, so it
 	# simply keeps the opening arrangement.

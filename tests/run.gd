@@ -2245,15 +2245,15 @@ func test_two_buttons_one_landmark() -> void:
 	chk("each button has its own target", p.targets.has("interact")
 		and p.targets.has("manage"))
 
-	# --- the podium in the morning: teach on F, unit test on E ---
+	# --- the podium in the morning: teach on L, unit test on E ---
 	for i in Balance.test_requires_taught:
 		Game.record_taught("basic_arithmetic")
 	Game.set_phase(Game.Phase.MORNING)
 	await step(30)                       # let everyone reach their chairs
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
 
-	chk("MANAGE offers the lesson", p.targets["manage"] == world.podium,
-		p.targets["manage"])
+	chk("TEACH offers the lesson", p.targets["teach"] == world.podium,
+		p.targets["teach"])
 	chk("and USE offers the unit test at the same moment", (func() -> bool:
 		var t: Interactable = p.targets["interact"]
 		return t != null and t.prompt_text().begins_with("Unit test")).call(),
@@ -2920,10 +2920,10 @@ func test_a_whole_day() -> void:
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
 	chk("the podium ALREADY offers to teach, before they are all sat down",
 		(func() -> bool:
-			var t: Interactable = p.targets["manage"]
+			var t: Interactable = p.targets["teach"]
 			return t != null and t.prompt_text().begins_with("Teach")).call(),
-		p.targets["manage"])
-	await tap("manage")
+		p.targets["teach"])
+	await tap("teach")
 	await _take_a_paper()
 	chk("and it really starts", Game.phase == Game.Phase.LESSON, Game.phase)
 
@@ -2954,10 +2954,10 @@ func test_a_whole_day() -> void:
 	# --- start the lesson at the podium ---
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
 	chk("the podium offers to teach", (func() -> bool:
-		var t: Interactable = p.targets["manage"]
+		var t: Interactable = p.targets["teach"]
 		return t != null and t.prompt_text().begins_with("Teach")).call(),
-		p.targets["manage"])
-	await tap("manage")
+		p.targets["teach"])
+	await tap("teach")
 	chk("the podium offers a choice of paper first",
 		_hud().mode == _hud().Mode.HAND, _hud().mode)
 	await _take_a_paper()
@@ -5728,6 +5728,26 @@ func test_hallway() -> void:
 		hud.mode == hud.Mode.SCHOOL and hud._hiring)
 	hud.close()
 
+	# The door itself tells a story beyond "staffed or not" -- found via
+	# /deep_critique: a room stuck on a failing grade for a whole term
+	# looked exactly like a perfectly healthy one from the corridor, which
+	# is exactly the information that would have prompted firing the
+	# teacher earlier.
+	var ri := rooms_before
+	chk("an unstaffed room's door reads as needing you",
+		hallway._door_tint("room", ri) == Color(1.3, 0.55, 0.4))
+	Game.draw_applicants()
+	Game.hire(ri, 0)
+	Game.rooms[ri]["last"] = {"letter": "A"}
+	chk("a staffed room doing well reads as fine",
+		hallway._door_tint("room", ri) == Color(0.75, 0.9, 1.15))
+	Game.rooms[ri]["last"] = {"letter": "E"}
+	chk("but a staffed room that has been failing reads distinctly",
+		hallway._door_tint("room", ri) == Color(1.15, 0.75, 0.45))
+	chk("and that colour is neither 'unstaffed' nor 'fine'",
+		hallway._door_tint("room", ri) != Color(1.3, 0.55, 0.4) and
+		hallway._door_tint("room", ri) != Color(0.75, 0.9, 1.15))
+
 	# Home again.
 	var home_door: Node2D = null
 	for d in hallway.doors:
@@ -6061,11 +6081,14 @@ func test_shop() -> void:
 	chk("the sold item's tile is free to build on again",
 		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
 
-	# Tab is a four-stop cycle: buy -> sell -> staff room -> the room -> buy
+	# Tab is a five-stop cycle: buy -> sell -> staff room -> the room ->
+	# lesson crafting -> buy
 	await tap("menu")
 	chk("Tab goes on to the staff room", hud._shop == hud.Shop.STAFF)
 	await tap("menu")
 	chk("then to the room itself", hud._shop == hud.Shop.ROOM)
+	await tap("menu")
+	chk("then to lesson crafting", hud._shop == hud.Shop.CRAFT)
 	await tap("menu")
 	chk("and round again to buying", hud._shop == hud.Shop.BUY)
 	await tap("cancel")
@@ -6584,7 +6607,7 @@ func test_buttons() -> void:
 		return true).call())
 
 	# the important split: session-level things are NOT on the use button
-	chk("the podium is a manage thing", world.podium.action_name() == "manage")
+	chk("the podium is a teach thing", world.podium.action_name() == "teach")
 	chk("the bell is a manage thing", world.bell.action_name() == "manage")
 	chk("the noticeboard is a manage thing", world.noticeboard.action_name() == "manage")
 	chk("a student's desk is on the ordinary use button",
@@ -6599,10 +6622,10 @@ func test_buttons() -> void:
 	await step(2)
 	chk("the lesson is running", Game.phase == Game.Phase.LESSON)
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
-	# The podium has two verbs now (Q quizzes, F ends the lesson), so the
+	# The podium has two verbs now (Q quizzes, L ends the lesson), so the
 	# question is which button points at it, not what the single target is.
-	chk("the podium is what MANAGE is pointing at",
-		world.player.targets["manage"] == world.podium)
+	chk("the podium is what TEACH is pointing at",
+		world.player.targets["teach"] == world.podium)
 	# Q at the podium is the QUICK QUIZ -- its own dedicated key, not the
 	# mashable USE button, since Aug 2026's key remap. Mashing E here must
 	# still do nothing at all: neither ending the lesson nor calling a quiz.
@@ -6616,14 +6639,14 @@ func test_buttons() -> void:
 	_hud().close()          # the quiz report must not leak into the next test
 	await step(2)
 
-	# nor can a TAP of manage, because ending a lesson is held
+	# nor can a TAP of teach, because ending a lesson is held
 	chk("ending a lesson requires a hold, not a tap", world.podium.hold_time > 0.0)
-	await tap("manage")
-	chk("a quick tap of manage does not end it either",
+	await tap("teach")
+	chk("a quick tap of teach does not end it either",
 		Game.phase == Game.Phase.LESSON, Game.phase)
 
-	await hold_confirm("manage", 0.9)
-	chk("holding manage DOES end the lesson",
+	await hold_confirm("teach", 0.9)
+	chk("holding teach DOES end the lesson",
 		Game.phase == Game.Phase.AFTERNOON, Game.phase)
 
 	# same protection on the bell
@@ -6656,7 +6679,7 @@ func test_buttons() -> void:
 		s.reset_lesson()
 	await step(2)
 	chk("the prompt names the key you actually press",
-		world.podium.key_hint() == Settings.binding_text("manage").split(",")[0].strip_edges(),
+		world.podium.key_hint() == Settings.binding_text("teach").split(",")[0].strip_edges(),
 		world.podium.key_hint())
 
 
@@ -7432,6 +7455,8 @@ func test_shop_and_staff() -> void:
 	chk("Tab again reaches the room itself", hud._shop == hud.Shop.ROOM)
 	chk("which tells you how big your classroom is",
 		hud.rich.text.contains("%d by %d" % [Grid.W, Grid.H]), hud.rich.text)
+	await tap("menu")
+	chk("Tab again reaches lesson crafting", hud._shop == hud.Shop.CRAFT)
 	await tap("menu")
 	chk("and Tab cycles back round to buying", hud._shop == hud.Shop.BUY)
 

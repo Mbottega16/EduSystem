@@ -133,6 +133,13 @@ func _ready() -> void:
 	var days := int(args[0]) if args.size() > 0 else 40
 	var only := String(args[1]) if args.size() > 1 else ""
 
+	# Print the actual engine build the contract was measured against --
+	# the balance contract is a claim about simulated behavior, and a
+	# silent Godot version bump could shift floating-point results enough
+	# to move a contract row across a letter-grade boundary with no other
+	# change. If that ever happens, this line is the first thing to check.
+	var v := Engine.get_version_info()
+	print("Godot %d.%d.%d (%s)" % [v.major, v.minor, v.patch, v.get("status", "")])
 	print("\nPixelRoom term simulator - %d days" % days)
 	print("work %.0fs  lesson %.0fs  stall %.2f/s  room %.2f-%.2f  lesson_cap %.2f"
 		% [Balance.work_seconds, Balance.lesson_seconds,

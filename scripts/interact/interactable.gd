@@ -31,8 +31,12 @@ func set_pick_radius(r: float) -> void:
 ##   USE       - the constant, safe, repeated verb: help a stuck child,
 ##               hand in finished classwork, clean up a mess. Mashable,
 ##               and it must never be able to end a lesson.
-##   MANAGE    - the deliberate, session-level ones: start or end a
-##               lesson, ring the bell, open the furniture shop.
+##   MANAGE    - the deliberate, session-level ones left on it: ring the
+##               bell, open the furniture shop.
+##   TEACH     - start the lesson, at the podium. Split off MANAGE
+##               (2026-08-25) for the same reason quiz/homework/move_desk
+##               already were: what a key does should not depend on which
+##               desk you happen to be standing at.
 ##   QUIZ      - call a quick quiz, at the podium, mid-lesson.
 ##   HOMEWORK  - mark the homework you have collected, at your own desk.
 ##   MOVE_DESK - pick up one specific desk and carry it.
@@ -40,13 +44,14 @@ func set_pick_radius(r: float) -> void:
 ## *(Aug 2026 -- three verbs that used to share USE or MANAGE contextually
 ## got their own dedicated key each, on user request: quiz off USE, and
 ## homework/desk-move off their old landmarks, so what a key does no
-## longer depends on which desk you happen to be standing at.)*
-enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK }
+## longer depends on which desk you happen to be standing at. TEACH is the
+## fourth, split off MANAGE the same way.)*
+enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH }
 
 ## Every action a landmark can be bound to, in the same order as the enum
 ## above -- the one place that mapping lives, so action_name() is a lookup
 ## rather than a chain of special cases that could disagree with itself.
-const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk"]
+const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach"]
 
 ## Seconds the button must be HELD. Zero is instant. Anything irreversible
 ## gets a hold, so a stray press cannot cost you a lesson.

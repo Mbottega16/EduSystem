@@ -370,6 +370,34 @@ for no reason.
 
 ## Done
 
+- [x] **/deep_critique pass 3: the hallway's doors say which rooms need
+      you, without walking up to any of them.** *(Aug 2026, continuing
+      the same "/deep_critique... loop... prioritize new mechanics"
+      request.)* `hallway.gd`'s door tinting already told unstaffed
+      (warm red-orange) from staffed (cool blue) -- a fix from an
+      earlier pass, its own comment says so. What it still could not
+      tell you: a staffed room that had been FAILING read identically
+      to one doing fine, which is exactly the gap `Simulate the
+      School.bat` exposed in pass 2 -- a room stuck on a bad grade for
+      a full term with no signal anywhere short of opening the school
+      board and checking each room individually.
+      `_door_tint()` now reads the room's own `last.letter` (the same
+      field `resolve_rooms()` already writes every bell) and returns a
+      distinct muted amber for D/E, leaving unstaffed's stronger
+      red-orange and a fine room's blue exactly as they were. This
+      makes the new `fire()` mechanic (pass 2) something the hallway
+      itself points you toward, not just a button on a screen you have
+      to already suspect you need.
+      Tested directly against `hallway._door_tint()`'s return value for
+      all three states (unstaffed / failing / fine), rather than only
+      asserting "a colour changed" -- confirmed distinct from BOTH
+      neighbours, not just from one of them. Screenshotted the real
+      hallway with a fine and a failing room side by side to confirm
+      the hues actually read apart, not just differ numerically.
+      1244 -> 1248 assertions. No contract re-check needed this pass --
+      the change is a pure tint lookup off already-recorded data, never
+      touches `grade_for()` or `room_score()`.
+
 - [x] **/deep_critique pass: fixed play-tracers, and a real "fire the
       teacher" mechanic.** *(Aug 2026 -- user: "/deep_critique and loop
       like 4-5 times... prioritize new mechanics.")* Ran the tools rather

@@ -196,10 +196,20 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.coins = 999999
 			Game.open_room()
 			Game.open_room()
-			Game.applicants = [Staff.archetype("veteran").duplicate()]
+			Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate(),
+				Staff.archetype("supply").duplicate()]
 			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.applicants[1]["name"] = "Mr Petrov"
 			Game.hire(0, 0)
+			Game.hire(1, 0)
 			Game.resolve_rooms()
+			# Forced rather than left to whatever the sim actually rolled --
+			# this shot exists to show all three door states side by side
+			# (fine / failing / unstaffed), not to prove what a veteran or
+			# a supply teacher usually scores.
+			Game.rooms[0]["last"]["letter"] = "A"
+			Game.rooms[1]["last"]["letter"] = "E"
 			var hallway: Node = main.get_node("Hallway")
 			hallway.rebuild()
 			world.player.get_parent().remove_child(world.player)

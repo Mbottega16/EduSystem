@@ -173,6 +173,11 @@ A bad hire is not a life sentence. **G**, at the school screen, lets them
 go — for a real severance cost, not a free do-over, and the room opens
 back up to hiring the moment they're gone.
 
+The doors themselves tell you which rooms need you, without walking up
+to any of them: unstaffed reads as a warm red-orange, a staffed room
+that's been failing reads as a distinct amber, and one that's doing
+fine stays a cool blue.
+
 The second door along, always there, is the **principal's office** — your
 milestones, your career totals and a shelf of tutorials, in one room
 rather than a menu you have to remember exists.
@@ -431,7 +436,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1244 assertions
+Run Tests.bat            1248 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

@@ -210,6 +210,24 @@ management sim. Design 21 new items for the classroom shop, taking it
 from 29 to 50. The attached files are the real, current data. Read them
 before starting and trust them over anything else.
 
+THE LAST ATTEMPT AT THIS EXACT TASK WAS REJECTED, 16 of 16 problems real.
+These are not hypothetical failure modes -- this is what actually
+happened, so do not repeat any of it:
+
+  - EVERY teaches/needs concept id was fabricated. None of them existed
+    in curriculum.json -- "patterns_sequences.rules", "citizenship.rights",
+    and others, all invented rather than copied from the attached file.
+    Result: 0 of 7 required teaches links, 0 of 5 required needs links,
+    because a fabricated id does not count as a link at all.
+  - "sensory_corner" as a name is 14 characters against the 13-character
+    limit. It was not counted before submitting.
+  - The "seating" category got zero items against a 2-item minimum --
+    an entire required category was skipped.
+
+Every one of these is mechanically caught by tools/check_items.py, which
+is exactly why you must run it on your own output before calling this
+done -- see the note above this prompt.
+
 SCHEMA. One item, copied verbatim from data/balance.json -> "items":
 
   "microscope": {

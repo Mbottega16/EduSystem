@@ -16,7 +16,8 @@ const ACTIONS := [
 	{"action": "move_left", "label": "Walk left"},
 	{"action": "move_right", "label": "Walk right"},
 	{"action": "interact", "label": "Help / collect / clean up"},
-	{"action": "manage", "label": "Lesson / bell / shop"},
+	{"action": "manage", "label": "Bell / shop"},
+	{"action": "teach", "label": "Start the lesson"},
 	{"action": "quiz", "label": "Quick quiz"},
 	{"action": "homework", "label": "Mark homework"},
 	{"action": "move_desk", "label": "Move a desk"},
@@ -42,6 +43,10 @@ const DEFAULTS := {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"interact": [KEY_E, KEY_SPACE],
 	"manage": [KEY_F],
+	# T was already Auto-teach's key (a real, previously-confirmed feature) --
+	# L is the nearest free letter, not a perfect mnemonic, but it does not
+	# collide with anything.
+	"teach": [KEY_L],
 	"quiz": [KEY_Q],
 	"homework": [KEY_H],
 	"move_desk": [KEY_M],

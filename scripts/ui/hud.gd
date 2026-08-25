@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO }
-enum Shop { BUY, SELL, STAFF, ROOM }
+enum Shop { BUY, SELL, STAFF, ROOM, CRAFT }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
 ## do I have", not a fourth thing bolted onto E/F.
@@ -1218,6 +1218,97 @@ func show_test_report(results: Array) -> void:
 		Game.lesson.get("standard", ""))
 
 
+## A panning shot over every student taught this run, before the term-by-term
+## report. Built entirely in code -- no new scene/art -- because there is no
+## "player holding a yearbook" pose in art/ yet; this uses each student's
+## existing front-facing portrait frame (the same AtlasTexture region
+## show_student() already crops) in a plain scrolling list instead. Swap in
+## real held-book framing here later without touching the data side at all.
+##
+## Every currently-enrolled student plus everyone graduated this run,
+## deduplicated by name (a student who graduated then a same-named new
+## enrolment is vanishingly unlikely and not worth guarding against here).
+func _show_yearbook(on_finished: Callable) -> void:
+	var entries: Array = []
+	var seen: Dictionary = {}
+	for s: StudentData in Game.roster:
+		if seen.has(s.display_name):
+			continue
+		seen[s.display_name] = true
+		entries.append({"name": s.display_name, "art": s.art})
+	for row: Dictionary in Game.graduated:
+		var n: String = String(row.get("name", ""))
+		if seen.has(n):
+			continue
+		seen[n] = true
+		entries.append({"name": n, "art": String(row.get("art", "student_a"))})
+
+	if entries.is_empty():
+		on_finished.call()
+		return
+
+	var scroller := ScrollContainer.new()
+	scroller.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroller.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroller.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(scroller)
+
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(overlay.size.x, 0)
+	col.add_theme_constant_override("separation", 6)
+	scroller.add_child(col)
+
+	var header := Label.new()
+	header.text = "CLASS OF TERM %d" % Game.term
+	header.add_theme_font_size_override("font_size", 20)
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(header)
+
+	for entry: Dictionary in entries:
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+
+		var pic := TextureRect.new()
+		var at := AtlasTexture.new()
+		at.atlas = load("res://art/%s.png" % String(entry["art"]))
+		at.region = Rect2(0, 0, 32, 48)
+		pic.texture = at
+		pic.custom_minimum_size = Vector2(32, 48)
+		row.add_child(pic)
+
+		var name_label := Label.new()
+		name_label.text = "  %s" % String(entry["name"])
+		name_label.add_theme_font_size_override("font_size", 16)
+		row.add_child(name_label)
+
+		col.add_child(row)
+
+	# Auto-pan top to bottom, then hand off to the text report. Skippable --
+	# any input during the pan cuts straight to on_finished, same as every
+	# other paged/timed reveal in this file.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var max_scroll: int = max(scroller.get_v_scroll_bar().max_value - overlay.size.y, 0)
+	if max_scroll <= 0:
+		await get_tree().create_timer(1.2).timeout
+		scroller.queue_free()
+		on_finished.call()
+		return
+
+	var pan_seconds: float = clamp(entries.size() * 0.35, 1.5, 6.0)
+	var tw := create_tween()
+	tw.tween_property(scroller, "scroll_vertical", max_scroll, pan_seconds)
+	var finished := false
+	tw.finished.connect(func() -> void: finished = true)
+	while not finished:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_accept"):
+			tw.kill()
+			break
+		await get_tree().process_frame
+	scroller.queue_free()
+	on_finished.call()
+
+
 ## The run is over: a term missed its target.
 ##
 ## Every term you taught, in order, so the run reads as a career rather than
@@ -1228,6 +1319,11 @@ func show_run_over(info: Dictionary) -> void:
 	_showing_run_over = true
 	Sfx.play("deny")
 	body.visible = false
+	rich.visible = false
+	await _show_yearbook(func() -> void: _show_run_over_report())
+
+
+func _show_run_over_report() -> void:
 	rich.visible = true
 	rich.add_theme_constant_override("line_separation", 4)
 	rich.add_theme_font_size_override("normal_font_size", 16)
@@ -2401,6 +2497,11 @@ func _shop_rows() -> Array:
 		return staff
 	if _shop == Shop.ROOM:
 		return ROOM_ROWS.duplicate()
+	if _shop == Shop.CRAFT:
+		if not Game.lesson_crafting_unlocked():
+			return []
+		Curriculum.ensure_loaded()
+		return Curriculum.lessons.map(func(l: Dictionary) -> String: return String(l.get("id", "")))
 	return Game.room_items.duplicate()
 
 
@@ -2439,6 +2540,8 @@ func _render_catalogue() -> void:
 		heading = "STAFF ROOM"
 	elif _shop == Shop.ROOM:
 		heading = "THE ROOM  %dx%d" % [Grid.W, Grid.H]
+	elif _shop == Shop.CRAFT:
+		heading = "LESSON CRAFTING"
 	title.text = "%s  -  %d coins" % [heading, Game.coins]
 
 	# Show the thing you are buying. You used to be choosing furniture you
@@ -2457,6 +2560,8 @@ func _render_catalogue() -> void:
 		lines = _render_staff()
 	elif _shop == Shop.ROOM:
 		lines = _render_room()
+	elif _shop == Shop.CRAFT:
+		lines = _render_craft(rows)
 	elif rows.is_empty():
 		lines.append("   Nothing to sell - the room is bare.")
 	elif _shop == Shop.BUY:
@@ -2530,6 +2635,9 @@ func _render_catalogue() -> void:
 		next_tab = "the room"
 	elif _shop == Shop.ROOM:
 		verb = "build"
+		next_tab = "lesson crafting"
+	elif _shop == Shop.CRAFT:
+		verb = "craft"
 		next_tab = "buy list"
 	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [verb, next_tab]
 
@@ -2604,6 +2712,47 @@ func _staff_row(idx: int, label: String, hired: bool, level: int,
 
 
 ## The staff-room board: what you have learned to do better.
+## Craft a lesson you already teach: coins + a few in-game days raise its
+## craft_level, which makes that SAME material go down easier next time
+## it's taught (see Game.difficulty_mults/craft_work_mult). Windowed like
+## BUY, since the curriculum runs to 40 lessons.
+func _render_craft(rows: Array) -> Array[String]:
+	Balance.ensure_loaded()
+	var lines: Array[String] = []
+	if not Game.lesson_crafting_unlocked():
+		lines.append("[color=#%s]Not yet. Get a few days of real teaching[/color]" % DIM)
+		lines.append("[color=#%s]behind you first.[/color]" % DIM)
+		return lines
+
+	if not Game.pending_craft.is_empty():
+		var pl := String(Game.pending_craft.get("lesson_id", ""))
+		var pname := String(Curriculum.by_id(pl).get("name", pl))
+		var pdays := int(Game.pending_craft.get("days_left", 0))
+		lines.append("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
+			C_KNOW, pname, pdays, "" if pdays == 1 else "s"])
+		lines.append("")
+
+	var lo := _window_start(rows.size(), LIST_ROWS)
+	if lo > 0:
+		lines.append("   ...")
+	for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
+		var lesson_id: String = rows[i]
+		var d := Curriculum.by_id(lesson_id)
+		var level: int = int(Game.lesson_crafts.get(lesson_id, {}).get("craft_level", 0))
+		var cap: int = Balance.craft_level_cap_for_bonus
+		var cost := Game.craft_next_cost(lesson_id)
+		var afford: bool = Game.can_afford(cost)
+		lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%s[/color] [color=#%s]%4d[/color]" % [
+			">" if i == _sel else " ", C_LESSON,
+			String(d.get("name", lesson_id)).substr(0, 13),
+			C_LESSON if level > 0 else DIM,
+			BAR_FULL.repeat(mini(level, cap)) + BAR_EMPTY.repeat(maxi(0, cap - level)),
+			C_GOOD if afford else C_BAD, cost])
+	if lo + LIST_ROWS < rows.size():
+		lines.append("   ...")
+	return lines
+
+
 func _render_staff() -> Array[String]:
 	Balance.ensure_loaded()
 	var lines: Array[String] = []
@@ -3059,7 +3208,7 @@ func _handle_input() -> void:
 			Sfx.play("deny" if fe != "" else "blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("menu"):
-			_shop = (_shop + 1) % 4      # buy -> sell -> staff -> the room
+			_shop = (_shop + 1) % 5      # buy -> sell -> staff -> room -> craft
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()
@@ -3109,6 +3258,10 @@ func _handle_input() -> void:
 					item_chosen.emit(id)
 				else:
 					Sfx.play("deny")
+			elif _shop == Shop.CRAFT:
+				var ok := Game.commit_lesson_craft(String(rows[_sel]))
+				Sfx.play("coins" if ok else "deny")
+				_render_catalogue()
 			else:
 				Game.sell_item(rows[_sel]["tile"])
 				Sfx.play("coins")

@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-22**, against build `b36`, with **1244 assertions
+> **Measured on 2026-08-22**, against build `b38`, with **1248 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -332,7 +332,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1244 assertions** across **81 sections** |
+| Tests | **1248 assertions** across **81 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -382,6 +382,15 @@ whoever was there for free — found via `/deep_critique` running
 short of never touching it again for the rest of the run. The severance
 cost is what keeps undoing a bad hire a real decision rather than a
 reset button.
+
+**Also built, same pass:** the hallway's own doors now say which rooms
+need you, from a distance. `hallway.gd`'s `_door_tint()` already told
+unstaffed from staffed (Aug 2026, its own earlier fix); a staffed room
+that has been failing now reads as a distinct muted amber rather than
+the same cool blue as one doing fine, closing the exact gap
+`Simulate the School.bat` exposed: a room can fail for a whole term
+with nothing anywhere hinting you should go deal with it short of
+opening the school board and checking every room by hand.
 
 **Also built, same batch:** the principal as the game's tutorial mascot.
 `hud.principal_says(id, text)` is `hint_once()` with a face on it —
