@@ -78,6 +78,23 @@ static var teacher_xp_per_grade_point: int = 25
 static var teacher_xp_per_graduation: int = 45
 static var teacher_xp_per_level: int = 100
 static var teacher_max_level: int = 12
+## The tap-dash that replaced the old held sprint (const SPRINT, actor.gd).
+## Burst multiplier, how long the burst lasts, and the wait after it before
+## the next dash -- the cooldown is the only limiter, there is no stamina.
+static var teacher_dash_speed_multiplier: float = 2.6
+static var teacher_dash_duration: float = 0.2
+static var teacher_dash_cooldown: float = 0.55
+## Dash-cancel: for this long after a burst ends, the pick zone is widened
+## by teacher_dash_cancel_reach px, so a dash that stops just short still
+## reaches the desk. Reach only -- nothing a delegated room is graded on.
+static var teacher_dash_cancel_grace: float = 0.2
+static var teacher_dash_cancel_reach: float = 24.0
+## Furniture lanes: dashing along a tile beside a "lane" item lets the burst
+## carry -- up to dash_lane_extend extra seconds across one dash. Dashing
+## beside a "clutter" item kills the burst dead and adds dash_clutter_penalty
+## to the cooldown. Layout only: neither touches anything a room is graded on.
+static var teacher_dash_lane_extend: float = 0.25
+static var teacher_dash_clutter_penalty: float = 0.35
 
 # --- students -----------------------------------------------------------
 static var stu_xp_per_lesson: int = 18
@@ -183,6 +200,24 @@ static var dis_frustration_after: float = 8.0
 static var dis_spread: float = 0.045
 static var dis_neighbour_stall_mult: float = 2.0
 static var dis_settle_xp: int = 3
+
+# --- flare-ups (a timed warning a calm child is about to kick off) ------
+## onset is per calm seated child per second, scaled by the day event's
+## stall multiplier. Catch it with E before countdown_seconds runs out for
+## a coin tip + defuse_xp; miss it and they just start disrupting.
+static var flare_onset: float = 0.011
+static var flare_countdown: float = 6.0
+static var flare_reward: int = 8
+static var flare_defuse_xp: int = 4
+static var flare_max_per_day: int = 5
+
+# --- the end-of-session bell rush (built, but OFF until a later stage) ---
+## Hand every child's marked work back before `seconds` runs out for a flat
+## coin bonus + xp_per_desk each. Coins + XP only, never grade.
+static var bell_rush_enabled: bool = false
+static var bell_rush_seconds: float = 45.0
+static var bell_rush_reward: int = 40
+static var bell_rush_xp_per_desk: int = 3
 
 # --- knowing your material ----------------------------------------------
 static var concept_bonus: float = 0.012
@@ -329,6 +364,13 @@ static func apply(d: Dictionary) -> void:
 	teacher_xp_per_graduation = int(tc.get("xp_per_graduation", teacher_xp_per_graduation))
 	teacher_xp_per_level = int(tc.get("xp_per_level", teacher_xp_per_level))
 	teacher_max_level = int(tc.get("max_level", teacher_max_level))
+	teacher_dash_speed_multiplier = float(tc.get("dash_speed_multiplier", teacher_dash_speed_multiplier))
+	teacher_dash_duration = float(tc.get("dash_duration", teacher_dash_duration))
+	teacher_dash_cooldown = float(tc.get("dash_cooldown", teacher_dash_cooldown))
+	teacher_dash_cancel_grace = float(tc.get("dash_cancel_grace", teacher_dash_cancel_grace))
+	teacher_dash_cancel_reach = float(tc.get("dash_cancel_reach", teacher_dash_cancel_reach))
+	teacher_dash_lane_extend = float(tc.get("dash_lane_extend", teacher_dash_lane_extend))
+	teacher_dash_clutter_penalty = float(tc.get("dash_clutter_penalty", teacher_dash_clutter_penalty))
 
 	var st: Dictionary = d.get("student", {})
 	stu_xp_per_lesson = int(st.get("xp_per_lesson", stu_xp_per_lesson))
@@ -431,6 +473,19 @@ static func apply(d: Dictionary) -> void:
 	dis_neighbour_stall_mult = float(ds.get("neighbour_stall_mult",
 		dis_neighbour_stall_mult))
 	dis_settle_xp = int(ds.get("xp_for_settling", dis_settle_xp))
+
+	var fl: Dictionary = d.get("flare", {})
+	flare_onset = float(fl.get("onset_per_second", flare_onset))
+	flare_countdown = float(fl.get("countdown_seconds", flare_countdown))
+	flare_reward = int(fl.get("reward_coins", flare_reward))
+	flare_defuse_xp = int(fl.get("defuse_xp", flare_defuse_xp))
+	flare_max_per_day = int(fl.get("max_per_day", flare_max_per_day))
+
+	var br: Dictionary = d.get("bell_rush", {})
+	bell_rush_enabled = bool(br.get("enabled", bell_rush_enabled))
+	bell_rush_seconds = float(br.get("seconds", bell_rush_seconds))
+	bell_rush_reward = int(br.get("reward_coins", bell_rush_reward))
+	bell_rush_xp_per_desk = int(br.get("xp_per_desk", bell_rush_xp_per_desk))
 
 	var cn: Dictionary = d.get("concepts", {})
 	concept_bonus = float(cn.get("bonus", concept_bonus))

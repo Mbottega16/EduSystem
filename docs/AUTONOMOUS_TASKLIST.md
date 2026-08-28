@@ -394,7 +394,7 @@ for no reason.
       neighbours, not just from one of them. Screenshotted the real
       hallway with a fine and a failing room side by side to confirm
       the hues actually read apart, not just differ numerically.
-      1244 -> 1248 assertions. No contract re-check needed this pass --
+      1244 -> 1248 in the assertion count. No contract re-check needed this pass --
       the change is a pure tint lookup off already-recorded data, never
       touches `grade_for()` or `room_score()`.
 

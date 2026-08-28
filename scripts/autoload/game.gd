@@ -46,6 +46,22 @@ var homework_out: bool = false  ## is there homework due back tomorrow?
 var subject: String = ""        ## today's lesson NAME, for display
 var lesson: Dictionary = {}     ## the full curriculum entry behind it
 var event: Dictionary = {}      ## what makes today different from yesterday
+## Flare-ups started so far today, against Balance.flare_max_per_day. Reset
+## every morning -- a bad-luck run should not be able to bury you. The
+## counting and the spawning live in classroom.gd (_tick_flares), since a
+## flare is a thing in the room you walk to, not a fact about the roster;
+## day boundaries are Game's though, so the tally sits here.
+var _flares_today: int = 0
+
+## The end-of-session bell rush -- OFF unless Balance.bell_rush_enabled (it
+## belongs to a later stage of the game). Seconds left on the round, 0 when
+## not running; and which seats have had their marked work handed back.
+var bell_rush_left: float = 0.0
+var _bell_rush_done: Dictionary = {}
+@warning_ignore("unused_signal")
+signal bell_rush_changed(seconds_left: float)
+@warning_ignore("unused_signal")
+signal bell_rush_finished(completed: bool)
 var term_over: bool = false
 ## Which term this is. A run is not one term any more -- it is as many as
 ## you keep teaching, and everything you built carries into the next.
@@ -455,6 +471,9 @@ func new_run(seed_value: int = 0) -> void:
 	homework_out = false
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
+	_flares_today = 0
+	bell_rush_left = 0.0
+	_bell_rush_done.clear()
 	term_over = false
 	term = 1
 	term_history.clear()
@@ -771,6 +790,64 @@ func student_in_seat(seat: int) -> StudentData:
 	return null
 
 
+# --- the end-of-session bell rush --------------------------------------
+# Built and tested, but dormant: start_bell_rush() returns immediately
+# unless Balance.bell_rush_enabled. See the bell_rush note in balance.json.
+# Coins + XP only -- it never touches grade.
+
+func bell_rush_active() -> bool:
+	return bell_rush_left > 0.0
+
+
+## Seats still owed their marked work back this round.
+func bell_rush_pending() -> Array[int]:
+	var out: Array[int] = []
+	for s: StudentData in roster:
+		if s.seat_index >= 0 and not bool(_bell_rush_done.get(s.seat_index, false)):
+			out.append(s.seat_index)
+	return out
+
+
+## Kick off the rush, if it is switched on. Called from Classroom.end_lesson().
+func start_bell_rush() -> void:
+	Balance.ensure_loaded()
+	bell_rush_left = 0.0
+	_bell_rush_done.clear()
+	if not Balance.bell_rush_enabled or phase != Phase.AFTERNOON:
+		return
+	if bell_rush_pending().is_empty():
+		return
+	bell_rush_left = Balance.bell_rush_seconds
+	bell_rush_changed.emit(bell_rush_left)
+
+
+## Counts the round down. Driven from Classroom._physics_process in AFTERNOON.
+func tick_bell_rush(delta: float) -> void:
+	if bell_rush_left <= 0.0:
+		return
+	bell_rush_left = maxf(0.0, bell_rush_left - delta)
+	bell_rush_changed.emit(bell_rush_left)
+	if bell_rush_left == 0.0:
+		bell_rush_finished.emit(false)          # time ran out -- no bonus
+
+
+## Hand one desk's work back. XP per desk as you go; the flat coin bonus
+## lands only on the desk that completes the set. Returns true on that desk.
+func bell_rush_hand_back(seat_index: int) -> bool:
+	if bell_rush_left <= 0.0 or bool(_bell_rush_done.get(seat_index, false)):
+		return false
+	_bell_rush_done[seat_index] = true
+	var s := student_in_seat(seat_index)
+	if s != null:
+		s.add_xp(Balance.bell_rush_xp_per_desk)
+	if bell_rush_pending().is_empty():
+		add_coins(Balance.bell_rush_reward)
+		bell_rush_left = 0.0
+		bell_rush_finished.emit(true)
+		return true
+	return false
+
+
 ## ONE press, ONE consumer.
 ##
 ## Several systems poll "interact": the player, the overlays, and placement
@@ -963,6 +1040,9 @@ func next_term() -> Dictionary:
 	voice = 1.0
 	last_inspection = {}
 	event = DayEvent.by_id("none")
+	_flares_today = 0
+	bell_rush_left = 0.0
+	_bell_rush_done.clear()
 	subject = pick_subject()
 
 	# fill the empty desks
@@ -1992,6 +2072,9 @@ func advance_day() -> Dictionary:
 	var used_today := consumables_used_today.duplicate()
 	_reset_consumables()
 	event = DayEvent.roll(rng)
+	_flares_today = 0
+	bell_rush_left = 0.0
+	_bell_rush_done.clear()
 	if event.has("bonus_coins"):
 		add_coins(int(event["bonus_coins"]))
 	if day > Balance.term_days:

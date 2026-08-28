@@ -248,6 +248,7 @@ func _physics_process(delta: float) -> void:
 		# so it can never fight you for the wheel.
 		if autopilot and dir == Vector2.ZERO:
 			dir = _auto_direction()
+	_tick_dash(delta, dir)
 	walk(dir, delta)
 
 	# The thing you were standing at can be destroyed under you — sell a
@@ -456,7 +457,94 @@ func speed_scale() -> float:
 	var base: float = Progress.speed(Game.perk_ranks) / SPEED
 	if autopilot and auto_target_name != "":
 		base *= Balance.auto_speed
-	return base * (SPRINT if Input.is_action_pressed("sprint") else 1.0)
+	if _dash_burst > 0.0:
+		base *= Balance.teacher_dash_speed_multiplier
+	return base
+
+
+## The tap-dash. A short burst in whatever direction you are already
+## heading, then a cooldown before the next one -- see teacher.dash_* in
+## balance.json. It replaced the old held "Hurry" sprint: same key, but you
+## tap it for a lunge instead of holding it to glide across the whole room.
+## No stamina -- the cooldown is the entire limiter.
+var _dash_burst: float = 0.0   ## seconds of burst still active
+var _dash_cool: float = 0.0    ## seconds until the next dash is allowed
+## Dash-cancel: seconds of widened reach left after a burst ended. See
+## teacher.dash_cancel_* in balance.json -- a dash that stops just short of
+## a desk still reaches it for this blink, so the burst connects into the
+## action instead of dying a tile away.
+var _dash_cancel_grace: float = 0.0
+var _dash_reach_boosted: bool = false
+## Furniture lanes -- see teacher.dash_lane_* in balance.json. How much
+## lane-carry is left on the current dash, and whether the clutter "stumble"
+## sound has already played for it (once per dash, not once per frame).
+var _dash_lane_left: float = 0.0
+var _dash_stumbled: bool = false
+
+
+func _tick_dash(delta: float, dir: Vector2) -> void:
+	var was_bursting := _dash_burst > 0.0
+	_dash_burst = maxf(0.0, _dash_burst - delta)
+	_dash_cool = maxf(0.0, _dash_cool - delta)
+
+	# Furniture underfoot while the burst is live: a clear lane carries it,
+	# a bit of clutter kills it dead. Layout only -- see dash_tile_kind().
+	var crashed := false
+	if _dash_burst > 0.0:
+		match _dash_room_kind():
+			"clutter":
+				_dash_burst = 0.0
+				_dash_cancel_grace = 0.0
+				_dash_cool = maxf(_dash_cool, Balance.teacher_dash_clutter_penalty)
+				crashed = true
+				if not _dash_stumbled:
+					_dash_stumbled = true
+					Sfx.play("deny")
+			"lane":
+				if _dash_lane_left > 0.0:
+					var carry: float = minf(delta, _dash_lane_left)
+					_dash_burst = minf(Balance.teacher_dash_duration, _dash_burst + carry)
+					_dash_lane_left -= carry
+
+	# The frame the burst runs out is the frame the grace window opens --
+	# unless you ran it into a crate, which earns no "connect".
+	if was_bursting and _dash_burst == 0.0 and not crashed:
+		Balance.ensure_loaded()
+		_dash_cancel_grace = Balance.teacher_dash_cancel_grace
+	_dash_cancel_grace = maxf(0.0, _dash_cancel_grace - delta)
+	_apply_dash_reach()
+	if input_locked or _walking_scripted:
+		return
+	if dir == Vector2.ZERO or _dash_burst > 0.0 or _dash_cool > 0.0:
+		return
+	if Game.claim_action("dash"):
+		Balance.ensure_loaded()
+		_dash_burst = Balance.teacher_dash_duration
+		_dash_cool = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown
+		_dash_lane_left = Balance.teacher_dash_lane_extend
+		_dash_stumbled = false
+		Sfx.play("blip")
+
+
+## Whether the tile the teacher is standing on is beside a "lane" or
+## "clutter" item -- asked of the classroom, "" when there is no room (a
+## bare sim) or nothing tagged nearby.
+func _dash_room_kind() -> String:
+	var room := get_tree().get_first_node_in_group("classroom")
+	if room != null and room.has_method("dash_tile_kind"):
+		return room.dash_tile_kind(Grid.world_to_tile(global_position))
+	return ""
+
+
+## Widen the pick zone while the dash-cancel grace is live, and put it back
+## the instant it lapses. Written through _apply_reach() so a perk bought
+## mid-grace still lands on the right base radius.
+func _apply_dash_reach() -> void:
+	var want := _dash_cancel_grace > 0.0
+	if want == _dash_reach_boosted:
+		return
+	_dash_reach_boosted = want
+	_apply_reach()
 
 
 ## Only the teacher's footsteps are audible.
@@ -468,9 +556,13 @@ func on_step() -> void:
 func _apply_reach() -> void:
 	if zone == null:
 		return
+	var r: float = Progress.pick_radius(Game.perk_ranks)
+	if _dash_reach_boosted:
+		Balance.ensure_loaded()
+		r += Balance.teacher_dash_cancel_reach
 	for c in zone.get_children():
 		if c is CollisionShape2D and (c as CollisionShape2D).shape is CircleShape2D:
-			((c as CollisionShape2D).shape as CircleShape2D).radius = 				Progress.pick_radius(Game.perk_ranks)
+			((c as CollisionShape2D).shape as CircleShape2D).radius = r
 
 
 func carry_work(n: int) -> void:

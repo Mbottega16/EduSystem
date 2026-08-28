@@ -44,6 +44,10 @@ const QUIZ_BUBBLE_TINT := Color(0.62, 0.82, 1.0)
 ## Messing about. Hot, because unlike the other two it gets WORSE while you
 ## are somewhere else.
 const NOISE_BUBBLE_TINT := Color(1.0, 0.45, 0.35)
+## A flare-up brewing -- hot orange, the one on a countdown. Brighter than
+## the noise red so it reads as "now" against a room that may already have
+## a disruption or two showing.
+const FLARE_BUBBLE_TINT := Color(1.0, 0.7, 0.2)
 
 var grid := Grid.new()
 var player: Actor = null
@@ -409,6 +413,10 @@ func _physics_process(delta: float) -> void:
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
 		Game.tick_class(delta, roll)
+		# and whether a calm child is about to -- the catchable warning the
+		# dash exists to answer. Silent in a written test, same as the rest.
+		if roll != null:
+			_tick_flares(delta, roll)
 		Game.tick_voice(delta)
 		# The aide works the room while you teach.
 		var taken := Game.tick_aide(delta)
@@ -446,6 +454,11 @@ func _physics_process(delta: float) -> void:
 				test_auto_ended.emit(end_test())
 			else:
 				lesson_auto_ended.emit(end_lesson())
+	elif Game.phase == Game.Phase.AFTERNOON:
+		# The end-of-session bell rush counts down here. Dormant unless
+		# Balance.bell_rush_enabled -- tick_bell_rush() returns at once when
+		# no round is running.
+		Game.tick_bell_rush(delta)
 	_refresh_bubbles()
 	# The janitor, unlike the aide above, is NOT inside the LESSON-only
 	# block: mess isn't lesson-gated (see mess.gd), so cleaning it up for
@@ -478,15 +491,18 @@ func _refresh_bubbles() -> void:
 		# is_VISIBLY_struggling, not is_struggling: a Quiet child sits on it
 		# for a few seconds, which is what stops scanning for bubbles from
 		# being the whole of the job.
+		var flaring: bool = n.seated and n.data.flaring()
 		var noisy: bool = n.seated and n.data.disrupting
 		var stuck: bool = n.seated and n.data.is_visibly_struggling()
 		var flagged: bool = n.seated and n.data.quiz_flagged
 		var tint := QUIZ_BUBBLE_TINT
-		if noisy:
+		if flaring:
+			tint = FLARE_BUBBLE_TINT
+		elif noisy:
 			tint = NOISE_BUBBLE_TINT
 		elif stuck:
 			tint = Color.WHITE
-		n.set_bubble(noisy or stuck or flagged, tint)
+		n.set_bubble(flaring or noisy or stuck or flagged, tint)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
@@ -619,6 +635,7 @@ func end_test() -> Array:
 	for s: StudentData in Game.roster:
 		s.confusion = 0.0
 		s.disrupting = false
+		s.flare_left = 0.0          # the bell interrupts a brewing flare-up too
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
@@ -676,9 +693,13 @@ func end_lesson() -> Array:
 	for s: StudentData in Game.roster:
 		s.confusion = 0.0
 		s.disrupting = false
+		s.flare_left = 0.0          # the bell interrupts a brewing flare-up too
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
+	# The end-of-session rush, if it is switched on (it is not yet -- see
+	# bell_rush in balance.json). A no-op otherwise.
+	Game.start_bell_rush()
 	if not report.is_empty():
 		inspected.emit(report)
 	return results
@@ -758,6 +779,59 @@ func _rebuild_purchased() -> void:
 	for placed: Dictionary in Game.room_items:
 		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
 			_purchased_tiles.append(t)
+
+
+## Flare-ups: a random, catchable warning that ONE calm child is about to
+## kick off. Deliberately separate from the boredom/frustration routes into
+## disruption in Game.tick_class -- those are things the player caused; this
+## is the extra bit of urgency the dash exists to answer. One on the clock
+## at a time, capped per day (Game._flares_today), scaled by today's event.
+## Lives here rather than in Game because a flare is a thing in the room you
+## walk to, not a fact about the roster -- so it never fires in the headless
+## term simulator, which has no Classroom node ticking.
+func _tick_flares(delta: float, rng: RandomNumberGenerator) -> void:
+	var flare_active := false
+	for s: StudentData in Game.roster:
+		if s.flare_left <= 0.0:
+			continue
+		s.flare_left = maxf(0.0, s.flare_left - delta)
+		if s.flare_left == 0.0:
+			s.disrupting = true          # missed it -- the ordinary mechanic
+		else:
+			flare_active = true
+	if flare_active or Game._flares_today >= Balance.flare_max_per_day:
+		return
+	var ev_mult: float = DayEvent.multiplier(Game.event, "stall_mult")
+	for s: StudentData in Game.roster:
+		if s.seat_index < 0 or s.disrupting or s.flaring():
+			continue
+		if rng.randf() < Balance.flare_onset * ev_mult * delta:
+			s.flare_left = Balance.flare_countdown
+			Game._flares_today += 1
+			return
+
+
+## What a dash does when the teacher is standing on `tile`, decided by any
+## furniture tagged "lane" or "clutter" in the items table. The effect is on
+## the walkable tiles ORTHOGONALLY BESIDE the item (you cannot stand on the
+## furniture itself) -- a clear rug makes a runway, a crate makes you weave.
+## "clutter" always wins a tie. Read straight off Game.room_items, which is a
+## handful of entries, and only while a dash is live -- no caching needed.
+func dash_tile_kind(tile: Vector2i) -> String:
+	var found := ""
+	for placed: Dictionary in Game.room_items:
+		var id := String(placed["id"])
+		var d := Items.get_def(id)
+		var is_lane: bool = bool(d.get("lane", false))
+		var is_clutter: bool = bool(d.get("clutter", false))
+		if not (is_lane or is_clutter):
+			continue
+		for t: Vector2i in Items.footprint(id, placed["tile"]):
+			if absi(t.x - tile.x) + absi(t.y - tile.y) <= 1:
+				if is_clutter:
+					return "clutter"
+				found = "lane"
+	return found
 
 
 ## The desks are rebuilt whenever one of them moves, so their movers are new

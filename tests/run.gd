@@ -155,7 +155,10 @@ func _main() -> void:
 	test_term()
 	test_settings()
 	await test_title()
-	await test_sprint()
+	await test_dash()
+	await test_flares()
+	await test_dash_lanes()
+	await test_bell_rush()
 	await test_buttons()
 	test_curriculum()
 	test_names()
@@ -3209,7 +3212,10 @@ func test_disruption() -> void:
 		not c.settle())
 
 	# --- BOTH sources are the player's own doing ---
+	# (Flare-ups are a THIRD source, deliberately separate and randomly
+	# timed -- suppressed here so this stays a test of boredom alone.)
 	Game.new_run(SEED)
+	Game._flares_today = 99999
 	_seat_in_a_row(2, 4)
 	for st: StudentData in Game.roster:
 		st.trait_id = "steady"
@@ -3225,6 +3231,7 @@ func test_disruption() -> void:
 		bored.disrupting, "gave up after %d frames" % guard2)
 	chk("and collecting it instead would have prevented that", (func() -> bool:
 		Game.new_run(SEED)
+		Game._flares_today = 99999                        # boredom only, no flares
 		_seat_in_a_row(2, 4)
 		for st: StudentData in Game.roster:
 			st.trait_id = "steady"
@@ -4080,9 +4087,16 @@ func test_teaching() -> void:
 	chk("standing at the front IS teaching", Game.teaching)
 	chk("and the class starts paying attention", Game.attention > 0.0,
 		Game.attention)
+	# Measure over a short window with a fresh stall grace: teaching shows
+	# in the work timer immediately, and nothing random gets a chance to
+	# stall them inside it (which would otherwise freeze the very thing
+	# this checks -- a latent flake, exposed once flare-ups added another
+	# draw to the shared rng stream and reshuffled what lands where).
+	s.confusion = 0.0
+	s._since_stall = 0.0
 	var before := s.work_timer
-	await step(120)
-	chk("now the work moves", s.work_timer < before,
+	await step(20)
+	chk("now the work moves", s.work_timer < before - 0.05,
 		"%.2f -> %.2f" % [before, s.work_timer])
 
 	# --- leaving costs, but does not freeze them dead ---
@@ -6419,7 +6433,7 @@ func test_settings() -> void:
 
 	# THE thing a controls screen must not do: leave one key on two actions
 	Settings.reset_bindings()
-	Settings.rebind("sprint", KEY_E)      # E is interact's default
+	Settings.rebind("dash", KEY_E)      # E is interact's default
 	var clash := 0
 	for entry: Dictionary in Settings.ACTIONS:
 		for code: int in Settings.bindings.get(String(entry["action"]), []):
@@ -6550,35 +6564,362 @@ func test_title() -> void:
 	Game.delete_save()
 
 
-func test_sprint() -> void:
-	section("SPRINT")
-	chk("sprint is a real, bound action",
-		InputMap.has_action("sprint")
-		and not InputMap.action_get_events("sprint").is_empty())
+func test_dash() -> void:
+	section("DASH")
+	chk("dash is a real, bound action",
+		InputMap.has_action("dash")
+		and not InputMap.action_get_events("dash").is_empty())
 
 	Game.delete_save()
 	Game.new_run(SEED)
+	Balance.ensure_loaded()
 	# row 6 is the clear aisle between the front desks (row 5) and the back
-	# seats (row 7). Row 5 has desks in it, so both runs used to stop dead
-	# against the same one and "sprint" looked like it did nothing.
+	# seats (row 7) -- a good stretch to the right with nothing to walk into.
 	var start := Grid.tile_to_world(Vector2i(3, 6))
+	# W frames is about one dash_duration at the 60Hz physics tick.
+	var W: int = int(round(Balance.teacher_dash_duration * 60.0))
+
 	world.player.global_position = start
 	await step(2)
-	await hold("move_right", 30)
+	await hold("move_right", W)
 	var walked: float = world.player.global_position.x - start.x
 
+	# A single TAP of dash on the first frame, same heading, same frame count.
 	world.player.global_position = start
 	await step(2)
-	Input.action_press("sprint")
-	await hold("move_right", 30)
-	Input.action_release("sprint")
-	var sprinted: float = world.player.global_position.x - start.x
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(W - 1)
+	Input.action_release("move_right")
+	await step(1)
+	var dashed: float = world.player.global_position.x - start.x
 
-	chk("holding sprint covers more ground in the same time",
-		sprinted > walked, "%.0f vs %.0f px in 30 frames" % [sprinted, walked])
-	chk("and it is the multiplier the code says it is",
-		absf(sprinted / maxf(1.0, walked) - Actor.SPRINT) < 0.25,
-		"%.2fx" % (sprinted / maxf(1.0, walked)))
+	chk("a dash covers noticeably more ground than a walk in the same time",
+		dashed > walked * 1.4, "%.0f vs %.0f px in %d frames" % [dashed, walked, W])
+	chk("the burst is roughly the multiplier balance.json sets",
+		absf(dashed / maxf(1.0, walked) - Balance.teacher_dash_speed_multiplier) < 0.6,
+		"%.2fx vs %.2fx" % [dashed / maxf(1.0, walked), Balance.teacher_dash_speed_multiplier])
+
+	# And it is BRIEF: the stretch right after the burst is an ordinary walk,
+	# not a lingering speed-up. This is what makes it a dash and not the old
+	# held "Hurry" sprint it replaced.
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(W)                       # let the whole burst elapse
+	var after: float = world.player.global_position.x
+	await step(W)                       # then measure an equal window
+	Input.action_release("move_right")
+	await step(1)
+	var post_burst: float = world.player.global_position.x - after
+	chk("once the burst is over, speed is back to a walk",
+		absf(post_burst - walked) <= 6.0, "%.0f vs %.0f px after the burst" % [post_burst, walked])
+
+	# Dash-cancel: for a blink AFTER the burst the interaction reach is
+	# widened, so a dash that stops just short of a desk still connects into
+	# the E press rather than dying a tile away. Then it snaps back.
+	Game.new_run(SEED)
+	Balance.ensure_loaded()
+	await step(2)
+	var base_r: float = _zone_radius(world.player)
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(W + 2)                   # burst elapses -> the grace window opens
+	Input.action_release("move_right")
+	await step(1)
+	chk("just after a dash the reach is widened so the burst can connect",
+		_zone_radius(world.player) > base_r + 1.0,
+		"%.0f vs %.0f px" % [_zone_radius(world.player), base_r])
+	chk("the widening is exactly balance.json's dash_cancel_reach",
+		absf(_zone_radius(world.player) - (base_r + Balance.teacher_dash_cancel_reach)) < 0.5,
+		"%.0f vs %.0f px" % [_zone_radius(world.player), base_r + Balance.teacher_dash_cancel_reach])
+	await step(int(round(Balance.teacher_dash_cancel_grace * 60.0)) + 6)
+	chk("and it snaps back to the normal reach once the grace lapses",
+		absf(_zone_radius(world.player) - base_r) < 0.5,
+		"%.0f vs %.0f px" % [_zone_radius(world.player), base_r])
+
+
+## The current radius of the player's interaction zone -- used by the
+## dash-cancel checks, which are entirely about that radius flexing.
+func _zone_radius(p: Node) -> float:
+	for c in (p.get_node("InteractZone") as Area2D).get_children():
+		if c is CollisionShape2D and (c as CollisionShape2D).shape is CircleShape2D:
+			return ((c as CollisionShape2D).shape as CircleShape2D).radius
+	return 0.0
+
+
+# ============================================ flare-ups
+
+func _anyone_flaring() -> bool:
+	for st: StudentData in Game.roster:
+		if st.flaring():
+			return true
+	return false
+
+
+func _flaring_count() -> int:
+	var n := 0
+	for st: StudentData in Game.roster:
+		if st.flaring():
+			n += 1
+	return n
+
+
+func test_flares() -> void:
+	section("FLARE-UPS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	await step(2)
+	var s: StudentData = Game.roster[0]
+	for st: StudentData in Game.roster:
+		st.trait_id = "steady"
+
+	chk("nobody starts with a flare-up brewing", not _anyone_flaring())
+
+	# --- a flare-up is the most urgent thing at the desk ---
+	s.flare_left = Balance.flare_countdown
+	chk("a flaring child reads as flaring", s.flaring())
+	chk("it outranks every other desk state", s.attention_rank() == 1)
+	s.confusion = 1.0                 # stuck AND flaring
+	s.disrupting = true              # and playing up too
+	var st: Interactable = world.station(s.seat_index)
+	chk("the desk offers 'head them off' ahead of settle or help",
+		st != null and st.action() == st.Action.DEFUSE)
+	chk("and the prompt says what it is", st.prompt_text().contains("kick off"))
+	s.disrupting = false
+	s.confusion = 0.0
+
+	# --- catching it in time ---
+	var xp_before: int = s.xp
+	chk("heading it off works", s.defuse())
+	chk("and clears the flare", not s.flaring())
+	chk("with a little XP for the child", s.xp > xp_before)
+	chk("heading off somebody who is fine does nothing at all", not s.defuse())
+
+	# the coin tip is paid by the desk, not the student's own method
+	var coins_before: int = Game.coins
+	s.flare_left = Balance.flare_countdown
+	st.interact(world.player)
+	chk("catching it at the desk pays the coin tip",
+		Game.coins == coins_before + Balance.flare_reward,
+		"%d -> %d" % [coins_before, Game.coins])
+	chk("and the flare is gone once you have", not s.flaring())
+
+	# --- letting it run out ---
+	s.flare_left = 0.05
+	s.disrupting = false
+	world._tick_flares(0.1, Game.rng)
+	chk("a flare left too long tips into an ordinary disruption",
+		s.disrupting and not s.flaring())
+
+	# --- the per-day cap ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	for st2: StudentData in Game.roster:
+		st2.trait_id = "steady"
+	Game._flares_today = Balance.flare_max_per_day
+	for i in 4000:
+		world._tick_flares(1.0 / 60.0, Game.rng)
+	chk("once the day's cap is hit, no more flares start", not _anyone_flaring())
+
+	# --- it starts on its own, and only ever one at a time ---
+	Game._flares_today = 0
+	var guard := 0
+	while guard < 40000 and not _anyone_flaring():
+		world._tick_flares(1.0 / 60.0, Game.rng)
+		guard += 1
+	chk("a flare does start on its own given time", _anyone_flaring(),
+		"none in %d frames" % guard)
+	var most_at_once := 0
+	for i in 800:
+		world._tick_flares(1.0 / 60.0, Game.rng)
+		most_at_once = maxi(most_at_once, _flaring_count())
+	chk("and never more than one is on the clock at once, ever",
+		most_at_once <= 1, "peaked at %d" % most_at_once)
+
+	# --- silent in a written test: the classroom feeds _tick_flares no rng ---
+	Game.new_run(SEED)
+	Game._flares_today = 0
+	Game.test_active = true
+	world.start_lesson()
+	await step(1200)
+	chk("a written test rolls no flare-ups", not _anyone_flaring())
+	Game.test_active = false
+	_hud().close()
+
+
+# ============================================ furniture lanes and clutter
+
+func test_dash_lanes() -> void:
+	section("DASH LANES")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("a plain tile has no dash flavour",
+		world.dash_tile_kind(Vector2i(3, 6)) == "")
+
+	# a lane item (the rug, w2) at (2,3) -> footprint (2,3),(3,3)
+	Game.room_items.append({"id": "rug", "tile": Vector2i(2, 3)})
+	chk("a tile beside a lane item reads as a lane",
+		world.dash_tile_kind(Vector2i(2, 4)) == "lane",
+		world.dash_tile_kind(Vector2i(2, 4)))
+	chk("a tile well away from it does not",
+		world.dash_tile_kind(Vector2i(9, 9)) == "")
+
+	# clutter beats lane where their tiles-of-influence overlap
+	Game.room_items.append({"id": "crate", "tile": Vector2i(3, 4)})
+	chk("clutter wins the tile when a lane and a clutter item both touch it",
+		world.dash_tile_kind(Vector2i(3, 3)) == "clutter",
+		world.dash_tile_kind(Vector2i(3, 3)))
+	Game.room_items.clear()
+
+	# --- the burst actually carries past its normal length on a lane ---
+	var W: int = int(round(Balance.teacher_dash_duration * 60.0))
+	var start := Grid.tile_to_world(Vector2i(3, 6))
+	Game.new_run(SEED)
+	await step(40)                      # let the player finish filing in
+
+	# a plain dash: the burst is spent by W frames
+	_reset_dash(world.player)
+	world.player.global_position = start
+	await step(1)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(W + 4)
+	var plain_burst: float = world.player._dash_burst
+	Input.action_release("move_right")
+	chk("a plain dash's burst is done by the time its duration is up",
+		plain_burst == 0.0, "%.3f" % plain_burst)
+
+	# the same dash, but there is a lane strip along the row it runs down
+	Game.room_items.append({"id": "rug", "tile": Vector2i(4, 5)})
+	Game.room_items.append({"id": "rug", "tile": Vector2i(6, 5)})
+	Game.room_items.append({"id": "rug", "tile": Vector2i(8, 5)})
+	_reset_dash(world.player)
+	world.player.global_position = start
+	await step(1)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(W + 4)
+	var laned_burst: float = world.player._dash_burst
+	Input.action_release("move_right")
+	chk("a lane carries the burst past that point", laned_burst > 0.0,
+		"%.3f" % laned_burst)
+	Game.room_items.clear()
+
+	# --- clutter kills the burst and lengthens the cooldown ---
+	Game.new_run(SEED)
+	await step(40)                      # let the player finish filing in
+	Game.room_items.append({"id": "crate", "tile": Vector2i(4, 5)})
+	_reset_dash(world.player)
+	world.player.global_position = start
+	await step(1)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(2)
+	# the cooldown is set the instant a dash fires and lingers for ~0.75s,
+	# so it is a timing-proof witness that the dash actually happened
+	chk("the clutter dash started", world.player._dash_cool > 0.0)
+	Input.action_release("dash")
+	await step(9)                       # far enough to reach the tile by the crate
+	Input.action_release("move_right")
+	chk("a dash into clutter loses its burst early",
+		world.player._dash_burst == 0.0)
+	chk("and the next dash has to wait longer for it",
+		world.player._dash_cool >= Balance.teacher_dash_clutter_penalty - 0.05,
+		"%.2f" % world.player._dash_cool)
+	Game.room_items.clear()
+
+
+## Clear every scrap of dash state so a test dash starts from nothing --
+## the cooldown from an earlier dash would otherwise silently swallow it.
+func _reset_dash(p: Node) -> void:
+	p._dash_burst = 0.0
+	p._dash_cool = 0.0
+	p._dash_cancel_grace = 0.0
+	p._dash_lane_left = 0.0
+	p._dash_stumbled = false
+
+
+# ============================================ the end-of-session bell rush
+
+func test_bell_rush() -> void:
+	section("BELL RUSH")
+	Balance.ensure_loaded()
+
+	# --- OFF by default: a lesson ends and nothing rushes ---
+	chk("the bell rush ships switched off", not Balance.bell_rush_enabled)
+	Game.new_run(SEED)
+	await step(2)
+	var frames := 0
+	while frames < 3000 and not world.everyone_seated():
+		await step(20)
+		frames += 20
+	world.start_lesson()
+	await step(2)
+	world.end_lesson()
+	chk("with it off, ending a lesson starts no rush", not Game.bell_rush_active())
+	chk("and no timer is running", is_equal_approx(Game.bell_rush_left, 0.0))
+
+	# --- forced on: the round runs, and clearing every desk pays out ---
+	Balance.bell_rush_enabled = true
+	Game.set_phase(Game.Phase.AFTERNOON)
+	Game.start_bell_rush()
+	chk("switched on, the round is now running", Game.bell_rush_active())
+	chk("with the full clock", is_equal_approx(Game.bell_rush_left, Balance.bell_rush_seconds))
+	var seats: Array[int] = Game.bell_rush_pending()
+	chk("every seated child is owed their work back", seats.size() >= 2,
+		seats.size())
+
+	var coins_before: int = Game.coins
+	var xp_before: int = Game.student_in_seat(seats[0]).xp
+	# hand back all but the last
+	for i in range(seats.size() - 1):
+		var last := Game.bell_rush_hand_back(seats[i])
+		chk("handing back a desk mid-round does not finish it", not last)
+	chk("each desk hands its child a little XP",
+		Game.student_in_seat(seats[0]).xp > xp_before)
+	chk("and the coin bonus has not landed yet", Game.coins == coins_before)
+	chk("the round is still going", Game.bell_rush_active())
+
+	var done := Game.bell_rush_hand_back(seats[seats.size() - 1])
+	chk("the last desk completes the round", done)
+	chk("which pays the flat coin bonus",
+		Game.coins == coins_before + Balance.bell_rush_reward,
+		"%d -> %d" % [coins_before, Game.coins])
+	chk("and the round is over", not Game.bell_rush_active())
+	chk("a hand-back after the round is a no-op",
+		not Game.bell_rush_hand_back(seats[0]))
+
+	# --- running out of time ends it with no bonus ---
+	Game.set_phase(Game.Phase.AFTERNOON)
+	Game.start_bell_rush()
+	var timed_out: Array[int] = [0]
+	Game.bell_rush_finished.connect(func(completed: bool) -> void:
+		if not completed:
+			timed_out[0] += 1)
+	var purse: int = Game.coins
+	Game.tick_bell_rush(Balance.bell_rush_seconds + 1.0)
+	chk("the clock running out ends the round", not Game.bell_rush_active())
+	chk("it reports as not completed", timed_out[0] == 1)
+	chk("and pays nothing", Game.coins == purse)
+
+	Balance.bell_rush_enabled = false
 
 
 # ============================================ two buttons, and real lessons

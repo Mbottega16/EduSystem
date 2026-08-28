@@ -35,6 +35,11 @@ var trait_id: String = ""
 ## and wants you, a disruptive one has stopped and is stopping the children
 ## either side of them as well.
 var disrupting: bool = false
+## A flare-up brewing: seconds left on the warning before they tip over into
+## disrupting. 0 means no flare. Catch it with E at their desk in time and
+## it is defused; let it run out and `disrupting` takes over. See the flare
+## section in balance.json.
+var flare_left: float = 0.0
 ## Copied their way out of being stuck. The work moves, the understanding
 ## does not -- which is exactly what copying is.
 var copied: bool = false
@@ -180,6 +185,7 @@ func reset_lesson() -> void:
 	quiz_score = -1.0
 	quiz_flagged = false
 	disrupting = false
+	flare_left = 0.0
 	copied = false
 	_since_stall = 0.0
 	_hidden_for = 0.0
@@ -198,6 +204,24 @@ func settle() -> bool:
 	helps_received += 1
 	helps_total += 1
 	add_xp(Balance.dis_settle_xp)
+	return true
+
+
+## Is a flare-up brewing at this desk right now?
+func flaring() -> bool:
+	return flare_left > 0.0
+
+
+## Got there in time. Returns false if there was nothing to catch, so it can
+## never become a second verb you mash at everybody. A small XP nudge for
+## the child; the coin tip is paid by the caller (it is a Game concern).
+func defuse() -> bool:
+	Balance.ensure_loaded()
+	if flare_left <= 0.0:
+		return false
+	flare_left = 0.0
+	_since_stall = 0.0
+	add_xp(Balance.flare_defuse_xp)
 	return true
 
 
@@ -415,6 +439,10 @@ func stuck_seconds() -> float:
 ##
 ## Zero means they are fine. Lower is more urgent.
 func attention_rank() -> int:
+	# A flare-up outranks even a disruption: it is the one on a clock, and
+	# catching it stops a disruption from ever happening.
+	if flaring():
+		return 1
 	if disrupting:
 		return 1
 	if is_visibly_struggling():
@@ -537,7 +565,7 @@ func to_dict() -> Dictionary:
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite, "trait": trait_id,
-		"disrupting": disrupting, "copied": copied,
+		"disrupting": disrupting, "flare_left": flare_left, "copied": copied,
 		"joined_day": joined_day, "helps_total": helps_total,
 		"xp": xp, "level": level, "coached": coached,
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
@@ -561,6 +589,7 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.favourite = String(d.get("favourite", ""))
 	s.trait_id = String(d.get("trait", ""))
 	s.disrupting = bool(d.get("disrupting", false))
+	s.flare_left = float(d.get("flare_left", 0.0))
 	s.copied = bool(d.get("copied", false))
 	s.joined_day = int(d.get("joined_day", 1))
 	s.xp = int(d.get("xp", 0))

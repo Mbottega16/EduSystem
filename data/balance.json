@@ -90,6 +90,7 @@
       "w": 1,
       "range": 3,
       "bonus": 0.05,
+      "clutter": true,
       "blurb": "Nobody sits up straight in one, and that is fine."
     },
     "bench": {
@@ -110,6 +111,7 @@
       "w": 1,
       "range": 2,
       "bonus": 0.03,
+      "clutter": true,
       "blurb": "Everything ends up in here eventually."
     },
     "side_table": {
@@ -352,7 +354,8 @@
       "bonus": 0.07,
       "blurb": "Weak up close, but it reaches the whole room.",
       "cat": "comfort",
-      "flat": true
+      "flat": true,
+      "lane": true
     },
     "lab_bench": {
       "name": "Lab Bench",
@@ -469,7 +472,17 @@
     "xp_per_grade_point": 25,
     "xp_per_graduation": 45,
     "xp_per_level": 100,
-    "max_level": 12
+    "max_level": 12,
+    "_dash_note": "The dash replaced the old held 'Hurry' sprint (const SPRINT in actor.gd). You TAP it for a short burst in your current heading, then it is on cooldown -- the cooldown is the whole limiter, there is no stamina. dash_duration seconds at dash_speed_multiplier times normal speed, then dash_duration+dash_cooldown before the next one. Crossing the room is still a real cost; a dash spends the wait between dashes to shave a corner, not to glide the whole way.",
+    "dash_speed_multiplier": 2.6,
+    "dash_duration": 0.2,
+    "dash_cooldown": 0.55,
+    "_dash_cancel_note": "Dash-cancel: for dash_cancel_grace seconds AFTER a burst ends, the teacher's interaction reach is widened by dash_cancel_reach px, so a dash that lands just short of a desk still lets you press E on it -- the burst 'connects' into the action instead of dying a tile away. Pure reach: it changes nothing a delegated room is graded on, only how forgiving the arrival is, and only for a blink after a real dash.",
+    "dash_cancel_grace": 0.2,
+    "dash_cancel_reach": 24.0,
+    "_dash_lane_note": "Furniture lanes. An item tagged \"lane\" in the items table (the Reading Rug) makes the walkable tiles beside it a clean runway -- dashing there lets the burst carry, up to dash_lane_extend extra seconds spread across one dash. An item tagged \"clutter\" (the Storage Crate, the Beanbag) makes the tiles beside it tight: a dash through them dies on the spot and dash_clutter_penalty seconds are added to the cooldown. It is all layout -- a well-arranged room has clear runs, a cluttered one makes you weave -- and it touches nothing a room is graded on.",
+    "dash_lane_extend": 0.25,
+    "dash_clutter_penalty": 0.35
   },
   "student": {
     "_note": "Students improve just by being taught. A level nudges aptitude and diligence a little; ready_level is when they can be sent up. XP STOPS at ready_level+hold_grace: a child kept long past readiness has learned what you can teach them, which is a soft cost for holding them back rather than a punishment.",
@@ -661,6 +674,21 @@
     "spread_per_second": 0.045,
     "neighbour_stall_mult": 2.0,
     "xp_for_settling": 3
+  },
+  "flare": {
+    "_note": "A flare-up: a random, timed warning that ONE calm child is about to kick off. A bubble goes up over their head with a countdown -- reach the desk and press E (this is what the dash is for: a flare across the room is only catchable if you spend a burst) and it is defused, with a small coin tip and a little XP for the child. Let the countdown run out and they start disrupting -- the ordinary messing-about mechanic, nothing new grade-side. Independent of boredom/frustration on purpose: those already lead to disruption; this is the extra, catchable urgency. onset is per calm seated child per second, multiplied by whatever today's day event does to stall (a Restless class throws more). Capped per day so a bad-luck run cannot bury you.",
+    "onset_per_second": 0.011,
+    "countdown_seconds": 6.0,
+    "reward_coins": 8,
+    "defuse_xp": 4,
+    "max_per_day": 5
+  },
+  "bell_rush": {
+    "_note": "The end-of-session rush: when the lesson ends, hand every child's marked work back before the clock runs out for a flat coin bonus plus a little XP per desk. A recurring reason to use the dash on a room you already know. DISABLED for now (enabled=false) -- it belongs to a later stage of the game, once the single-classroom loop is fully taught -- but built and tested so switching it on is a one-line change, not a new feature. Pure coins + XP: it never touches grade, same as the mess tip and the flare tip.",
+    "enabled": false,
+    "seconds": 45.0,
+    "reward_coins": 40,
+    "xp_per_desk": 3
   },
   "voice": {
     "_note": "Raising your voice. The only verb in the game that is not attached to a landmark -- but it still depends on WHERE YOU ARE STANDING, because it only reaches desks within earshot. It settles the room; it does not teach anybody anything, so a stuck child still needs you at their desk. That is the line that keeps walking the room the game.",

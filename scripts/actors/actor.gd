@@ -15,9 +15,8 @@ extends CharacterBody2D
 ## practice: half the lesson spent walking is a real balance change, not
 ## a cosmetic one, and nothing about this pass was meant to touch pacing.
 const SPEED := 120.0
-## Held-sprint multiplier. The lesson clock makes crossing the room a real
-## cost, so there has to be a way to spend effort to cross it faster.
-const SPRINT := 1.7
+## Crossing the room faster is the player's tap-dash (player.gd, and
+## teacher.dash_* in balance.json), not a held sprint multiplier here.
 const FRAME_TIME := 0.14
 
 # Rows in the sprite sheets, in the order tools/make_art.py writes them.

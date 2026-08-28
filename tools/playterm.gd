@@ -139,18 +139,20 @@ func _play() -> void:
 			print("!! day %d: could not reach the podium" % day)
 			break
 		if Game.phase == Game.Phase.MORNING:
-			await tap("manage")
+			# Teaching split off onto its own key (L) in the Aug 2026 remap --
+			# the podium's start/end verb is "teach" now, not "manage".
+			await tap("teach")
 			# take whichever paper is on top of the hand
 			if hud.mode == hud.Mode.HAND:
 				await tap("interact")
 				await frames(4)
 		if Game.phase != Game.Phase.LESSON:
-			print("!! day %d: the lesson would not start (phase %d, F=[%s])"
-				% [day, Game.phase, _offer("manage")])
+			print("!! day %d: the lesson would not start (phase %d, L=[%s])"
+				% [day, Game.phase, _offer("teach")])
 			break
 
 		await frames(secs(TEACH_SECONDS))
-		await hold("manage", 0.8)               # end the lesson early
+		await hold("teach", 0.8)                # end the lesson early
 		await clear_screens()
 
 		if Game.phase != Game.Phase.AFTERNOON:
