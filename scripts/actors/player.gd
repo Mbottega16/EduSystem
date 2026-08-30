@@ -480,6 +480,12 @@ var _dash_reach_boosted: bool = false
 ## sound has already played for it (once per dash, not once per frame).
 var _dash_lane_left: float = 0.0
 var _dash_stumbled: bool = false
+## Decoration only -- a dust kick on the launch and a fading trail through
+## the burst, so a dash reads as a lunge instead of a brief speed-up. The
+## room node the effect sprites hang on, and a timer so the trail is a
+## handful of ghosts rather than one per frame. Neither touches Game.rng.
+var _dash_fx_room: Node = null
+var _dash_ghost_t: float = 0.0
 
 
 func _tick_dash(delta: float, dir: Vector2) -> void:
@@ -500,11 +506,26 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 				if not _dash_stumbled:
 					_dash_stumbled = true
 					Sfx.play("deny")
+					var rm := get_tree().get_first_node_in_group("classroom")
+					if rm != null:
+						Fx.puff(rm, global_position + Vector2(0, -3),
+							Color(0.82, 0.77, 0.7, 0.75), 3)
 			"lane":
 				if _dash_lane_left > 0.0:
 					var carry: float = minf(delta, _dash_lane_left)
 					_dash_burst = minf(Balance.teacher_dash_duration, _dash_burst + carry)
 					_dash_lane_left -= carry
+
+	# A few fading ghosts while the burst is live -- the trail draws itself
+	# as we move on. Decoration: throttled, and never off Game.rng.
+	if _dash_burst > 0.0 and sprite != null:
+		_dash_ghost_t += delta
+		if _dash_ghost_t >= 0.03:
+			_dash_ghost_t = 0.0
+			if _dash_fx_room == null or not is_instance_valid(_dash_fx_room):
+				_dash_fx_room = get_tree().get_first_node_in_group("classroom")
+			if _dash_fx_room != null:
+				Fx.afterimage(sprite, _dash_fx_room)
 
 	# The frame the burst runs out is the frame the grace window opens --
 	# unless you ran it into a crate, which earns no "connect".

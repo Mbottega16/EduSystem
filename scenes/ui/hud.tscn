@@ -113,7 +113,7 @@ offset_left = 32.0
 offset_top = 48.0
 offset_right = 608.0
 offset_bottom = 304.0
-mouse_filter = 2
+mouse_filter = 0
 script = ExtResource("2_sheet")
 
 [node name="Rich" type="RichTextLabel" parent="Overlay"]

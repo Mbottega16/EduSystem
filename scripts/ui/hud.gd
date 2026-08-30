@@ -1482,6 +1482,13 @@ func _render_hand() -> void:
 func show_school() -> void:
 	Balance.ensure_loaded()
 	_open(Mode.SCHOOL)
+	# _sel can outlive the school it indexed -- a room closed under it, or a
+	# larger school from a previous run -- and both show_school() below and
+	# the Mode.SCHOOL branch of _handle_input() index Game.rooms[_sel] raw.
+	# One clamp on the way in covers every site, since SCHOOL is only ever
+	# entered through here. (Was four silent "out of bounds get index"
+	# errors a test run: they fail no assertion, so the suite never saw them.)
+	_sel = clampi(_sel, 0, maxi(0, Game.rooms.size() - 1))
 	body.visible = false
 	rich.visible = true
 	rich.add_theme_constant_override("line_separation", 4)

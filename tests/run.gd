@@ -117,6 +117,27 @@ func tap(action: String) -> void:
 	await step(2)
 
 
+## Trace one continuous mouse stroke across a Control, feeding the same
+## press / motion / release events the engine would. Used to exercise the
+## homework-sheet gesture the way a hand does -- one stroke is a check,
+## two are an X (see homework_sheet.gd).
+func trace_stroke(target: Control, points: Array) -> void:
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.pressed = true
+	down.position = points[0]
+	target._gui_input(down)
+	for i in range(1, points.size()):
+		var mm := InputEventMouseMotion.new()
+		mm.position = points[i]
+		target._gui_input(mm)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = points[points.size() - 1]
+	target._gui_input(up)
+
+
 ## Stand the teacher on `tile` facing `dir`, ready to interact.
 func place_player(tile: Vector2i, dir: int) -> void:
 	world.player.global_position = Grid.tile_to_world(tile)
@@ -5618,6 +5639,16 @@ func test_the_school() -> void:
 	var hud := _hud()
 	hud.show_school()
 	chk("the school board opens", hud.mode == hud.Mode.SCHOOL)
+
+	# Regression: a stale _sel (a room closed under it, a bigger school last
+	# run) indexed Game.rooms[_sel] out of bounds in show_school() and in
+	# _handle_input() -- four SCRIPT ERRORs a run that failed no assertion.
+	hud._sel = 7
+	hud.show_school()
+	chk("a stale selection is clamped, not crashed into",
+		hud.mode == hud.Mode.SCHOOL and hud._sel <= maxi(0, Game.rooms.size() - 1),
+		hud._sel)
+
 	chk("it names the room", hud.rich.text.contains("Room 2"), hud.rich.text)
 	chk("and who is in it",
 		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"]).substr(0, 8)),
@@ -6001,6 +6032,37 @@ func test_marking() -> void:
 	chk("the sheet actually holds this student's own items",
 		hud.sheet._sheet.get("items", []) == Game.roster[0].hw_sheet.get("items", []))
 
+	# --- the mouse-gesture path. Regression: $Overlay/Sheet was
+	# mouse_filter IGNORE for its entire life, so _gui_input() never fired
+	# and tracing a check or an X on the page did nothing at all -- only
+	# the Left/Right fallback ever worked. ---
+	chk("the sheet is actually wired to receive mouse input",
+		hud.sheet.mouse_filter == Control.MOUSE_FILTER_STOP, hud.sheet.mouse_filter)
+	var g0: int = hud._marking.size()
+	trace_stroke(hud.sheet, [Vector2(60, 120), Vector2(95, 155), Vector2(160, 55)])
+	for i in 30:
+		hud.sheet.tick_gesture(0.02)
+	await step(2)
+	chk("tracing one unbroken stroke marks the sheet a pass",
+		hud._marking.size() == g0 - 1 and hud.sheet._stamp_pass == 1,
+		hud.sheet._stamp_pass)
+	hud._marking_hold = 0.0
+	hud._finish_marking_if_ready()
+	await step(2)
+
+	var x0: int = hud._marking.size()
+	trace_stroke(hud.sheet, [Vector2(60, 55), Vector2(160, 155)])
+	trace_stroke(hud.sheet, [Vector2(160, 55), Vector2(60, 155)])
+	for i in 30:
+		hud.sheet.tick_gesture(0.02)
+	await step(2)
+	chk("tracing two separate strokes marks the sheet a fail",
+		hud._marking.size() == x0 - 1 and hud.sheet._stamp_pass == 0,
+		hud.sheet._stamp_pass)
+	hud._marking_hold = 0.0
+	hud._finish_marking_if_ready()
+	await step(2)
+
 	var left: int = hud._marking.size()
 	await tap("move_right")
 	await step(2)
@@ -6031,8 +6093,10 @@ func test_marking() -> void:
 			if s.hw_state != StudentData.HW.MARKED:
 				return false
 		return true).call())
+	# every sheet here is a strong one, so a pass is "right" -- except the
+	# single sheet the two-stroke gesture above deliberately X'd.
 	chk("passing genuinely good sheets counts as getting them right",
-		hud._marked_right == Game.roster.size(), hud._marked_right)
+		hud._marked_right == Game.roster.size() - 1, hud._marked_right)
 
 	# marked homework feeds the grade
 	var s0: StudentData = Game.roster[0]
@@ -6832,8 +6896,8 @@ func test_dash_lanes() -> void:
 	Input.action_press("move_right")
 	Input.action_press("dash")
 	await step(2)
-	# the cooldown is set the instant a dash fires and lingers for ~0.75s,
-	# so it is a timing-proof witness that the dash actually happened
+	# the cooldown is set the instant a dash fires (dash_duration +
+	# dash_cooldown), so it is a timing-proof witness that the dash happened
 	chk("the clutter dash started", world.player._dash_cool > 0.0)
 	Input.action_release("dash")
 	await step(9)                       # far enough to reach the tile by the crate

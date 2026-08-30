@@ -83,7 +83,7 @@ static var teacher_max_level: int = 12
 ## the next dash -- the cooldown is the only limiter, there is no stamina.
 static var teacher_dash_speed_multiplier: float = 2.6
 static var teacher_dash_duration: float = 0.2
-static var teacher_dash_cooldown: float = 0.55
+static var teacher_dash_cooldown: float = 0.35
 ## Dash-cancel: for this long after a burst ends, the pick zone is widened
 ## by teacher_dash_cancel_reach px, so a dash that stops just short still
 ## reaches the desk. Reach only -- nothing a delegated room is graded on.

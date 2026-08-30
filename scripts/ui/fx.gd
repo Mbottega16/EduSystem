@@ -42,6 +42,32 @@ static func puff(parent: Node2D, at: Vector2, colour := Color(1, 1, 1, 0.8),
 		tw.chain().tween_callback(s.queue_free)
 
 
+## A fading ghost of a sprite, left where it currently stands. Spawn one
+## every frame or two while an actor is dashing and the trail draws itself
+## as the actor moves on -- a lunge reads as a lunge rather than the actor
+## just briefly moving faster. Seeded from nothing: pure decoration, it
+## must never touch Game.rng (see puff() for why).
+static func afterimage(src: Sprite2D, parent: Node2D,
+		tint := Color(0.75, 0.83, 1.0, 0.4), seconds: float = 0.18) -> void:
+	if src == null or not is_instance_valid(src) \
+			or parent == null or not is_instance_valid(parent):
+		return
+	var g := Sprite2D.new()
+	g.texture = src.texture
+	g.hframes = src.hframes
+	g.vframes = src.vframes
+	g.frame = src.frame
+	g.flip_h = src.flip_h
+	g.global_position = src.global_position
+	g.z_index = src.z_index - 1
+	g.modulate = tint
+	parent.add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "modulate:a", 0.0, seconds) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(g.queue_free)
+
+
 ## A quick squash-and-settle, for something that has just landed.
 static func land(node: Node2D) -> void:
 	if node == null or not is_instance_valid(node):

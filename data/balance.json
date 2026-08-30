@@ -476,7 +476,7 @@
     "_dash_note": "The dash replaced the old held 'Hurry' sprint (const SPRINT in actor.gd). You TAP it for a short burst in your current heading, then it is on cooldown -- the cooldown is the whole limiter, there is no stamina. dash_duration seconds at dash_speed_multiplier times normal speed, then dash_duration+dash_cooldown before the next one. Crossing the room is still a real cost; a dash spends the wait between dashes to shave a corner, not to glide the whole way.",
     "dash_speed_multiplier": 2.6,
     "dash_duration": 0.2,
-    "dash_cooldown": 0.55,
+    "dash_cooldown": 0.35,
     "_dash_cancel_note": "Dash-cancel: for dash_cancel_grace seconds AFTER a burst ends, the teacher's interaction reach is widened by dash_cancel_reach px, so a dash that lands just short of a desk still lets you press E on it -- the burst 'connects' into the action instead of dying a tile away. Pure reach: it changes nothing a delegated room is graded on, only how forgiving the arrival is, and only for a blink after a real dash.",
     "dash_cancel_grace": 0.2,
     "dash_cancel_reach": 24.0,
