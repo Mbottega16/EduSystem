@@ -138,6 +138,7 @@ func _wire_room() -> void:
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
+		[world.ad_poster, "ad_poster_opened", hud.show_ads],
 		[world.hall_door, "chosen", _enter_hallway],
 	]
 	for row: Array in pairs:

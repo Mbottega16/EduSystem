@@ -1088,5 +1088,28 @@
     "inspection_pass": 6,
     "room_per_open": 20,
     "closes_below": 5
+  },
+  "ads": {
+    "_note": "The optional reward-video poster (scripts/interact/ad_poster.gd). No real ad SDK is connected yet -- wait below is a compressed stand-in for what an actual video would take, tunable independently of the seconds it represents once a real SDK lands (see my-brain/tools.md).",
+    "tiers": [
+      {
+        "id": "short",
+        "seconds": 15,
+        "wait": 1.5,
+        "reward_coins": 20
+      },
+      {
+        "id": "medium",
+        "seconds": 30,
+        "wait": 3.0,
+        "reward_coins": 45
+      },
+      {
+        "id": "long",
+        "seconds": 60,
+        "wait": 6.0,
+        "reward_coins": 100
+      }
+    ]
   }
 }

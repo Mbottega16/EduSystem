@@ -164,6 +164,9 @@ func _open_screen(main: Node, screen: String) -> void:
 				s.hw_true_accuracy = 0.7
 				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, Game.rng, "math")
 			hud.open_marking()
+		"ads":
+			Game.new_run(0)
+			hud.show_ads()
 		"marking_stamp":
 			# The player's own verdict, stamped -- checked separately from
 			# the plain sheet since the stamp only ever appears for the

@@ -104,6 +104,10 @@ const BELL: Vector2i = Vector2i(18, 2)
 ## The furniture catalogue.
 const BOARD: Vector2i = Vector2i(16, 2)
 
+## The optional reward-video poster. Along the same top wall as the
+## podium/board/bell, spaced clear of both.
+const AD_POSTER: Vector2i = Vector2i(13, 2)
+
 ## The gap in the left wall students come in through, and the tile they
 ## spawn on. Must match DOOR_TILES in tools/make_art.py, which cuts the
 ## matching hole in the wall art.

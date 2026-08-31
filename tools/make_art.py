@@ -532,6 +532,21 @@ def draw_noticeboard():
     return outline(im)
 
 
+def draw_ad_poster():
+    """The optional reward-video poster. E opens it; never forced, never
+    pops up on its own -- see scripts/interact/ad_poster.gd."""
+    im = Image.new("RGBA", (16, 20), (0, 0, 0, 0))
+    rect(im, 1, 1, 14, 17, (224, 220, 206))    # paper
+    rect(im, 1, 1, 14, 3, (196, 82, 74))       # header band
+    rect(im, 3, 6, 12, 13, (60, 96, 140))      # "screen"
+    play = (224, 220, 206)                     # a blocky play triangle
+    rect(im, 6, 8, 6, 11, play)
+    rect(im, 7, 9, 7, 10, play)
+    px(im, 8, 9, play)
+    rect(im, 3, 15, 12, 16, WOOD_D)             # post
+    return outline(im)
+
+
 def draw_bubble_q():
     """A confused student. The single most important readout in the game —
     at this resolution a bubble over a head says more than any HUD label."""
@@ -551,6 +566,7 @@ FURNITURE = {
     "chair": draw_chair, "table": draw_table, "desk": draw_desk,
     "teacher_desk": draw_teacher_desk, "podium": draw_podium, "paper": draw_paper,
     "bell": draw_bell, "noticeboard": draw_noticeboard, "bubble_q": draw_bubble_q,
+    "ad_poster": draw_ad_poster,
 }
 
 

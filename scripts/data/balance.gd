@@ -283,6 +283,9 @@ static var mess_clean_reward: int = 5
 # --- items -------------------------------------------------------------
 static var items: Dictionary = {}
 static var traits: Dictionary = {}
+## The optional reward-video poster's tiers -- see ensure_loaded() for why
+## this stays a raw Array rather than fixed static vars.
+static var ad_tiers: Array = []
 static var item_order: Array = []
 static var item_categories: Array = []
 
@@ -385,6 +388,13 @@ static func apply(d: Dictionary) -> void:
 	stu_hold_grace = int(st.get("hold_grace_levels", stu_hold_grace))
 
 	traits = d.get("traits", {})
+
+	# The ad poster's tiers -- an Array of {id, seconds, wait, reward_coins}
+	# dicts, read directly by scripts/interact/ad_poster.gd rather than
+	# unpacked into individual static vars, since the tier COUNT itself is
+	# data, not fixed at three.
+	var ads: Dictionary = d.get("ads", {})
+	ad_tiers = ads.get("tiers", [])
 
 	var ai: Dictionary = d.get("aide", {})
 	aide_cost = int(ai.get("hire_cost", aide_cost))

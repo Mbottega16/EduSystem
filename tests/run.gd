@@ -239,6 +239,7 @@ func _main() -> void:
 	await test_overlays()
 	await test_marking()
 	await test_shop()
+	await test_ad_poster()
 	await test_progress_bar()
 
 	print("")
@@ -6256,6 +6257,59 @@ func test_shop() -> void:
 					return not (c as Interactable).can_interact()
 		return false).call())
 	Game.set_phase(Game.Phase.AFTERNOON)
+
+
+func test_ad_poster() -> void:
+	section("AD POSTER")
+	var hud := _hud()
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("the world actually has a poster to walk up to", world.ad_poster != null)
+	chk("standing on its tile doesn't cost the room a seat", (func() -> bool:
+		return world.grid.is_free(Layout.AD_POSTER)).call())
+
+	hud.show_ads()
+	await step(2)
+	chk("it opens", hud.mode == hud.Mode.ADS, hud.mode)
+	var tiers: Array = Balance.ad_tiers
+	chk("balance.json actually has tiers to offer", tiers.size() > 0,
+		tiers.size())
+	chk("cheapest (shortest) tier is selected first", hud._ad_sel == 0)
+
+	await tap("move_down")
+	chk("Down cycles to the next tier", hud._ad_sel == 1, hud._ad_sel)
+
+	var coins_before: int = Game.coins
+	var picked: Dictionary = tiers[hud._ad_sel]
+	await tap("interact")
+	chk("choosing a tier starts the (compressed) watch, not an instant grant",
+		hud._ad_watching > 0.0 and Game.coins == coins_before,
+		"%d vs %d" % [Game.coins, coins_before])
+	chk("input is ignored while watching -- can't spam a second pick",
+		(func() -> bool:
+			var sel_before: int = hud._ad_sel
+			Input.action_press("move_down")
+			hud._handle_ads_input()
+			Input.action_release("move_down")
+			return hud._ad_sel == sel_before).call())
+
+	# Bypass the real-time wait the same way test_marking() bypasses
+	# MARKING_STAMP_SECONDS -- a player-pacing delay, not something a test
+	# has any reason to sit through.
+	hud._ad_watching = 0.0
+	hud._finish_ad()
+	await step(2)
+	chk("the reward actually pays out once watching finishes",
+		Game.coins == coins_before + int(picked.get("reward_coins", 0)),
+		"%d vs %d" % [Game.coins, coins_before + int(picked.get("reward_coins", 0))])
+	chk("and the poster is ready to be watched again -- reversible, per E's own rule",
+		hud._ad_watching <= 0.0 and hud._ad_tier == -1)
+
+	await tap("cancel")
+	chk("Esc backs out without spending anything else",
+		hud.mode == hud.Mode.NONE, hud.mode)
 
 
 func test_progress_bar() -> void:

@@ -16,6 +16,7 @@ const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
 const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
+const PROP_AD_POSTER := preload("res://art/ad_poster.png")
 const PROP_MESS_TRASH := preload("res://art/mess_trash.png")
 const PROP_MESS_SPILL := preload("res://art/mess_spill.png")
 const SHADOW_TEX := preload("res://art/shadow.png")
@@ -29,6 +30,7 @@ const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
+const AD_POSTER_SCRIPT := preload("res://scripts/interact/ad_poster.gd")
 const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
 const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
@@ -328,6 +330,19 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 	cur.set_pick_radius(18.0)   # doubled Aug 2026, was 9.0
 
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
+	return it
+
+
+static func build_ad_poster(parent: Node2D, grid: Grid) -> Interactable:
+	var body := add_prop(parent, PROP_AD_POSTER, Grid.tile_to_world(Layout.AD_POSTER), Vector2(24, 16))
+	var it := Interactable.new()
+	it.set_script(AD_POSTER_SCRIPT)
+	body.add_child(it)
+	# Deliberately NOT grid.set_cell(..., BLOCKED) -- unlike the bell/board/
+	# podium, this is flat on the wall, not something standing in the
+	# floor. Blocking its tile cost the room a seat right at the hard cap
+	# and broke "desks keep their aisles" the first time this was tried;
+	# a poster does not need to occupy walkable floor to be interactable.
 	return it
 
 

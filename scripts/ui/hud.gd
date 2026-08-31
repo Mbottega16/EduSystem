@@ -13,7 +13,8 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## the whole UI layer to one script.
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
-	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO }
+	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
+	ADS }
 enum Shop { BUY, SELL, STAFF, ROOM, CRAFT }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
@@ -129,6 +130,13 @@ var _marked_right: int = 0
 ## Counts down MARKING_STAMP_SECONDS after a verdict, ticked in _process()
 ## below. > 0 means a check/X is currently up and input is ignored.
 var _marking_hold: float = 0.0
+
+## The ad poster: which tier is highlighted, and (while > 0) the
+## compressed "watching" countdown from Balance.ad_tiers[_ad_tier].wait --
+## ticked in _process() below, same shape as _marking_hold.
+var _ad_sel: int = 0
+var _ad_watching: float = 0.0
+var _ad_tier: int = -1
 var _shown_hints := {}
 ## Whose file is open. One field rather than a mode stack: there is
 ## exactly one transition to remember (class list -> bio -> back).
@@ -193,6 +201,10 @@ func _process(_delta: float) -> void:
 			_marking_hold = maxf(0.0, _marking_hold - _delta)
 			if _marking_hold <= 0.0:
 				_finish_marking_if_ready()
+	if mode == Mode.ADS and _ad_watching > 0.0:
+		_ad_watching = maxf(0.0, _ad_watching - _delta)
+		if _ad_watching <= 0.0:
+			_finish_ad()
 
 
 ## ALL input, on ONE clock.
@@ -2924,6 +2936,68 @@ func _finish_marking_if_ready() -> void:
 	mode = Mode.REPORT
 
 
+## The optional reward-video poster (scripts/interact/ad_poster.gd).
+## Balance.ad_tiers is read fresh every open -- a real ad SDK swapping the
+## tiers around later needs nothing changed here.
+func show_ads() -> void:
+	Balance.ensure_loaded()
+	_open(Mode.ADS)
+	_ad_sel = 0
+	_ad_watching = 0.0
+	_ad_tier = -1
+	_render_ads()
+
+
+func _render_ads() -> void:
+	if _ad_watching > 0.0:
+		title.text = "WATCHING..."
+		body.text = "\n".join(["", "   (a real ad SDK isn't connected yet --", "   this is a stand-in for one)"])
+		hint.text = ""
+		return
+	title.text = "WATCH FOR A REWARD"
+	var lines: Array[String] = []
+	var tiers: Array = Balance.ad_tiers
+	for i in tiers.size():
+		var t: Dictionary = tiers[i]
+		lines.append("%s %ds  —  %d coins" % [
+			">" if i == _ad_sel else " ", int(t.get("seconds", 0)),
+			int(t.get("reward_coins", 0))])
+	lines.append("")
+	lines.append("Never pops up on its own. You walked up to this.")
+	body.text = "\n".join(lines)
+	hint.text = "Up/Down choose   E watch   Esc back"
+
+
+func _handle_ads_input() -> void:
+	var tiers: Array = Balance.ad_tiers
+	if _ad_watching > 0.0 or tiers.is_empty():
+		return
+	if Input.is_action_just_pressed("cancel"):
+		Sfx.play("blip")
+		close()
+	elif Input.is_action_just_pressed("move_down"):
+		_ad_sel = (_ad_sel + 1) % tiers.size()
+		Sfx.play("blip")
+		_render_ads()
+	elif Input.is_action_just_pressed("move_up"):
+		_ad_sel = (_ad_sel - 1 + tiers.size()) % tiers.size()
+		Sfx.play("blip")
+		_render_ads()
+	elif Game.claim_interact():
+		_ad_tier = _ad_sel
+		_ad_watching = float((tiers[_ad_sel] as Dictionary).get("wait", 1.0))
+		Sfx.play("confirm")
+		_render_ads()
+
+
+func _finish_ad() -> void:
+	var tiers: Array = Balance.ad_tiers
+	if _ad_tier >= 0 and _ad_tier < tiers.size():
+		Game.add_coins(int((tiers[_ad_tier] as Dictionary).get("reward_coins", 0)))
+	_ad_tier = -1
+	_render_ads()
+
+
 ## Input is POLLED, not handled as events, and that is deliberate.
 ##
 ## Input.action_press() — the only way a headless test can drive the game —
@@ -3053,6 +3127,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.INTRO:
 		_handle_intro_input()
+		return
+
+	if mode == Mode.ADS:
+		_handle_ads_input()
 		return
 
 	if mode == Mode.SPECIALISM:
