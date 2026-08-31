@@ -692,7 +692,7 @@
     "bake_sale"
   ],
   "term": {
-    "_note": "A run is a term. On the last day the class sits an exam scored on everything you built up, and that is the score you are playing for.",
+    "_note": "A run is as many terms as you can keep the job for, not one term. Each term is still 'days' long and ends in an exam scored on everything built up so far; passing 'target_base'/'target_growth' opens the next term with the room, curriculum, coins and teacher level carried forward (see _next_term_note) -- only the roster resets. The run ends when a term's target is missed.",
     "days": 20,
     "exam_pass": 0.62,
     "_exam_note": "The exam is a child's own record, plus a little for the room you sat them in. It used to be average*0.75 + room*0.35, which counted the room TWICE -- room_score is already inside every daily grade -- and marked down everyone whose average was above 0.39. A child who averaged an A all term sat the exam in a bare room and got a B.",
@@ -820,15 +820,51 @@
       "name": "Practised Marker",
       "ranks": 2,
       "blurb": "Judge fewer sheets a night; the rest go at your usual standard."
+    },
+    "quick_sweep": {
+      "name": "Quick Sweep",
+      "ranks": 2,
+      "blurb": "Mess needs fewer presses to clean up."
+    },
+    "carrying_voice": {
+      "name": "Carrying Voice",
+      "ranks": 2,
+      "blurb": "Settle the room from further away."
+    },
+    "quick_study": {
+      "name": "Quick Study",
+      "ranks": 3,
+      "blurb": "A little more real time in every lesson."
+    },
+    "lucky_break": {
+      "name": "Lucky Break",
+      "ranks": 2,
+      "blurb": "Better odds on the papers you're offered."
+    },
+    "thrifty": {
+      "name": "Thrifty",
+      "ranks": 2,
+      "blurb": "Furniture and consumables cost a little less."
+    },
+    "iron_will": {
+      "name": "Iron Will",
+      "ranks": 2,
+      "blurb": "Trouble spreads to fewer desks nearby."
     }
   },
   "perk_effects": {
-    "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile.",
+    "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile. quick_sweep subtracts from room_upkeep.clean_presses (floor of 1), carrying_voice adds tiles to voice.range_tiles, quick_study adds a percentage to Game.lesson_length()'s multiplier chain, lucky_break biases Assignments' rarity roll toward rarer tiers, thrifty is a fraction off a shop item's BUY price only (never its sell value), iron_will multiplies (compounding per rank) only the dis_spread term in Game.tick_class() -- trouble still starts from boredom/frustration exactly as often, it just travels less.",
     "brisk_walk_speed": 30.0,
     "long_reach_radius": 16.0,
     "calm_presence_radius": 80.0,
     "calm_presence_mult": 0.7,
-    "practised_marker_sheets": 2
+    "practised_marker_sheets": 2,
+    "quick_sweep_presses": 1,
+    "carrying_voice_tiles": 1.0,
+    "quick_study_pct": 0.05,
+    "lucky_break_bias": 0.12,
+    "thrifty_pct": 0.06,
+    "iron_will_mult": 0.75
   },
   "item_categories": [
     "seating",
@@ -1109,6 +1145,54 @@
         "seconds": 60,
         "wait": 6.0,
         "reward_coins": 100
+      }
+    ]
+  },
+  "complication": {
+    "_note": "One roll-attempt per second while a lesson is running, at onset_per_second times the active term path's own density_mult (see term_paths). Which complication actually fires is decided by scripts/data/complications.gd's own weighted table, the same mechanism DayEvent already uses. Capped per lesson so a bad-luck run cannot bury you -- same reasoning as flare.max_per_day.",
+    "onset_per_second": 0.006,
+    "max_per_lesson": 3
+  },
+  "term_paths": {
+    "_note": "The fork at the start of each term, modeled on the assignment hand: a few pre-rolled paths, pick one, the rest are discarded -- but drawn WITHOUT replacement, unlike the daily hand, since repeating a termly choice would read as broken rather than lucky. lesson_mult layers onto Game.lesson_length() and coin_mult onto the day's coin payout, the same way a DayEvent's own multipliers already do -- never into lesson.lesson_seconds itself, so tools/sim.gd's contract rows never see it. density_mult scales complication.onset_per_second for the whole term. ordinary_term sits at 1.0 across every multiplier on purpose: a player who always picks it sees exactly today's numbers.",
+    "hand_size_min": 3,
+    "hand_size_max": 3,
+    "paths": [
+      {
+        "id": "quiet_term",
+        "name": "Quiet Term",
+        "weight": 35,
+        "blurb": "Fewer surprises. Steady pay.",
+        "lesson_mult": 1.0,
+        "coin_mult": 0.9,
+        "density_mult": 0.5
+      },
+      {
+        "id": "ordinary_term",
+        "name": "Ordinary Term",
+        "weight": 40,
+        "blurb": "A normal twenty days.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
+      },
+      {
+        "id": "busy_term",
+        "name": "Busy Term",
+        "weight": 15,
+        "blurb": "Longer lessons, more to juggle, better pay.",
+        "lesson_mult": 1.2,
+        "coin_mult": 1.15,
+        "density_mult": 1.6
+      },
+      {
+        "id": "chaotic_term",
+        "name": "Chaotic Term",
+        "weight": 10,
+        "blurb": "Everything happens at once. Hold it together and it shows in the pay.",
+        "lesson_mult": 1.45,
+        "coin_mult": 1.35,
+        "density_mult": 2.4
       }
     ]
   }

@@ -159,6 +159,14 @@ static var assign_hand_size_max: int = 7
 static var assign_rarities: Array = []
 static var assign_forms: Array = []
 
+# --- the fork at the start of each term ------------------------------------
+## Same "draw a small hand, pick one" shape as the paper you set above, but
+## WITHOUT replacement (TermPaths.draw()) -- repeating a termly choice would
+## read as broken, not lucky.
+static var term_path_hand_min: int = 3
+static var term_path_hand_max: int = 3
+static var term_paths: Array = []
+
 # --- the subject you trained in ------------------------------------------
 static var spec_relief: float = 1.0
 static var spec_penalty: float = 0.7
@@ -210,6 +218,13 @@ static var flare_countdown: float = 6.0
 static var flare_reward: int = 8
 static var flare_defuse_xp: int = 4
 static var flare_max_per_day: int = 5
+
+# --- mid-lesson complications (a generalized flare -- see complications.gd)
+## Same onset/cap shape as flare above; WHICH complication fires is decided
+## by Complication.roll(), not here. onset is further scaled by the active
+## term path's own density_mult (Game.complication_density_mult()).
+static var comp_onset_per_second: float = 0.006
+static var comp_max_per_lesson: int = 3
 
 # --- the end-of-session bell rush (built, but OFF until a later stage) ---
 ## Hand every child's marked work back before `seconds` runs out for a flat
@@ -272,6 +287,12 @@ static var perk_long_reach_radius: float = 16.0   ## doubled Aug 2026
 static var perk_calm_presence_radius: float = 80.0   ## doubled Aug 2026
 static var perk_calm_presence_mult: float = 0.7
 static var perk_practised_marker_sheets: int = 2
+static var perk_quick_sweep_presses: int = 1
+static var perk_carrying_voice_tiles: float = 1.0
+static var perk_quick_study_pct: float = 0.05
+static var perk_lucky_break_bias: float = 0.12
+static var perk_thrifty_pct: float = 0.06
+static var perk_iron_will_mult: float = 0.75
 
 static var not_done_forgiveness: bool = true
 static var verdict_weight: float = 0.5
@@ -443,6 +464,11 @@ static func apply(d: Dictionary) -> void:
 	assign_rarities = asg.get("rarities", assign_rarities)
 	assign_forms = asg.get("forms", assign_forms)
 
+	var tp: Dictionary = d.get("term_paths", {})
+	term_path_hand_min = int(tp.get("hand_size_min", term_path_hand_min))
+	term_path_hand_max = int(tp.get("hand_size_max", term_path_hand_max))
+	term_paths = tp.get("paths", term_paths)
+
 	var sp: Dictionary = d.get("specialism", {})
 	spec_relief = float(sp.get("difficulty_relief", spec_relief))
 	spec_penalty = float(sp.get("out_of_field_penalty", spec_penalty))
@@ -490,6 +516,10 @@ static func apply(d: Dictionary) -> void:
 	flare_reward = int(fl.get("reward_coins", flare_reward))
 	flare_defuse_xp = int(fl.get("defuse_xp", flare_defuse_xp))
 	flare_max_per_day = int(fl.get("max_per_day", flare_max_per_day))
+
+	var cp: Dictionary = d.get("complication", {})
+	comp_onset_per_second = float(cp.get("onset_per_second", comp_onset_per_second))
+	comp_max_per_lesson = int(cp.get("max_per_lesson", comp_max_per_lesson))
 
 	var br: Dictionary = d.get("bell_rush", {})
 	bell_rush_enabled = bool(br.get("enabled", bell_rush_enabled))
@@ -552,6 +582,12 @@ static func apply(d: Dictionary) -> void:
 	perk_calm_presence_radius = float(pe.get("calm_presence_radius", perk_calm_presence_radius))
 	perk_calm_presence_mult = float(pe.get("calm_presence_mult", perk_calm_presence_mult))
 	perk_practised_marker_sheets = int(pe.get("practised_marker_sheets", perk_practised_marker_sheets))
+	perk_quick_sweep_presses = int(pe.get("quick_sweep_presses", perk_quick_sweep_presses))
+	perk_carrying_voice_tiles = float(pe.get("carrying_voice_tiles", perk_carrying_voice_tiles))
+	perk_quick_study_pct = float(pe.get("quick_study_pct", perk_quick_study_pct))
+	perk_lucky_break_bias = float(pe.get("lucky_break_bias", perk_lucky_break_bias))
+	perk_thrifty_pct = float(pe.get("thrifty_pct", perk_thrifty_pct))
+	perk_iron_will_mult = float(pe.get("iron_will_mult", perk_iron_will_mult))
 
 	var h: Dictionary = d.get("homework", {})
 	not_done_forgiveness = bool(h.get("not_done_forgiveness", not_done_forgiveness))

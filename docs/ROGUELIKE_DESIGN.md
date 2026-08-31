@@ -5,94 +5,144 @@
 placeholder for exactly this. Real design decisions belong here, in
 PixelRoom's own repo, not the business vault.)*
 
-## The load-bearing decision: a run IS a term
+*(Revised: the first version of this doc got its own load-bearing
+premise wrong — see below. Corrected against the real code rather than
+assumed, the same discipline this whole project is built on.)*
 
-`Balance.term_days` is already **20** — the existing term length. A
-"run," as scoped directly by the user, is 20 days of lessons ending
-with the students getting a grade based on scores accumulated across
-the run. **That is exactly what a term already is.** This is the
-reason the balance contract is *not* at risk: nothing about
-`grade_letter()`, `class_average()`, `room_score()`, or the exam
-changes. The roguelike layer sits *around* the existing term loop, not
-inside its math.
+## The load-bearing correction: a run is NOT a term
 
-- **Run start**: the room begins empty/bare — no carried-over
-  furniture from the previous run. This is the actual roguelike trait:
-  every run starts from a genuine blank slate, and the interesting
-  decision is what you buy and how you place it *this* time, not
-  accumulated wealth trivializing early runs.
-- **Run end**: the term's existing exam/final grade *is* the run's
-  ending. No new grading system — reuse what's there.
-- **Victory condition**: passing the term at a real bar (the existing
-  grade-letter thresholds already define this) unlocks NG+.
+The first version of this doc said "a run IS a term" and built
+everything on that. That was wrong the moment it was written: a commit
+that predates it, `5a36ae3` ("A term is a chapter now, not the end of
+the book"), had already changed what a run means in code.
 
-## The anti-clustering fix (base game, not roguelike-only)
+**What's actually true**: `Game.term: int` tracks which chapter you're
+on; `Game.next_term()` (`scripts/autoload/game.gd:980-1065`) carries
+the **room, furniture, coins, teacher level/perks, and curriculum**
+forward between terms — only the class roster resets, per
+`_next_term_note` in `data/balance.json`'s `"term"` section (already
+accurate, wasn't touched by the mistake above). A run only ends
+(`Game.run_over = true`) when a term's target is **missed** —
+`term_target()` is a bar that rises every term
+(`target_base + target_growth * (term - 1)`), the one thing in the game
+you can actually lose to. `Game.new_run()` is the real full reset, only
+reached from the run-over screen.
+
+That's already most of a roguelike shape: a persistent build across
+repeated cycles, an escalating difficulty bar, and a real failure state
+that resets everything. The work below builds *on* that, not instead
+of it.
+
+- **Run start**: `Game.new_run()` — already resets the room/coins/perks
+  to nothing. No change needed here; this was never actually broken.
+- **Term start** (not run start) is the real recurring decision point —
+  see "Term paths" below.
+- **Run end**: missing a term's target, exactly as it already works.
+  No new grading system.
+
+## The anti-clustering fix (base game, not roguelike-only) — still not built
 
 The originally-reported problem: the discovered meta is cramming every
-desk together in the middle of the room. Fix: **seats placed adjacent
-to another occupied seat apply a progress-speed penalty** to both
-students, tunable in `data/balance.json` (new key under `room`, e.g.
-`cluster_penalty`) — not hardcoded, per the project's own hard
-constraint. This ships as a base-game balance change independent of
-the roguelike work, since it's a real problem today regardless of
-whether the roguelike pivot lands.
+desk together in the middle of the room. Proposed fix: **seats placed
+adjacent to another occupied seat apply a progress-speed penalty** to
+both students, tunable in `data/balance.json` (a new key under `room`,
+e.g. `cluster_penalty`). **Confirmed absent from the codebase** — no
+`cluster` key exists anywhere in `scripts/` or `data/balance.json`.
+Genuinely adjacent, worth knowing before building this: `neighbour_stall_multiplier()`
+(`scripts/data/student_data.gd`) already penalizes stall chance from an
+*actively disrupting* neighbour, and a `helps_neighbour` trait is
+actually a *positive* incentive to cluster — plausibly the real
+mechanical cause of the meta this fix is meant to answer. Still open;
+nothing shipped so far implements it.
 
-## The skill list (run-scoped progression)
+## Mid-lesson complications — shipped
 
-Nine skills, spanning the systems that already exist. Each is a
-`Balance.json`-tunable modifier applied to an existing mechanic — no
-new subsystem invented per skill, which is what keeps this
-implementable rather than aspirational.
+A per-second onset roll while a lesson is running, generalizing the
+existing flare-up mechanic rather than extending `DayEvent` (which is
+deliberately once-per-day, never mid-lesson). See
+`scripts/data/complications.gd` for the weighted table (mess, a phone
+call, a parent conference to start — a future complication is a new
+table row, not a new script, as long as it reuses an existing
+`landmark` type) and `data/balance.json`'s `"complication"` section for
+the tunable onset rate and per-lesson cap.
 
-| Skill | What it does | Hooks into |
-|---|---|---|
-| **Longer Stride** | Extends dash distance/duration | `Actor`'s existing dash-cancel mechanic |
-| **Quick Study** | Lesson clock briefly slows on activation — more real time per action | The lesson timer |
-| **Warm Presence** | Students near the player recover attention/confusion faster | The existing proximity-based help mechanic |
-| **Steady Hands** | Mess spawns less often / cleans faster | `Balance.mess_clean_presses`, mess spawn rate |
-| **Carrying Voice** | The settle (C) radius extends further | `raise_voice()`'s range |
-| **Quick Hands** | Reduced hold-time on mashable verbs, or +1 carry capacity | `Interactable.hold_time`, `carrying`/`carrying_hw` caps |
-| **Lucky Break** | Better odds on the drawn assignment hand's rarity | `Game.draw_hand()` |
-| **Thrifty** | Shop discount, a percentage off `Items.cost()` | The shop's cost lookup |
-| **Iron Will** | Disruption spreads to fewer neighboring desks | The "messing about" spread mechanic |
+Mess can now pop up mid-lesson, not just at day boundaries, cleaned
+through the same existing verb. A phone call or parent conference lands
+at the teacher's desk on a new dedicated key, `RESPOND` (bound to `K`)
+— answering costs real lesson seconds and pays coins; letting it ring
+out has its own cost (one student flipped disrupting, or a reputation
+nudge). Neither reveals a new screen — both resolve instantly in the
+world, the same way settling the room already does.
 
-Picked at set points across the run (e.g., after each week, or on a
-milestone day) — exact cadence is an implementation decision, not
-locked here.
+## Term paths — shipped, the PokeRogue-style fork
 
-## NG+ (per the user's direct spec)
+Modeled directly on the assignment-hand system (draw several pre-rolled
+options, pick one, discard the rest) rather than inventing a new UI
+shape. At the start of each new term, `scripts/data/term_paths.gd`
+draws a small hand of paths — Quiet, Ordinary, Busy, Chaotic to start —
+each carrying a `lesson_mult`/`coin_mult`/`density_mult`. `Ordinary`
+sits at `1.0` across the board on purpose, so a player who always picks
+it sees exactly today's numbers; picking Busy or Chaotic means longer
+lessons, more complications, and better pay, for as long as that term
+lasts. This is the actual "choose a harder or easier path" autonomy —
+scoped to term starts, since that's the real recurring decision point
+in the corrected run model above, not an artificial one invented to
+match the original (wrong) single-term premise.
 
-- **More students.** Class size scales up per NG+ level
-  (`Balance.school_class_size`-style scaling, applied to the player's
-  own room too).
-- **Reversed spatial rule.** Where the base game penalizes clustering,
-  NG+ requires the *opposite* — students placed too close together is
-  even more punishing, or a minimum-spacing rule is enforced outright.
-  This is a real escalation of the anti-clustering fix above, not a
+## The skill list → the existing perk board
+
+The original nine-skill list was written without accounting for the
+fact that PixelRoom already has a working, run-scoped, ranked perk
+system (`Game.perk_ranks`, `scripts/data/progress.gd`, the Staff Room
+screen in `hud.gd`). Building a second, parallel skill system alongside
+it would fork progression into two competing UIs for nothing — every
+skill below is a rank on that *existing* board, not a new subsystem.
+
+| Skill | Resolution | Perk id | Status |
+|---|---|---|---|
+| Longer Stride | dash reach | `brisk_walk` | already existed |
+| Warm Presence | stall reduction near teacher | `calm_presence` | already existed |
+| Quick Hands | +carry capacity | `steady_hands` | already existed |
+| Steady Hands *(renamed — collided with the existing `steady_hands` id above)* | mess needs fewer presses to clean | `quick_sweep` | shipped |
+| Carrying Voice | settle radius | `carrying_voice` | shipped |
+| Quick Study *(passive, not activated — confirmed directly: the key budget was already tight, and a permanent percentage gets the same payoff with no new input to track mid-lesson)* | small permanent % more real seconds per lesson | `quick_study` | shipped |
+| Lucky Break | better assignment-hand rarity odds | `lucky_break` | shipped |
+| Thrifty | shop discount (buy price only, not sell) | `thrifty` | shipped |
+| Iron Will | disruption *spread* reduced (not boredom/frustration onset) | `iron_will` | shipped |
+
+## NG+ — still not built
+
+- **More students.** Class size scales up per NG+ level, applied to the
+  player's own room too.
+- **Reversed spatial rule.** Where the base game penalizes clustering
+  (once the fix above lands), NG+ requires the opposite — tighter
+  spacing becomes more punishing, or a minimum-spacing rule is
+  enforced outright. An escalation of the anti-clustering fix, not a
   separate mechanic.
-- **Difficulty has to scale sensibly.** Each NG+ level should feel like
-  a deliberate step up, not a cliff — same discipline the base game
-  already applies to its difficulty curve (day events, disruption
-  odds), tuned via `balance.json` per level rather than a hardcoded
+- **Difficulty has to scale sensibly.** Each level a deliberate step,
+  not a cliff — tunable in `balance.json` per level, no hardcoded
   multiplier.
 - **Scaling rewards.** A meta-currency or skill-purchase power that
-  carries between runs and grows with runs completed, so repeat runs
-  feel progressively *easier* to clear even as the base difficulty
-  rises — classic roguelike shape: the run resets, the player's
-  long-term power doesn't.
+  carries between full runs (not terms) and grows with runs completed.
+
+None of this is built yet. It's a real extension of the run-ends-on-
+missed-target model above (an NG+ "run" would presumably start the
+target bar higher, or scale faster) but needs its own pass once the
+base run-over screen and a first real playthrough exist to tune
+against.
 
 ## What's still an open implementation decision
-- Exact skill-pick cadence (weekly? milestone days?).
-- The exact NG+ difficulty curve numbers (all tunables, none hardcoded
-  — see `data/balance.json` conventions).
-- Whether the meta-currency is coins carried forward, a new resource,
-  or unlocked skill slots.
-- UI: where a skill pick happens, how NG+ is offered post-victory.
+- NG+'s exact numbers and trigger (Section above).
+- The anti-clustering fix's exact penalty curve.
+- Whether NG+'s meta-currency is coins carried forward, a new resource,
+  or unlocked perk ranks that survive a run-over.
 
-## Verification this needs before it ships
+## Verification
 Same discipline as every other feature in this project:
-`Simulate a Term.bat` must still show 0.63/0.71/0.97 unmoved (nothing
-here touches the grade formula, only what's fed into it), a new
-`tests/run.gd` section for the skill/NG+ systems, and `Trace a Day.bat`
-run against a fresh run to confirm the empty-room-start doesn't
-deadlock anything the way the storyline intro once did.
+`Simulate a Term.bat` must still show 0.63/0.71/0.97 unmoved — nothing
+shipped here touches the grade formula, only levers the contract
+already ignores (flat coins, the `disrupting` flag). `Run Tests.bat`'s
+count must strictly rise with each addition, never just stay green.
+See `tests/run.gd` for the sections this shipped with:
+`test_mid_lesson_mess`, `test_desk_interruption`, `test_term_paths`,
+`test_new_perks`.
