@@ -383,6 +383,212 @@ def draw_mess_spill():
     return im     # no outline() -- a hard ink border would kill the puddle
 
 
+# --- task 2 batch (21 items, integrated per docs/AUTONOMOUS_TASKLIST.md
+# A1) -------------------------------------------------------------------
+# Placeholder pixel art, same drawing convention as everything above it --
+# NOT the AI-generated art from docs/AI_ART_PROMPTS.md, which supersedes
+# these once it exists. Kept simple on purpose since it is expected to be
+# replaced, not because the item matters less.
+
+def draw_rocking_chair():
+    im = _blank(16, 20)
+    rect(im, 4, 6, 12, 9, WOOD)
+    rect(im, 4, 6, 12, 7, WOOD_L)
+    rect(im, 4, 9, 5, 16, WOOD_D)
+    rect(im, 11, 9, 12, 16, WOOD_D)
+    rect(im, 2, 17, 14, 18, WOOD_D)
+    return outline(im)
+
+
+def draw_pouf():
+    im = _blank(16, 12)
+    rect(im, 3, 5, 12, 10, CLOTH)
+    rect(im, 4, 4, 11, 6, CLOTH_L)
+    return outline(im)
+
+
+def draw_window_seat():
+    im = _blank(32, 16)
+    rect(im, 1, 5, 30, 10, BLUE)
+    rect(im, 1, 5, 30, 6, BLUE_L)
+    rect(im, 3, 11, 4, 14, WOOD_D)
+    rect(im, 27, 11, 28, 14, WOOD_D)
+    return outline(im)
+
+
+def draw_low_shelf():
+    im = _blank(16, 14)
+    rect(im, 1, 4, 14, 12, WOOD)
+    rect(im, 1, 4, 14, 5, WOOD_L)
+    rect(im, 1, 8, 14, 8, WOOD_D)
+    rect(im, 3, 5, 5, 7, CLOTH)
+    rect(im, 7, 9, 9, 11, BLUE)
+    return outline(im)
+
+
+def draw_display_rack():
+    im = _blank(28, 20)
+    rect(im, 1, 2, 26, 17, WOOD_D)
+    rect(im, 2, 3, 25, 8, WOOD)
+    rect(im, 2, 10, 25, 15, WOOD)
+    rect(im, 4, 4, 8, 7, GREEN)
+    rect(im, 12, 4, 16, 7, BLUE)
+    rect(im, 20, 4, 23, 7, CLOTH)
+    return outline(im)
+
+
+def draw_filing_cart():
+    im = _blank(16, 18)
+    rect(im, 2, 3, 13, 15, STEEL)
+    rect(im, 2, 5, 13, 6, STEEL_D)
+    rect(im, 2, 9, 13, 10, STEEL_D)
+    rect(im, 2, 13, 13, 14, STEEL_D)
+    px(im, 3, 16, DARK)
+    px(im, 12, 16, DARK)
+    return outline(im)
+
+
+def draw_sand_timer():
+    im = _blank(12, 16)
+    rect(im, 3, 2, 8, 3, WOOD)
+    rect(im, 3, 12, 8, 13, WOOD)
+    rect(im, 4, 4, 7, 10, (222, 216, 200))
+    rect(im, 5, 6, 6, 8, GOLD)
+    return outline(im)
+
+
+def draw_vocab_board():
+    im = _blank(28, 16)
+    rect(im, 1, 2, 26, 13, PAPER)
+    rect(im, 1, 2, 26, 3, WOOD)
+    rect(im, 3, 5, 11, 6, DARK)
+    rect(im, 3, 8, 15, 9, DARK)
+    rect(im, 3, 11, 9, 12, DARK)
+    return outline(im)
+
+
+def draw_shape_sorter():
+    im = _blank(16, 14)
+    rect(im, 2, 6, 13, 12, WOOD)
+    rect(im, 3, 3, 6, 6, BLUE)
+    rect(im, 8, 3, 11, 6, GREEN)
+    px(im, 9, 8, GOLD)
+    return outline(im)
+
+
+def draw_terrarium():
+    im = _blank(14, 18)
+    rect(im, 2, 4, 11, 16, (200, 226, 232))
+    rect(im, 2, 12, 11, 16, WOOD_D)
+    rect(im, 4, 8, 6, 12, GREEN)
+    rect(im, 7, 6, 8, 12, GREEN_L)
+    return outline(im)
+
+
+def draw_web_of_life():
+    im = _blank(28, 16)
+    rect(im, 1, 2, 26, 13, PAPER)
+    rect(im, 1, 2, 26, 3, WOOD)
+    rect(im, 8, 7, 18, 7, DARK)
+    rect(im, 13, 4, 13, 10, DARK)
+    px(im, 9, 5, DARK)
+    px(im, 17, 5, DARK)
+    px(im, 9, 9, DARK)
+    px(im, 17, 9, DARK)
+    return outline(im)
+
+
+def draw_sound_cards():
+    im = _blank(14, 12)
+    rect(im, 2, 3, 9, 10, PAPER)
+    rect(im, 4, 4, 11, 11, PAPER)
+    rect(im, 6, 6, 9, 9, CLOTH)
+    return outline(im)
+
+
+def draw_hammock_chair():
+    im = _blank(18, 20)
+    rect(im, 1, 2, 16, 3, STEEL)
+    rect(im, 4, 8, 13, 15, CLOTH)
+    rect(im, 5, 7, 12, 9, CLOTH_L)
+    px(im, 4, 3, STEEL_D)
+    px(im, 13, 3, STEEL_D)
+    return outline(im)
+
+
+def draw_ottoman():
+    im = _blank(14, 10)
+    rect(im, 2, 3, 11, 8, GOLD)
+    rect(im, 2, 3, 11, 4, (240, 206, 110))
+    return outline(im)
+
+
+def draw_desk_fan():
+    im = _blank(14, 16)
+    rect(im, 5, 10, 8, 15, STEEL_D)
+    rect(im, 3, 3, 10, 10, STEEL_L)
+    px(im, 6, 6, STEEL_D)
+    px(im, 7, 6, STEEL_D)
+    return outline(im)
+
+
+def draw_paper_mobile():
+    im = _blank(16, 20)
+    rect(im, 7, 1, 8, 6, DARK)
+    rect(im, 2, 6, 6, 6, DARK)
+    rect(im, 9, 6, 13, 6, DARK)
+    rect(im, 2, 7, 6, 11, CLOTH)
+    rect(im, 9, 7, 13, 12, BLUE)
+    rect(im, 6, 12, 9, 16, GREEN)
+    return outline(im)
+
+
+def draw_chalk_border():
+    im = _blank(30, 12)
+    rect(im, 1, 2, 28, 9, (60, 96, 70))
+    rect(im, 1, 2, 28, 2, WOOD)
+    rect(im, 1, 9, 28, 9, WOOD)
+    px(im, 5, 5, PAPER)
+    px(im, 13, 5, PAPER)
+    return outline(im)
+
+
+def draw_state_flag():
+    im = _blank(14, 20)
+    rect(im, 6, 2, 7, 18, WOOD)
+    rect(im, 7, 3, 13, 9, BLUE)
+    rect(im, 8, 5, 9, 6, GOLD)
+    return outline(im)
+
+
+def draw_vote_box():
+    im = _blank(16, 14)
+    rect(im, 2, 5, 13, 12, WOOD)
+    rect(im, 2, 5, 13, 6, WOOD_L)
+    rect(im, 6, 4, 9, 5, DARK)
+    return outline(im)
+
+
+def draw_season_wheel():
+    im = _blank(16, 16)
+    rect(im, 2, 2, 13, 13, WOOD)
+    rect(im, 3, 3, 7, 7, GREEN)
+    rect(im, 8, 3, 12, 7, GOLD)
+    rect(im, 3, 8, 7, 12, (200, 220, 236))
+    rect(im, 8, 8, 12, 12, (200, 130, 70))
+    return outline(im)
+
+
+def draw_duty_roster():
+    im = _blank(16, 18)
+    rect(im, 2, 2, 13, 15, PAPER)
+    rect(im, 2, 2, 13, 3, WOOD)
+    rect(im, 4, 5, 11, 6, DARK)
+    rect(im, 4, 8, 11, 9, DARK)
+    rect(im, 4, 11, 11, 12, DARK)
+    return outline(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -407,6 +613,23 @@ ITEMS = {
     # consumables
     "coffee": draw_coffee, "sticker_chart": draw_sticker_chart,
     "bake_sale": draw_bake_sale, "photocopies": draw_photocopies,
+    # task 2 batch -- seating
+    "rocking_chair": draw_rocking_chair, "pouf": draw_pouf,
+    "window_seat": draw_window_seat,
+    # task 2 batch -- surfaces
+    "low_shelf": draw_low_shelf, "display_rack": draw_display_rack,
+    "filing_cart": draw_filing_cart,
+    # task 2 batch -- learning
+    "sand_timer": draw_sand_timer, "vocab_board": draw_vocab_board,
+    "shape_sorter": draw_shape_sorter, "terrarium": draw_terrarium,
+    "web_of_life": draw_web_of_life, "sound_cards": draw_sound_cards,
+    # task 2 batch -- comfort
+    "hammock_chair": draw_hammock_chair, "ottoman": draw_ottoman,
+    "desk_fan": draw_desk_fan,
+    # task 2 batch -- decor
+    "paper_mobile": draw_paper_mobile, "chalk_border": draw_chalk_border,
+    "state_flag": draw_state_flag, "vote_box": draw_vote_box,
+    "season_wheel": draw_season_wheel, "duty_roster": draw_duty_roster,
 }
 
 
