@@ -59,19 +59,12 @@ Take a Screenshot.bat    anything visual. Headless never proves this
 These are not optional work; they are the queue. Prompts live in
 `docs/TASK_PACK.md`.
 
-- [ ] **A1. Integrate task 2 — 21 items of furniture.** *(One round
-      rejected Aug 2026.)* Validate with
-      `python tools/check_items.py <file.json>` before touching
-      `balance.json`. Reject rather than patch: an item outside the
-      360–840 density window, a near-duplicate of the existing 29, a
-      blurb that reads like a catalogue, or a concept link that does not
-      make sense. The first submission failed on all counts — every item
-      was missing `name` and `art` entirely, two ids (`beanbag`, `globe`)
-      collided with existing items, and every `teaches`/`needs` cited a
-      concept id from a stale, unintegrated curriculum draft rather than
-      the real file. The prompt in `docs/TASK_PACK.md` is unchanged and
-      correct; that round just didn't follow it. Re-send, don't patch
-      around it. Then art, then a screenshot of the shop.
+- [x] **A1. Integrate task 2 — 21 items of furniture.** *(Done Aug 2026,
+      commit `2494e66`; the first round was rejected on every count and
+      re-sent rather than patched.)* Furniture went 29 → 50, all inside
+      the density window, all carrying `name`/`art` and sensible concept
+      links. Art landed later as "Art Batch 4" (`04036a0`) — every
+      furniture sprite regenerated from a `tools/sprites/*.txt` source.
 - [x] **A2. Integrate task 3 — 6 student traits.** *(Done Aug 2026.)*
       Loud, Shy, Restless, Panics, Anchor, Ghost — 6 to 12. Every one
       carries two hooks in tension rather than one bare multiplier: Ghost

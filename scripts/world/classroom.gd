@@ -446,7 +446,13 @@ func _physics_process(delta: float) -> void:
 		# so it runs at full rate regardless of where the teacher stands.
 		var rate: float = 1.0 if Game.test_active else Game.work_rate()
 		for s: StudentData in Game.roster:
-			if s.tick_work(delta, roll, rate):
+			# A crammed seating plan slows the children in it -- see
+			# Game.cluster_rate_mult(). Off during a written test (rate is
+			# already forced to 1.0 there: nobody is teaching it).
+			var s_rate: float = rate
+			if not Game.test_active:
+				s_rate *= Game.cluster_rate_mult(s)
+			if s.tick_work(delta, roll, s_rate):
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
 		Game.tick_class(delta, roll)

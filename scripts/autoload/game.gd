@@ -787,6 +787,27 @@ func neighbours_of(s: StudentData) -> Array[StudentData]:
 	return out
 
 
+## The counter to the discovered meta of cramming every desk into the
+## middle of the room: a child with another occupied desk orthogonally
+## adjacent works Balance.room_cluster_penalty slower. Spreading the desks
+## back out is the whole counter-play, and the opening layout already has
+## no two seats within a tile of each other, so this costs nothing until a
+## player chooses to bunch them.
+##
+## Layout only, read live the same way neighbours_of() is -- it never
+## touches a grade formula. The contract sim (tools/sim.gd _one_lesson())
+## seats every child at 0 and calls tick_work() directly rather than
+## through classroom._physics_process, so it never sees this; asserted in
+## test_balance()'s _one_lesson() source scan alongside tick_class().
+func cluster_rate_mult(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	if s == null or s.seat_index < 0 or Balance.room_cluster_penalty <= 0.0:
+		return 1.0
+	if neighbours_of(s).is_empty():
+		return 1.0
+	return maxf(0.0, 1.0 - Balance.room_cluster_penalty)
+
+
 ## Everything that depends on WHO IS SITTING NEXT TO WHOM, once per frame.
 ##
 ## This lives here rather than in tick_work() because it needs the whole

@@ -180,6 +180,7 @@ func _main() -> void:
 	await test_flares()
 	await test_mid_lesson_mess()
 	await test_desk_interruption()
+	await test_cluster_penalty()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -990,6 +991,8 @@ func test_balance() -> void:
 	chk("...nor _tick_flares()", not one_lesson_src.contains("_tick_flares("))
 	chk("...nor _tick_complications() -- the new one",
 		not one_lesson_src.contains("_tick_complications("))
+	chk("...nor cluster_rate_mult() -- the anti-cram penalty is layout-only",
+		not one_lesson_src.contains("cluster_rate_mult("))
 
 
 ## Run real lessons through the actual work model and return the MEAN grade.
@@ -7117,6 +7120,90 @@ func test_desk_interruption() -> void:
 	Game.interruption = {}
 	Game._complications_today = 0
 	world._clear_mess()
+
+
+## The anti-cram penalty: a child with an occupied desk orthogonally
+## adjacent works slower, so spreading the desks back out is the actual
+## counter-play to the discovered "shove every desk into the middle" meta.
+## Layout only -- see the _one_lesson() source scan in test_balance() for
+## the assertion that the contract never sees it.
+func test_cluster_penalty() -> void:
+	section("DESK CLUSTERING")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("the penalty is a real, read tunable rather than a code const",
+		Balance.room_cluster_penalty > 0.0, Balance.room_cluster_penalty)
+
+	# the opening layout has no two seats within a tile of each other, so
+	# nobody pays it until a player chooses to bunch the desks up
+	var any_penalised := false
+	for s: StudentData in Game.roster:
+		if Game.cluster_rate_mult(s) < 1.0:
+			any_penalised = true
+	chk("the opening layout costs nobody anything", not any_penalised)
+
+	var s0: StudentData = Game.roster[0]
+	var s1: StudentData = Game.roster[1]
+	var s2: StudentData = Game.roster[2]
+
+	# 0 and 1 shoved together; 2 left off on its own
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("a bunched desk works slower", is_equal_approx(
+		Game.cluster_rate_mult(s0), 1.0 - Balance.room_cluster_penalty),
+		Game.cluster_rate_mult(s0))
+	chk("and so does the desk it was bunched against",
+		Game.cluster_rate_mult(s1) < 1.0)
+	chk("the desk left on its own is untouched",
+		is_equal_approx(Game.cluster_rate_mult(s2), 1.0))
+
+	# spreading them back out clears it -- the counter-play actually works
+	Layout.set_seats([Vector2i(3, 4), Vector2i(15, 7), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("moving them apart clears the penalty",
+		is_equal_approx(Game.cluster_rate_mult(s0), 1.0))
+
+	# 0.0 turns it off entirely
+	var kept := Balance.room_cluster_penalty
+	Balance.room_cluster_penalty = 0.0
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("penalty of 0 is a clean no-op, not a 0x rate",
+		is_equal_approx(Game.cluster_rate_mult(s0), 1.0))
+	Balance.room_cluster_penalty = kept
+
+	# the room's own work tick actually reads it -- not just the helper
+	var cls_src := FileAccess.get_file_as_string("res://scripts/world/classroom.gd")
+	chk("classroom._physics_process actually applies cluster_rate_mult",
+		cls_src.contains("cluster_rate_mult("))
+
+	# and the behaviour it buys: the same sheet and the same teaching rate
+	# for both, and the bunched desk still falls behind the lone one.
+	# Rate held at 1.0 (perfect teaching, the contract's own convention)
+	# and a null rng so no stalls muddy the comparison.
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	for s: StudentData in Game.roster:
+		s.work_state = StudentData.Work.WORKING
+		s.work_total = 10.0
+		s.work_timer = 10.0
+		s.confusion = 0.0
+		s.disrupting = false
+	for i in 200:
+		for s: StudentData in Game.roster:
+			s.tick_work(1.0 / 60.0, null, Game.cluster_rate_mult(s))
+	chk("over a stretch of teaching, the bunched desk is behind the lone one",
+		s0.work_fraction() < s2.work_fraction(),
+		"%.3f vs %.3f" % [s0.work_fraction(), s2.work_fraction()])
+
+	Layout.reset_seats()
+	Game.new_run(SEED)
 
 
 # ============================================ furniture lanes and clutter

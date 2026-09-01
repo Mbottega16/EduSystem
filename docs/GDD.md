@@ -1,6 +1,6 @@
 # PixelRoom — Game Design Document
 
-> **Measured on 2026-08-27**, against build `b38`, with **1365 assertions
+> **Measured on 2026-08-27**, against build `b38`, with **1375 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -243,7 +243,9 @@ children who passed move up and out.
 
 ### Run state — `scripts/autoload/game.gd`
 Seeded RNG · day phases · roster and enrolment · neighbour model (reads live
-desk positions) · class tick (helping, copying, disruption) · grading and the
+desk positions) · desk-cluster penalty (a child with an occupied desk next
+to them works slower, so spreading out is the counter to cramming) · class
+tick (helping, copying, disruption) · grading and the
 grade split · room score · terms, targets and `next_term()` · teacher XP,
 levels and perks · graduation · concepts · room expansion · unit test ·
 inspection · voice · attention/teaching · aide · quiz · coaching · the
@@ -332,7 +334,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1365 assertions** across **90 sections** |
+| Tests | **1375 assertions** across **91 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

@@ -40,20 +40,28 @@ of it.
 - **Run end**: missing a term's target, exactly as it already works.
   No new grading system.
 
-## The anti-clustering fix (base game, not roguelike-only) — still not built
+## The anti-clustering fix (base game, not roguelike-only) — shipped
 
 The originally-reported problem: the discovered meta is cramming every
-desk together in the middle of the room. Proposed fix: **seats placed
-adjacent to another occupied seat apply a progress-speed penalty** to
-both students, tunable in `data/balance.json` (a new key under `room`,
-e.g. `cluster_penalty`). **Confirmed absent from the codebase** — no
-`cluster` key exists anywhere in `scripts/` or `data/balance.json`.
-Genuinely adjacent, worth knowing before building this: `neighbour_stall_multiplier()`
-(`scripts/data/student_data.gd`) already penalizes stall chance from an
-*actively disrupting* neighbour, and a `helps_neighbour` trait is
-actually a *positive* incentive to cluster — plausibly the real
-mechanical cause of the meta this fix is meant to answer. Still open;
-nothing shipped so far implements it.
+desk together in the middle of the room. The fix: a child with another
+**occupied desk orthogonally adjacent** works `room.cluster_penalty`
+(0.12) slower — `Game.cluster_rate_mult()`, applied per student in
+`classroom._physics_process()` on top of the class-wide work rate.
+Spreading the desks back out is the whole counter-play, and the opening
+layout already has no two seats within a tile of each other, so it costs
+nothing until a player chooses to bunch them.
+
+Layout only — it never touches a grade formula, and the contract sim
+(`tools/sim.gd::_one_lesson()`) seats every child at 0 and calls
+`tick_work()` directly rather than through the room, so it never sees
+this. `test_balance()`'s source scan asserts `_one_lesson()` never calls
+`cluster_rate_mult()`, the same guard the complication ticks got.
+
+Genuinely adjacent, and left as-is: `neighbour_stall_multiplier()`
+(`scripts/data/student_data.gd`) already raises stall chance from an
+*actively disrupting* neighbour, and a `helps_neighbour` trait is a
+*positive* reason to cluster — the two pulls now sit either side of the
+new penalty rather than all pointing one way.
 
 ## Mid-lesson complications — shipped
 

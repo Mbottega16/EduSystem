@@ -238,9 +238,14 @@ static var bell_rush_xp_per_desk: int = 3
 static var concept_bonus: float = 0.012
 static var concept_bonus_cap: float = 0.12
 
-# --- buying floor space --------------------------------------------------
+# --- buying floor space, and how it is used ----------------------------
 static var room_expand_cost_per_tile: int = 26
 static var room_expand_growth: float = 1.45
+## The counter to the desk-cramming meta: a child with another occupied
+## desk orthogonally adjacent works this fraction slower. Layout only --
+## the contract sim never seats anyone next to anyone, so it never bites
+## there. 0.0 turns it off.
+static var room_cluster_penalty: float = 0.12
 
 # --- the end-of-unit test ------------------------------------------------
 static var test_requires_taught: int = 3
@@ -534,6 +539,7 @@ static func apply(d: Dictionary) -> void:
 	var rm: Dictionary = d.get("room", {})
 	room_expand_cost_per_tile = int(rm.get("expand_cost_per_tile", room_expand_cost_per_tile))
 	room_expand_growth = float(rm.get("expand_growth", room_expand_growth))
+	room_cluster_penalty = float(rm.get("cluster_penalty", room_cluster_penalty))
 
 	var ts: Dictionary = d.get("test", {})
 	test_requires_taught = int(ts.get("requires_taught", test_requires_taught))
