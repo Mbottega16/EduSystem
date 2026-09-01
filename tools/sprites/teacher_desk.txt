@@ -1,8 +1,8 @@
 # name: teacher_desk
-# Hand-authored fixture art (Sept 2026): sized to fill its tile and
-# painted in the room's wood palette with the shared #241A12 outline,
-# replacing the AI 'Art Batch 4' source that did not match the walls.
-# palette: d=#704C2C,l=#BA8C5C,m=#80848E,n=#585C66,w=#9C6E42
+# Hand-authored fixture art (Sept 2026, round 2): fills its tile, in
+# the room's wood palette with the shared #241A12 outline. Replaces
+# the AI 'Art Batch 4' source that did not match the walls.
+# palette: w=#9C6E42,l=#BA8C5C,d=#704C2C,m=#80848E,n=#585C66,p=#F6F4EC,g=#D2CEBE,R=#B23A34,Q=#7A241F
 # outline: #241A12
 ................................................................
 ................................................................
@@ -13,15 +13,15 @@
 ..llllllllllllllllllllllllllllllllllllllllllllllllllllllllllll..
 ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
 ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
-..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwQQQQQQQQQQQQQQQwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwQQQQQQQQQQQQQQQwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRgggggggggggggRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRppppppgppppppRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRppppppgppppppRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRppppppgppppppRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRppppppgppppppRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRppppppgppppppRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
+..wwwwwwwwwRRRRRRRRRRRRRRRwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..
 ..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
 ..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
 ....ddddd...................ddddd.llwwwwwwwwwwwwwwwwwwwwwwwww...

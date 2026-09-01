@@ -49,10 +49,13 @@ static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
 
 ## A prop standing on the floor. `sort_bias` breaks exact y ties, which Godot
 ## otherwise resolves by tree order — silently order-dependent and miserable
-## to debug.
+## to debug. `art_offset` shifts ONLY the visible sprite (and its shadow),
+## leaving the body, its collider and any Interactable child on the anchor
+## tile — used to hang the noticeboard up on the brick while you still walk
+## up to it on the floor.
 static func add_prop(parent: Node2D, tex: Texture2D, at: Vector2,
 		block: Vector2, sort_bias: float = 0.0,
-		with_shadow: bool = true) -> StaticBody2D:
+		with_shadow: bool = true, art_offset: Vector2 = Vector2.ZERO) -> StaticBody2D:
 	var body := StaticBody2D.new()
 	body.position = at + Vector2(0, sort_bias)
 	body.collision_layer = 1     # world
@@ -65,13 +68,13 @@ static func add_prop(parent: Node2D, tex: Texture2D, at: Vector2,
 	if with_shadow:
 		var shade := Sprite2D.new()
 		shade.texture = SHADOW_TEX
-		shade.position = Vector2(0, -4)   # doubled, was -2
+		shade.position = Vector2(0, -4) + art_offset   # doubled, was -2
 		shade.scale = Vector2(maxf(1.0, tex.get_width() / 32.0), 1.0)   # was /16.0
 		body.add_child(shade)
 
 	var spr := Sprite2D.new()
 	spr.texture = tex
-	spr.position = Vector2(0, -tex.get_height() / 2.0)   # bottom edge on the anchor
+	spr.position = Vector2(0, -tex.get_height() / 2.0) + art_offset   # bottom edge on the anchor
 	body.add_child(spr)
 
 	if block != Vector2.ZERO:
@@ -314,11 +317,12 @@ static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
 
 
 static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
-	# The board art is two tiles wide but hangs on the back wall, so it takes
-	# no floor contact shadow -- add_prop would scale one to the full 64px
-	# width and it would read as a puddle in front of the wall. Same call as
-	# the flat wall poster below.
-	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(24, 16), 0.0, false)
+	# The board art is two tiles wide and hangs UP on the brick: art_offset
+	# lifts the sprite ~a tile clear of the floor while the body, collider
+	# and both Interactables stay on the tile you walk up to. No floor
+	# contact shadow either -- it is on the wall, not standing on the floor.
+	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD),
+		Vector2(24, 16), 0.0, false, Vector2(0, -34))
 	var it := Interactable.new()
 	it.set_script(BOARD_SCRIPT)
 	body.add_child(it)
@@ -344,7 +348,12 @@ static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
 
 
 static func build_ad_poster(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_AD_POSTER, Grid.tile_to_world(Layout.AD_POSTER), Vector2(24, 16))
+	# No collider (Vector2.ZERO), not just an unblocked grid cell: it is flat
+	# on the wall, so you walk straight past it and reach it by proximity.
+	# It sits in the bottom-left corner now (Layout.AD_POSTER), which is the
+	# exact tile the "left wall stops the player" test walks through -- a
+	# 24x16 collider there stopped the player a tile short of the wall.
+	var body := add_prop(parent, PROP_AD_POSTER, Grid.tile_to_world(Layout.AD_POSTER), Vector2.ZERO)
 	var it := Interactable.new()
 	it.set_script(AD_POSTER_SCRIPT)
 	body.add_child(it)

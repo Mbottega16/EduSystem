@@ -160,7 +160,9 @@ DOOR_PAINT_L = (86, 154, 168)
 DOOR_PAINT_D = (36, 80, 92)
 GLASS = (176, 214, 232)
 GLASS_L = (208, 234, 246)
+GLASS_D = (150, 192, 214)
 FRAME = (238, 234, 224)
+FRAME_L = (250, 248, 242)
 FRAME_D = (176, 170, 158)
 
 
@@ -749,7 +751,9 @@ def wall_tile(is_bottom_row, cap=True, row=0):
 
 
 def window_tile(left_half, top_half):
-    """One quarter of a 2x2-tile window: frame, glass, glazing bar, sill."""
+    """One quarter of a 2x2-tile window: a bevelled frame, panes split by a
+    glazing bar, glass with a sky gradient and a reflection streak, and --
+    on the lower half -- a moulded sill carried on a corbel."""
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
     x0 = 2 if left_half else 0
@@ -757,20 +761,47 @@ def window_tile(left_half, top_half):
     y0 = 3 if top_half else 0
     y1 = TILE - 1 if top_half else TILE - 4
 
+    # frame, bevelled: lit on the top and left faces, shaded on the others
     rect(t, x0, y0, x1, y1, FRAME)
+    rect(t, x0, y0, x1, y0, FRAME_L)
+    rect(t, x0, y0, x0, y1, FRAME_L)
+    rect(t, x0, y1, x1, y1, FRAME_D)
+    rect(t, x1, y0, x1, y1, FRAME_D)
+
     gx0, gy0 = x0 + 2, y0 + 2
     gx1 = x1 if left_half else x1 - 2
     gy1 = y1 if top_half else y1 - 2
+
+    # glass, with a vertical sky gradient across the whole window
     rect(t, gx0, gy0, gx1, gy1, GLASS)
     if top_half:
-        rect(t, gx0, gy0, gx1, gy0 + 2, GLASS_L)   # daylight across the top
+        rect(t, gx0, gy0, gx1, gy0 + 3, GLASS_L)
+    else:
+        rect(t, gx0, gy1 - 3, gx1, gy1, GLASS_D)
+
+    # a thin glazing bar across the middle -> two panes in every quarter
+    bar = gy0 + (gy1 - gy0) // 2
+    rect(t, gx0, bar, gx1, bar, FRAME)
+    rect(t, gx0, bar + 1, gx1, bar + 1, FRAME_D)
+
+    # one short diagonal reflection streak, in the upper pane of the quarter
+    for i in range(4):
+        px(t, gx0 + 2 + i, bar - 2 - i, GLASS_L)
+        px(t, gx0 + 3 + i, bar - 2 - i, GLASS_L)
+
+    # the mullion's shaded inner edge, at the tile seam
     if left_half:
         rect(t, TILE - 1, gy0, TILE - 1, gy1, FRAME_D)
     else:
         rect(t, 0, gy0, 0, gy1, FRAME_D)
+
     if not top_half:
-        rect(t, x0, y1 - 1, x1, y1, FRAME_D)       # sill
-        rect(t, x0, TILE - 3, x1, TILE - 1, WALL_D)
+        rect(t, x0, y1 - 1, x1, y1 - 1, FRAME_L)      # lit nose of the sill
+        rect(t, x0, y1, x1, y1, FRAME_D)              # sill body
+        rect(t, x0, TILE - 3, x1, TILE - 2, WALL_D)   # shadow it throws
+        rect(t, x0, TILE - 1, x1, TILE - 1, WALL_BASE)
+        cx = x0 if left_half else x1 - 2              # a corbel under the end
+        rect(t, cx, TILE - 3, cx + 2, TILE - 1, FRAME_D)
     return t
 
 

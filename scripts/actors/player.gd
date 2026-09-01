@@ -153,6 +153,24 @@ func _update_key_prompts() -> void:
 		box.position = Vector2(x, 0)
 		x += box.size.x + 6.0
 
+	# Keep the row on screen. It grows rightward from above the player's
+	# head, so standing near the right wall it used to run clean off the
+	# edge -- the last badge's key was unreadable. Shift the whole row back
+	# on by however much it overhangs (either side). Badges are 1:1 with
+	# screen pixels here, so the canvas transform is all this needs.
+	if x > 0.0 and _key_prompts_root != null:
+		var vp_w := get_viewport_rect().size.x
+		var screen_x := (get_viewport().get_canvas_transform() * global_position).x
+		var margin := 6.0
+		var shift := 0.0
+		if screen_x + x > vp_w - margin:
+			shift = (vp_w - margin) - (screen_x + x)
+		if screen_x + shift < margin:
+			shift = margin - screen_x
+		_key_prompts_root.position.x = shift
+	elif _key_prompts_root != null:
+		_key_prompts_root.position.x = 0.0
+
 
 func _spawn_key_badge(action: String) -> Dictionary:
 	var box := ColorRect.new()
