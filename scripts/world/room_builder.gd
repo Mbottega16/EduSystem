@@ -17,6 +17,7 @@ const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
 const PROP_AD_POSTER := preload("res://art/ad_poster.png")
+const PROP_CABINET := preload("res://art/cabinet_body.png")
 const PROP_MESS_TRASH := preload("res://art/mess_trash.png")
 const PROP_MESS_SPILL := preload("res://art/mess_spill.png")
 const SHADOW_TEX := preload("res://art/shadow.png")
@@ -33,6 +34,7 @@ const DESK_INTERRUPTION_SCRIPT := preload("res://scripts/interact/desk_interrupt
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 const AD_POSTER_SCRIPT := preload("res://scripts/interact/ad_poster.gd")
+const CABINET_SCRIPT := preload("res://scripts/interact/cabinet.gd")
 const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
 const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
@@ -322,6 +324,18 @@ static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
 	it.set_script(BELL_SCRIPT)
 	body.add_child(it)
 	grid.set_cell(Layout.BELL, Grid.Cell.BLOCKED)
+	return it
+
+
+static func build_cabinet(parent: Node2D, grid: Grid) -> Interactable:
+	# Stands on the floor against the back wall, so it blocks its tile the
+	# same way the podium and bell do -- you walk up to the row below it.
+	var body := add_prop(parent, PROP_CABINET, Grid.tile_to_world(Layout.CABINET),
+		Vector2(28, 18))
+	var it := Interactable.new()
+	it.set_script(CABINET_SCRIPT)
+	body.add_child(it)
+	grid.set_cell(Layout.CABINET, Grid.Cell.BLOCKED)
 	return it
 
 

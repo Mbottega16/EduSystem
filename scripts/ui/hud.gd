@@ -15,7 +15,11 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
 	ADS, PATHS }
-enum Shop { BUY, SELL, STAFF, ROOM, CRAFT }
+## SELL became CABINET (Sep 2026): buying no longer places on the spot,
+## it drops the item in the cabinet; you place it from the cabinet, and
+## selling is done from there too. Same five-stop Tab cycle, one label
+## and one screen changed.
+enum Shop { BUY, CABINET, STAFF, ROOM, CRAFT }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
 ## do I have", not a fourth thing bolted onto E/F.
@@ -2605,10 +2609,10 @@ func show_day_report(report: Dictionary) -> void:
 	hint.text = "E - close"
 
 
-func open_catalogue() -> void:
+func open_catalogue(start: int = Shop.BUY) -> void:
 	_open(Mode.CATALOGUE)
 	_sel = 0
-	_shop = Shop.BUY
+	_shop = start
 	_render_catalogue()
 
 
@@ -2638,7 +2642,8 @@ func _shop_rows() -> Array:
 			return []
 		Curriculum.ensure_loaded()
 		return Curriculum.lessons.map(func(l: Dictionary) -> String: return String(l.get("id", "")))
-	return Game.room_items.duplicate()
+	# CABINET: the distinct ids you own but have not placed.
+	return Game.cabinet_ids()
 
 
 func _render_catalogue() -> void:
@@ -2670,8 +2675,8 @@ func _render_catalogue() -> void:
 			else:
 				tabs += "[color=#%s] %s [/color]" % [hue, label.substr(0, 3)]
 	var heading := "BUY FURNITURE"
-	if _shop == Shop.SELL:
-		heading = "SELL FURNITURE"
+	if _shop == Shop.CABINET:
+		heading = "YOUR CABINET"
 	elif _shop == Shop.STAFF:
 		heading = "STAFF ROOM"
 	elif _shop == Shop.ROOM:
@@ -2699,7 +2704,7 @@ func _render_catalogue() -> void:
 	elif _shop == Shop.CRAFT:
 		lines = _render_craft(rows)
 	elif rows.is_empty():
-		lines.append("   Nothing to sell - the room is bare.")
+		lines.append("   The cabinet is empty. Buy something first.")
 	elif _shop == Shop.BUY:
 		# A window, not the whole list. The Learning category alone has ten
 		# items and the body is about eleven lines -- printing them all ran
@@ -2738,21 +2743,21 @@ func _render_catalogue() -> void:
 		# the blurb was landing on top of the hint text.
 		_shop_blurb = String(Items.get_def(rows[_sel]).get("blurb", ""))
 	else:
-		# The sell list is windowed too. A full room is far more items than
-		# the panel holds, and it used to print every one of them.
+		# CABINET: everything you own and have not placed. Windowed the same
+		# way the buy list is -- storage can hold more than the panel shows.
 		var lo2 := _window_start(rows.size(), LIST_ROWS)
 		if lo2 > 0:
 			lines.append("   ...")
 		for i in range(lo2, mini(rows.size(), lo2 + LIST_ROWS)):
-			var placed: Dictionary = rows[i]
-			var pid := String(placed["id"])
-			lines.append(_clip("%s %-13s  back %3d   at %d,%d" % [
+			var cid := String(rows[i])
+			var cn := Game.cabinet_count(cid)
+			lines.append(_clip("%s %-13s  x%d   sell %3d" % [
 				">" if i == _sel else " ",
-				String(Items.get_def(pid).get("name", pid)),
-				Game.sell_value(pid), placed["tile"].x, placed["tile"].y]))
+				String(Items.get_def(cid).get("name", cid)),
+				cn, Game.sell_value(cid)]))
 		if lo2 + LIST_ROWS < rows.size():
 			lines.append("   ...")
-		lines.append("Selling gives back half. To MOVE one, walk to it.")
+		lines.append("E takes one out to place.  Left sells one for half.")
 	rich.text = "\n".join(lines)
 	# NO reveal here. The catalogue re-renders on every keypress, so a
 	# wipe would restart under your fingers each time you moved the
@@ -2760,14 +2765,14 @@ func _render_catalogue() -> void:
 	# steering.
 	rich.visible_ratio = 1.0
 	var verb := "order"
-	var next_tab := "sell list"
+	var next_tab := "cabinet"
 	if _shop == Shop.BUY:
-		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E order   Esc close"
+		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E buy to cabinet   Esc close"
 		return
-	if _shop == Shop.SELL:
-		verb = "sell"
-		next_tab = "staff room"
-	elif _shop == Shop.STAFF:
+	if _shop == Shop.CABINET:
+		hint.text = "Up/Down choose   E place   Left sell   Tab staff room   Esc close"
+		return
+	if _shop == Shop.STAFF:
 		verb = "learn"
 		next_tab = "the room"
 	elif _shop == Shop.ROOM:
@@ -3449,6 +3454,13 @@ func _handle_input() -> void:
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()
+		elif (_shop == Shop.CABINET and not rows.is_empty()
+				and Input.is_action_just_pressed("move_left")):
+			# Left sells one copy for half. A separate key from E (which takes
+			# one out to place), so a mash of "place" can never sell by accident.
+			var sold_for := Game.sell_from_cabinet(String(rows[_sel]))
+			Sfx.play("coins" if sold_for > 0 else "deny")
+			_render_catalogue()
 		elif (_shop == Shop.STAFF and (_sel == 0 or _sel == 1)
 				and Input.is_action_just_pressed("move_left")):
 			# Letting go, not levelling -- a separate key from E on purpose,
@@ -3458,7 +3470,7 @@ func _handle_input() -> void:
 			Sfx.play("deny" if fe != "" else "blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("menu"):
-			_shop = (_shop + 1) % 5      # buy -> sell -> staff -> room -> craft
+			_shop = (_shop + 1) % 5      # buy -> cabinet -> staff -> room -> craft
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()
@@ -3495,27 +3507,28 @@ func _handle_input() -> void:
 			elif _shop == Shop.BUY:
 				var id: String = rows[_sel]
 				if Items.category_of(id) == "consumable":
-					# Bought and used in the same motion -- there is
-					# nowhere to place it, so the ghost-cursor placement
-					# flow item_chosen normally starts would have nothing
-					# to do.
+					# Bought and used in the same motion -- there is nowhere
+					# to place it, and nothing to store.
 					var uerr := Game.use_consumable(id)
 					Sfx.play("deny" if uerr != "" else "confirm")
 					_render_catalogue()
-				elif Game.can_afford(Game.shop_price(id)):
-					Sfx.play("confirm")
-					close()
-					item_chosen.emit(id)
 				else:
-					Sfx.play("deny")
+					# Furniture goes into the cabinet, not straight onto the
+					# floor. The shop stays open; you place it from the
+					# CABINET tab (or the cabinet itself) when you are ready.
+					var berr := Game.buy_to_cabinet(id)
+					Sfx.play("deny" if berr != "" else "coins")
+					_render_catalogue()
 			elif _shop == Shop.CRAFT:
 				var ok := Game.commit_lesson_craft(String(rows[_sel]))
 				Sfx.play("coins" if ok else "deny")
 				_render_catalogue()
 			else:
-				Game.sell_item(rows[_sel]["tile"])
-				Sfx.play("coins")
-				_render_catalogue()
+				# CABINET: E takes one copy out and starts placing it (free --
+				# it was paid for when it was bought).
+				Sfx.play("confirm")
+				close()
+				item_chosen.emit(String(rows[_sel]))
 		return
 
 	if mode == Mode.MARKING:

@@ -58,8 +58,8 @@ func _ready() -> void:
 	placement.desk_placed.connect(_finish_moving_desk)
 	placement.cancelled.connect(_unlock)
 	placement.picked_up.connect(_start_moving)
-	placement.sold.connect(func(tile: Vector2i) -> void:
-		Game.sell_item(tile))
+	placement.stored.connect(func(tile: Vector2i) -> void:
+		Game.store_item(tile))       # packed away, not sold -- dispose from the cabinet
 
 	# The hallway persists for the whole run, unlike the room's own
 	# landmarks -- it never gets torn down and rebuilt, so this connection
@@ -139,6 +139,7 @@ func _wire_room() -> void:
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
+		[world.cabinet, "cabinet_opened", func() -> void: hud.open_catalogue(hud.Shop.CABINET)],
 		[world.ad_poster, "ad_poster_opened", hud.show_ads],
 		[world.hall_door, "chosen", _enter_hallway],
 	]
@@ -171,7 +172,7 @@ func _land_at(tile: Vector2i) -> void:
 
 func _finish_placing(id: String, tile: Vector2i) -> void:
 	if _moving_from == NOWHERE:
-		Game.place_item(id, tile)          # a new purchase, so it costs
+		Game.place_from_cabinet(id, tile)  # taken from storage; already paid for
 	else:
 		Game.add_item(id, tile)            # already owned, just relocated
 		_moving_from = NOWHERE

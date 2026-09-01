@@ -554,6 +554,7 @@ func new_run(seed_value: int = 0) -> void:
 	phase = Phase.MORNING
 	roster.clear()
 	room_items.clear()
+	cabinet.clear()
 	homework_out = false
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
@@ -2488,6 +2489,88 @@ func sell_item(tile: Vector2i) -> int:
 	return refund
 
 
+# ---------------------------------------------------------------- the cabinet
+#
+# Everything you own but have not placed. Buying puts an item HERE; you
+# place it from here into the room; packing one up puts it back here;
+# selling is done from here. room_items is only ever what is on the floor
+# right now. Persisted, and cleared by new_run().
+signal cabinet_changed()
+
+var cabinet: Array = []   ## item ids, one entry per owned copy
+
+
+## Buy `id` into the cabinet. Returns "" on success or why it was refused.
+## The shop stays open afterwards -- there is no placement to start yet.
+func buy_to_cabinet(id: String) -> String:
+	var price := shop_price(id)
+	if not can_afford(price):
+		return "not enough coins"
+	spend(price)
+	cabinet.append(id)
+	cabinet_changed.emit()
+	return ""
+
+
+## How many copies of `id` are sitting in the cabinet.
+func cabinet_count(id: String) -> int:
+	var n := 0
+	for c: String in cabinet:
+		if c == id:
+			n += 1
+	return n
+
+
+## The distinct ids in the cabinet, in the catalogue's own order so the
+## list reads the same way the shop does.
+func cabinet_ids() -> Array:
+	var seen: Array = []
+	for id: String in Items.order():
+		if cabinet.has(id) and not seen.has(id):
+			seen.append(id)
+	return seen
+
+
+## Take one copy of `id` out of the cabinet and put it in the room. No
+## charge -- it was paid for when it was bought. False if there is none to
+## take or it does not fit.
+func place_from_cabinet(id: String, tile: Vector2i) -> bool:
+	if not cabinet.has(id) or not item_fits(id, tile):
+		return false
+	cabinet.erase(id)
+	add_item(id, tile)
+	cabinet_changed.emit()
+	return true
+
+
+## Pack a placed item away. Returns its id, or "" if the tile was bare.
+func store_item(tile: Vector2i) -> String:
+	var id := remove_item(tile)
+	if id == "":
+		return ""
+	cabinet.append(id)
+	cabinet_changed.emit()
+	return id
+
+
+## Put one copy of `id` straight into the cabinet without a tile -- used
+## when a carried item is packed away rather than set down.
+func store_id(id: String) -> void:
+	cabinet.append(id)
+	cabinet_changed.emit()
+
+
+## Sell one copy of `id` out of the cabinet for half its price.
+func sell_from_cabinet(id: String) -> int:
+	if not cabinet.has(id):
+		return 0
+	cabinet.erase(id)
+	var refund := sell_value(id)
+	add_coins(refund)
+	cabinet_changed.emit()
+	return refund
+
+
 # ------------------------------------------------------------------- save
 
 func to_dict() -> Dictionary:
@@ -2544,6 +2627,7 @@ func to_dict() -> Dictionary:
 			return {"tx": t.x, "ty": t.y}),
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
+		"cabinet": cabinet.duplicate(),
 	}
 
 
@@ -2614,6 +2698,8 @@ func from_dict(d: Dictionary) -> void:
 	for p: Dictionary in d.get("room_items", []):
 		room_items.append({"id": String(p.get("id", "")),
 			"tile": Vector2i(int(p.get("tx", 0)), int(p.get("ty", 0)))})
+	# An older save has no cabinet key -- it simply loads with an empty one.
+	cabinet = (d.get("cabinet", []) as Array).duplicate()
 	phase = Phase.MORNING
 	roster.clear()
 	for sd: Dictionary in d.get("roster", []):

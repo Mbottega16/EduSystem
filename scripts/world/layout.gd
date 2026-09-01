@@ -104,6 +104,13 @@ const BELL: Vector2i = Vector2i(18, 2)
 ## The furniture catalogue.
 const BOARD: Vector2i = Vector2i(16, 2)
 
+## The storage cabinet. Everything you buy waits here until you place it;
+## you open it to take furniture out, and it is where the opening scene
+## has the teacher pull the desks from. Back wall, between the teacher's
+## desk and the podium -- clear of column 6, which test_movement walks up
+## as its known-clear column.
+const CABINET: Vector2i = Vector2i(5, 2)
+
 ## The optional reward-video poster. Down in the bottom-left corner, away
 ## from the podium / board / bell cluster on the back wall so its prompt
 ## never crowds theirs. Flat on the wall -- build_ad_poster does not block

@@ -534,6 +534,22 @@ def draw_noticeboard():
     return outline(im)
 
 
+def draw_cabinet_body():
+    """The storage cabinet landmark -- a tall wall-standing cupboard the
+    class's desks are pulled from in the opening scene. Bigger and plainer
+    than the small `cabinet` shop item, so the two do not read as the
+    same object."""
+    im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
+    rect(im, 1, 1, 14, 21, WOOD_D)              # carcass
+    rect(im, 2, 2, 13, 20, WOOD)                # front
+    rect(im, 2, 2, 13, 3, (156, 112, 70))      # top lip
+    rect(im, 7, 3, 8, 20, WOOD_D)              # centre stile between doors
+    rect(im, 3, 4, 6, 19, (150, 106, 66))      # left door panel
+    rect(im, 9, 4, 12, 19, (150, 106, 66))     # right door panel
+    px(im, 6, 11, (60, 52, 40)); px(im, 9, 11, (60, 52, 40))   # handles
+    return outline(im)
+
+
 def draw_ad_poster():
     """The optional reward-video poster. E opens it; never forced, never
     pops up on its own -- see scripts/interact/ad_poster.gd."""
@@ -568,7 +584,7 @@ FURNITURE = {
     "chair": draw_chair, "table": draw_table, "desk": draw_desk,
     "teacher_desk": draw_teacher_desk, "podium": draw_podium, "paper": draw_paper,
     "bell": draw_bell, "noticeboard": draw_noticeboard, "bubble_q": draw_bubble_q,
-    "ad_poster": draw_ad_poster,
+    "ad_poster": draw_ad_poster, "cabinet_body": draw_cabinet_body,
 }
 
 

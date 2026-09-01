@@ -19,7 +19,11 @@ extends Node2D
 ## -- are the same ones. All build mode adds is being able to PICK UP from
 ## under the cursor rather than from under your feet.
 signal picked_up(id: String, tile: Vector2i)
-signal sold(tile: Vector2i)
+## Pack the item under the cursor away into the cabinet. Was `sold` -- the
+## room's own contents are packed here now and disposed of from the
+## cabinet screen, so build mode's F puts things AWAY rather than
+## destroying them for half their value.
+signal stored(tile: Vector2i)
 
 signal placed(id: String, tile: Vector2i)
 signal desk_placed(seat_index: int, tile: Vector2i)
@@ -346,7 +350,7 @@ func _handle_input() -> void:
 				Sfx.play("deny")
 			else:
 				Sfx.play("confirm")
-				sold.emit(here2["tile"])
+				stored.emit(here2["tile"])
 		return
 
 	if Input.is_action_just_pressed("cancel"):

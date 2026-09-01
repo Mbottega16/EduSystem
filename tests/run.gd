@@ -246,6 +246,7 @@ func _main() -> void:
 	await test_overlays()
 	await test_marking()
 	await test_shop()
+	await test_cabinet()
 	await test_ad_poster()
 	await test_progress_bar()
 
@@ -2780,7 +2781,7 @@ func test_panels_fit() -> void:
 
 	# every shop tab
 	hud.open_catalogue()
-	for tab in [hud.Shop.BUY, hud.Shop.SELL, hud.Shop.STAFF, hud.Shop.ROOM]:
+	for tab in [hud.Shop.BUY, hud.Shop.CABINET, hud.Shop.STAFF, hud.Shop.ROOM]:
 		hud._shop = tab
 		hud._sel = 0
 		hud._render_catalogue()
@@ -4812,17 +4813,21 @@ func test_build_mode() -> void:
 	chk("and it goes back down where you put it",
 		not Game.item_at(Vector2i(12, 8)).is_empty())
 
-	# --- selling from the cursor ---
+	# --- packing away from the cursor: F stores it in the cabinet, it is
+	# not destroyed for half its value -- disposal happens from the cabinet
+	# screen now ---
 	main._toggle_build()
 	await step(2)
 	var coins_before: int = Game.coins
 	var items_before: int = Game.room_items.size()
-	main.placement.sold.emit(Vector2i(4, 6))
+	var cabinet_before: int = Game.cabinet.size()
+	main.placement.stored.emit(Vector2i(4, 6))
 	await step(3)
-	chk("selling from the cursor removes it",
+	chk("packing away from the cursor takes it off the floor",
 		Game.room_items.size() == items_before - 1)
-	chk("and pays you back", Game.coins > coins_before,
-		"%d -> %d" % [coins_before, Game.coins])
+	chk("and it goes into the cabinet, uncharged, un-refunded",
+		Game.cabinet.size() == cabinet_before + 1 and Game.coins == coins_before,
+		"%d cabinet, %d coins" % [Game.cabinet.size(), Game.coins])
 
 	# --- the rule every other way of moving furniture already follows ---
 	main.placement.finish()
@@ -6248,26 +6253,40 @@ func test_overlays() -> void:
 		hud.mode == hud.Mode.NONE, hud.mode)
 	chk("(and the press that opened it genuinely did open it)", opened_once)
 
-	# order something, and place it. Opening the board is a MANAGE action;
-	# confirming a row inside the overlay is still the ordinary use button.
+	# Buy something, then place it from the cabinet. Buying charges you and
+	# drops the item in storage; the shop stays open. Placement is a
+	# separate step from the CABINET tab, and free.
 	await tap("manage")
-	# The row that is actually highlighted. Items.order()[_sel] is the FLAT
-	# catalogue, but the shop shows one category at a time -- the two agree
-	# only while you are on the first category, which is exactly the kind of
-	# coincidence that holds until something else moves.
 	var chosen: String = String(hud._shop_rows()[hud._sel])
+	while Items.category_of(chosen) == "consumable":
+		await tap("move_down")
+		chosen = String(hud._shop_rows()[hud._sel])
 	var coins_before: int = Game.coins
 	var items_before: int = Game.room_items.size()
+	var cabinet_before: int = Game.cabinet.size()
 	await tap("interact")
 	await step(3)
 	var main: Node = world.get_parent()
-	chk("confirming an order starts placement mode", main.placement.active)
+	chk("buying drops the item in the cabinet, not on the floor",
+		Game.cabinet.size() == cabinet_before + 1 and Game.room_items.size() == items_before,
+		"cabinet %d, room %d" % [Game.cabinet.size(), Game.room_items.size()])
+	chk("and it charges you there and then",
+		Game.coins == coins_before - Items.cost(chosen), Game.coins)
+	chk("the shop stays open to buy more", hud.mode == hud.Mode.CATALOGUE)
+
+	# Over to the cabinet tab and take it out.
+	while hud._shop != hud.Shop.CABINET:
+		await tap("menu")
+	hud._sel = 0
+	hud._render_catalogue()
+	var coins_at_take: int = Game.coins
+	await tap("interact")
+	await step(3)
+	chk("taking one out starts placement mode", main.placement.active)
 	chk("the catalogue closed behind it", hud.mode == hud.Mode.NONE)
 	chk("the ghost did NOT place itself on the same press",
 		Game.room_items.size() == items_before, Game.room_items.size())
 
-	# Find a genuinely free spot rather than assuming one — an earlier
-	# section may already have put something down.
 	var spot := Vector2i(-1, -1)
 	for t: Vector2i in world.grid.free_tiles():
 		if t.y >= 3 and t.y <= 9 and t.x >= 2 and t.x <= 16 and Game.item_fits(chosen, t):
@@ -6278,23 +6297,45 @@ func test_overlays() -> void:
 	chk("the ghost is over a valid tile", main.placement.is_valid(), spot)
 	await tap("interact")
 	await step(3)
-	chk("pressing E puts the item down and charges for it",
+	chk("placing it puts it in the room, no further charge",
 		Game.room_items.size() == items_before + 1
-		and Game.coins == coins_before - Items.cost(chosen),
-		"%d items, %d coins" % [Game.room_items.size(), Game.coins])
+		and Game.coins == coins_at_take
+		and Game.cabinet.size() == cabinet_before,
+		"%d items, %d coins, %d cabinet" % [Game.room_items.size(), Game.coins, Game.cabinet.size()])
 	chk("placement mode ends", not main.placement.active)
 	chk("and you can walk again", not p.input_locked)
 
-	# cancelling placement must refund nothing and unlock
-	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	# cancelling a cabinet-take must leave the copy in storage and unlock
+	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
 	await tap("manage")
+	while hud._shop != hud.Shop.CABINET:
+		await tap("menu")
+	hud._sel = 0
+	hud._render_catalogue()
+	# buy one more so there is something to take out
+	var mid_coins: int = Game.coins
+	var mid_cabinet: int = Game.cabinet.size()
+	if mid_cabinet == 0:
+		hud._shop = hud.Shop.BUY
+		hud._sel = 0
+		hud._render_catalogue()
+		while Items.category_of(String(hud._shop_rows()[hud._sel])) == "consumable":
+			await tap("move_down")
+		await tap("interact")
+		mid_coins = Game.coins
+		mid_cabinet = Game.cabinet.size()
+		while hud._shop != hud.Shop.CABINET:
+			await tap("menu")
+		hud._sel = 0
+		hud._render_catalogue()
 	await tap("interact")
 	await step(3)
-	var mid_coins: int = Game.coins
 	await tap("cancel")
 	await step(3)
-	chk("cancelling placement leaves you unlocked and un-charged",
-		not main.placement.active and not p.input_locked and Game.coins == mid_coins)
+	chk("cancelling a take leaves the copy in the cabinet and un-charged",
+		not main.placement.active and not p.input_locked
+		and Game.coins == mid_coins and Game.cabinet.size() == mid_cabinet,
+		"%d coins, %d cabinet" % [Game.coins, Game.cabinet.size()])
 	# A section that leaves a screen up poisons every section after it, and
 	# the failure surfaces somewhere unrelated. Cheap to pin here.
 	chk("BUTTONS leaves no overlay open behind it",
@@ -6409,7 +6450,7 @@ func test_marking() -> void:
 
 
 func test_shop() -> void:
-	section("BUY, SELL, MOVE")
+	section("BUY, CABINET, MOVE")
 	var hud := _hud()
 	var p: Actor = world.player
 	var main: Node = world.get_parent()
@@ -6425,36 +6466,36 @@ func test_shop() -> void:
 				return true
 		return false).call(), Game.subject)
 
-	# --- selling ---
-	Game.add_item("bookshelf", Vector2i(6, 6))
-	Game.add_item("plant", Vector2i(8, 6))
+	# --- the cabinet: two items owned but not placed ---
+	Game.cabinet.append("bookshelf")
+	Game.cabinet.append("plant")
+	Game.cabinet_changed.emit()
 	await step(2)
-	chk("two items are in the room", Game.room_items.size() == 2)
+	chk("two items are in the cabinet", Game.cabinet.size() == 2)
 
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
 	await tap("manage")
 	chk("the shop opens on the BUY list",
 		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.BUY)
 	await tap("menu")
-	chk("Tab switches to the SELL list", hud._shop == hud.Shop.SELL)
-	chk("the sell list shows what is actually in the room",
+	chk("Tab switches to the CABINET list", hud._shop == hud.Shop.CABINET)
+	chk("the cabinet list shows what you actually own",
 		hud.rich.text.contains("Bookshelf") and hud.rich.text.contains("Potted Plant"),
 		hud.rich.text)
 
+	# Left sells one copy for half.
 	var coins_before: int = Game.coins
-	var refund: int = Game.sell_value(String(Game.room_items[hud._sel]["id"]))
-	await tap("interact")
+	var sell_id: String = String(hud._shop_rows()[hud._sel])
+	var refund: int = Game.sell_value(sell_id)
+	await tap("move_left")
 	await step(2)
-	chk("selling removes the item and pays you back",
-		Game.room_items.size() == 1 and Game.coins == coins_before + refund,
-		"%d items, %d coins (+%d expected)" % [Game.room_items.size(), Game.coins, refund])
+	chk("Left sells one out of the cabinet and pays you back",
+		Game.cabinet.size() == 1 and Game.coins == coins_before + refund,
+		"%d in cabinet, %d coins (+%d expected)" % [Game.cabinet.size(), Game.coins, refund])
 	chk("you get back half, not the full price",
-		refund == int(floor(Items.cost("bookshelf") * Balance.sell_fraction))
-		or refund == int(floor(Items.cost("plant") * Balance.sell_fraction)), refund)
-	chk("the sold item's tile is free to build on again",
-		world.grid.is_free(Vector2i(6, 6)) or world.grid.is_free(Vector2i(8, 6)))
+		refund == int(floor(Items.cost(sell_id) * Balance.sell_fraction)), refund)
 
-	# Tab is a five-stop cycle: buy -> sell -> staff room -> the room ->
+	# Tab is a five-stop cycle: buy -> cabinet -> staff room -> the room ->
 	# lesson crafting -> buy
 	await tap("menu")
 	chk("Tab goes on to the staff room", hud._shop == hud.Shop.STAFF)
@@ -6551,6 +6592,99 @@ func test_shop() -> void:
 					return not (c as Interactable).can_interact()
 		return false).call())
 	Game.set_phase(Game.Phase.AFTERNOON)
+
+
+func test_cabinet() -> void:
+	section("THE CABINET")
+	var hud := _hud()
+	var p: Actor = world.player
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	chk("a new run starts with an empty cabinet", Game.cabinet.is_empty())
+
+	# --- buying goes into storage, not onto the floor ---
+	Game.add_coins(2000)
+	var coins0: int = Game.coins
+	var err := Game.buy_to_cabinet("bookshelf")
+	chk("buying to the cabinet succeeds when you can afford it", err == "")
+	chk("it charges the shop price up front",
+		Game.coins == coins0 - Game.shop_price("bookshelf"), Game.coins)
+	chk("the item is in the cabinet", Game.cabinet_count("bookshelf") == 1)
+	chk("and nothing landed in the room", Game.room_items.is_empty())
+
+	Game.buy_to_cabinet("bookshelf")
+	chk("a second copy stacks", Game.cabinet_count("bookshelf") == 2)
+	chk("cabinet_ids lists it once", Game.cabinet_ids() == ["bookshelf"])
+
+	Game.coins = 0
+	chk("a broke player cannot buy to the cabinet",
+		Game.buy_to_cabinet("globe") != "" and Game.cabinet_count("globe") == 0)
+
+	# --- placing from the cabinet is free and moves one copy ---
+	var placed_ok := Game.place_from_cabinet("bookshelf", Vector2i(9, 6))
+	chk("placing from the cabinet works", placed_ok)
+	chk("it costs nothing -- it was paid for at the shop", Game.coins == 0)
+	chk("one copy left the cabinet", Game.cabinet_count("bookshelf") == 1)
+	chk("and it is on the floor now", not Game.item_at(Vector2i(9, 6)).is_empty())
+	chk("you cannot place what you do not have",
+		not Game.place_from_cabinet("globe", Vector2i(5, 6)))
+	chk("nor place it where it does not fit",
+		not Game.place_from_cabinet("bookshelf", Vector2i(9, 6)))
+
+	# --- packing a placed item away returns it to the cabinet ---
+	var back := Game.store_item(Vector2i(9, 6))
+	chk("packing it away names the item", back == "bookshelf")
+	chk("the floor tile is clear again", Game.item_at(Vector2i(9, 6)).is_empty())
+	chk("and the copy is back in the cabinet", Game.cabinet_count("bookshelf") == 2)
+
+	# --- selling is done from the cabinet, for half ---
+	Game.coins = 0
+	var refund := Game.sell_from_cabinet("bookshelf")
+	chk("selling from the cabinet pays half the price",
+		refund == Game.sell_value("bookshelf") and Game.coins == refund, refund)
+	chk("and removes exactly one copy", Game.cabinet_count("bookshelf") == 1)
+	chk("selling what you do not own pays nothing",
+		Game.sell_from_cabinet("globe") == 0)
+
+	# --- it survives a save round-trip; an old save has none ---
+	var snap := Game.to_dict()
+	Game.from_dict(snap)
+	chk("the cabinet round-trips through a save",
+		Game.cabinet_count("bookshelf") == 1 and Game.to_dict() == snap)
+	var old_save := snap.duplicate()
+	old_save.erase("cabinet")
+	Game.from_dict(old_save)
+	chk("a save from before the cabinet loads with an empty one",
+		Game.cabinet.is_empty())
+
+	# --- the physical landmark opens the cabinet screen ---
+	Game.new_run(SEED)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+	chk("the room has a cabinet to walk up to", world.cabinet != null)
+	chk("it is on the manage key, like the shop",
+		world.cabinet.action_name() == "manage")
+	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	chk("standing at it offers the cabinet",
+		p.targets["manage"] == world.cabinet, p.targets["manage"])
+	await tap("manage")
+	chk("and pressing it opens the shop straight on the cabinet tab",
+		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.CABINET,
+		hud._shop)
+	hud.close()
+	await step(2)
+
+	# --- Game.place_item still works for tools/tests: buy AND place ---
+	Game.add_coins(2000)
+	var c1: int = Game.coins
+	Game.place_item("plant", Vector2i(11, 6))
+	chk("Game.place_item still buys and places in one step",
+		not Game.item_at(Vector2i(11, 6)).is_empty()
+		and Game.coins == c1 - Items.cost("plant"))
+
+	Game.new_run(SEED)
 
 
 func test_ad_poster() -> void:
@@ -8516,7 +8650,7 @@ func test_shop_and_staff() -> void:
 		hud.rich.text)
 
 	await tap("menu")
-	chk("Tab moves to the sell list", hud._shop == hud.Shop.SELL)
+	chk("Tab moves to the cabinet", hud._shop == hud.Shop.CABINET)
 	await tap("menu")
 	chk("Tab again reaches the staff room", hud._shop == hud.Shop.STAFF)
 	chk("which shows your level", hud.rich.text.contains("Level"), hud.rich.text)
