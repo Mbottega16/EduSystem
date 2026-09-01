@@ -1,6 +1,6 @@
 extends Node2D
 
-## PixelRoom test suite.
+## EDUSystem test suite.
 ##
 ##   godot --headless --path . res://tests/run.tscn
 ##
@@ -28,7 +28,7 @@ func _ready() -> void:
 	# NEVER the player's save. advance_day() autosaves, and this suite
 	# advances hundreds of days -- it was overwriting a real save file every
 	# time anybody ran the tests.
-	Game.save_path = "user://pixelroom_TEST_save.json"
+	Game.save_path = "user://edusystem_TEST_save.json"
 	var cmd_args := OS.get_cmdline_user_args()
 	if not cmd_args.is_empty():
 		_filter = cmd_args[0]
@@ -249,7 +249,7 @@ func _main() -> void:
 
 	print("")
 	if failed == 0:
-		print("ALL PIXELROOM CHECKS PASSED  (%d assertions)" % passed)
+		print("ALL EDUSYSTEM CHECKS PASSED  (%d assertions)" % passed)
 	else:
 		print("FAILURES: %d of %d" % [failed, passed + failed])
 	# The baseline check only means anything on a run that PASSED: a run
@@ -3375,6 +3375,31 @@ func test_save_isolation() -> void:
 	chk("its own save file works", Game.has_save())
 	Game.delete_save()
 	chk("and can be cleaned up", not Game.has_save())
+
+	# The PixelRoom -> EDUSystem rename moved the whole user:// directory.
+	# _migrate_one() carries a pre-rename file across exactly once, and never
+	# clobbers a file that is already in place.
+	var mig_src := "user://mig_test_src.json"
+	var mig_dst := "user://mig_test_dst.json"
+	for p: String in [mig_src, mig_dst]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+	var mf := FileAccess.open(mig_src, FileAccess.WRITE)
+	mf.store_string("{\"carried\":true}")
+	mf.close()
+	Game._migrate_one(mig_src, mig_dst)
+	chk("a pre-rename file is carried across", FileAccess.file_exists(mig_dst))
+	chk("with its contents intact",
+		FileAccess.open(mig_dst, FileAccess.READ).get_as_text() == "{\"carried\":true}")
+	var mf2 := FileAccess.open(mig_dst, FileAccess.WRITE)
+	mf2.store_string("KEEP")
+	mf2.close()
+	Game._migrate_one(mig_src, mig_dst)
+	chk("and a file already in place is left untouched",
+		FileAccess.open(mig_dst, FileAccess.READ).get_as_text() == "KEEP")
+	for p: String in [mig_src, mig_dst]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
 func test_bubbles() -> void:

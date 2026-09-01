@@ -21,7 +21,7 @@ if errorlevel 1 set "FAILED=1"
 
 echo.
 echo ================ 3/3  the balance contract
-set "SIMLOG=%TEMP%\pixelroom_sim.log"
+set "SIMLOG=%TEMP%\edusystem_sim.log"
 "%GODOT%" --headless --path "%PROJECT%" res://tools/sim.tscn > "%SIMLOG%" 2>&1
 powershell -NoProfile -Command "$m = Select-String -Path $env:SIMLOG -Pattern 'CONTRACT CHECK' -Context 0,4; if (-not $m) { Write-Host 'no contract line - the simulator did not finish'; exit 1 }; $m.Context.PostContext | ForEach-Object { Write-Host $_ }; if ($m.Context.PostContext -match 'not ok') { exit 1 }"
 if errorlevel 1 set "FAILED=1"

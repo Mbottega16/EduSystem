@@ -58,7 +58,7 @@ var _skirt: CheckBox = null
 func _ready() -> void:
 	get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	DisplayServer.window_set_size(Vector2i(760, 520))
-	get_window().title = "PixelRoom - make a character"
+	get_window().title = "EDUSystem - make a character"
 
 	var tex: Texture2D = load(PREVIEW_BASE)
 	_base = tex.get_image() if tex != null else null

@@ -53,7 +53,7 @@ if grep -q "Parse error" "$LOG"; then
 	rm -f "$LOG"
 	exit 1
 fi
-if ! grep -q "ALL PIXELROOM CHECKS PASSED" "$LOG"; then
+if ! grep -q "ALL EDUSYSTEM CHECKS PASSED" "$LOG"; then
 	echo "pre-commit: BLOCKED -- no completion line. The suite did not finish."
 	rm -f "$LOG"
 	exit 1

@@ -127,7 +127,7 @@ const DT := 1.0 / 60.0
 func _ready() -> void:
 	# Not the player's save -- advance_day() autosaves and this plays whole
 	# terms. See the note on Game.save_path.
-	Game.save_path = "user://pixelroom_SIM_save.json"
+	Game.save_path = "user://edusystem_SIM_save.json"
 	Balance.ensure_loaded()
 	var args := OS.get_cmdline_user_args()
 	var days := int(args[0]) if args.size() > 0 else 40
@@ -140,7 +140,7 @@ func _ready() -> void:
 	# change. If that ever happens, this line is the first thing to check.
 	var v := Engine.get_version_info()
 	print("Godot %d.%d.%d (%s)" % [v.major, v.minor, v.patch, v.get("status", "")])
-	print("\nPixelRoom term simulator - %d days" % days)
+	print("\nEDUSystem term simulator - %d days" % days)
 	print("work %.0fs  lesson %.0fs  stall %.2f/s  room %.2f-%.2f  lesson_cap %.2f"
 		% [Balance.work_seconds, Balance.lesson_seconds,
 		   Balance.stall_chance_per_second, Balance.room_base, Balance.room_cap,

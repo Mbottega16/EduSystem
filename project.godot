@@ -1,10 +1,10 @@
-; PixelRoom — an embodied classroom. You are the teacher.
+; EDUSystem — an embodied classroom. You are the teacher.
 
 config_version=5
 
 [application]
 
-config/name="PixelRoom"
+config/name="EDUSystem"
 run/main_scene="res://scenes/ui/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"

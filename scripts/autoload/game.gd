@@ -16,7 +16,11 @@ enum Phase {
 	AFTERNOON,  ## lesson over, day not yet ended
 }
 
-const SAVE_PATH := "user://pixelroom_save.json"
+const SAVE_PATH := "user://edusystem_save.json"
+
+## Written once, next to the save, after a pre-rename save has been carried
+## across. Its presence is what stops the migration below running every boot.
+const MIGRATION_SENTINEL := "user://.migrated_from_pixelroom"
 
 ## Where this process saves.
 ##
@@ -495,8 +499,49 @@ var _next_id: int = 1
 func ensure_run() -> void:
 	if not roster.is_empty():
 		return
+	migrate_legacy_user_files()
 	if not load_game():
 		new_run()
+
+
+## Carry a pre-rename save and settings file across the user:// directory
+## move that renaming the project (PixelRoom -> EDUSystem) caused. Godot
+## builds user:// from config/name, so the old files sit in a sibling
+## "PixelRoom" folder the running game can no longer see. Runs once, and
+## only for the real game -- a dev tool or the suite redirects save_path,
+## and must never reach into the player's real user directory.
+func migrate_legacy_user_files() -> void:
+	if save_path != SAVE_PATH:
+		return
+	if FileAccess.file_exists(MIGRATION_SENTINEL):
+		return
+	var old_dir := OS.get_user_data_dir().get_base_dir().path_join("PixelRoom")
+	_migrate_one(old_dir.path_join("pixelroom_save.json"), SAVE_PATH)
+	_migrate_one(old_dir.path_join("pixelroom_settings.json"), Settings.PATH)
+	var f := FileAccess.open(MIGRATION_SENTINEL, FileAccess.WRITE)
+	if f != null:
+		f.store_string("carried across from the PixelRoom user directory\n")
+		f.close()
+
+
+## Copy one file from an absolute source path into a user:// destination,
+## but only if the destination does not exist yet. Every failure is quiet:
+## a missing old file is the normal case, not an error.
+func _migrate_one(old_abs: String, new_path: String) -> void:
+	if new_path.is_empty() or FileAccess.file_exists(new_path):
+		return
+	if not FileAccess.file_exists(old_abs):
+		return
+	var src := FileAccess.open(old_abs, FileAccess.READ)
+	if src == null:
+		return
+	var text := src.get_as_text()
+	src.close()
+	var dst := FileAccess.open(new_path, FileAccess.WRITE)
+	if dst == null:
+		return
+	dst.store_string(text)
+	dst.close()
 
 
 func new_run(seed_value: int = 0) -> void:

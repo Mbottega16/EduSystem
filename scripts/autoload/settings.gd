@@ -6,7 +6,7 @@ extends Node
 ## your progress should not also throw away your key bindings or turn the
 ## sound back on.
 
-const PATH := "user://pixelroom_settings.json"
+const PATH := "user://edusystem_settings.json"
 
 ## Every rebindable action, in the order the controls screen lists them.
 ## `label` is what the player is shown; the action name is what the code uses.
@@ -76,6 +76,9 @@ var bindings: Dictionary = {}
 
 
 func _ready() -> void:
+	# Before the first read: carry a pre-rename settings file across the
+	# user:// move (PixelRoom -> EDUSystem). Idempotent, gated by a sentinel.
+	Game.migrate_legacy_user_files()
 	load_settings()
 	apply_all()
 

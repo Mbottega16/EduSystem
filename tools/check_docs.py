@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Check every factual claim in every PixelRoom document against live data.
+"""Check every factual claim in every EDUSystem document against live data.
 
 WHY THIS EXISTS. `docs/BRIEFING.md` once carried a worked example claiming
 the microscope was `range 2, bonus 0.05` when the real item is `range 3,

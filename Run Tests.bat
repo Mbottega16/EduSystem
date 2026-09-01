@@ -19,7 +19,7 @@ REM
 REM A GDScript parse error makes Godot exit 0 while the suite never runs,
 REM so this printed TESTS PASSED with no assertion count at all. Twice in
 REM one session. The success LINE is the only proof it actually finished.
-set "LOG=%TEMP%\pixelroom_tests.log"
+set "LOG=%TEMP%\edusystem_tests.log"
 "%GODOT%" --headless --path "%PROJECT%" res://tests/run.tscn > "%LOG%" 2>&1
 set "CODE=%ERRORLEVEL%"
 type "%LOG%"
@@ -30,7 +30,7 @@ findstr /C:"Parse error" "%LOG%" >nul && (
   if "%~1"=="" pause
   exit /b 1
 )
-findstr /C:"ALL PIXELROOM CHECKS PASSED" "%LOG%" >nul || (
+findstr /C:"ALL EDUSYSTEM CHECKS PASSED" "%LOG%" >nul || (
   echo TESTS FAILED - no completion line. The suite did not finish.
   if "%~1"=="" pause
   exit /b 1

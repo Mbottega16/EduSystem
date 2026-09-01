@@ -1,5 +1,5 @@
 @echo off
-REM Double-click this to play PixelRoom.
+REM Double-click this to play EDUSystem.
 setlocal
 
 call "%~dp0tools\_godot.bat"

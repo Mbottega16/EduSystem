@@ -88,7 +88,7 @@ func _ready() -> void:
 	# a real window and real pixels.
 	get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	DisplayServer.window_set_size(Vector2i(1180, 820))
-	get_window().title = "PixelRoom - art"
+	get_window().title = "EDUSystem - art"
 
 	_swatch_row = $V/Editor/SwatchRow
 	_status = $V/Editor/Status

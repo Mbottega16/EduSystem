@@ -24,7 +24,7 @@ const DAYS := 20
 
 func _ready() -> void:
 	Balance.ensure_loaded()
-	Game.save_path = "user://pixelroom_SCHOOLSIM_save.json"
+	Game.save_path = "user://edusystem_SCHOOLSIM_save.json"
 	print("\n============ A TERM OF DELEGATED ROOMS ============")
 	print("Does hiring matter, and does the board move?\n")
 

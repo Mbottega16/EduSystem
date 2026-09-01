@@ -10,11 +10,11 @@ if "%HERE:~-1%"=="\" set "HERE=%HERE:~0,-1%"
 :menu
 cls
 echo ================================================================
-echo   PixelRoom Dev Console
+echo   EDUSystem Dev Console
 echo ================================================================
 echo.
 echo   PLAY
-echo    1) Play PixelRoom
+echo    1) Play EDUSystem
 echo    2) Open in Godot Editor
 echo.
 echo   VERIFY  (read the assertion COUNT, not just PASSED)
@@ -39,7 +39,7 @@ echo.
 set "CH="
 set /p "CH=Pick a number: "
 
-if "%CH%"=="1"  (start "" "%HERE%\Play PixelRoom.bat" & goto menu)
+if "%CH%"=="1"  (start "" "%HERE%\Play EDUSystem.bat" & goto menu)
 if "%CH%"=="2"  (start "" "%HERE%\Open in Godot Editor.bat" & goto menu)
 if "%CH%"=="3"  (call "%HERE%\Run Tests.bat" & goto menu)
 if "%CH%"=="4"  (call "%HERE%\Verify.bat" & goto menu)
