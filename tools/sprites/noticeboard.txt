@@ -1,47 +1,48 @@
 # name: noticeboard
-# AI-generated art (Gemini via Canva, docs/AI_ART_PROMPTS.md), "PixelRoom
-# Art Batch 4" -- encoded losslessly from the batch PNG into this
-# project's own grid-text format (not hand-drawn pixel by pixel), so
-# it round-trips through the SAME hand-edited-source mechanism every
-# other hand-edited sprite uses, rather than a one-off exception.
-# palette: 0=8C593B,1=1A0F0A,2=331C14,3=C48B64,4=5E3A24,5=748CAB,6=D5DCE6,7=448C5B,8=3E5C76,9=295E3C,A=A9B5C9,B=1D2D44
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-................................
-..0000000000000000000000000000..
-..0122222222222222222222222210..
-..0234.....2333333433333330340..
-..0235.666.03333337.......8340..
-..0235666665333303........5340..
-..0235666697888813........5040..
-..0235666.......10........5340..
-..02356666......10........5340..
-..02356666......10........5340..
-..0235..........10........5340..
-..0235.......6.610........1340..
-..02330333..6.A.1......4333340..
-..02330303.A.A..1......4333340..
-..0234B666......1......8881340..
-..0234.6664444440A.....A..8340..
-..023466666A00000......A..5340..
-..023466666603333......A..5340..
-..023466666603333......A..5340..
-..023466666603333......A..5340..
-..02346A..66033333333.....5340..
-..023466.6.4033333333.....1340..
-..0233000000033333333300000340..
-..0444444444444444444444444440..
-..0000000000000000000000000004..
-................................
-................................
-................................
-................................
+# Hand-authored fixture art (Sept 2026): sized to fill its tile and
+# painted in the room's wood palette with the shared #241A12 outline,
+# replacing the AI 'Art Batch 4' source that did not match the walls.
+# palette: c=#BC9C74,d=#704C2C,g=#D2CEBE,k=#9C8058,l=#BA8C5C,p=#F6F4EC,r=#C6483C,u=#5878B4
+# outline: #241A12
+................................................................
+................................................................
+................................................................
+..llllllllllllllllllllllllllllllllllllllllllllllllllllllllllll..
+..llllllllllllllllllllllllllllllllllllllllllllllllllllllllllll..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+..ddddccccccccccccccccccccccccccccccccccccccccccccccccccccdddd..
+..ddddccccccccccccccccccccccccccccccccccccccccccccccccccccdddd..
+..ddddcccccccccccccccccccccppppppupppppppcccccccccccccccccdddd..
+..ddddccccpppppprppppppccccppppppppppppppcccccccccccccccccdddd..
+..ddddccccpppppppppppppccccppppppppppppppcccccccccccccccccdddd..
+..ddddccccpppppppppppppccccpggggggggggggpccccccpppuppppcccdddd..
+..ddddccccpgggggggggggpccccppppppppppppppccccccppppppppcccdddd..
+..ddddccccpppppppppppppccccppppppppppppppccccccppppppppcccdddd..
+..ddddccccpppppppppppppccccpggggggggggggpccccccpggggggpcccdddd..
+..ddddccccpgggggggggggpccccppppppppppppppccccccppppppppcccdddd..
+..ddddccccpppppppppppppccccppppppppppppppccccccppppppppcccdddd..
+..ddddccccpppppppppppppccccccccccccccccccccccccpggggggpcccdddd..
+..ddddccccpgggggggggggpccccccccccccccccccccccccppppppppcccdddd..
+..ddddccccpppppppppppppccccccccccccccccccccccccppppppppcccdddd..
+..ddddcccccccccccccccccccccccccppppppprpppppppppggggggpcccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppppppppppcccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppppppppppcccdddd..
+..ddddcccccccccccccckccccccccccpggggggggggggggpppppppppcccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppcccccccccccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppcccccccccccdddd..
+..ddddcccccccccccccccccccccccccpggggggggggggggpcccccccccccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppcccccccccccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppcccccccccccdddd..
+..ddddcccccccccccccccccccckccccpggggggggggggggpcccccccccccdddd..
+..ddddcccccccccccccccccccccccccppppppppppppppppcccccccccccdddd..
+..ddddccccccccccccccccccccccccccccccccccccccccccccccccccccdddd..
+..ddddccccccccccccccccccccccccccccccccccccccccccccccccccccdddd..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+..dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd..
+................................................................
+................................................................
+................................................................
+................................................................

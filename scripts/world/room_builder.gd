@@ -314,7 +314,11 @@ static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
 
 
 static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(24, 16))   # doubled, was 12,8
+	# The board art is two tiles wide but hangs on the back wall, so it takes
+	# no floor contact shadow -- add_prop would scale one to the full 64px
+	# width and it would read as a puddle in front of the wall. Same call as
+	# the flat wall poster below.
+	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD), Vector2(24, 16), 0.0, false)
 	var it := Interactable.new()
 	it.set_script(BOARD_SCRIPT)
 	body.add_child(it)
