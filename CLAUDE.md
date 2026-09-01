@@ -35,8 +35,8 @@ repeatedly by edits that seemed obviously right:
   seeded. Global `randi()`/`randf()` are banned project-wide. Without this,
   none of the balance testing can exist.
 - **Numbers do not live in code.** Every tunable is in `data/balance.json`
-  (32 sections, 122 values outside the item and trait tables). Nothing
-  tunable may be a `const` in a `.gd`.
+  (37 sections outside the item and trait tables, 187 `static var`
+  tunables in `balance.gd`). Nothing tunable may be a `const` in a `.gd`.
 - **The balance contract must hold.** Three rows, measured from *simulated*
   play, asserted by the suite:
 
@@ -195,7 +195,7 @@ a deliberate WIP commit.
 | `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold) |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
-| `scripts/ui/hud.gd` | Every screen. 16 modes; ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
+| `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `tests/run.gd` | The suite — 1375 assertions, 91 sections |
