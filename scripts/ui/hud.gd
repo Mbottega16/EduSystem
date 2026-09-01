@@ -1908,12 +1908,12 @@ const TUTORIALS := [
 ## The title card -- a film's slate, said once before the scene itself
 ## starts. Panel-fit verified the same way every other screen is.
 const INTRO_SLATE := [
-	"Twelve years teaching, and it still comes to this: one",
-	"whiteboard marker worn to a stub, eight children who have",
-	"never once all been quiet at the same time, and a staff",
-	"room that ran out of the good biscuits back in March.",
+	"Twelve years teaching, and it still comes to this: a bare",
+	"room, a class list of names you have not met, and a tall",
+	"grey cabinet in the corner with everything you own folded",
+	"up inside it. The bell is in twenty minutes.",
 	"",
-	"Nobody applies for what happens next. It just does.",
+	"Nobody applies for this. Start with the desks.",
 ]
 
 ## The scene itself, re-cut for the shape it is actually said in: a comic
@@ -1926,9 +1926,10 @@ const INTRO_SLATE := [
 ## Said from a bubble above the teacher's own head as they walk in and
 ## take their place at the front -- see main.gd's _start_intro_cutscene().
 const INTRO_PAGES := [
-	["WASD walks.", "E is your button."],
+	["WASD walks.", "E does the small things."],
 	["Help. Collect.", "Clean up the mess."],
-	["F starts the lesson.", "Do that first."],
+	["F is the cabinet", "and the shop."],
+	["L starts the lesson.", "Do that first."],
 	["Or nothing gets", "done today."],
 	["Do this well enough,", "long enough..."],
 	["...and the room stops", "being the whole job."],
