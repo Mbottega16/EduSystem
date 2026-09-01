@@ -1,4 +1,4 @@
-# PixelRoom — audio brief (draft)
+# EDUSystem — audio brief (draft)
 
 *Content batch, August 2026. Source: ChatGPT, integrated without changes
 (copy only — nothing here touches code, balance or the contract. Not yet
@@ -7,7 +7,7 @@ proposals, not registered `Sfx`/`Fx` calls.)*
 
 ## Feel
 
-PixelRoom should sound like a real classroom heard from inside it: paper,
+EDUSystem should sound like a real classroom heard from inside it: paper,
 chairs, footsteps, distant voices and the occasional school bell. The
 tension is quiet and cumulative. Nothing explodes and nothing needs a
 heroic musical cue; the pressure comes from hearing the room become

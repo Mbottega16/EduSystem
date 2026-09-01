@@ -8,15 +8,15 @@ its documents, formulas or catalogues as authoritative here. It taught this
 project a great deal; it is not this project.
 
 This file exists because the salvage question keeps coming back, and each
-time it does, someone proposes re-importing a system PixelRoom deliberately
+time it does, someone proposes re-importing a system EDUSystem deliberately
 does not have.
 
 ---
 
 ## The premise correction that matters most
 
-**PixelRoom is not a port in progress.** It is a finished, working Godot
-4.7 game: 1375 assertions, 50 items, 40 lessons, 120 concepts, a balance
+**EDUSystem is not a port in progress.** It is a finished, working Godot
+4.7 game: 1378 assertions, 50 items, 40 lessons, 120 concepts, a balance
 contract measured from simulated play, and five verification tools.
 
 Any advice framed as "how to move EduSystems into Godot" is answering a
@@ -28,12 +28,12 @@ reasons are worth keeping because they will be proposed again:
 
 | Proposal | Why it does not apply |
 |---|---|
-| Isometric `TileMap`, 2:1 projection, `cartesian_to_isometric()` | PixelRoom is a **flat square grid**. `Grid.TILE` is 32 (doubled Aug 2026, was 16), the room is 20×11 tiles — which is exactly the 640×352 screen. There is no `TileMap` node anywhere in `scripts/`. |
+| Isometric `TileMap`, 2:1 projection, `cartesian_to_isometric()` | EDUSystem is a **flat square grid**. `Grid.TILE` is 32 (doubled Aug 2026, was 16), the room is 20×11 tiles — which is exactly the 640×352 screen. There is no `TileMap` node anywhere in `scripts/`. |
 | `_unhandled_input` on `MOUSE_BUTTON_LEFT` to place furniture | The game is **mouse-free**. Two buttons: E is the mashable verb, F is session-level, irreversible things are HELD. The mouse cycles the card hand and nothing else. |
 | `ItemData` Resource with `@export var cost: int` | **Numbers do not live in code.** Every tunable is in `data/balance.json`. An `@export`ed cost is exactly the constant that rule forbids. |
-| Magenta chroma-key + Pillow processor | PixelRoom has no magenta pipeline. Characters **are palettes** — one drawn model, recoloured, via `Make a Sprite.bat`. The one real seam is that `make_art.py` cannot import, so `godot --headless --path . --import` must follow. |
-| `BattleManager`, mastery/regulation/focus | Concept Battles were cut from EduSystems at the user's request for being too complicating. PixelRoom never had them and is not getting them. |
-| `items_db.json` with `UNI_SAF_01`, tier, ELO, `art_status` | Incompatible schema. PixelRoom items are `cat / cost / range / bonus / w / blurb`, optionally `teaches` / `needs`. There is no tier and no ELO. |
+| Magenta chroma-key + Pillow processor | EDUSystem has no magenta pipeline. Characters **are palettes** — one drawn model, recoloured, via `Make a Sprite.bat`. The one real seam is that `make_art.py` cannot import, so `godot --headless --path . --import` must follow. |
+| `BattleManager`, mastery/regulation/focus | Concept Battles were cut from EduSystems at the user's request for being too complicating. EDUSystem never had them and is not getting them. |
+| `items_db.json` with `UNI_SAF_01`, tier, ELO, `art_status` | Incompatible schema. EDUSystem items are `cat / cost / range / bonus / w / blurb`, optionally `teaches` / `needs`. There is no tier and no ELO. |
 
 None of that code used `Game.rng` either, which would have broken
 determinism on its own.
@@ -46,27 +46,27 @@ This is the genuinely valuable half of the salvage, and the part worth
 re-reading before adding any system.
 
 - **Five school tiers** (Preschool → University), each with its own
-  learning theory and scoring rules. PixelRoom's year-group concept covers
+  learning theory and scoring rules. EDUSystem's year-group concept covers
   this ground at a fraction of the cost. See `docs/TASK_PACK.md` Task 4.
 - **ELO as the central statistic.** It became a chain —
   items → needs → Gardner → theory → ELO → stars → income — that nobody
-  could hold in their head. PixelRoom asks the direct question instead:
+  could hold in their head. EDUSystem asks the direct question instead:
   *are these children learning?*
 - **Gardner's four intelligences as a multiplier system** (4 types × 1.20,
   3 × 1.08, 2 × 1.00, fewer × 0.92). Elegant on paper, opaque in play.
   Real curriculum concepts are more concrete and already do the job.
 - **Maslow as a hard cap** (no Safety + Comfort → ELO capped at 80). The
-  idea is right and PixelRoom keeps it: comfort matters because *children
+  idea is right and EDUSystem keeps it: comfort matters because *children
   behave differently in a bad room*. The cap is not needed to say that.
 - **Prestige, Legacy Points, a three-currency economy** (coins, gems,
-  principal points). Meta-progression for a much larger tycoon. PixelRoom
+  principal points). Meta-progression for a much larger tycoon. EDUSystem
   has coins.
 - **A catalogue that grows to fill itself.** EduSystems went from ~49
   planned items to 353 cataloged, then deleted 59 in a single art review.
   **50 furniture pieces that each earn their slot beat 273 that exist
   because the list looked short.**
 - **Achievement bloat** — 30 challenges plus 30 accolades plus prestige.
-  PixelRoom has 22 milestones that pay nothing and gate nothing.
+  EDUSystem has 22 milestones that pay nothing and gate nothing.
 
 ---
 
@@ -91,14 +91,14 @@ Two things transfer that are **not** yet fully banked:
 
 1. **The vertical-slice gate.** Do not generate a large batch of assets
    before one complete slice is approved. EduSystems learned this the
-   expensive way. For PixelRoom the slice is: one room, one teacher, a
+   expensive way. For EDUSystem the slice is: one room, one teacher, a
    class, a handful of furniture, one lesson, one disruption, one complete
    day — which the game already reaches, so the rule now applies to
    *content batches*: integrate and look at five new items before
    commissioning twenty more.
 2. **The flat-texture lesson, adapted.** EduSystems learned not to ask a
    generator for pre-skewed isometric tiles when the engine applies the
-   transform. PixelRoom is not isometric, so the lesson becomes: ask for
+   transform. EDUSystem is not isometric, so the lesson becomes: ask for
    art in the projection the game actually draws — 3/4 view, 16×16 or
    32×16, bottom row meeting the floor, and *hung on the wall with no
    floor contact* for `flat: true` items. That distinction is already
@@ -109,11 +109,11 @@ Two things transfer that are **not** yet fully banked:
 ## The old catalogue is an idea bank, never a data source
 
 EduSystems' item list and its 20 canonical student traits are worth reading
-for *ideas* when writing new PixelRoom content — they are a record of
+for *ideas* when writing new EDUSystem content — they are a record of
 classroom objects and child behaviours someone already thought hard about.
 
 They must never be imported. Different schema, different economy, different
-game. Read them, then write PixelRoom content from PixelRoom's rules.
+game. Read them, then write EDUSystem content from EDUSystem's rules.
 
 ---
 
@@ -144,7 +144,7 @@ disk. The real data was extracted directly:
   KIN/LIN/LOG/SAF/SPA categories.
 - **Exactly 12 student traits.** Not 20 — that figure appears in old
   documentation and is wrong against the live code.
-- Ten item names already appear in PixelRoom: Art Easel, Coat Hooks,
+- Ten item names already appear in EDUSystem: Art Easel, Coat Hooks,
   Floor Cushion, Microscope, Reading Lamp, Supply Cabinet, Wall Clock,
   Whiteboard, Wooden Stool, World Globe.
 
@@ -171,7 +171,7 @@ change a number attached to a child and nothing else. `gifted` is
 `spd:1.20` and no more.
 
 This is the single most useful thing in the archive, because it is the
-negative example. PixelRoom's rule — *a trait must hook into the work
+negative example. EDUSystem's rule — *a trait must hook into the work
 model or the seating* — was written against exactly this. Compare
 `copier`, which gets a child unstuck off a neighbour so the work visibly
 recovers and the later quiz exposes that they never understood it. That is
@@ -182,7 +182,7 @@ could be expressed as a single multiplier on that child, it has failed.
 
 ### Furniture idea bank
 
-Curated from the real 331. Removed: everything already in PixelRoom, the
+Curated from the real 331. Removed: everything already in EDUSystem, the
 university and district tier (Nobel Laureate Wall, Quantum Computer,
 Endowment Plaque, Superintendent's Nameplate), the gym and lab buildings
 (Rowing Machine, Fume Hood, Radiation Monitor), the old economy's
@@ -191,7 +191,7 @@ generated placeholders (Decor Accent S, Reading Set 143).
 
 What remains is objects that could plausibly stand in one primary
 classroom. **Ideas only — no costs, no categories, no schema.** Anything
-taken from here gets written from PixelRoom's rules.
+taken from here gets written from EDUSystem's rules.
 
 **Seating** — Couch, Rest Mat, Kids Chair, Folding Chair, Step Stool, Soft
 Play Steps, Crawl Tunnel, Ball Pit, Lounge Ottoman, Padded Bench, Scooter
@@ -225,4 +225,4 @@ Extinguisher, First-Aid Kit, Sanitizer Station, Recycling Bin, Trash Can.
 
 **50 items is a design target, not a quota.** EduSystems went from ~49
 planned to 353 cataloged, then deleted 59 in one art review. If item 47 is
-worse than something already in the shop, PixelRoom does not need item 47.
+worse than something already in the shop, EDUSystem does not need item 47.

@@ -3,7 +3,7 @@
 *(Supersedes the raw idea captured in the business vault at
 `my-brain/projects/pixelroom/roguelike-idea.md` — that file was a
 placeholder for exactly this. Real design decisions belong here, in
-PixelRoom's own repo, not the business vault.)*
+EDUSystem's own repo, not the business vault.)*
 
 *(Revised: the first version of this doc got its own load-bearing
 premise wrong — see below. Corrected against the real code rather than
@@ -100,7 +100,7 @@ match the original (wrong) single-term premise.
 ## The skill list → the existing perk board
 
 The original nine-skill list was written without accounting for the
-fact that PixelRoom already has a working, run-scoped, ranked perk
+fact that EDUSystem already has a working, run-scoped, ranked perk
 system (`Game.perk_ranks`, `scripts/data/progress.gd`, the Staff Room
 screen in `hud.gd`). Building a second, parallel skill system alongside
 it would fork progression into two competing UIs for nothing — every

@@ -1,5 +1,5 @@
 ---
-description: Play skeptical outsider and surface 10-15 genuine, specific design critiques of PixelRoom from someone who does not care about education — run periodically to keep design quality honest
+description: Play skeptical outsider and surface 10-15 genuine, specific design critiques of EDUSystem from someone who does not care about education — run periodically to keep design quality honest
 ---
 
 Play a **skeptical outsider**: an experienced management-sim player who

@@ -1,10 +1,10 @@
-# PixelRoom
+# EDUSystem
 
 You are the teacher. Walking the room *is* the game.
 
 ## Play
 
-Double-click **`Play PixelRoom.bat`**, or the **Play PixelRoom** shortcut on
+Double-click **`Play EDUSystem.bat`**, or the **Play EDUSystem** shortcut on
 the Desktop.
 
 It opens on a title screen: **Continue**, **New term**, **How to play**,
@@ -436,7 +436,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1375 assertions
+Run Tests.bat            1378 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

@@ -2,7 +2,7 @@
 description: Full project-status report in the user's custom Deep Scan template — health, active tasks, blockers, risks, next directives
 ---
 
-Produce a full project-status report for PixelRoom, filled in **honestly
+Produce a full project-status report for EDUSystem, filled in **honestly
 from real project state**. Read the actual code and data, run the
 verification tools, and use real conversation history. Never hallucinate
 completed work, never hide uncertainty, never fabricate data. If a section

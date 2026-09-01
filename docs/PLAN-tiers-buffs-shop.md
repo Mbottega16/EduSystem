@@ -204,7 +204,7 @@ more work.
 
 ## The tiers
 
-PixelRoom today **is** T2. T1 sits below; T3–T5 above.
+EDUSystem today **is** T2. T1 sits below; T3–T5 above.
 
 ### T1 · Nursery — *Free play*
 - **No seats, no assigned work, no homework, no podium.**

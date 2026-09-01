@@ -3390,13 +3390,13 @@ func test_save_isolation() -> void:
 	Game._migrate_one(mig_src, mig_dst)
 	chk("a pre-rename file is carried across", FileAccess.file_exists(mig_dst))
 	chk("with its contents intact",
-		FileAccess.open(mig_dst, FileAccess.READ).get_as_text() == "{\"carried\":true}")
+		FileAccess.get_file_as_string(mig_dst) == "{\"carried\":true}")
 	var mf2 := FileAccess.open(mig_dst, FileAccess.WRITE)
 	mf2.store_string("KEEP")
 	mf2.close()
 	Game._migrate_one(mig_src, mig_dst)
 	chk("and a file already in place is left untouched",
-		FileAccess.open(mig_dst, FileAccess.READ).get_as_text() == "KEEP")
+		FileAccess.get_file_as_string(mig_dst) == "KEEP")
 	for p: String in [mig_src, mig_dst]:
 		if FileAccess.file_exists(p):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))

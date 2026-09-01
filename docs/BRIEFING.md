@@ -1,4 +1,4 @@
-# PixelRoom — briefing for an outside AI
+# EDUSystem — briefing for an outside AI
 
 **Attach this file to every task you hand to Gemini, ChatGPT or a Claude
 chat.** It is written to be pasted into a model that cannot see the repo and

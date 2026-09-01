@@ -1,5 +1,5 @@
 ---
-description: Sweep every PixelRoom doc and rewrite stale facts against live repo state — counts, schema examples, file map, the balance contract
+description: Sweep every EDUSystem doc and rewrite stale facts against live repo state — counts, schema examples, file map, the balance contract
 ---
 
 Refresh every reference document against what the repository actually

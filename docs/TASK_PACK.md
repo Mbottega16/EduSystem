@@ -1,4 +1,4 @@
-# PixelRoom — task pack for Gemini / ChatGPT / Claude chat
+# EDUSystem — task pack for Gemini / ChatGPT / Claude chat
 
 **How to use.** Open a **new chat per task**. Attach the files listed under
 that task. Paste the prompt verbatim — everything inside the fenced block,
@@ -70,7 +70,7 @@ future curriculum task.
 **Attach:** `data/curriculum.json`
 
 ```text
-You are writing curriculum content for PixelRoom, a classroom management
+You are writing curriculum content for EDUSystem, a classroom management
 sim whose lessons cite real published standards. The attached
 curriculum.json is the real, current file: 20 lessons, 5 per strand,
 60 concepts.
@@ -205,7 +205,7 @@ is a rule it will explain away.**
 > of the existing 29. Round 1 scored 24 rejections against it.
 
 ```text
-You are designing furniture for PixelRoom, a pixel-art classroom
+You are designing furniture for EDUSystem, a pixel-art classroom
 management sim. Design 21 new items for the classroom shop, taking it
 from 29 to 50. The attached files are the real, current data. Read them
 before starting and trust them over anything else.
@@ -430,7 +430,7 @@ it. **Do not re-send this prompt.**
 **Attach:** `data/balance.json`
 
 ```text
-You are designing student traits for PixelRoom, a classroom management
+You are designing student traits for EDUSystem, a classroom management
 sim. A trait is what makes one child different from another - not how
 WELL they work (that is aptitude and diligence) but how they behave
 while they do it, and therefore what the player has to do about them.
@@ -532,7 +532,7 @@ paragraphs. No other commentary.
 **Attach:** `docs/GDD.md`, `docs/BRIEFING.md`
 
 ```text
-PixelRoom is a classroom management sim: you are a teacher, and walking
+EDUSystem is a classroom management sim: you are a teacher, and walking
 the room is the game. A class of up to eight children sit at desks. Work
 only advances while you stand at the front teaching it. Children get
 stuck (frozen until you reach them), mess about (spreads to whoever sits
@@ -591,7 +591,7 @@ Output as Markdown. No JSON in this one.
 **Attach:** `data/balance.json`
 
 ```text
-You are designing hireable teachers for PixelRoom, a classroom
+You are designing hireable teachers for EDUSystem, a classroom
 management sim. Design 6 new archetypes, taking the hiring pool from
 6 to 12.
 
@@ -684,7 +684,7 @@ naming the class you would give them and the class you would not.
 **Attach:** `data/balance.json`
 
 ```text
-You are writing milestones for PixelRoom, a classroom management sim
+You are writing milestones for EDUSystem, a classroom management sim
 that never ends: terms keep coming and the exam target keeps rising
 until you miss one. Write 15 new milestones, taking it from 15 to 30.
 
@@ -793,7 +793,7 @@ milestone. Then NEEDS NEW STATE, if any.
 **Attach:** `data/balance.json`
 
 ```text
-You are designing day events for PixelRoom, a classroom management sim.
+You are designing day events for EDUSystem, a classroom management sim.
 One event is rolled per day. It is the cheapest possible source of
 variety in a game where every day would otherwise be byte-identical -
 same eight seats, same work, same room.
@@ -880,7 +880,7 @@ OUTPUT
 **Attach:** none needed — everything is in the prompt.
 
 ```text
-You are writing homework questions for PixelRoom, a classroom management
+You are writing homework questions for EDUSystem, a classroom management
 sim.
 
 THE DESIGN CONSTRAINT, which drives everything below: the game shows you
@@ -967,7 +967,7 @@ array of 12, in a single code block. No other commentary.
 **Attach:** `docs/GDD.md`
 
 ```text
-Write the store copy for PixelRoom's Steam page, from the attached
+Write the store copy for EDUSystem's Steam page, from the attached
 design document.
 
 WHAT THE GAME IS, so the pitch stays honest: a pixel-art classroom
@@ -1020,7 +1020,7 @@ Output as Markdown.
 **Attach:** `docs/GDD.md`
 
 ```text
-Write a brief for a composer and sound designer working on PixelRoom, a
+Write a brief for a composer and sound designer working on EDUSystem, a
 pixel-art classroom management sim. See the attached design document.
 
 WHAT EXISTS NOW: eleven procedurally generated sound effects, and no
@@ -1077,7 +1077,7 @@ Output as Markdown.
 **Attach:** none needed — everything is in the prompt.
 
 ```text
-PixelRoom is a classroom management sim. Its children are drawn from a
+EDUSystem is a classroom management sim. Its children are drawn from a
 pool of 48 first names and 32 surnames. Expand it to 96 first names and
 64 surnames - so write 48 new first names and 32 new surnames.
 

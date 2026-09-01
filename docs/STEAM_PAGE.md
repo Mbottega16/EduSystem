@@ -1,4 +1,4 @@
-# PixelRoom — Steam page (draft)
+# EDUSystem — Steam page (draft)
 
 *Content batch, August 2026. Source: ChatGPT, integrated without changes
 (copy only — nothing here touches code, balance or the contract).*
@@ -9,7 +9,7 @@
 
 ## Short description
 
-PixelRoom is a classroom management sim about the work of teaching. Teach
+EDUSystem is a classroom management sim about the work of teaching. Teach
 lessons, walk to stuck pupils, manage disruptions, furnish the room, mark
 homework without an answer key, and get a class through its exam. The
 children who succeed are the ones who leave.
