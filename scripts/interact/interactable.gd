@@ -38,6 +38,11 @@ func set_pick_radius(r: float) -> void:
 ##               already were: what a key does should not depend on which
 ##               desk you happen to be standing at.
 ##   QUIZ      - call a quick quiz, at the podium, mid-lesson.
+##   ANSWER_ALL - go round the whole room at once, at the podium, mid-lesson:
+##               every stuck or quiz-flagged child is helped in one press,
+##               paid for in lesson seconds and a long cooldown. The legwork
+##               of walking desk to desk, compressed -- never a judgement,
+##               and it pays no grade and no coins (see Game.run_answer_all).
 ##   HOMEWORK  - mark the homework you have collected, at your own desk.
 ##   MOVE_DESK - pick up one specific desk and carry it.
 ##
@@ -50,12 +55,12 @@ func set_pick_radius(r: float) -> void:
 ## already shared its tile between two jobs on two keys; a third one
 ## sharing E or F would be exactly the collision this whole scheme exists
 ## to prevent.)*
-enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH, RESPOND }
+enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH, RESPOND, ANSWER_ALL }
 
 ## Every action a landmark can be bound to, in the same order as the enum
 ## above -- the one place that mapping lives, so action_name() is a lookup
 ## rather than a chain of special cases that could disagree with itself.
-const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach", "respond"]
+const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach", "respond", "answer_all"]
 
 ## Seconds the button must be HELD. Zero is instant. Anything irreversible
 ## gets a hold, so a stray press cannot cost you a lesson.

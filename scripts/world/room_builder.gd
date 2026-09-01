@@ -25,6 +25,7 @@ const DESK_STATION_SCRIPT := preload("res://scripts/interact/desk_station.gd")
 const DESK_MOVER_SCRIPT := preload("res://scripts/interact/desk_mover.gd")
 const PODIUM_SCRIPT := preload("res://scripts/interact/podium.gd")
 const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
+const ANSWER_ALL_CALLER_SCRIPT := preload("res://scripts/interact/answer_all_caller.gd")
 const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
@@ -274,6 +275,14 @@ static func build_podium(parent: Node2D, grid: Grid) -> Interactable:
 	quiz.set_script(QUIZ_CALLER_SCRIPT)
 	quiz.add_to_group("quiz_caller")
 	body.add_child(quiz)
+
+	# Same lectern, its own key (J): the mass-help skill. Only live DURING a
+	# lesson and only once its cooldown is up, so it never competes with the
+	# lesson-start/quiz prompts for the picker.
+	var answer_all := Interactable.new()
+	answer_all.set_script(ANSWER_ALL_CALLER_SCRIPT)
+	answer_all.add_to_group("answer_all_caller")
+	body.add_child(answer_all)
 
 	# And the unit test, also on E but only in the MORNING -- so it and the
 	# quiz are never offered in the same phase.

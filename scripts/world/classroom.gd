@@ -29,6 +29,7 @@ signal item_move_requested(id: String, tile: Vector2i)
 signal desk_move_requested(seat_index: int)
 signal desks_changed()
 signal quiz_requested()
+signal answer_all_requested()
 ## How many heard you, so the room can react. -1 means you had nothing left.
 signal voice_raised(settled: int)
 ## The inspector has seen enough.
@@ -135,6 +136,9 @@ func build() -> void:
 	for q in get_tree().get_nodes_in_group("quiz_caller"):
 		if q is Interactable and not q.quiz_requested.is_connected(_on_quiz_requested):
 			q.quiz_requested.connect(_on_quiz_requested)
+	for aa in get_tree().get_nodes_in_group("answer_all_caller"):
+		if aa is Interactable and not aa.answer_all_requested.is_connected(_on_answer_all_requested):
+			aa.answer_all_requested.connect(_on_answer_all_requested)
 	for t in get_tree().get_nodes_in_group("test_caller"):
 		if t is Interactable and not t.test_requested.is_connected(_on_test_requested):
 			t.test_requested.connect(_on_test_requested)
@@ -369,6 +373,9 @@ func rebuild_room() -> void:
 	for q in get_tree().get_nodes_in_group("quiz_caller"):
 		if q is Interactable and not q.quiz_requested.is_connected(_on_quiz_requested):
 			q.quiz_requested.connect(_on_quiz_requested)
+	for aa in get_tree().get_nodes_in_group("answer_all_caller"):
+		if aa is Interactable and not aa.answer_all_requested.is_connected(_on_answer_all_requested):
+			aa.answer_all_requested.connect(_on_answer_all_requested)
 	for t in get_tree().get_nodes_in_group("test_caller"):
 		if t is Interactable and not t.test_requested.is_connected(_on_test_requested):
 			t.test_requested.connect(_on_test_requested)
@@ -435,6 +442,7 @@ func _physics_process(delta: float) -> void:
 		# Without it nothing ended the lesson but the player, so you could
 		# always reach every student and there was no triage to do.
 		lesson_left = maxf(0.0, lesson_left - delta)
+		Game.answer_all_cooldown = maxf(0.0, Game.answer_all_cooldown - delta)
 		lesson_tick.emit(lesson_left)
 		_tick_weather(delta)
 		# Passing a null rng is what makes a test silent: tick_work() only
@@ -600,6 +608,7 @@ func start_lesson() -> int:
 	Game.set_phase(Game.Phase.LESSON)
 	Game.quiz_done = false        # one quiz per lesson, so a new one re-arms it
 	Game.quiz_focus = false       # and the focus it bought goes with it
+	Game.answer_all_cooldown = 0.0  # the mass-help skill comes back fresh too
 	lesson_left = Game.lesson_length()
 	# Auto-teach fully replaces the per-student setup below: RoomSim's own
 	# play_day() does its own reset_lesson()/assign_work() as part of
@@ -710,6 +719,19 @@ func run_quiz() -> Dictionary:
 	Balance.ensure_loaded()
 	var result := Game.run_quiz()
 	lesson_left = maxf(0.0, lesson_left - Balance.quiz_seconds_cost)
+	_refresh_bubbles()
+	if lesson_left <= 0.0:
+		lesson_timed_out.emit()
+	return result
+
+
+## Podium, mid-lesson. The mass-help skill on its own key (J) -- see
+## Game.run_answer_all(). Charges the time to the lesson clock, the same
+## cost that makes the quiz a decision rather than a reflex, only steeper.
+func run_answer_all() -> Dictionary:
+	Balance.ensure_loaded()
+	var result := Game.run_answer_all()
+	lesson_left = maxf(0.0, lesson_left - Balance.answer_all_seconds_cost)
 	_refresh_bubbles()
 	if lesson_left <= 0.0:
 		lesson_timed_out.emit()
@@ -957,6 +979,10 @@ func _on_desk_move_requested(seat_index: int) -> void:
 
 func _on_quiz_requested() -> void:
 	quiz_requested.emit()
+
+
+func _on_answer_all_requested() -> void:
+	answer_all_requested.emit()
 
 
 func _on_curriculum_requested() -> void:

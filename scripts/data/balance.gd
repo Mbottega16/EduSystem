@@ -267,6 +267,15 @@ static var quiz_misjudged_penalty: float = 0.2
 ## What a quiz does to the stall chance for the rest of the lesson.
 static var quiz_focus_mult: float = 0.6
 
+# --- "answer all questions": the mass-help skill (its own key, J) -------
+## One press clears confusion and resolves flagged quizzes for the whole
+## room. It pays NO grade and NO coins -- the whole cost is seconds_cost
+## charged straight to the lesson clock, plus cooldown_seconds before it
+## comes back. seconds_cost is deliberately steeper than the quiz's:
+## this is a panic button, not a reflex.
+static var answer_all_seconds_cost: float = 16.0
+static var answer_all_cooldown_seconds: float = 75.0
+
 # --- graduation & coaching ----------------------------------------------
 static var grad_base_coins: int = 90
 static var grad_coins_per_level: int = 45
@@ -560,6 +569,10 @@ static func apply(d: Dictionary) -> void:
 	quiz_affinity_bonus = float(qz.get("affinity_bonus", quiz_affinity_bonus))
 	quiz_misjudged_penalty = float(qz.get("misjudged_penalty", quiz_misjudged_penalty))
 	quiz_focus_mult = float(qz.get("focus_stall_mult", quiz_focus_mult))
+
+	var aa: Dictionary = d.get("answer_all", {})
+	answer_all_seconds_cost = float(aa.get("seconds_cost", answer_all_seconds_cost))
+	answer_all_cooldown_seconds = float(aa.get("cooldown_seconds", answer_all_cooldown_seconds))
 
 	var gr: Dictionary = d.get("graduation", {})
 	grad_base_coins = int(gr.get("base_coins", grad_base_coins))

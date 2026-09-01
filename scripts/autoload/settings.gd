@@ -19,6 +19,7 @@ const ACTIONS := [
 	{"action": "manage", "label": "Bell / shop"},
 	{"action": "teach", "label": "Start the lesson"},
 	{"action": "quiz", "label": "Quick quiz"},
+	{"action": "answer_all", "label": "Answer all"},
 	{"action": "homework", "label": "Mark homework"},
 	{"action": "move_desk", "label": "Move a desk"},
 	{"action": "voice", "label": "Settle the room"},
@@ -49,6 +50,7 @@ const DEFAULTS := {
 	# collide with anything.
 	"teach": [KEY_L],
 	"quiz": [KEY_Q],
+	"answer_all": [KEY_J],
 	"homework": [KEY_H],
 	"move_desk": [KEY_M],
 	"voice": [KEY_C],

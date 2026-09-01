@@ -202,6 +202,7 @@ func _main() -> void:
 	test_cheats()
 	await test_moving_desks()
 	await test_quiz()
+	await test_answer_all()
 	test_concepts()
 	test_exam_maths()
 	test_next_term()
@@ -993,6 +994,8 @@ func test_balance() -> void:
 		not one_lesson_src.contains("_tick_complications("))
 	chk("...nor cluster_rate_mult() -- the anti-cram penalty is layout-only",
 		not one_lesson_src.contains("cluster_rate_mult("))
+	chk("...nor run_answer_all() -- the mass-help skill pays no grade",
+		not one_lesson_src.contains("run_answer_all("))
 
 
 ## Run real lessons through the actual work model and return the MEAN grade.
@@ -1898,6 +1901,85 @@ func test_quiz() -> void:
 	await step(2)
 
 
+func test_answer_all() -> void:
+	section("ANSWER ALL QUESTIONS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()
+	await step(4)
+
+	chk("a fresh lesson has the skill ready", Game.answer_all_ready())
+	chk("its cooldown starts at zero", Game.answer_all_cooldown == 0.0)
+
+	var caller: Interactable = null
+	for n in get_tree().get_nodes_in_group("answer_all_caller"):
+		if n is Interactable:
+			caller = n
+			break
+	chk("the podium carries an answer-all landmark", caller != null)
+	chk("it is on its own dedicated key", caller.action_name() == "answer_all")
+	chk("and it offers itself mid-lesson while ready", caller.can_interact())
+
+	# Set someone genuinely stuck, and let the quiz flag whoever it flags.
+	var stuck: StudentData = Game.roster[0]
+	stuck.confusion = 1.0
+	world.run_quiz()
+	var flagged: StudentData = null
+	for s: StudentData in Game.roster:
+		if s.quiz_flagged:
+			flagged = s
+			break
+
+	var coins_before := Game.coins
+	var time_before: float = world.lesson_left
+	var res: Dictionary = world.run_answer_all()
+
+	chk("it costs exactly what the table says, off the lesson clock",
+		is_equal_approx(time_before - world.lesson_left, Balance.answer_all_seconds_cost),
+		"%.1f -> %.1f" % [time_before, world.lesson_left])
+	chk("it pays no coins", Game.coins == coins_before)
+	chk("the stuck child is unstuck", not stuck.is_struggling())
+	chk("the result counts who it moved", int(res.get("helped", 0)) >= 1)
+	if flagged != null:
+		chk("a flagged child is resolved too", not flagged.quiz_flagged)
+	else:
+		chk("SKIPPED: this seed flagged nobody for the quiz", true)
+
+	chk("using it puts it on cooldown", not Game.answer_all_ready())
+	chk("the cooldown is the table's full value",
+		is_equal_approx(Game.answer_all_cooldown, Balance.answer_all_cooldown_seconds))
+	chk("and the landmark stops offering itself while it recharges",
+		not caller.can_interact())
+
+	var cd_before: float = Game.answer_all_cooldown
+	await step(30)
+	chk("the lesson clock drains the cooldown", Game.answer_all_cooldown < cd_before)
+
+	# No standalone grade effect: a child who is neither stuck nor flagged is
+	# untouched by it, so it cannot be a way to score points -- the same
+	# guard the quiz has, and why tools/sim.gd never calls it.
+	var calm: StudentData = Game.roster[Game.roster.size() - 1]
+	calm.confusion = 0.0
+	calm.quiz_flagged = false
+	var grade_before := Game.grade_for(calm)
+	Game.answer_all_cooldown = 0.0
+	Game.run_answer_all()
+	chk("it is worth no grade by itself",
+		is_equal_approx(Game.grade_for(calm), grade_before))
+
+	world.end_lesson()
+	await step(2)
+	Game.new_run(SEED)
+	await step(2)
+	world.start_lesson()
+	await step(4)
+	chk("the next lesson gives it back", Game.answer_all_ready())
+
+	world.end_lesson()
+	await step(2)
+
+
 func test_concepts() -> void:
 	section("CONCEPTS & STANDARDS")
 	Balance.ensure_loaded()
@@ -2319,16 +2401,18 @@ func test_two_buttons_one_landmark() -> void:
 		p.targets["interact"])
 	chk("both are on offer together", p.offers().size() == 2, p.offers().size())
 
-	# --- three at once: E (mess), F (end lesson) and Q (quiz), together ---
+	# --- four at once: E (mess), L (end lesson), Q (quiz) and J (answer
+	# all), together ---
 	#
 	# THE BUG THIS CATCHES. The prompt bar's own budget reserved space for
 	# exactly ONE "   " joiner, correct back when only two things could
 	# ever be live (E and F) -- the key remap made a third live verb (Q)
-	# an ordinary thing, and two joiners need twice the reserved space.
-	# The shortfall was eaten by the OUTER clip with no ellipsis, landing
-	# wherever the tail happened to fall: "Q - Quick quiz" silently
-	# rendered as "Q - Quick q". Confirmed by screenshot, reproduced here
-	# by forcing a mess onto the podium's own tile.
+	# an ordinary thing, then the mass-help skill added a fourth (J), and
+	# each extra joiner needs its own reserved space. The shortfall was
+	# eaten by the OUTER clip with no ellipsis, landing wherever the tail
+	# happened to fall: "Q - Quick quiz" silently rendered as "Q - Quick
+	# q". Confirmed by screenshot, reproduced here by forcing a mess onto
+	# the podium's own tile mid-lesson while both podium skills are ready.
 	#
 	# A clean Game.new_run() first: quiz_done and mess state both carry
 	# across sections otherwise, and this block runs after two other
@@ -2341,7 +2425,7 @@ func test_two_buttons_one_landmark() -> void:
 	var _mess := RoomBuilder.build_mess(world, Layout.PODIUM + Vector2i(0, 1), "trash")
 	world.messes.append(_mess)
 	await step(3)
-	chk("all three are live at once", p.offers().size() == 3, p.offers().size())
+	chk("all four are live at once", p.offers().size() == 4, p.offers().size())
 	hud._update_prompt()
 	chk("the quiz prompt is not silently cut off",
 		hud.prompt.text.contains("Quick quiz") or hud.prompt.text.ends_with("."),

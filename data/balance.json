@@ -770,6 +770,11 @@
     "_buff_note": "A quiz cost 14 of a 45-second lesson and returned 1.5s of work per student plus 6s per flagged child -- break-even at about four students on time alone, and nothing of it survived the bell. It now leaves the class FOCUSED for the rest of the lesson: they have just been made to think, so they get stuck less. That is the retrieval-practice claim the 1.5s was already gesturing at, made into something you can feel.",
     "focus_stall_mult": 0.6
   },
+  "answer_all": {
+    "_note": "The mass-help skill, on its own key (J). One press does what walking to every stuck desk and pressing E would: clears confusion, resolves the flagged quizzes -- the same per-child effects, compressed. Like the quiz it pays NO grade and NO coins, so it cannot move the three-row contract; tests/run.gd test_balance() guards that tools/sim.gd never calls it. The whole cost is seconds_cost off the lesson clock (steeper than the quiz's -- this is a panic button) plus cooldown_seconds before it is available again. Re-armed by classroom.start_lesson().",
+    "seconds_cost": 16.0,
+    "cooldown_seconds": 75.0
+  },
   "graduation": {
     "_note": "What sending a child up is worth. Scaled by readiness, so graduating someone the moment they qualify pays less than seeing them through.",
     "base_coins": 90,

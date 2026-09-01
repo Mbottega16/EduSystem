@@ -29,6 +29,7 @@ signal carrying_changed(count: int)
 var targets: Dictionary = {
 	"interact": null, "manage": null,
 	"quiz": null, "homework": null, "move_desk": null, "teach": null,
+	"answer_all": null,
 }
 
 ## The one to describe in the prompt. USE wins when both are live: it is the
@@ -100,7 +101,7 @@ const _KEY_PROMPT_COLORS := {
 	"interact": Color(0.55, 0.85, 1.0), "manage": Color(1.0, 0.75, 0.4),
 	"teach": Color(1.0, 0.55, 0.75), "quiz": Color(0.7, 0.6, 1.0),
 	"homework": Color(0.6, 1.0, 0.65), "move_desk": Color(0.85, 0.85, 0.6),
-	"respond": Color(1.0, 0.55, 0.4),
+	"respond": Color(1.0, 0.55, 0.4), "answer_all": Color(0.55, 0.8, 0.85),
 }
 var _key_prompts_root: Node2D = null
 var _key_prompt_badges: Dictionary = {}   ## action -> {"box": ColorRect, "label": Label, "tween": Tween}

@@ -21,6 +21,7 @@ func _ready() -> void:
 	# Signals that belong to the WORLD itself survive a rebuild, so they are
 	# connected once.
 	world.quiz_requested.connect(_run_quiz)
+	world.answer_all_requested.connect(_run_answer_all)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.marking_requested.connect(hud.open_marking)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
@@ -259,6 +260,17 @@ func _start_chosen_lesson(i: int) -> void:
 
 func _run_quiz() -> void:
 	hud.show_quiz_report(world.run_quiz())
+
+
+## The mass-help skill (J). No result screen -- the room shows it: stuck
+## and quiz bubbles clear on the spot, and the lesson clock takes the
+## hit. The principal explains it once, the first time.
+func _run_answer_all() -> void:
+	world.run_answer_all()
+	Sfx.play("blip")
+	hud.principal_says("answer_all",
+		"You went round the whole room at once. That is most of the lesson's "
+		+ "time gone, and it is a while before you can do it again.")
 
 
 ## Carrying a desk. Unlike a bought item this is NOT lifted off the grid

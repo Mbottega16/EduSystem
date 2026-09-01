@@ -371,6 +371,14 @@ func _update_status() -> void:
 			var ready_pips := int(round((1.0 - dash_cd) * 4.0))
 			bits.append("dash %s%s" % ["|".repeat(ready_pips), ".".repeat(4 - ready_pips)])
 
+	# The mass-help skill's own cooldown, same rules: shown only mid-lesson
+	# and only while it is actually recharging.
+	if teaching and Balance.answer_all_cooldown_seconds > 0.0 and Game.answer_all_cooldown > 0.0:
+		var aa_ready := int(round(
+			(1.0 - Game.answer_all_cooldown / Balance.answer_all_cooldown_seconds) * 4.0))
+		aa_ready = clampi(aa_ready, 0, 4)
+		bits.append("answer-all %s%s" % ["|".repeat(aa_ready), ".".repeat(4 - aa_ready)])
+
 	status.text = _clip_visibly("   ".join(bits))
 
 
@@ -1866,6 +1874,7 @@ const TUTORIALS := [
 	"Some days look different. That is today's event, not decoration.",
 	"Milestones: no reward but the moment itself, and no penalty for missing one.",
 	"Dash: tap Shift, or double-tap a direction. Watch the status bar for its cooldown.",
+	"Answer all (J): unstick the whole room at once. Costs most of the lesson, then a long wait.",
 ]
 
 

@@ -602,6 +602,7 @@ func new_run(seed_value: int = 0) -> void:
 	# measures the balance contract in another, so a row that should
 	# have had no quiz in it was quietly reading 0.69 -> 0.73.
 	quiz_focus = false
+	answer_all_cooldown = 0.0
 	attention = 0.0
 	teaching = false
 	has_aide = false
@@ -1158,6 +1159,7 @@ func next_term() -> Dictionary:
 	exam_result = {}
 	homework_out = false
 	quiz_done = false
+	answer_all_cooldown = 0.0
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -1678,6 +1680,13 @@ var quiz_done: bool = false
 ## of the lesson. Cleared with the lesson, like everything else about it.
 var quiz_focus: bool = false
 
+## Seconds until "answer all questions" (the mass-help skill, its own key J)
+## can be used again. It pays no grade and no coins -- the cost is a big
+## slice of lesson time up front plus this long wait -- so it is a panic
+## button, not a substitute for walking the floor. Ticked down by the
+## lesson clock in classroom._physics_process; re-armed by start_lesson().
+var answer_all_cooldown: float = 0.0
+
 # --- the class's attention -------------------------------------------
 ## 0..1. Filled by standing at the front and teaching, and it drains when
 ## you stop. Work advances in proportion to it.
@@ -2048,6 +2057,32 @@ func run_quiz() -> Dictionary:
 		"average": total / maxf(1.0, float(rows.size())),
 		"subject": subject,
 	}
+
+
+func answer_all_ready() -> bool:
+	return answer_all_cooldown <= 0.0
+
+
+## The mass-help skill, on its own key (J). Go round the whole room at
+## once: clear confusion for every stuck child and resolve every flagged
+## quiz -- the SAME per-desk effects the player's own E press has, just
+## compressed. The cost is lesson seconds up front (charged in
+## classroom.run_answer_all()) and a long cooldown. It pays NO grade and
+## NO coins, exactly like the quiz, so it cannot move the balance
+## contract -- see the guard in tests/run.gd test_balance().
+func run_answer_all() -> Dictionary:
+	Balance.ensure_loaded()
+	var helped := 0
+	var flagged_cleared := 0
+	for s: StudentData in roster:
+		if s.seat_index < 0:
+			continue
+		if s.help():
+			helped += 1
+		if s.resolve_quiz():
+			flagged_cleared += 1
+	answer_all_cooldown = Balance.answer_all_cooldown_seconds
+	return {"helped": helped, "flagged_cleared": flagged_cleared}
 
 
 ## Pay for extra help for one child. `kind` is "tuition" or "parents".
