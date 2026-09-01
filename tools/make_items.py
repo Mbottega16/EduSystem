@@ -589,6 +589,52 @@ def draw_duty_roster():
     return outline(im)
 
 
+# --- subject shelf: each helps one strand -----------------------------
+
+def draw_number_line():
+    im = _blank(30, 10)
+    rect(im, 1, 4, 28, 6, PAPER)
+    rect(im, 1, 4, 28, 4, WOOD)
+    for x in range(3, 28, 4):
+        px(im, x, 6, DARK)
+        px(im, x, 7, DARK)
+    rect(im, 5, 1, 7, 3, BLUE)
+    rect(im, 13, 1, 15, 3, GREEN)
+    rect(im, 21, 1, 23, 3, GOLD)
+    return outline(im)
+
+
+def draw_bug_viewer():
+    im = _blank(14, 16)
+    rect(im, 3, 4, 10, 14, (204, 228, 234))
+    rect(im, 3, 3, 10, 4, STEEL)
+    rect(im, 3, 13, 10, 14, WOOD_D)
+    rect(im, 5, 7, 8, 10, GREEN)
+    px(im, 6, 8, DARK)
+    return outline(im)
+
+
+def draw_rhyme_chart():
+    im = _blank(16, 18)
+    rect(im, 2, 2, 13, 15, PAPER)
+    rect(im, 2, 2, 13, 3, WOOD)
+    rect(im, 9, 5, 11, 13, CLOTH)
+    for y in range(5, 13, 3):
+        rect(im, 4, y, 8, y + 1, DARK)
+    return outline(im)
+
+
+def draw_map_corner():
+    im = _blank(30, 18)
+    rect(im, 1, 1, 28, 15, (216, 226, 236))
+    rect(im, 1, 1, 28, 2, WOOD)
+    rect(im, 4, 5, 12, 11, GREEN)
+    rect(im, 15, 4, 24, 9, GREEN_L)
+    rect(im, 17, 11, 22, 13, GOLD)
+    px(im, 20, 6, CLOTH)
+    return outline(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -630,6 +676,9 @@ ITEMS = {
     "paper_mobile": draw_paper_mobile, "chalk_border": draw_chalk_border,
     "state_flag": draw_state_flag, "vote_box": draw_vote_box,
     "season_wheel": draw_season_wheel, "duty_roster": draw_duty_roster,
+    # subject shelf -- one strand each
+    "number_line": draw_number_line, "bug_viewer": draw_bug_viewer,
+    "rhyme_chart": draw_rhyme_chart, "map_corner": draw_map_corner,
 }
 
 

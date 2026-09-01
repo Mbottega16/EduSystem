@@ -53,6 +53,24 @@ static func teaches(id: String) -> String:
 	return String(get_def(id).get("teaches", ""))
 
 
+## The one subject this item is built for, if any: "ela" / "math" /
+## "science" / "social". Empty means it helps every lesson equally, the
+## way all 54 of the original items do. A subject item gives its ordinary
+## `bonus` on any day and an extra `strand_bonus` on top only when today's
+## lesson matches -- so it is a specialise-your-room choice, not a
+## strictly-better one. Cannot move the balance contract: room_score()
+## clamps to Balance.room_cap and tools/sim.gd fills the contract rooms
+## up to that cap regardless.
+static func strand(id: String) -> String:
+	return String(get_def(id).get("strand", ""))
+
+
+## The extra room_score an item adds on a day its `strand` matches the
+## lesson. Zero for every non-subject item.
+static func strand_bonus(id: String) -> float:
+	return float(get_def(id).get("strand_bonus", 0.0))
+
+
 ## The concept you must already know before this is on sale, if any.
 static func requires(id: String) -> String:
 	return String(get_def(id).get("needs", ""))

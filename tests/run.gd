@@ -160,6 +160,7 @@ func _main() -> void:
 	test_layout()
 	test_balance()
 	test_items()
+	test_subject_items()
 	test_homework()
 	await test_scene()
 	await test_movement()
@@ -1165,6 +1166,62 @@ func test_items() -> void:
 		Game.consumable_bonus_coins == 0 and not Game._consumable_homework_sure
 			and Game.consumables_used_today.is_empty()
 			and is_equal_approx(Game.consumable_multiplier("stall_mult"), 1.0))
+
+	Game.new_run(SEED)
+
+
+func test_subject_items() -> void:
+	section("SUBJECT-SHELF ITEMS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# The 54 originals help every lesson the same. The new ones each carry
+	# a strand and pay extra only on its day.
+	chk("an ordinary item has no strand", Items.strand("stool") == "")
+	chk("and no strand bonus", Items.strand_bonus("stool") == 0.0)
+	chk("a subject item names its strand", Items.strand("number_line") == "math")
+	chk("and carries a strand bonus", Items.strand_bonus("number_line") > 0.0)
+	chk("one per strand shipped", (func() -> bool:
+		var seen := {}
+		for id: String in Items.order():
+			var st := Items.strand(id)
+			if st != "":
+				seen[st] = true
+		for want: String in ["ela", "math", "science", "social"]:
+			if not seen.has(want):
+				return false
+		return true).call())
+
+	# Put a number line in range of seat 0 and measure the room on a maths
+	# day vs an English day.
+	var seat0: Vector2i = Layout.seat(0)
+	Game.room_items.clear()
+	Game.room_items.append({"id": "number_line", "tile": seat0 + Vector2i(0, 2)})
+
+	Game.lesson = Curriculum.by_id("basic_arithmetic")   # math
+	var on_day := Game.room_score(0)
+	Game.lesson = Curriculum.by_id("reading_fluency")    # ela
+	var off_day := Game.room_score(0)
+
+	chk("the room is worth more on the item's own subject day",
+		on_day > off_day, "%.3f vs %.3f" % [on_day, off_day])
+	chk("and the gap is exactly its strand_bonus",
+		is_equal_approx(on_day - off_day, Items.strand_bonus("number_line")),
+		"%.3f" % (on_day - off_day))
+	chk("off its subject it still gives its ordinary bonus",
+		off_day > Balance.room_base,
+		"%.3f vs base %.3f" % [off_day, Balance.room_base])
+
+	# The contract's own guarantee: room_score can never exceed room_cap,
+	# strand bonus or not -- which is why the 0.63/0.71/0.97 rows (measured
+	# at the cap) cannot move no matter how these items are tuned.
+	Game.room_items.clear()
+	for i in 40:
+		Game.room_items.append({"id": "number_line", "tile": seat0 + Vector2i(0, 2)})
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	chk("a roomful still clamps to room_cap",
+		Game.room_score(0) <= Balance.room_cap + 0.0001,
+		"%.3f vs cap %.3f" % [Game.room_score(0), Balance.room_cap])
 
 	Game.new_run(SEED)
 

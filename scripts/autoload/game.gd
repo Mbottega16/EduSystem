@@ -2333,6 +2333,12 @@ func room_score(seat_index: int) -> float:
 			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))
 		if best <= int(def.get("range", 0)):
 			total += float(def.get("bonus", 0.0))
+			# A subject item pays a bit more on a day its strand is being
+			# taught. Additive and small -- the room_cap clamp below is
+			# what keeps this out of the balance contract.
+			var st := String(def.get("strand", ""))
+			if st != "" and st == lesson_strand():
+				total += float(def.get("strand_bonus", 0.0))
 	return minf(Balance.room_cap, total)
 
 

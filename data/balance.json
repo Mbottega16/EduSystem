@@ -540,6 +540,54 @@
       "blurb": "One sound, one card, over and over.",
       "needs": "phonics.apply"
     },
+    "rhyme_chart": {
+      "name": "Rhyme Chart",
+      "cat": "learning",
+      "cost": 115,
+      "art": "rhyme_chart",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.05,
+      "strand": "ela",
+      "strand_bonus": 0.05,
+      "blurb": "Words that end the same, kept in a column."
+    },
+    "number_line": {
+      "name": "Number Line",
+      "cat": "learning",
+      "cost": 120,
+      "art": "number_line",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.05,
+      "strand": "math",
+      "strand_bonus": 0.05,
+      "blurb": "Every count has a place to stand on."
+    },
+    "bug_viewer": {
+      "name": "Bug Viewer",
+      "cat": "learning",
+      "cost": 125,
+      "art": "bug_viewer",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.06,
+      "strand": "science",
+      "strand_bonus": 0.05,
+      "blurb": "Hold still and the small things get big."
+    },
+    "map_corner": {
+      "name": "Map Corner",
+      "cat": "learning",
+      "cost": 130,
+      "art": "map_corner",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.06,
+      "strand": "social",
+      "strand_bonus": 0.05,
+      "blurb": "The wider world, pinned where they can reach it."
+    },
     "hammock_chair": {
       "name": "Hammock",
       "cat": "comfort",
@@ -654,6 +702,10 @@
     "sound_cards",
     "shape_sorter",
     "maths_tiles",
+    "rhyme_chart",
+    "number_line",
+    "bug_viewer",
+    "map_corner",
     "abacus",
     "vocab_board",
     "bookshelf",
@@ -882,6 +934,7 @@
     "consumable"
   ],
   "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn.",
+  "_subject_shelf_note": "number_line/bug_viewer/rhyme_chart/map_corner are the first subject-specific items. Unlike the rest, each carries a 'strand' (ela/math/science/social) and a 'strand_bonus': it pays its small ordinary 'bonus' on any day, plus strand_bonus on top only when today's lesson matches. Specialising the room makes it do more on its subject and less off it -- never strictly better. It cannot move the 0.63/0.71/0.97 contract: Game.room_score() clamps to room_cap and tools/sim.gd fills the contract room to that cap regardless of which items it uses. See Items.strand()/strand_bonus().",
   "traits": {
     "_note": "One per child, rolled at enrolment and never changed. Every trait has a real mechanical hook -- a trait that only shows up as a line of text on the class list is decoration, and decoration is what makes a player stop reading the list. 'blurb' is what the file says about them; the player is never told the numbers.",
     "quiet": {
