@@ -1,9 +1,11 @@
 # What to take from EduSystems, and what to leave
 
-EduSystems is the **prototype archive**. It is not a source of truth for
-PixelRoom, and no agent should treat its documents, formulas or catalogues
-as authoritative here. It taught this project a great deal; it is not this
-project.
+"The EduSystems prototype" (trailing s) is the **prototype archive** — the
+archived HTML/JS predecessor. This game is **EDUSystem** (one word); the two
+names are close on purpose only in that one grew out of the other. The
+prototype is not a source of truth for EDUSystem, and no agent should treat
+its documents, formulas or catalogues as authoritative here. It taught this
+project a great deal; it is not this project.
 
 This file exists because the salvage question keeps coming back, and each
 time it does, someone proposes re-importing a system PixelRoom deliberately

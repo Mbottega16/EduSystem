@@ -4,8 +4,14 @@ You are working on **PixelRoom**, a Godot 4.7 pixel-art classroom management
 sim. This file is the source of truth for how to work on it. Read it fully
 before editing anything.
 
-**Start Claude Code from THIS folder**, not from the EduSystems one. They are
-separate games and this repo depends on nothing outside itself.
+**Start Claude Code from THIS folder**, not from the EduSystems prototype
+folder. They are separate games and this repo depends on nothing outside
+itself.
+
+**Naming, so nothing gets confused:** this game is **EDUSystem** (one word).
+"The EduSystems prototype" (trailing s) always means the archived HTML/JS
+predecessor this project learned from and replaced — see `docs/SALVAGE.md`.
+It is never a source of truth here.
 
 ---
 
