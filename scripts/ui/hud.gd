@@ -361,6 +361,16 @@ func _update_status() -> void:
 	if waiting > 0:
 		bits.append("%d ready" % waiting)
 
+	# Lowest priority on purpose -- the first thing _clip_visibly drops when
+	# the line is full. Silent otherwise: dash is ready almost all the time,
+	# so a bar that is only shown while cooling down is the informative
+	# state, not a pip that reads "full" on every frame that matters less.
+	if _player != null and is_instance_valid(_player):
+		var dash_cd: float = _player.dash_cooldown_fraction()
+		if dash_cd > 0.0:
+			var ready_pips := int(round((1.0 - dash_cd) * 4.0))
+			bits.append("dash %s%s" % ["|".repeat(ready_pips), ".".repeat(4 - ready_pips)])
+
 	status.text = _clip_visibly("   ".join(bits))
 
 
@@ -1855,6 +1865,7 @@ const TUTORIALS := [
 	"The janitor: staff who clean the room without being asked to.",
 	"Some days look different. That is today's event, not decoration.",
 	"Milestones: no reward but the moment itself, and no penalty for missing one.",
+	"Dash: tap Shift, or double-tap a direction. Watch the status bar for its cooldown.",
 ]
 
 

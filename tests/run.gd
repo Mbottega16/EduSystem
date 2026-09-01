@@ -6896,6 +6896,11 @@ func test_dash() -> void:
 	# the E press rather than dying a tile away. Then it snaps back.
 	Game.new_run(SEED)
 	Balance.ensure_loaded()
+	# The two sections above already fired a dash each and left it cooling
+	# down -- Game.new_run() does not touch player-instance dash state, and
+	# a longer cooldown (see teacher.dash_cooldown's HUD-meter note) means
+	# it can no longer be trusted to have drained on its own by now.
+	_reset_dash(world.player)
 	await step(2)
 	var base_r: float = _zone_radius(world.player)
 	world.player.global_position = start
@@ -6917,6 +6922,55 @@ func test_dash() -> void:
 	chk("and it snaps back to the normal reach once the grace lapses",
 		absf(_zone_radius(world.player) - base_r) < 0.5,
 		"%.0f vs %.0f px" % [_zone_radius(world.player), base_r])
+
+	# Double-tap-a-direction trigger: two just_pressed on the SAME direction
+	# within teacher.dash_double_tap_window fires the same burst as the
+	# dedicated dash action -- no "dash" action involved at all.
+	Game.new_run(SEED)
+	Balance.ensure_loaded()
+	_reset_dash(world.player)
+	chk("no cooldown before any dash has fired",
+		world.player.dash_cooldown_fraction() == 0.0, world.player.dash_cooldown_fraction())
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("move_right")
+	await step(2)
+	Input.action_release("move_right")
+	await step(2)
+	world.player.global_position = start   # discard the small nudge from the first tap
+	Input.action_press("move_right")
+	await step(1)
+	await step(W - 1 + 4)
+	Input.action_release("move_right")
+	await step(1)
+	var double_tap_dashed: float = world.player.global_position.x - start.x
+	chk("double-tapping the same direction fires a dash",
+		double_tap_dashed > walked * 1.4,
+		"%.0f px, a walk in the same time is %.0f" % [double_tap_dashed, walked])
+	chk("firing it raises the cooldown fraction",
+		world.player.dash_cooldown_fraction() > 0.0, world.player.dash_cooldown_fraction())
+	_reset_dash(world.player)
+	chk("and _reset_dash drains it back to zero", world.player.dash_cooldown_fraction() == 0.0,
+		world.player.dash_cooldown_fraction())
+
+	# Tapping a DIFFERENT direction first must never combine into a dash --
+	# each direction keeps its own clock.
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("move_left")
+	await step(2)
+	Input.action_release("move_left")
+	await step(2)
+	world.player.global_position = start   # discard the leftward nudge
+	Input.action_press("move_right")
+	await step(1)
+	await step(W - 1 + 4)
+	Input.action_release("move_right")
+	await step(1)
+	var opposite_taps: float = world.player.global_position.x - start.x
+	chk("tapping a different direction first does not combine into a dash",
+		opposite_taps < walked * 1.4,
+		"%.0f px, a walk in the same time is %.0f" % [opposite_taps, walked])
 
 
 ## The current radius of the player's interaction zone -- used by the
@@ -7327,6 +7381,8 @@ func _reset_dash(p: Node) -> void:
 	p._dash_cancel_grace = 0.0
 	p._dash_lane_left = 0.0
 	p._dash_stumbled = false
+	for k: String in (p._tap_since as Dictionary).keys():
+		p._tap_since[k] = 999.0
 
 
 # ============================================ the end-of-session bell rush

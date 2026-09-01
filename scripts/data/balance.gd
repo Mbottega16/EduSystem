@@ -83,7 +83,11 @@ static var teacher_max_level: int = 12
 ## the next dash -- the cooldown is the only limiter, there is no stamina.
 static var teacher_dash_speed_multiplier: float = 2.6
 static var teacher_dash_duration: float = 0.2
-static var teacher_dash_cooldown: float = 0.35
+static var teacher_dash_cooldown: float = 1.3
+## Trigger: double-tap a direction within this many seconds of the first
+## press, or use the dedicated `dash` action (Shift) -- either fires the
+## same burst. See player.gd's _tick_double_tap_dash().
+static var teacher_dash_double_tap_window: float = 0.28
 ## Dash-cancel: for this long after a burst ends, the pick zone is widened
 ## by teacher_dash_cancel_reach px, so a dash that stops just short still
 ## reaches the desk. Reach only -- nothing a delegated room is graded on.
@@ -396,6 +400,7 @@ static func apply(d: Dictionary) -> void:
 	teacher_dash_speed_multiplier = float(tc.get("dash_speed_multiplier", teacher_dash_speed_multiplier))
 	teacher_dash_duration = float(tc.get("dash_duration", teacher_dash_duration))
 	teacher_dash_cooldown = float(tc.get("dash_cooldown", teacher_dash_cooldown))
+	teacher_dash_double_tap_window = float(tc.get("dash_double_tap_window", teacher_dash_double_tap_window))
 	teacher_dash_cancel_grace = float(tc.get("dash_cancel_grace", teacher_dash_cancel_grace))
 	teacher_dash_cancel_reach = float(tc.get("dash_cancel_reach", teacher_dash_cancel_reach))
 	teacher_dash_lane_extend = float(tc.get("dash_lane_extend", teacher_dash_lane_extend))

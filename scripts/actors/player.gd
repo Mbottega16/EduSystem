@@ -506,8 +506,36 @@ var _dash_stumbled: bool = false
 var _dash_fx_room: Node = null
 var _dash_ghost_t: float = 0.0
 
+## Double-tap-a-direction trigger. Seconds since the last just_pressed on
+## each move_* action; a second press on the SAME direction within
+## teacher.dash_double_tap_window fires a dash. Opposite/different
+## directions never combine -- each has its own clock, so tap-left-then-
+## tap-right cannot read as a dash. The dedicated `dash` action (Shift,
+## see settings.gd) still fires the same burst; this is a second trigger
+## for the same code below, not a replacement.
+var _tap_since: Dictionary = {
+	"move_left": 999.0, "move_right": 999.0, "move_up": 999.0, "move_down": 999.0,
+}
+
+
+## Returns true the one frame a double-tap fires. Always ticks the clocks,
+## even when a dash could not fire right now (mid-burst, on cooldown,
+## input locked), so a tap during that window still counts toward the
+## next legal one.
+func _tick_double_tap_dash(delta: float) -> bool:
+	Balance.ensure_loaded()
+	var fired := false
+	for action: String in _tap_since.keys():
+		_tap_since[action] = float(_tap_since[action]) + delta
+		if Input.is_action_just_pressed(action):
+			if float(_tap_since[action]) <= Balance.teacher_dash_double_tap_window:
+				fired = true
+			_tap_since[action] = 0.0
+	return fired
+
 
 func _tick_dash(delta: float, dir: Vector2) -> void:
+	var double_tapped := _tick_double_tap_dash(delta)
 	var was_bursting := _dash_burst > 0.0
 	_dash_burst = maxf(0.0, _dash_burst - delta)
 	_dash_cool = maxf(0.0, _dash_cool - delta)
@@ -557,13 +585,24 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 		return
 	if dir == Vector2.ZERO or _dash_burst > 0.0 or _dash_cool > 0.0:
 		return
-	if Game.claim_action("dash"):
+	if Game.claim_action("dash") or double_tapped:
 		Balance.ensure_loaded()
 		_dash_burst = Balance.teacher_dash_duration
 		_dash_cool = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown
 		_dash_lane_left = Balance.teacher_dash_lane_extend
 		_dash_stumbled = false
 		Sfx.play("blip")
+
+
+## 0 when dash is ready to fire again, up to 1 the instant one just did.
+## The HUD's status strip reads this to draw a cooldown pip -- see
+## hud.gd _update_status().
+func dash_cooldown_fraction() -> float:
+	Balance.ensure_loaded()
+	var total: float = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown
+	if total <= 0.0:
+		return 0.0
+	return clampf(_dash_cool / total, 0.0, 1.0)
 
 
 ## Whether the tile the teacher is standing on is beside a "lane" or
