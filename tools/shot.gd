@@ -337,6 +337,15 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud.open_catalogue()
 			hud._shop = hud.Shop.STAFF
 			hud._render_catalogue()
+		"staff_scrolled":
+			# Worst case for the perk-list windowing: a middle selection
+			# shows BOTH ellipses at once -- the exact row count that has
+			# to fit the panel budget, not just the top-of-list case.
+			Game.add_teacher_xp(4000)
+			hud.open_catalogue()
+			hud._shop = hud.Shop.STAFF
+			hud._sel = 6
+			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
 		# "curriculum" is handled earlier in this match -- GDScript's match
@@ -469,6 +478,26 @@ func _open_screen(main: Node, screen: String) -> void:
 				kk += 1
 			Game.sit_exam()
 			hud.show_new_term(Game.next_term())
+		"term_paths":
+			# The PokeRogue-style fork: a REAL drawn hand (TermPaths.draw(),
+			# not a hand-crafted fixture) through the real shuffle -- same
+			# reasoning as "hand_shuffle" above, and the same 90-frame wait
+			# comfortably outlasts the ~0.42s reveal.
+			Game.new_run(0)
+			Game.draw_term_paths()
+			hud.show_term_paths(true)
+		"desk_interruption":
+			# The RESPOND badge, in situ. Game.interruption built the exact
+			# way _tick_complications() actually builds it (a duplicated
+			# table row plus a "left" countdown), not a hand-rolled dict --
+			# and world.player parked on the same tile tests/run.gd already
+			# proved reaches this desk (Layout.TEACHER_DESK[0] + (0,1)).
+			world.start_lesson()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.TEACHER_DESK[0] + Vector2i(0, 1))
+			var call_row := Complication.by_id("phone_call")
+			Game.interruption = call_row.duplicate()
+			Game.interruption["left"] = float(call_row.get("ring_seconds", 8.0))
 		"exam":
 			# A term somebody actually played: a furnished room, a full
 			# curriculum, one child sent up, and a spread of results rather

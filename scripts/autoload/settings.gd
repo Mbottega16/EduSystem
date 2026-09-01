@@ -30,6 +30,7 @@ const ACTIONS := [
 	{"action": "dashboard", "label": "Your dashboard"},
 	{"action": "watch", "label": "Watch a delegated room"},
 	{"action": "fire", "label": "Let go a hired teacher"},
+	{"action": "respond", "label": "Answer what's waiting at your desk"},
 	{"action": "pause", "label": "Pause"},
 ]
 ## Bound, but not offered for rebinding: Escape always means "back out".
@@ -59,6 +60,7 @@ const DEFAULTS := {
 	"dashboard": [KEY_I],
 	"watch": [KEY_V],
 	"fire": [KEY_G],
+	"respond": [KEY_K],
 	"pause": [KEY_P],
 	"cancel": [KEY_ESCAPE],
 }

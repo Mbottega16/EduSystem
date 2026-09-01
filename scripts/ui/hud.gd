@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS }
+	ADS, PATHS }
 enum Shop { BUY, SELL, STAFF, ROOM, CRAFT }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
@@ -148,6 +148,10 @@ var _showing_exam: bool = false
 ## The run itself has ended. Closing this one starts a new run rather than
 ## a new term.
 var _showing_run_over: bool = false
+## The new-term announcement is up. Closing THIS one hands off to the
+## path-pick screen instead of straight back to play -- see show_new_term()
+## and the Mode.REPORT close handling below.
+var _showing_new_term: bool = false
 ## The school screen is showing the hiring list rather than the rooms.
 var _hiring: bool = false
 ## Which room a hire is FOR.
@@ -216,31 +220,37 @@ func _process(_delta: float) -> void:
 ## and missed by the other — which is exactly what happened: Tab opened the
 ## class list in play but never in a test, because the test drives the
 ## physics tick.
-## The wheel and the mouse, for the one screen that is a folder of pages.
+## The wheel and the mouse, for the two screens that are a folder of pages
+## -- the assignment hand, and (since it was built as a near-duplicate of
+## it) the term-path pick.
 ##
 ## _input rather than the physics poll because a wheel notch is an EVENT --
 ## it has no held state to sample, so polling would miss it entirely.
 func _input(e: InputEvent) -> void:
-	if mode != Mode.HAND or Game.hand.is_empty():
+	if mode != Mode.HAND and mode != Mode.PATHS:
 		return
-	var n: int = Game.hand.size()
+	var hand: Array = Game.hand if mode == Mode.HAND else Game.term_path_hand
+	if hand.is_empty():
+		return
+	var n: int = hand.size()
+	var show_page := show_hand if mode == Mode.HAND else show_term_paths
 	if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
 		var b := (e as InputEventMouseButton).button_index
 		if b == MOUSE_BUTTON_WHEEL_DOWN:
 			_sel = (_sel + 1) % n
 			Sfx.play_varied("paper")
-			show_hand()
+			show_page.call()
 			accept_event()
 		elif b == MOUSE_BUTTON_WHEEL_UP:
 			_sel = (_sel - 1 + n) % n
 			Sfx.play_varied("paper")
-			show_hand()
+			show_page.call()
 			accept_event()
 		elif b == MOUSE_BUTTON_LEFT:
 			# clicking the page turns it, the way you would nudge a corner
 			_sel = (_sel + 1) % n
 			Sfx.play_varied("paper")
-			show_hand()
+			show_page.call()
 			accept_event()
 
 
@@ -468,6 +478,7 @@ func _open(m: int) -> void:
 	# flag can only ever be true for the screen that set it.
 	_showing_exam = false
 	_showing_run_over = false
+	_showing_new_term = false
 	_hiring = false
 	overlay.visible = true
 	if _player != null and is_instance_valid(_player):
@@ -763,6 +774,11 @@ func _room_spend() -> int:
 
 ## The same rank bars the staff room draws, without a cursor and without
 ## the "E to spend a point" hint -- spending stays the staff room's job.
+## A summary, not a full listing -- deliberately, since this page has no
+## cursor to window with the way the (now-windowed) Staff Room does. Eleven
+## perks stopped fitting the moment six landed alongside the roguelike
+## pivot's skill list; a fixed row budget that scales with however many
+## perks the game eventually has needs a summary here, not a growing list.
 func _render_dash_skills() -> Array[String]:
 	var lines: Array[String] = []
 	lines.append("[color=#%s]%d point%s unspent[/color]" % [
@@ -770,16 +786,18 @@ func _render_dash_skills() -> Array[String]:
 		"" if Game.perk_points_free() == 1 else "s"])
 	lines.append("")
 	var order := Progress.perk_order()
-	for id: String in order:
-		var d := Progress.perk_def(id)
-		var have := Game.perk_rank(id)
-		var cap := Progress.max_rank(id)
-		lines.append("[color=#%s]%-17s[/color] [color=#%s]%s[/color]" % [
-			C_LESSON if have > 0 else DIM, String(d.get("name", id)),
-			C_LESSON if have > 0 else DIM,
-			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
 	if order.is_empty():
 		lines.append("[color=#%s]No perks defined.[/color]" % DIM)
+		return lines
+	var ranked := 0
+	for id: String in order:
+		if Game.perk_rank(id) > 0:
+			ranked += 1
+	lines.append("[color=#%s]%d of %d skills trained[/color]" % [
+		C_LESSON if ranked > 0 else DIM, ranked, order.size()])
+	lines.append("")
+	lines.append("[color=#%s]See the Staff Room for the full list and[/color]" % DIM)
+	lines.append("[color=#%s]what each rank does.[/color]" % DIM)
 	return lines
 
 
@@ -1482,6 +1500,77 @@ func _render_hand() -> void:
 	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
 
 
+## THE FORK AT THE START OF A TERM -- PokeRogue-style: a few pre-rolled
+## paths, drawn without replacement (see TermPaths.draw()), pick one and
+## the rest are discarded. Deliberately a near-duplicate of show_hand()/
+## _render_hand() above, reusing the same page-turn feel and the same
+## shuffle reveal (_shuffle_frame() below is already hand-agnostic).
+##
+## Reached only from show_new_term()'s own close -- see the Mode.REPORT
+## handling in _handle_input() and the _showing_new_term flag.
+func show_term_paths(fresh: bool = false) -> void:
+	_open(Mode.PATHS)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", 16)
+
+	if Game.term_path_hand.is_empty():
+		close()
+		return
+	_sel = 0
+	if fresh:
+		_play_path_shuffle()
+	else:
+		_render_term_paths()
+
+
+func _play_path_shuffle() -> void:
+	var n: int = Game.term_path_hand.size()
+	title.text = "SHUFFLING..."
+	var t := create_tween()
+	for i in SHUFFLE_STEPS:
+		t.tween_callback(_shuffle_frame.bind(n, i))
+		t.tween_interval(SHUFFLE_STEP_SECONDS)
+	t.tween_callback(_render_term_paths)
+
+
+func _render_term_paths() -> void:
+	var n: int = Game.term_path_hand.size()
+	if n == 0:
+		close()
+		return
+	_sel = clampi(_sel, 0, n - 1)
+	var row: Dictionary = Game.term_path_hand[_sel]
+	# density_mult runs roughly 0.5..2.4 across the four paths on file --
+	# folded onto the same 1..5 ladder _difficulty_bar() already draws for
+	# an assignment's own length, so "how much can go wrong" reads the
+	# same visual language a returning player already knows.
+	var level := clampi(int(round(float(row.get("density_mult", 1.0)) * 2.0)), 1, 5)
+
+	title.text = "CHOOSE YOUR TERM  -  %d of %d" % [_sel + 1, n]
+
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%s[/color]" % [C_ROOM, String(row.get("name", "Term"))])
+	lines.append("[color=#%s]%s[/color]" % [DIM, _wrap(String(row.get("blurb", "")), 52, 2)])
+	lines.append("")
+	lines.append("[color=#%s]Lessons run[/color]  x%.2f     [color=#%s]pays x%.2f[/color]" % [
+		DIM, float(row.get("lesson_mult", 1.0)), C_COIN, float(row.get("coin_mult", 1.0))])
+	lines.append("[color=#%s]How much can go wrong[/color]  %s" % [
+		DIM, _difficulty_bar(level)])
+	lines.append("")
+	# the page edge, same shape as the hand's own
+	var edge := ""
+	for i in n:
+		edge += "[color=#%s]%s[/color]" % [
+			C_ROOM if i == _sel else DIM, BAR_FULL if i == _sel else BAR_EMPTY]
+	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, DIM])
+
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.22)
+	hint.text = "Scroll / click / Up-Down to turn    E - start the term this way"
+
+
 ## THE SCHOOL: every room, and how it did.
 ##
 ## This is the manager altitude's whole screen. A delegated room is resolved
@@ -1977,6 +2066,9 @@ func show_specialism() -> void:
 ## again with children you have never met.
 func show_new_term(info: Dictionary) -> void:
 	_open(Mode.REPORT)
+	# Closing THIS report hands off to the path-pick screen rather than
+	# straight back to play -- see the Mode.REPORT close handling.
+	_showing_new_term = true
 	Sfx.play("start")
 	body.visible = false
 	rich.visible = true
@@ -2598,7 +2690,8 @@ func _render_catalogue() -> void:
 		for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
 			var id: String = rows[i]
 			var d := Items.get_def(id)
-			var afford: bool = Game.can_afford(int(d["cost"]))
+			var price := Game.shop_price(id)
+			var afford: bool = Game.can_afford(price)
 			var hue := cat_colour(Items.category_of(id))
 			# The price is the thing you are actually deciding on, so it
 			# carries the yes/no colour rather than the name doing it.
@@ -2609,12 +2702,12 @@ func _render_catalogue() -> void:
 				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [color=#%s]today only[/color]" % [
 					">" if i == _sel else " ", hue if afford else DIM,
 					String(d["name"]).substr(0, 13),
-					C_GOOD if afford else C_BAD, int(d["cost"]), DIM])
+					C_GOOD if afford else C_BAD, price, DIM])
 			else:
 				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
 					">" if i == _sel else " ", hue if afford else DIM,
 					String(d["name"]).substr(0, 13),
-					C_GOOD if afford else C_BAD, int(d["cost"]),
+					C_GOOD if afford else C_BAD, price,
 					_worth_bar(float(d["bonus"])),
 					"[color=#%s]%s[/color]" % [DIM,
 						_reach_words(int(d["range"]), float(d["bonus"]))]])
@@ -2791,8 +2884,20 @@ func _render_staff() -> Array[String]:
 	lines.append(_staff_row(1, "Janitor", Game.has_janitor,
 		Game.janitor_level, Balance.janitor_wage, Balance.janitor_cost))
 
+	# Windowed, not a flat list: this screen already spends 4 rows on the
+	# header/aide/janitor before a single perk shows, and eleven perks
+	# (six added alongside the roguelike pivot's skill list, reconciled
+	# onto this board rather than a second one) blew straight through the
+	# panel budget the moment they landed -- caught by counting the real
+	# row total, not assumed safe because five perks used to fit.
+	const STAFF_PERK_ROWS := 3
 	var order := Progress.perk_order()
-	for i in order.size():
+	var perk_lo := 0
+	if order.size() > STAFF_PERK_ROWS:
+		perk_lo = clampi((_sel - 2) - STAFF_PERK_ROWS / 2, 0, order.size() - STAFF_PERK_ROWS)
+	if perk_lo > 0:
+		lines.append("   ...")
+	for i in range(perk_lo, mini(order.size(), perk_lo + STAFF_PERK_ROWS)):
 		var id: String = order[i]
 		var d := Progress.perk_def(id)
 		var have := Game.perk_rank(id)
@@ -2801,6 +2906,8 @@ func _render_staff() -> Array[String]:
 			">" if i + 2 == _sel else " ", String(d.get("name", id)),
 			C_LESSON if have > 0 else DIM,
 			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
+	if perk_lo + STAFF_PERK_ROWS < order.size():
+		lines.append("   ...")
 	lines.append("")
 	if _sel == 0 or _sel == 1:
 		var hired: bool = Game.has_aide if _sel == 0 else Game.has_janitor
@@ -3031,6 +3138,35 @@ func _handle_input() -> void:
 			assignment_chosen.emit(picked)
 		return
 
+	if mode == Mode.PATHS:
+		var pn: int = Game.term_path_hand.size()
+		if pn == 0:
+			close()
+		elif Input.is_action_just_pressed("cancel"):
+			# Backing out without picking keeps whatever path was already
+			# active (last term's choice, or the {} default on term 1)
+			# rather than silently forcing "ordinary" -- a no-op reads
+			# truer than overwriting a choice this screen never asked
+			# about. Resolves entirely here, the same way a hire does in
+			# the SCHOOL screen below: no lesson starts from this screen,
+			# so there is nothing for main.gd to do with it.
+			Sfx.play("blip")
+			Game.term_path_hand.clear()
+			close()
+		elif Input.is_action_just_pressed("move_down"):
+			_sel = (_sel + 1) % pn
+			Sfx.play_varied("paper")
+			show_term_paths()
+		elif Input.is_action_just_pressed("move_up"):
+			_sel = (_sel - 1 + pn) % pn
+			Sfx.play_varied("paper")
+			show_term_paths()
+		elif Game.claim_interact():
+			Sfx.play("confirm")
+			Game.choose_term_path(_sel)
+			close()
+		return
+
 	if mode == Mode.SCHOOL:
 		if _hiring:
 			var na: int = Game.applicants.size()
@@ -3229,6 +3365,10 @@ func _handle_input() -> void:
 				Game.new_run()
 				show_title()
 				return
+			if _showing_new_term:
+				_showing_new_term = false
+				show_term_paths(true)
+				return
 			close()
 		return
 
@@ -3342,7 +3482,7 @@ func _handle_input() -> void:
 					var uerr := Game.use_consumable(id)
 					Sfx.play("deny" if uerr != "" else "confirm")
 					_render_catalogue()
-				elif Game.can_afford(Items.cost(id)):
+				elif Game.can_afford(Game.shop_price(id)):
 					Sfx.play("confirm")
 					close()
 					item_chosen.emit(id)

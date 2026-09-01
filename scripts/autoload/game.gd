@@ -53,6 +53,14 @@ var event: Dictionary = {}      ## what makes today different from yesterday
 ## day boundaries are Game's though, so the tally sits here.
 var _flares_today: int = 0
 
+## A pending desk interruption (phone call / parent conference) -- empty
+## when nothing is waiting. Counted and ticked the same way flares are:
+## classroom.gd owns the countdown (a thing in the room), Game owns the
+## per-lesson tally. Neither is saved -- lesson-scoped transient state,
+## same as lesson_left.
+var interruption: Dictionary = {}
+var _complications_today: int = 0
+
 ## The end-of-session bell rush -- OFF unless Balance.bell_rush_enabled (it
 ## belongs to a later stage of the game). Seconds left on the round, 0 when
 ## not running; and which seats have had their marked work handed back.
@@ -364,7 +372,7 @@ signal hand_drawn(cards: Array)
 
 
 func draw_hand() -> Array:
-	hand = Assignments.draw(rng, lesson)
+	hand = Assignments.draw(rng, lesson, Progress.assignment_luck(perk_ranks))
 	hand_drawn.emit(hand)
 	return hand
 
@@ -399,6 +407,39 @@ var teacher_xp: int = 0
 var teacher_level: int = 1
 var perk_ranks: Dictionary = {}      ## perk id -> ranks bought
 var graduated: Array = []            ## [{name, level, readiness, day}]
+
+# --- the fork at the start of each term ------------------------------
+## The drawn-but-not-yet-chosen hand, and the path actually active for
+## the CURRENT term (empty dict = every multiplier below reads as 1.0,
+## i.e. today's ordinary numbers -- see TermPaths.draw()).
+var term_path_hand: Array = []
+var term_path: Dictionary = {}
+
+## One factor in Game.lesson_length()'s chain, or complication onset's
+## own scaling -- never touches Balance.lesson_seconds itself.
+func term_path_multiplier(key: String) -> float:
+	return float(term_path.get(key, 1.0))
+
+
+func complication_density_mult() -> float:
+	return term_path_multiplier("density_mult")
+
+
+## Rolled once, at the moment a new term opens -- see next_term(). Not
+## rolled on demand, so the report screen that just closed can hand
+## straight off to a hand that's already waiting.
+func draw_term_paths() -> Array:
+	Balance.ensure_loaded()
+	term_path_hand = TermPaths.draw(rng, Balance.term_path_hand_min)
+	return term_path_hand
+
+
+func choose_term_path(i: int) -> Dictionary:
+	if i < 0 or i >= term_path_hand.size():
+		return {}
+	term_path = (term_path_hand[i] as Dictionary).duplicate()
+	term_path_hand.clear()
+	return term_path
 
 ## Cosmetics. Purely decorative -- see cosmetics.gd's own note on why
 ## these are not tunables. "" means none chosen, same convention as
@@ -472,6 +513,17 @@ func new_run(seed_value: int = 0) -> void:
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
 	_flares_today = 0
+	interruption = {}
+	_complications_today = 0
+	# Term 1 has no "new term" report to hand off from (that only exists
+	# from next_term() onward), so it never gets a path SCREEN -- but the
+	# multipliers themselves must not leak in from whatever the last run
+	# ended on. Same leak class the quiz_focus reset below already guards
+	# against, just for this var: term 1 of a brand new run reads as
+	# ordinary numbers, silently, rather than inheriting a finished run's
+	# chaotic_term.
+	term_path = {}
+	term_path_hand.clear()
 	bell_rush_left = 0.0
 	_bell_rush_done.clear()
 	term_over = false
@@ -777,7 +829,10 @@ func tick_class(delta: float, rng: RandomNumberGenerator) -> void:
 			chance += Balance.dis_frustration      # left stuck too long
 		for m: StudentData in mates:
 			if m.disrupting:
-				chance += Balance.dis_spread       # it travels along the desks
+				# Iron Will only shrinks how far it TRAVELS -- boredom and
+				# frustration above are untouched, so trouble still starts
+				# exactly as often as it always did.
+				chance += Balance.dis_spread * Progress.disruption_spread_mult(perk_ranks)
 		chance *= Traits.value(s.trait_id, "neighbour_stall_mult", 1.0)
 		if chance > 0.0 and rng.randf() < chance * delta:
 			s.disrupting = true
@@ -917,7 +972,8 @@ func event_stall_multiplier() -> float:
 func lesson_length() -> float:
 	Balance.ensure_loaded()
 	return Balance.lesson_seconds * DayEvent.multiplier(event, "lesson_mult") \
-		* consumable_multiplier("lesson_mult")
+		* consumable_multiplier("lesson_mult") * term_path_multiplier("lesson_mult") \
+		* Progress.lesson_length_mult(perk_ranks)
 
 
 ## THE END OF TERM. Everything you built up gets scored in one sitting: each
@@ -1041,6 +1097,8 @@ func next_term() -> Dictionary:
 	last_inspection = {}
 	event = DayEvent.by_id("none")
 	_flares_today = 0
+	interruption = {}
+	_complications_today = 0
 	bell_rush_left = 0.0
 	_bell_rush_done.clear()
 	subject = pick_subject()
@@ -1056,6 +1114,10 @@ func next_term() -> Dictionary:
 	set_phase(Phase.MORNING)
 	roster_changed.emit()
 	term_began.emit(term)
+	# The PokeRogue-style fork: this term's hand, drawn now so it's already
+	# waiting the moment the report screen that announces the new term
+	# closes -- see hud.gd's show_new_term()/show_term_paths().
+	draw_term_paths()
 	save_game()
 	return {
 		"term": term, "moved_up": moved_up, "joined": joined,
@@ -1514,7 +1576,8 @@ func raise_voice(from: Vector2i) -> int:
 		if s.seat_index < 0 or not s.disrupting:
 			continue
 		var seat: Vector2i = Layout.seat(s.seat_index)
-		if absi(seat.x - from.x) + absi(seat.y - from.y) > Balance.voice_range:
+		var range_tiles: float = Balance.voice_range + Progress.voice_range_bonus(perk_ranks)
+		if absi(seat.x - from.x) + absi(seat.y - from.y) > range_tiles:
 			continue
 		if s.settle():
 			settled += 1
@@ -1606,7 +1669,7 @@ func use_consumable(id: String) -> String:
 	var d := Items.get_def(id)
 	if d.is_empty() or String(d.get("cat", "")) != "consumable":
 		return "That is not something you can use today."
-	if not spend(int(d.get("cost", 0))):
+	if not spend(shop_price(id)):
 		return "You cannot afford that."
 	var effect: Dictionary = d.get("effect", {})
 	for key: String in effect:
@@ -2010,6 +2073,7 @@ func advance_day() -> Dictionary:
 	var avg := class_average()
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
 		* DayEvent.multiplier(event, "coin_mult") * consumable_multiplier("coin_mult")
+		* term_path_multiplier("coin_mult")
 		* lesson_pay_multiplier())) + consumable_bonus_coins
 	add_coins(earned)
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
@@ -2073,6 +2137,8 @@ func advance_day() -> Dictionary:
 	_reset_consumables()
 	event = DayEvent.roll(rng)
 	_flares_today = 0
+	interruption = {}
+	_complications_today = 0
 	bell_rush_left = 0.0
 	_bell_rush_done.clear()
 	if event.has("bonus_coins"):
@@ -2254,8 +2320,22 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 	return true
 
 
+## Quick Sweep, wired up: how many presses a piece of mess takes to clean.
+func mess_presses_needed() -> int:
+	return Progress.mess_presses(perk_ranks)
+
+
+## What buying `id` actually costs right now -- Thrifty's discount applied.
+## The one function every BUY-side price display/check reads, so the shop
+## list, the afford colour, and the actual spend can never drift apart.
+## Deliberately not used for the SELL side (sell_value() below) -- a
+## discount you paid for should not also deflate what you get back.
+func shop_price(id: String) -> int:
+	return int(round(Items.cost(id) * (1.0 - Progress.shop_discount(perk_ranks))))
+
+
 func place_item(id: String, tile: Vector2i) -> bool:
-	if not spend(Items.cost(id)):
+	if not spend(shop_price(id)):
 		return false
 	add_item(id, tile)
 	return true
@@ -2320,6 +2400,7 @@ func to_dict() -> Dictionary:
 		# were quietly thrown away by every save.
 		"teacher_xp": teacher_xp,
 		"perk_ranks": perk_ranks,
+		"term_path": term_path,
 		"graduated": graduated,
 		"cheated": cheated,
 		"met_principal": met_principal,
@@ -2376,6 +2457,7 @@ func from_dict(d: Dictionary) -> void:
 	intro_seen = bool(d.get("intro_seen", false))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
+	term_path = (d.get("term_path", {}) as Dictionary).duplicate()
 	graduated = d.get("graduated", []).duplicate()
 	# An older save has no size, so it simply reopens at the base room.
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))

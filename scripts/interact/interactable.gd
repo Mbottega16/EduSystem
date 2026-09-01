@@ -45,13 +45,17 @@ func set_pick_radius(r: float) -> void:
 ## got their own dedicated key each, on user request: quiz off USE, and
 ## homework/desk-move off their old landmarks, so what a key does no
 ## longer depends on which desk you happen to be standing at. TEACH is the
-## fourth, split off MANAGE the same way.)*
-enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH }
+## fourth, split off MANAGE the same way. RESPOND is the fifth (the
+## roguelike pivot's mid-lesson desk interruption) -- the teacher desk
+## already shared its tile between two jobs on two keys; a third one
+## sharing E or F would be exactly the collision this whole scheme exists
+## to prevent.)*
+enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH, RESPOND }
 
 ## Every action a landmark can be bound to, in the same order as the enum
 ## above -- the one place that mapping lives, so action_name() is a lookup
 ## rather than a chain of special cases that could disagree with itself.
-const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach"]
+const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach", "respond"]
 
 ## Seconds the button must be HELD. Zero is instant. Anything irreversible
 ## gets a hold, so a stray press cannot cost you a lesson.

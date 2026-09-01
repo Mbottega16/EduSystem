@@ -91,3 +91,51 @@ static func calm_radius(ranks: Dictionary) -> float:
 static func sheets_skipped(ranks: Dictionary) -> int:
 	Balance.ensure_loaded()
 	return Balance.perk_practised_marker_sheets * int(ranks.get("practised_marker", 0))
+
+
+## Presses a piece of mess needs before it's cleaned. Floored at 1 --
+## Quick Sweep makes cleanup faster, not free.
+static func mess_presses(ranks: Dictionary) -> int:
+	Balance.ensure_loaded()
+	return maxi(1, Balance.mess_clean_presses \
+		- Balance.perk_quick_sweep_presses * int(ranks.get("quick_sweep", 0)))
+
+
+## Extra tiles added to the settle-the-room radius.
+static func voice_range_bonus(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return Balance.perk_carrying_voice_tiles * float(ranks.get("carrying_voice", 0))
+
+
+## A multiplier on Game.lesson_length()'s existing chain -- one more
+## factor alongside the day event's and the term path's, never touching
+## Balance.lesson_seconds itself. 1.0 means no effect.
+static func lesson_length_mult(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return 1.0 + Balance.perk_quick_study_pct * float(ranks.get("quick_study", 0))
+
+
+## A bias fed into Assignments._roll_rarity() that shifts the weighted
+## pick toward rarer tiers without touching what rarity actually pays.
+static func assignment_luck(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return Balance.perk_lucky_break_bias * float(ranks.get("lucky_break", 0))
+
+
+## A fraction off a shop item's BUY price only -- never its sell value,
+## so a discount you paid for doesn't also deflate what you get back for
+## selling something.
+static func shop_discount(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return clampf(Balance.perk_thrifty_pct * float(ranks.get("thrifty", 0)), 0.0, 0.9)
+
+
+## Multiplies (compounding per rank) only the dis_spread term in
+## Game.tick_class() -- trouble still STARTS from boredom/frustration
+## exactly as often, it just travels to fewer neighbouring desks.
+static func disruption_spread_mult(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	var r := int(ranks.get("iron_will", 0))
+	if r <= 0:
+		return 1.0
+	return pow(Balance.perk_iron_will_mult, float(r))

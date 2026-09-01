@@ -53,16 +53,21 @@ static func pay(id: String) -> float:
 	return float(rarity(id).get("pay", 1.0))
 
 
-## Roll one rarity, by weight.
-static func _roll_rarity(rng: RandomNumberGenerator) -> String:
+## Roll one rarity, by weight. `bias` (Lucky Break's Progress.assignment_luck())
+## shifts the weighted pick toward rarer tiers without changing what any
+## rarity actually PAYS -- each tier's effective weight is scaled up by
+## (1.0 + bias * tier_index), so common (index 0) is untouched and
+## legendary (the last tier) is boosted the most.
+static func _roll_rarity(rng: RandomNumberGenerator, bias: float = 0.0) -> String:
+	var all := rarities()
 	var total := 0.0
-	for r: Dictionary in rarities():
-		total += float(r.get("weight", 0))
+	for i in all.size():
+		total += float(all[i].get("weight", 0)) * (1.0 + bias * float(i))
 	var pick := rng.randf() * total
-	for r: Dictionary in rarities():
-		pick -= float(r.get("weight", 0))
+	for i in all.size():
+		pick -= float(all[i].get("weight", 0)) * (1.0 + bias * float(i))
 		if pick <= 0.0:
-			return String(r.get("id", "common"))
+			return String(all[i].get("id", "common"))
 	return "common"
 
 
@@ -70,9 +75,9 @@ static func _roll_rarity(rng: RandomNumberGenerator) -> String:
 ##
 ## The form is biased upward by rarity -- a Legendary Worksheet would be a
 ## free lunch, and a hand full of free lunches is not a decision.
-static func roll(rng: RandomNumberGenerator, lesson: Dictionary) -> Dictionary:
+static func roll(rng: RandomNumberGenerator, lesson: Dictionary, bias: float = 0.0) -> Dictionary:
 	Balance.ensure_loaded()
-	var rid := _roll_rarity(rng)
+	var rid := _roll_rarity(rng, bias)
 	var tier := 0
 	for i in rarities().size():
 		if String(rarities()[i].get("id", "")) == rid:
@@ -98,14 +103,14 @@ static func roll(rng: RandomNumberGenerator, lesson: Dictionary) -> Dictionary:
 ## also the hook for a later teacher LUCK skill (a lucky teacher draws
 ## more, and eventually better, cards; nothing here should need to change
 ## when that lands, only the numbers it reads).
-static func draw(rng: RandomNumberGenerator, lesson: Dictionary) -> Array:
+static func draw(rng: RandomNumberGenerator, lesson: Dictionary, bias: float = 0.0) -> Array:
 	Balance.ensure_loaded()
 	var lo: int = maxi(1, Balance.assign_hand_size_min)
 	var hi: int = maxi(lo, Balance.assign_hand_size_max)
 	var n: int = rng.randi_range(lo, hi)
 	var out: Array = []
 	for i in n:
-		out.append(roll(rng, lesson))
+		out.append(roll(rng, lesson, bias))
 	return out
 
 

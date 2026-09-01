@@ -148,6 +148,9 @@ func build() -> void:
 	for hw in get_tree().get_nodes_in_group("homework_desk"):
 		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
 			hw.marking_requested.connect(_on_marking_requested)
+	for rp in get_tree().get_nodes_in_group("interruption_desk"):
+		if rp is Interactable and not rp.interruption_answered.is_connected(_on_interruption_answered):
+			rp.interruption_answered.connect(_on_interruption_answered)
 	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
@@ -174,6 +177,14 @@ func _clear_mess() -> void:
 	messes.clear()
 
 
+## One piece of mess, placed and wired -- shared by the day-start spawn
+## below and _spawn_mid_lesson_mess() (see _tick_complications()).
+func _place_mess(tile: Vector2i, kind: String) -> void:
+	var it := RoomBuilder.build_mess(self, tile, kind)
+	it.cleaned.connect(_on_mess_cleaned)
+	messes.append(it)
+
+
 func _spawn_mess() -> void:
 	_clear_mess()
 	var open := grid.free_tiles()
@@ -190,9 +201,29 @@ func _spawn_mess() -> void:
 	var n: int = Game.rng.randi_range(MESS_MIN, MESS_MAX)
 	for i in mini(n, open.size()):
 		var kind: String = MESS_KINDS[Game.rng.randi() % MESS_KINDS.size()]
-		var it := RoomBuilder.build_mess(self, open[i], kind)
-		it.cleaned.connect(_on_mess_cleaned)
-		messes.append(it)
+		_place_mess(open[i], kind)
+
+
+## The complication version: ONE extra piece, mid-lesson, additive rather
+## than a full re-roll -- _spawn_mess() above stays the day-start "clear
+## and reroll everything" version. Filters out tiles already holding a
+## mess prop, since RoomBuilder.build_mess() does not itself block its
+## tile the way furniture does -- an unguarded roll could otherwise stack
+## two messes on one tile.
+func _spawn_mid_lesson_mess() -> void:
+	var occupied: Array[Vector2i] = []
+	for m in messes:
+		if is_instance_valid(m):
+			occupied.append(Grid.world_to_tile((m as Node2D).get_parent().global_position))
+	var open: Array[Vector2i] = []
+	for t in grid.free_tiles():
+		if not occupied.has(t):
+			open.append(t)
+	if open.is_empty():
+		return
+	var tile: Vector2i = open[Game.rng.randi_range(0, open.size() - 1)]
+	var kind: String = MESS_KINDS[Game.rng.randi() % MESS_KINDS.size()]
+	_place_mess(tile, kind)
 
 
 func _on_mess_cleaned(mess: Interactable, _kind: String) -> void:
@@ -351,6 +382,9 @@ func rebuild_room() -> void:
 	for hw in get_tree().get_nodes_in_group("homework_desk"):
 		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
 			hw.marking_requested.connect(_on_marking_requested)
+	for rp in get_tree().get_nodes_in_group("interruption_desk"):
+		if rp is Interactable and not rp.interruption_answered.is_connected(_on_interruption_answered):
+			rp.interruption_answered.connect(_on_interruption_answered)
 	hall_door = RoomBuilder.build_hall_door(self, grid)
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
@@ -420,6 +454,7 @@ func _physics_process(delta: float) -> void:
 		# dash exists to answer. Silent in a written test, same as the rest.
 		if roll != null:
 			_tick_flares(delta, roll)
+			_tick_complications(delta, roll)
 		Game.tick_voice(delta)
 		# The aide works the room while you teach.
 		var taken := Game.tick_aide(delta)
@@ -812,6 +847,67 @@ func _tick_flares(delta: float, rng: RandomNumberGenerator) -> void:
 			s.flare_left = Balance.flare_countdown
 			Game._flares_today += 1
 			return
+
+
+## Mid-lesson complications: a generalized flare-up (same catchable,
+## capped-per-lesson shape), but the WHICH is decided by
+## Complication.roll() rather than always being the same thing. Lives here
+## for the same reason _tick_flares does -- it is a thing in the room, not
+## a fact about the roster, so it never fires in the headless simulator.
+func _tick_complications(delta: float, rng: RandomNumberGenerator) -> void:
+	if not Game.interruption.is_empty():
+		var left: float = float(Game.interruption.get("left", 0.0)) - delta
+		if left <= 0.0:
+			_resolve_ignored_interruption(Game.interruption)
+			Game.interruption = {}
+		else:
+			Game.interruption["left"] = left
+		return   # only one thing pending at a time
+	if Game._complications_today >= Balance.comp_max_per_lesson:
+		return
+	var rate: float = Balance.comp_onset_per_second * Game.complication_density_mult()
+	if rng.randf() >= rate * delta:
+		return
+	var row := Complication.roll(rng)
+	Game._complications_today += 1
+	match String(row.get("landmark", "")):
+		"mess":
+			_spawn_mid_lesson_mess()
+		"desk":
+			Game.interruption = row.duplicate()
+			Game.interruption["left"] = float(row.get("ring_seconds", 8.0))
+
+
+## Answered before it rang out -- costs real lesson seconds, pays coins.
+## Instant, world-level payoff, same shape as raise_voice() -- no screen to
+## open, so no main.gd relay is needed the way quiz/marking need one.
+func _on_interruption_answered() -> void:
+	if Game.interruption.is_empty():
+		return
+	var row := Game.interruption
+	lesson_left = maxf(0.0, lesson_left - float(row.get("answer_cost_seconds", 5.0)))
+	Game.add_coins(int(row.get("answer_reward_coins", 0)))
+	Game.interruption = {}
+	Sfx.play("confirm")
+	if teacher_desk != null:
+		Floater.pop(self, teacher_desk.get_parent().global_position + Vector2(0, -36),
+			"handled!", Color(0.6, 0.85, 1.0))
+	if lesson_left <= 0.0:
+		lesson_timed_out.emit()
+
+
+## Let it ring out instead. Matched on the row's own ignored_effect so a
+## future complication can reuse either existing effect for free, or add a
+## new match arm for a genuinely new one.
+func _resolve_ignored_interruption(row: Dictionary) -> void:
+	match String(row.get("ignored_effect", "")):
+		"disrupt_one":
+			for s: StudentData in Game.roster:
+				if s.seat_index >= 0 and not s.disrupting:
+					s.disrupting = true
+					break
+		"reputation":
+			Game.nudge_reputation(-float(row.get("ignored_value", 1.0)))
 
 
 ## What a dash does when the teacher is standing on `tile`, decided by any

@@ -178,6 +178,8 @@ func _main() -> void:
 	await test_title()
 	await test_dash()
 	await test_flares()
+	await test_mid_lesson_mess()
+	await test_desk_interruption()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -187,6 +189,7 @@ func _main() -> void:
 	await test_bio()
 	test_student_levels()
 	test_teacher_levels()
+	test_new_perks()
 	test_graduation()
 	test_coaching()
 	await test_shop_and_staff()
@@ -201,6 +204,7 @@ func _main() -> void:
 	test_concepts()
 	test_exam_maths()
 	test_next_term()
+	test_term_paths()
 	test_term_target()
 	test_transcript()
 	test_unlockables()
@@ -959,6 +963,33 @@ func test_balance() -> void:
 		total_stalls += _count_stalls(0.3)
 	chk("a student gets stuck several times across a lesson",
 		total_stalls >= 30, "%d stalls over 20 lessons" % total_stalls)
+
+	# The actual mechanism behind every row above never moving, stated
+	# outright rather than staying true only by omission: tools/sim.gd's
+	# _one_lesson() reads Balance.lesson_seconds directly and never ticks
+	# the real room. Every roguelike lever added since (day events, then
+	# complications and term paths) rides on that gap being real -- a
+	# future change that made _one_lesson() start calling any of these
+	# would silently start moving the 0.63/0.71/0.97 contract.
+	#
+	# Scoped to _one_lesson() itself, not the whole file: sim.gd's OTHER
+	# function, _play_day() (the delegated-room policy comparison behind
+	# Simulate the School.bat), calls Game.tick_class() on purpose -- it
+	# is explicitly the thing that needs to see disruption, and it never
+	# feeds the contract rows. A whole-file scan would have flagged that
+	# real, correct call as if it were a regression.
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	var start := sim_src.find("func _one_lesson(")
+	var stop := sim_src.find("\nfunc ", start + 1)
+	var one_lesson_src := sim_src.substr(start, stop - start) \
+		if start >= 0 and stop > start else ""
+	chk("_one_lesson() actually exists in the source to check",
+		one_lesson_src != "")
+	chk("_one_lesson() still never calls tick_class()",
+		not one_lesson_src.contains("tick_class("))
+	chk("...nor _tick_flares()", not one_lesson_src.contains("_tick_flares("))
+	chk("...nor _tick_complications() -- the new one",
+		not one_lesson_src.contains("_tick_complications("))
 
 
 ## Run real lessons through the actual work model and return the MEAN grade.
@@ -3787,6 +3818,95 @@ func test_next_term() -> void:
 	Game.new_run(SEED)
 
 
+## The PokeRogue-style fork: a few pre-rolled paths at the start of a
+## term, drawn WITHOUT replacement, one chosen and the rest discarded.
+func test_term_paths() -> void:
+	section("TERM PATHS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("a fresh run starts with no path hand and no path active",
+		Game.term_path_hand.is_empty() and Game.term_path.is_empty())
+	chk("choosing before a hand exists does nothing",
+		Game.choose_term_path(0).is_empty())
+
+	var hand := Game.draw_term_paths()
+	chk("a term draws a hand of the configured size",
+		hand.size() == Balance.term_path_hand_min, hand.size())
+	var ids := {}
+	for row: Dictionary in hand:
+		ids[String(row.get("id", ""))] = true
+	chk("drawn without replacement -- no duplicate paths in one hand",
+		ids.size() == hand.size())
+
+	chk("picking out of range does nothing",
+		Game.choose_term_path(-1).is_empty()
+		and Game.choose_term_path(hand.size()).is_empty())
+	chk("and the hand is untouched by a picking that failed",
+		Game.term_path_hand.size() == hand.size())
+
+	# ordinary_term sits at 1.0 across the board on purpose -- a player who
+	# always picks it should see exactly today's numbers, unmoved.
+	var ord := TermPaths.by_id("ordinary_term")
+	chk("ordinary_term really is the do-nothing option", is_equal_approx(
+			float(ord.get("lesson_mult", 0.0)), 1.0)
+		and is_equal_approx(float(ord.get("coin_mult", 0.0)), 1.0)
+		and is_equal_approx(float(ord.get("density_mult", 0.0)), 1.0))
+
+	Game.term_path_hand = [ord]
+	var chosen := Game.choose_term_path(0)
+	chk("choosing sets the active path",
+		String(chosen.get("id", "")) == "ordinary_term")
+	chk("and empties the hand behind it", Game.term_path_hand.is_empty())
+	chk("its multipliers read as 1.0 -- the exact numbers before this system",
+		is_equal_approx(Game.term_path_multiplier("lesson_mult"), 1.0)
+		and is_equal_approx(Game.term_path_multiplier("coin_mult"), 1.0)
+		and is_equal_approx(Game.complication_density_mult(), 1.0))
+
+	# a livelier path really does change something real
+	var busy := TermPaths.by_id("busy_term")
+	Game.term_path_hand = [busy]
+	Game.choose_term_path(0)
+	chk("a busier path really does run lessons longer",
+		Game.term_path_multiplier("lesson_mult") > 1.0)
+	chk("and really does raise the coin payout",
+		Game.term_path_multiplier("coin_mult") > 1.0)
+	chk("and really does raise how much can go wrong",
+		Game.complication_density_mult() > 1.0)
+
+	# no path chosen yet (a fresh run's term one) also reads as ordinary
+	Game.term_path = {}
+	chk("nothing chosen yet reads as 1.0 too, not as a crash or a zero",
+		is_equal_approx(Game.term_path_multiplier("lesson_mult"), 1.0)
+		and is_equal_approx(Game.term_path_multiplier("coin_mult"), 1.0)
+		and is_equal_approx(Game.complication_density_mult(), 1.0))
+
+	# it is drawn again the moment a new term opens, ready before the
+	# report screen that announces it even closes -- a term that actually
+	# clears its target, or next_term() never reaches that call at all
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)
+	Game.term_path_hand.clear()
+	var carried := Game.next_term()
+	chk("this term actually cleared its target",
+		not bool(carried.get("run_over", false)), carried)
+	chk("next_term() already has this term's hand waiting",
+		not Game.term_path_hand.is_empty())
+
+	# --- the active path is term-long state: it survives a save ---
+	Game.term_path_hand = [busy]
+	Game.choose_term_path(0)
+	Game.save_game()
+	Game.new_run(1)
+	chk("a brand new run does not inherit the old one's path",
+		Game.term_path.is_empty())
+	Game.load_game()
+	chk("but a saved game remembers which one was active",
+		String(Game.term_path.get("id", "")) == "busy_term", Game.term_path)
+	Game.delete_save()
+
+	Game.new_run(SEED)
+
 
 func test_term_target() -> void:
 	section("THE TARGET, AND LOSING")
@@ -5200,8 +5320,13 @@ func test_dashboard() -> void:
 	hud._dash = (hud._dash + 1) % 4
 	hud.show_dashboard()
 	chk("cycled to the skills page", hud._dash == hud.Dash.SKILLS)
+	# A summary, not a per-perk listing -- see hud.gd's own comment on why
+	# (eleven perks stopped fitting a fixed, cursor-less page the moment
+	# six landed alongside the roguelike pivot). The regression this test
+	# now guards is "the trained COUNT reflects what you actually bought",
+	# not a specific perk's name appearing verbatim.
 	chk("shows a perk you have actually spent a point on",
-		hud.rich.text.contains(String(Progress.perk_def("calm_presence").get("name", ""))),
+		hud.rich.text.contains("1 of") and hud.rich.text.contains("skills trained"),
 		hud.rich.text)
 	chk("it fits", hud.rich.text.split("
 ").size() <= RICH_ROWS,
@@ -6876,6 +7001,124 @@ func test_flares() -> void:
 	_hud().close()
 
 
+## Mid-lesson mess: the roguelike's own extra spawn, additive to the
+## day-start _spawn_mess() reroll rather than replacing it.
+func test_mid_lesson_mess() -> void:
+	section("MID-LESSON MESS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	world._clear_mess()
+	chk("the room starts clean for this test", world.messes.is_empty())
+
+	world._spawn_mid_lesson_mess()
+	chk("a forced mid-lesson spawn grows messes by exactly one",
+		world.messes.size() == 1, world.messes.size())
+	chk("it is an ordinary mess once it exists -- the cleaning verb needs "
+		+ "no awareness of how it got there",
+		world.messes[0].can_interact() and world.messes[0].prompt_text() != "")
+
+	var tile_a := Grid.world_to_tile(
+		(world.messes[0] as Node2D).get_parent().global_position)
+	world._spawn_mid_lesson_mess()
+	chk("a second forced spawn grows it to two",
+		world.messes.size() == 2, world.messes.size())
+	var tile_b := Grid.world_to_tile(
+		(world.messes[1] as Node2D).get_parent().global_position)
+	chk("two forced spawns never land on the same tile", tile_a != tile_b)
+
+	world._clear_mess()
+
+
+## Mid-lesson complications: the phone/conference desk interruption, and
+## the mess kind's own onset. Mirrors test_flares()'s shape -- catch it,
+## let it run out, the per-lesson cap, and that it starts on its own.
+func test_desk_interruption() -> void:
+	section("DESK INTERRUPTIONS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	var rp: Interactable = null
+	for n in get_tree().get_nodes_in_group("interruption_desk"):
+		rp = n
+	chk("the teacher desk has a RESPOND job on it", rp != null)
+	Game.interruption = {}
+
+	chk("nothing is waiting at the desk yet", not rp.can_interact())
+	chk("so it offers nothing", rp.prompt_text() == "")
+
+	# --- answering it ---
+	var call_row := Complication.by_id("phone_call")
+	Game.interruption = call_row.duplicate()
+	Game.interruption["left"] = float(call_row.get("ring_seconds", 8.0))
+	chk("a pending interruption offers to be answered", rp.can_interact())
+	chk("and says which one it is", rp.prompt_text() == "Answer it", rp.prompt_text())
+
+	var lesson_before: float = world.lesson_left
+	var coins_before: int = Game.coins
+	rp.interact(world.player)
+	chk("answering deducts the right seconds", is_equal_approx(
+		world.lesson_left,
+		lesson_before - float(call_row.get("answer_cost_seconds", 5.0))),
+		world.lesson_left)
+	chk("and pays the right coins",
+		Game.coins == coins_before + int(call_row.get("answer_reward_coins", 0)),
+		Game.coins)
+	chk("and it is cleared once handled", Game.interruption.is_empty())
+	chk("so the desk has nothing left to offer", not rp.can_interact())
+
+	# --- letting a phone call ring out: disrupts one calm child ---
+	for s: StudentData in Game.roster:
+		s.disrupting = false
+	Game.interruption = call_row.duplicate()
+	Game.interruption["left"] = 0.05
+	world._tick_complications(0.1, Game.rng)
+	var any_disrupting := false
+	for s: StudentData in Game.roster:
+		if s.disrupting:
+			any_disrupting = true
+	chk("ignoring a phone call disrupts one child", any_disrupting)
+	chk("and clears the interruption either way", Game.interruption.is_empty())
+
+	# --- letting a conference ring out: costs reputation instead ---
+	var conf_row := Complication.by_id("conference")
+	Game.interruption = conf_row.duplicate()
+	Game.interruption["left"] = 0.05
+	var rep_before: float = Game.reputation
+	world._tick_complications(0.1, Game.rng)
+	chk("ignoring a conference costs reputation instead",
+		Game.reputation < rep_before, Game.reputation)
+
+	# --- the per-lesson cap ---
+	Game.interruption = {}
+	Game._complications_today = Balance.comp_max_per_lesson
+	# messes_before, not "empty" -- new_run() above already spawned this
+	# day's ordinary start-of-day mess, unrelated to the cap under test.
+	var messes_before: int = world.messes.size()
+	for i in 4000:
+		world._tick_complications(1.0 / 60.0, Game.rng)
+	chk("once the lesson's cap is hit, nothing new starts",
+		Game.interruption.is_empty() and world.messes.size() == messes_before,
+		"%d -> %d messes" % [messes_before, world.messes.size()])
+
+	# --- it starts on its own, of SOME kind, given time ---
+	world._clear_mess()
+	Game.interruption = {}
+	Game._complications_today = 0
+	var guard := 0
+	while guard < 40000 and Game._complications_today == 0:
+		world._tick_complications(1.0 / 60.0, Game.rng)
+		guard += 1
+	chk("a complication does start on its own given time",
+		Game._complications_today > 0, "none in %d frames" % guard)
+
+	Game.interruption = {}
+	Game._complications_today = 0
+	world._clear_mess()
+
+
 # ============================================ furniture lanes and clutter
 
 func test_dash_lanes() -> void:
@@ -7770,6 +8013,66 @@ func test_teacher_levels() -> void:
 		Game.teacher_xp == 350 and Game.perk_rank("brisk_walk") == 2
 		and Game.teacher_level == Progress.level_for_xp(350))
 	Game.delete_save()
+
+
+## The six roguelike-pivot perks reconciled onto the existing perk board
+## (docs/ROGUELIKE_DESIGN.md's skill table) rather than a second system.
+## Same discipline as the block above: every one of them must actually
+## reach the one real call site it claims to change.
+func test_new_perks() -> void:
+	section("NEW PERKS")
+	Balance.ensure_loaded()
+	var none := {}
+
+	chk("Quick Sweep really does cut the presses a mess needs",
+		Progress.mess_presses({"quick_sweep": 1}) < Progress.mess_presses(none))
+	chk("but never below one -- a mash the player can still see land",
+		Progress.mess_presses({"quick_sweep": 99}) >= 1)
+
+	chk("Carrying Voice really does widen the shush",
+		Progress.voice_range_bonus({"carrying_voice": 1}) > 0.0
+		and is_equal_approx(Progress.voice_range_bonus(none), 0.0))
+
+	chk("Quick Study really does run lessons a little longer",
+		Progress.lesson_length_mult({"quick_study": 1}) > 1.0
+		and is_equal_approx(Progress.lesson_length_mult(none), 1.0))
+
+	chk("Lucky Break really does bias the hand toward rarer papers",
+		Progress.assignment_luck({"lucky_break": 1}) > 0.0
+		and is_equal_approx(Progress.assignment_luck(none), 0.0))
+
+	chk("Thrifty really does knock something off the shop price",
+		Progress.shop_discount({"thrifty": 1}) > 0.0
+		and is_equal_approx(Progress.shop_discount(none), 0.0))
+	chk("but never gives the room away for free",
+		Progress.shop_discount({"thrifty": 99}) < 1.0)
+
+	chk("Iron Will really does shrink how far a disruption spreads",
+		Progress.disruption_spread_mult({"iron_will": 1}) < 1.0
+		and is_equal_approx(Progress.disruption_spread_mult(none), 1.0))
+
+	# --- and the cheap-to-reach call sites actually read Progress, not
+	# just Progress itself agreeing with its own formula ---
+	Game.new_run(SEED)
+	var full_price := Items.cost("stool")
+	Game.perk_ranks = {"thrifty": 1}
+	chk("the shop actually prices a purchase at a discount, not just Items.cost()",
+		Game.shop_price("stool") < full_price, Game.shop_price("stool"))
+
+	var plain_presses := Game.mess_presses_needed()
+	Game.perk_ranks = {"quick_sweep": 1}
+	chk("mess.gd's own press count actually shrinks, not just Progress's",
+		Game.mess_presses_needed() < plain_presses, Game.mess_presses_needed())
+
+	Game.perk_ranks = {}
+	var plain_length := Game.lesson_length()
+	Game.perk_ranks = {"quick_study": 1}
+	chk("lesson_length() actually runs longer, not just Progress's own number",
+		Game.lesson_length() > plain_length,
+		"%.2f -> %.2f" % [plain_length, Game.lesson_length()])
+
+	Game.perk_ranks = {}
+	Game.new_run(SEED)
 
 
 func test_graduation() -> void:

@@ -33,16 +33,17 @@ func _init() -> void:
 
 
 func prompt_text() -> String:
-	var left: int = Balance.mess_clean_presses - _presses
+	var need := Game.mess_presses_needed()
+	var left: int = need - _presses
 	var verb := "Wipe up the spill" if kind == "spill" else "Sweep up the mess"
-	return "%s (%d)" % [verb, left] if left < Balance.mess_clean_presses else verb
+	return "%s (%d)" % [verb, left] if left < need else verb
 
 
 func interact(by: Node) -> void:
 	_presses += 1
 	Sfx.play_varied("paper")
 	used.emit(by)
-	if _presses >= Balance.mess_clean_presses:
+	if _presses >= Game.mess_presses_needed():
 		_finish()
 
 

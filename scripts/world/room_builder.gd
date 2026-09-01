@@ -28,6 +28,7 @@ const QUIZ_CALLER_SCRIPT := preload("res://scripts/interact/quiz_caller.gd")
 const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
+const DESK_INTERRUPTION_SCRIPT := preload("res://scripts/interact/desk_interruption.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
 const AD_POSTER_SCRIPT := preload("res://scripts/interact/ad_poster.gd")
@@ -293,6 +294,11 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var hw := Interactable.new()
 	hw.set_script(HOMEWORK_DESK_SCRIPT)
 	body.add_child(hw)
+	# Third job, third key, same tile -- the phone/parent interruption the
+	# roguelike pivot added. Same reasoning as homework's own split above.
+	var rp := Interactable.new()
+	rp.set_script(DESK_INTERRUPTION_SCRIPT)
+	body.add_child(rp)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it
