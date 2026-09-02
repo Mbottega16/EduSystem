@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-08-27**, against build `b38`, with **1439 assertions
+> **Measured on 2026-09-01**, against build `b38`, with **1439 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -142,7 +142,7 @@ One seeded `RandomNumberGenerator` on `Game.rng`. Global `randi()`/`randf()`
 are banned project-wide. Without it, none of the balance testing could exist.
 
 ### Numbers do not live in code
-`data/balance.json` is the single table — **32 sections**, 122 tunables
+`data/balance.json` is the single table — **39 sections**, 192 tunables
 (counting numbers directly in a section, not the item and trait tables).
 Nothing tunable is a `const` in a `.gd` file.
 
@@ -253,7 +253,7 @@ assignment hand · specialism · difficulty · economy · homework · items ·
 input arbitration (`claim_action`) · save/load · the cheat flag.
 
 ### Data — `scripts/data/`
-`balance.gd` (122 tunables, static so it works with no SceneTree) ·
+`balance.gd` (192 tunables, static so it works with no SceneTree) ·
 `student_data.gd` (one child's whole record) · `curriculum.gd` ·
 `items.gd` · `assignments.gd` · `traits.gd` · `events.gd` · `progress.gd`
 (every perk effect funnelled through one place) · `questions.gd` (four
@@ -334,7 +334,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1439 assertions** across **91 sections** |
+| Tests | **1439 assertions** across **94 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -595,12 +595,12 @@ learn about multiple rooms before Phase 2.
 |---|---|---|---|
 | Lessons | 20 | **40** | 8 per strand across 5 difficulty bands |
 | Concepts | 60 | **120** | 3 per lesson, automatic |
-| Furniture | 29 | **50** | more per category, and room-type-specific |
+| Furniture | 54 | **50** | target met; the four subject-shelf items were the Sep 2026 addition |
 | Traits | 12 | 12 | done -- each changes what the player *does* |
 | Day events | 20 | 20 | done -- 20 rows, weights total exactly 100 |
 | Staff archetypes | 12 | 12 | done -- policy combinations with names and wages |
 | Room types | 1 | **5** | year groups; see the tier design below |
-| Milestones | 22 | **30** | 7 landed in the August 2026 batch; 8 more were rejected for duplicating existing milestones or citing state the game does not keep |
+| Milestones | 23 | **30** | the August 2026 batch took it to 23; 8 more were rejected for duplicating existing milestones or citing state the game does not keep |
 
 ### On the citation rule
 
