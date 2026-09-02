@@ -232,6 +232,7 @@ func _main() -> void:
 	await test_lesson_plan_folder()
 	await test_dashboard()
 	await test_milestones()
+	await test_trophies()
 	await test_buying_desks()
 	await test_the_school()
 	await test_hallway()
@@ -5691,6 +5692,103 @@ func test_milestones() -> void:
 	Game.new_run(SEED)
 	await step(2)
 
+
+func test_trophies() -> void:
+	section("BOSS TROPHIES")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# The shelf the roguelike endgame boss will land on. Nothing awards
+	# these yet -- that is the boss encounter, still to build -- but the
+	# table, the save slot and the screen are here so that work has
+	# somewhere to go.
+	chk("there are trophies defined", Trophies.count() > 0, Trophies.count())
+	chk("one per subject boss, plus the gauntlet", Trophies.count() == 5)
+	chk("every one has a name and a line", (func() -> bool:
+		for t: Dictionary in Trophies.all():
+			if String(t.get("name", "")) == "" or String(t.get("blurb", "")) == "":
+				return false
+		return true).call())
+	chk("every id is unique", (func() -> bool:
+		var seen := {}
+		for t: Dictionary in Trophies.all():
+			if seen.has(String(t["id"])):
+				return false
+			seen[String(t["id"])] = true
+		return true).call())
+	chk("no trophy blurb states a stage or a number", (func() -> bool:
+		for t: Dictionary in Trophies.all():
+			var b := String(t.get("blurb", "")).to_lower()
+			for ch in "0123456789":
+				if b.contains(ch):
+					return false
+			if b.contains("stage ") or b.contains("level "):
+				return false
+		return true).call())
+
+	# --- a new run has none, and you cannot fake one ---
+	chk("a fresh run has won no trophies", Game.trophies.is_empty())
+	chk("awarding an unknown id does nothing",
+		not Game.award_trophy("boss_nonsense") and Game.trophies.is_empty())
+
+	# --- winning one records it, once ---
+	var got: Array = []
+	Game.trophy_earned.connect(func(id: String) -> void: got.append(id))
+	chk("beating a boss awards its trophy", Game.award_trophy("boss_math"))
+	chk("and it fires the signal", got == ["boss_math"], got)
+	chk("it is on the shelf now", Game.trophies.has("boss_math"))
+	chk("winning the same one again is a no-op",
+		not Game.award_trophy("boss_math") and Game.trophies.size() == 1)
+
+	# --- it gates and pays nothing ---
+	var coins_before: int = Game.coins
+	Game.award_trophy("boss_science")
+	chk("a trophy pays no coins", Game.coins == coins_before)
+
+	# --- it survives the night; an older save has none ---
+	Game.save_game()
+	var had := Game.trophies.size()
+	Game.new_run(1)
+	chk("a new run clears the shelf", Game.trophies.is_empty())
+	Game.load_game()
+	chk("but a saved career keeps its trophies",
+		Game.trophies.size() == had, Game.trophies.size())
+	var snap := Game.to_dict()
+	snap.erase("trophies")
+	Game.from_dict(snap)
+	chk("a save from before trophies loads with none", Game.trophies.is_empty())
+	Game.delete_save()
+
+	# --- the screen shows them, won or not, on the career list ---
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	Game.award_trophy("boss_ela")
+	# trophies sit after every milestone, so scroll the window down to them
+	var ela_row := -1
+	for i in hud._career_rows().size():
+		if String(hud._career_rows()[i].get("id", "")) == "boss_ela":
+			ela_row = i
+			break
+	hud._sel = ela_row
+	hud.show_career()
+	chk("the career list names a won trophy",
+		hud.rich.text.contains(String(Trophies.by_id("boss_ela")["name"])),
+		hud.rich.text)
+	chk("the title counts trophies", hud.title.text.contains("trophies 1/5"),
+		hud.title.text)
+	chk("the list still fits the panel",
+		hud.rich.text.split("\n").size() <= 11, hud.rich.text.split("\n").size())
+	# the cursor can reach the very last entry, which is the gauntlet trophy
+	hud._sel = hud._career_rows().size() - 1
+	hud.show_career()
+	chk("the cursor can reach the last trophy",
+		hud._career_rows()[hud._sel].get("id", "") == "boss_gauntlet",
+		hud._career_rows()[hud._sel])
+	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_buying_desks() -> void:

@@ -104,6 +104,27 @@ func check_milestones() -> Array:
 	milestone_earned.emit(fresh)
 	return fresh
 
+
+## Trophies won by beating a roguelike endgame boss -- one per subject
+## boss plus the gauntlet, see scripts/data/trophies.gd. Unlike milestones
+## these are never derived from ordinary play: something has to call
+## award_trophy(). The boss encounter that would do that is still to
+## build (docs/ROGUELIKE_DESIGN.md); the shelf and the save slot are
+## here so that work has somewhere to land.
+var trophies: Array = []
+
+signal trophy_earned(id: String)
+
+
+## Record a boss win. Returns true if this is the first time -- false for
+## a repeat or an id with no trophy behind it.
+func award_trophy(id: String) -> bool:
+	if Trophies.by_id(id).is_empty() or trophies.has(id):
+		return false
+	trophies.append(id)
+	trophy_earned.emit(id)
+	return true
+
 signal term_began(term: int)
 
 # --- the school ------------------------------------------------------
@@ -577,6 +598,7 @@ func new_run(seed_value: int = 0) -> void:
 	term_history.clear()
 	run_over = false
 	milestones.clear()
+	trophies.clear()
 	rooms.clear()
 	applicants.clear()
 	reputation = float(Balance.rep_start)
@@ -2610,6 +2632,7 @@ func to_dict() -> Dictionary:
 		"term_history": term_history,
 		"run_over": run_over,
 		"milestones": milestones,
+		"trophies": trophies,
 		"lesson_crafts": lesson_crafts,
 		"pending_craft": pending_craft,
 		"rooms": rooms.map(func(r: Dictionary) -> Dictionary:
@@ -2666,6 +2689,9 @@ func from_dict(d: Dictionary) -> void:
 	assignment = d.get("assignment", {}).duplicate()
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()
+	# An older save has no trophies key -- it loads with none, same as a
+	# fresh run.
+	trophies = (d.get("trophies", []) as Array).duplicate()
 	rooms.clear()
 	for rd: Dictionary in d.get("rooms", []):
 		var roster_in: Array = []

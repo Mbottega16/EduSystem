@@ -1831,6 +1831,21 @@ func show_hiring() -> void:
 ## The UNEARNED ones are the point. A list of what you have done is a trophy
 ## cabinet; a list that also shows what there is to do is a map, and a game
 ## with no ending needs the map far more than the cabinet.
+## The career list: every milestone, then every boss trophy, in one
+## windowed list with one cursor. A trophy that hasn't been won yet reads
+## exactly like an unearned milestone -- "- - -" -- so the shelf is
+## visible from the first run without spoiling what is on it.
+func _career_rows() -> Array:
+	var out: Array = []
+	for m: Dictionary in Milestones.all():
+		out.append({"id": String(m.get("id", "")), "name": String(m.get("name", "")),
+			"blurb": String(m.get("blurb", "")), "won": Game.milestones.has(String(m.get("id", "")))})
+	for t: Dictionary in Trophies.all():
+		out.append({"id": String(t.get("id", "")), "name": "%s  (trophy)" % String(t.get("name", "")),
+			"blurb": String(t.get("blurb", "")), "won": Game.trophies.has(String(t.get("id", "")))})
+	return out
+
+
 func show_career() -> void:
 	_open(Mode.CAREER)
 	body.visible = false
@@ -1838,27 +1853,27 @@ func show_career() -> void:
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 16)
 
-	var all := Milestones.all()
-	title.text = "YOUR CAREER  %d/%d" % [Game.milestones.size(), all.size()]
+	var rows := _career_rows()
+	title.text = "YOUR CAREER  %d/%d   trophies %d/%d" % [
+		Game.milestones.size(), Milestones.count(),
+		Game.trophies.size(), Trophies.count()]
 
-	# a window, because there are more milestones than the panel holds
-	_sel = clampi(_sel, 0, maxi(0, all.size() - 1))
-	var lo := _window_start(all.size(), 9)
+	# a window, because there are more entries than the panel holds
+	_sel = clampi(_sel, 0, maxi(0, rows.size() - 1))
+	var lo := _window_start(rows.size(), 9)
 	var lines: Array[String] = []
-	for i in range(lo, mini(all.size(), lo + 9)):
-		var m: Dictionary = all[i]
-		var id := String(m.get("id", ""))
-		var have: bool = Game.milestones.has(id)
+	for i in range(lo, mini(rows.size(), lo + 9)):
+		var r: Dictionary = rows[i]
+		var won: bool = bool(r.get("won", false))
 		lines.append("%s [color=#%s]%s[/color]" % [
-			">" if i == _sel else " ", C_COIN if have else DIM,
-			String(m.get("name", id)) if have else "- - -"])
+			">" if i == _sel else " ", C_COIN if won else DIM,
+			String(r.get("name", "")) if won else "- - -"])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.25)
 
-	var sel: Dictionary = all[_sel] if _sel < all.size() else {}
-	var earned: bool = Game.milestones.has(String(sel.get("id", "")))
+	var sel: Dictionary = rows[_sel] if _sel < rows.size() else {}
 	hint.text = _clip("Esc - close.   %s%s" % [
-		"" if earned else "Not yet: ", String(sel.get("blurb", ""))])
+		"" if bool(sel.get("won", false)) else "Not yet: ", String(sel.get("blurb", ""))])
 
 
 ## The short, terse version of every principal_says() nudge the game can
@@ -3269,7 +3284,7 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.CAREER:
-		var n: int = Milestones.count()
+		var n: int = _career_rows().size()
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("blip")
 			close()
