@@ -409,6 +409,39 @@ static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interact
 	return it
 
 
+## A few pieces of decor the room simply STARTS with -- part of what a
+## classroom looks like on day one, not something bought or earned. Flat
+## against the back wall and non-blocking (like the ad poster), so they
+## cost the room no floor and never land on a path. Rebuilt with the room;
+## never entered into Game.room_items, so they are not owned, sold, moved
+## or scored -- purely the difference between a bare room and a lived-in
+## one. Ids confirmed against the cat:"decor" block in data/balance.json.
+const DECOR_SEED := [
+	["wall_clock", Vector2i(8, 2)],
+	["class_banner", Vector2i(10, 2)],
+	["alphabet_frieze", Vector2i(13, 2)],
+]
+
+static func build_decor(parent: Node2D, _grid: Grid) -> Array:
+	var nodes: Array = []
+	for row: Array in DECOR_SEED:
+		var id := String(row[0])
+		var def := Items.get_def(id)
+		if def.is_empty():
+			continue
+		var tiles := Items.footprint(id, row[1] as Vector2i)
+		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
+		if tex == null:
+			continue
+		# Vector2.ZERO block -> no collider, and no grid.set_cell(): a wall
+		# decoration does not stand on the floor, so it does not occupy it.
+		var body := add_prop(parent, tex, Layout.span_anchor(tiles),
+			Vector2.ZERO, 0.0, false)
+		body.add_to_group("seeded_decor")
+		nodes.append(body)
+	return nodes
+
+
 ## The hole in the left wall, which is already a walkable gap students spawn
 ## through. No sprite and no collider of its own -- the wall art already
 ## draws the doorway, and blocking it would undo the very thing that makes

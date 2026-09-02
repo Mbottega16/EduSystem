@@ -209,6 +209,7 @@ func _main() -> void:
 	test_next_term()
 	test_term_paths()
 	test_term_target()
+	test_boss()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -236,6 +237,7 @@ func _main() -> void:
 	await test_buying_desks()
 	await test_the_school()
 	await test_hallway()
+	await test_mentor()
 	await test_dev_panel()
 	await test_teaching()
 	await test_weather()
@@ -549,9 +551,25 @@ func test_scene() -> void:
 		await step(2)
 		chk("pull %d takes one desk out of the cabinet" % (i + 1),
 			Game.desks_in_store == before_i - 1, Game.desks_in_store)
+		# rebuild_desks_only() hands back the bodies it built so main.gd can
+		# settle the newest one in rather than guessing -- it must always be
+		# resolvable to a live desk right after a pull.
+		chk("the desk that just came out is retrievable for its landing fx",
+			world.newest_desk() != null and is_instance_valid(world.newest_desk()))
 	chk("every desk is out now", Game.desks_in_store == 0)
 	chk("the room has its desks", not get_tree().get_nodes_in_group("desk_part").is_empty())
 	chk("and the class is on its way in", not world.students.is_empty())
+
+	# The room is furnished from day one -- a little decor seeded straight in,
+	# never bought, so it reads as lived-in rather than bare.
+	chk("the room starts with some decor already on the wall",
+		get_tree().get_nodes_in_group("seeded_decor").size() >= 3,
+		get_tree().get_nodes_in_group("seeded_decor").size())
+	chk("the seeded decor never blocks the floor it hangs over", (func() -> bool:
+		for id_tile: Array in RoomBuilder.DECOR_SEED:
+			if not world.grid.is_free(id_tile[1] as Vector2i):
+				return false
+		return true).call())
 
 	var pages: int = hud.INTRO_PAGES.size()
 	for i in pages:
@@ -560,6 +578,16 @@ func test_scene() -> void:
 		await tap("interact")
 	chk("walking through every page closes it", hud.mode == hud.Mode.NONE, hud.mode)
 	chk("and marks it seen, so it never replays for this career", Game.intro_seen)
+	chk("the intro is backstory now, not a control sheet", (func() -> bool:
+		var blob := (" ".join(hud.INTRO_SLATE) + " ").to_upper()
+		for page: Array in hud.INTRO_PAGES:
+			if page.size() != 2:            # every bubble page is exactly two lines
+				return false
+			blob += (" ".join(page) + " ").to_upper()
+		for token in [" WASD ", " E ", " F ", " L ", " J "]:
+			if blob.contains(token):
+				return false
+		return true).call())
 
 	# A handful of dialogue taps is nowhere near enough frames to cross the
 	# room, so let the scripted walk actually finish before judging where
@@ -1993,6 +2021,10 @@ func test_answer_all() -> void:
 	section("ANSWER ALL QUESTIONS")
 	Balance.ensure_loaded()
 	Game.new_run(SEED)
+	# The mass-help skill is locked until the mentor teaches it. This
+	# section is about the skill itself, not the gate (test_mentor covers
+	# that) -- grant it the way a grandfathered save would.
+	Game.answer_all_taught = true
 	await step(2)
 	world.start_lesson()
 	await step(4)
@@ -2349,7 +2381,8 @@ func test_unlockables() -> void:
 
 	chk("ungated furniture is always on sale", (func() -> bool:
 		for id: String in Items.order():
-			if Items.requires(id) == "" and not Items.is_unlocked(id):
+			if Items.requires(id) == "" and Items.requires_trophy(id) == "" \
+					and not Items.is_unlocked(id):
 				return false
 		return true).call())
 
@@ -2506,6 +2539,9 @@ func test_two_buttons_one_landmark() -> void:
 	# across sections otherwise, and this block runs after two other
 	# scenarios in the same section already exercised the podium.
 	Game.new_run(SEED)
+	Game.answer_all_taught = true  # this scenario is about the prompt bar
+	                              # fitting four live verbs -- grant the one
+	                              # the mentor would otherwise still be gating
 	await step(2)
 	world.start_lesson()          # not a raw phase-set: this is what
 	await step(2)                 # actually re-arms Game.quiz_done
@@ -4183,6 +4219,125 @@ func test_term_target() -> void:
 
 	Game.new_run(SEED)
 
+
+## Phase 6: the roguelike subject boss. A boss is a real card in the
+## term-path fork, dealt only on an eligible term; its exam is judged on
+## the class AVERAGE sit_exam() already produced against the card's bar;
+## clearing it wins a trophy and a cosmetic, missing it ends the run.
+func test_boss() -> void:
+	section("SUBJECT BOSS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	# --- the boss table ---
+	chk("balance.json carries one boss per strand plus the gauntlet",
+		Balance.bosses.size() == 5, Balance.bosses.size())
+	chk("the cadence is a real, read tunable",
+		Balance.boss_term_interval >= 2, Balance.boss_term_interval)
+	chk("every boss card is tagged, barred and has a real trophy behind it",
+		(func() -> bool:
+			for bcard: Dictionary in Balance.bosses:
+				if String(bcard.get("kind", "")) != "boss":
+					return false
+				if float(bcard.get("target", 0.0)) <= 0.0:
+					return false
+				if Trophies.by_id(String(bcard.get("trophy_id", ""))).is_empty():
+					return false
+			return true).call())
+
+	# --- boss cards only ever appear on an eligible term ---
+	var off_term := Balance.boss_term_interval + 1   # never divisible by it
+	var saw_boss_off := false
+	for i in 24:
+		Game.term = off_term
+		for row: Dictionary in Game.draw_term_paths():
+			if String(row.get("kind", "")) == "boss":
+				saw_boss_off = true
+	chk("no boss card is ever dealt on an ordinary term", not saw_boss_off)
+
+	var saw_boss_on := false
+	for i in 24:
+		Game.term = Balance.boss_term_interval
+		for row: Dictionary in Game.draw_term_paths():
+			if String(row.get("kind", "")) == "boss":
+				saw_boss_on = true
+	chk("a boss term does deal one into the fork, alongside the ordinary cards",
+		saw_boss_on)
+	chk("the hand is still the configured size on a boss term",
+		Game.draw_term_paths().size() == Balance.term_path_hand_min,
+		Game.draw_term_paths().size())
+	chk("choosing a boss card sets term_path like any other card", (func() -> bool:
+		Game.term = Balance.boss_term_interval
+		var guard := 0
+		while guard < 60:
+			var hand := Game.draw_term_paths()
+			for j in hand.size():
+				if String((hand[j] as Dictionary).get("kind", "")) == "boss":
+					var chosen := Game.choose_term_path(j)
+					return String(chosen.get("kind", "")) == "boss" \
+						and String(Game.term_path.get("kind", "")) == "boss"
+			guard += 1
+		return false).call())
+
+	# --- winning: the right trophy, and the cosmetic unlocks ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var boss: Dictionary = {}
+	for bcard: Dictionary in Balance.bosses:
+		if String(bcard.get("strand", "")) == "math":
+			boss = bcard.duplicate()
+	chk("the cosmetic is locked before any boss is beaten",
+		not Items.is_unlocked("winners_flag"))
+	Game.term_path = boss
+	for st: StudentData in Game.roster:
+		st.grades.append(0.98)              # a class that sails it
+	Game.next_term()
+	chk("clearing the bar awards that boss's own trophy",
+		Game.trophies.has(String(boss["trophy_id"])), Game.trophies)
+	chk("and the cosmetic decor is on sale now",
+		Items.is_unlocked("winners_flag"))
+	chk("the run carries on after a boss win", not Game.run_over)
+
+	# --- losing: run over, exactly like missing an ordinary target ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	Game.term_path = boss
+	for st: StudentData in Game.roster:
+		st.grades.append(0.15)             # nowhere near the bar
+	Game.next_term()
+	chk("missing a boss bar ends the run", Game.run_over)
+
+	# --- the non-boss path is untouched: an ordinary term still judges seats ---
+	Game.new_run(SEED)
+	Game.term_path = {}
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)
+	var ord_info := Game.next_term()
+	chk("an ordinary term with no boss card still advances normally",
+		not bool(ord_info.get("run_over", false)) and Game.term == 2)
+
+	# --- CONTRACT GUARD: the boss branch reuses sit_exam(), not a new formula
+	# (same source-scan shape as test_balance()'s guard on tools/sim.gd) ---
+	var src := FileAccess.get_file_as_string("res://scripts/autoload/game.gd")
+	var a := src.find("func next_term(")
+	var stop := src.find("\nfunc ", a + 1)
+	var nt := src.substr(a, stop - a) if a >= 0 and stop > a else ""
+	chk("next_term() is there to scan", nt != "")
+	chk("the boss branch keys off the term_path kind",
+		nt.contains('term_path.get("kind", "")) == "boss"'))
+	chk("it measures the class average sit_exam() already produced",
+		nt.contains('result.get("average"'))
+	chk("against the boss card's own bar", nt.contains('term_path.get("target"'))
+	chk("clearing it awards the trophy rather than scoring it bespoke",
+		nt.contains("award_trophy("))
+	chk("and no second grading pass sneaks in -- exactly one sit_exam() call",
+		nt.count("sit_exam(") == 1, nt.count("sit_exam("))
+
+	Game.new_run(SEED)
 
 
 func test_screens_explain_themselves() -> void:
@@ -6143,15 +6298,21 @@ func test_hallway() -> void:
 		hud.principal_says("hallway_first_visit", "SHOULD NOT APPEAR AGAIN")
 		return not hud.mascot_box.visible).call())
 
-	var expect_doors := 2 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
-	chk("a door per room, plus home, the office, and the next one to open",
+	var expect_doors := 3 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
+	chk("a door per room, plus home, the office, the mentor, and the next to open",
 		hallway.doors.size() == expect_doors, hallway.doors.size())
 
 	var office_door: Node2D = null
+	var mentor_door: Node2D = null
 	for d in hallway.doors:
 		if String(d.door_kind) == "office":
 			office_door = d
+		elif String(d.door_kind) == "mentor":
+			mentor_door = d
 	chk("the office is always the second door along", office_door != null)
+	chk("and the mentor teacher's room is always the third", mentor_door != null)
+	chk("the mentor door tints distinctly from the office",
+		hallway._door_tint("mentor", -1) != hallway._door_tint("office", -1))
 	world.player.global_position = office_door.global_position
 	await step(2)
 	await tap("manage")
@@ -6183,7 +6344,7 @@ func test_hallway() -> void:
 	await tap("manage")
 	chk("walking into it opens a room", Game.rooms.size() == rooms_before + 1)
 	chk("and the corridor rebuilds to match",
-		hallway.doors.size() == 2 + Game.rooms.size()
+		hallway.doors.size() == 3 + Game.rooms.size()
 			+ (1 if Game.can_open_room() else 0))
 
 	# The new room is unstaffed, so its door should offer to hire rather
@@ -6232,6 +6393,153 @@ func test_hallway() -> void:
 		world.player.get_parent() == world)
 	chk("and the room is what's on screen again", world.visible)
 	chk("with the hallway put away", not hallway.visible)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The mentor teacher: a room off the hallway that teaches the dash and the
+## mass-help "answer all" (locked until then), and demonstrates -- with its
+## own visibly spaced-out desks -- why crowding a room cuts both ways.
+func test_mentor() -> void:
+	section("THE MENTOR")
+	Game.new_run(SEED)
+	await step(2)
+	var main: Node = world.get_parent()
+	var mentor_room: Node = main.get_node("MentorRoom")
+	var hallway: Node = main.get_node("Hallway")
+	var hud := _hud()
+
+	# --- a fresh career has NOT met the mentor: both verbs are locked ---
+	chk("a new career starts with the dash untaught", not Game.dash_taught)
+	chk("and the mass-help untaught", not Game.answer_all_taught)
+
+	# the mass-help landmark refuses to offer itself while untaught, and
+	# lights up the instant the flag flips
+	world.start_lesson()
+	await step(4)
+	var aa: Interactable = null
+	for n in get_tree().get_nodes_in_group("answer_all_caller"):
+		if n is Interactable:
+			aa = n
+	chk("the answer-all landmark stays dark until the mentor teaches it",
+		aa != null and not aa.can_interact())
+	Game.answer_all_taught = true
+	chk("...and offers itself the instant it is taught", aa.can_interact())
+	Game.answer_all_taught = false
+	world.end_lesson()
+	await step(2)
+
+	# the tap-dash does not fire while untaught
+	Game.new_run(SEED)
+	await step(2)
+	_reset_dash(world.player)
+	Game.dash_taught = false            # _reset_dash grants it; take it back
+	var start := Grid.tile_to_world(Vector2i(3, 6))
+	var W: int = int(round(Balance.teacher_dash_duration * 60.0))
+	world.player.global_position = start
+	await step(2)
+	await hold("move_right", W)
+	var walked: float = world.player.global_position.x - start.x
+	world.player.global_position = start
+	await step(2)
+	Input.action_press("move_right")
+	await step(2)
+	Input.action_release("move_right")
+	await step(2)
+	world.player.global_position = start
+	Input.action_press("move_right")
+	await step(1)
+	await step(W + 3)
+	Input.action_release("move_right")
+	await step(1)
+	chk("double-tapping a direction does nothing while the dash is untaught",
+		(world.player.global_position.x - start.x) <= walked * 1.4,
+		"%.0f px, a plain walk is %.0f" % [world.player.global_position.x - start.x, walked])
+
+	# --- the day-end nudge fires once, while the mentor is unmet ---
+	hud._shown_hints.erase("see_the_mentor")
+	hud._queued_hint = []
+	hud.close()
+	Game.day_changed.emit(Game.day)
+	await step(3)
+	chk("a day ending before the mentor is met nudges toward the hallway",
+		hud._shown_hints.has("see_the_mentor"))
+
+	# --- walking in: the first visit teaches both verbs, one body not two ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await place_player(Layout.DOOR + Vector2i(1, 0), Actor.DIR_LEFT)
+	await tap("manage")
+	chk("the door out still reaches the hallway", world.player.get_parent() == hallway)
+	var md: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "mentor":
+			md = d
+	chk("the hallway has a mentor door", md != null)
+	world.player.global_position = md.global_position
+	await step(2)
+	await tap("manage")
+	chk("walking in reparents the same Actor into the mentor room",
+		world.player.get_parent() == mentor_room and is_instance_valid(world.player))
+	chk("and the mentor room is what's on screen",
+		mentor_room.visible and not hallway.visible and not world.visible)
+	chk("the first visit opens the teaching dialogue", hud.mode == hud.Mode.MENTOR)
+
+	var guard := 0
+	while hud.mode == hud.Mode.MENTOR and guard < 40:
+		await tap("interact")
+		guard += 1
+	chk("walking every page closes it", hud.mode == hud.Mode.NONE)
+	chk("the dash is taught now", Game.dash_taught)
+	chk("and the mass-help is taught now", Game.answer_all_taught)
+
+	# the desks in there really are spaced -- the room is the demonstration
+	chk("the mentor room's desks are laid out with real gaps", (func() -> bool:
+		var spots: Array = mentor_room.DESK_SPOTS
+		for i in spots.size():
+			for j in range(i + 1, spots.size()):
+				if (spots[i] as Vector2).distance_to(spots[j] as Vector2) < 40.0:
+					return false
+		return true).call())
+
+	# --- leaving: back to the hallway, same body ---
+	var exit_door: Node2D = null
+	for c in mentor_room.get_children():
+		if c is Interactable:
+			exit_door = c
+	chk("the mentor room has a door back", exit_door != null)
+	world.player.global_position = mentor_room.to_global(exit_door.position)
+	await step(2)
+	await tap("manage")
+	chk("the way back hands the player to the hallway",
+		world.player.get_parent() == hallway)
+	chk("with the mentor room put away", not mentor_room.visible and hallway.visible)
+
+	# --- a revisit outside a boss term is a plain idle line ---
+	Game.term = 1
+	Game.term_path = {}
+	Balance.ensure_loaded()
+	chk("term 1 is not on the boss cadence",
+		Game.term % Balance.boss_term_interval != 0)
+	hud.show_mentor()
+	chk("a revisit outside a boss term shows the idle line, not the lesson again",
+		hud.mode == hud.Mode.MENTOR and hud._mentor_talk == hud.MentorTalk.IDLE)
+	await tap("interact")
+	chk("and one press closes it", hud.mode == hud.Mode.NONE)
+
+	# --- a revisit with a boss term due is a prose readiness read, no number ---
+	Game.term = Balance.boss_term_interval        # an eligible term
+	hud.show_mentor()
+	chk("a revisit just before a boss term reads the room instead",
+		hud.mode == hud.Mode.MENTOR and hud._mentor_talk == hud.MentorTalk.READ)
+	chk("and phrases it as confidence, never a score", (func() -> bool:
+		for ch in "0123456789":
+			if hud.body.text.contains(ch):
+				return false
+		return hud.body.text.strip_edges() != "").call())
+	hud.close()
 
 	Game.new_run(SEED)
 	await step(2)
@@ -7246,6 +7554,11 @@ func test_dash() -> void:
 	Game.delete_save()
 	Game.new_run(SEED)
 	Balance.ensure_loaded()
+	# A new career has NOT met the mentor, so the dash is locked. Every
+	# section here is about the dash mechanic itself, not the gate -- grant
+	# it the way a grandfathered save would have it. _reset_dash() does the
+	# same before each later section.
+	Game.dash_taught = true
 	# row 6 is the clear aisle between the front desks (row 5) and the back
 	# seats (row 7) -- a good stretch to the right with nothing to walk into.
 	var start := Grid.tile_to_world(Vector2i(3, 6))
@@ -7777,7 +8090,11 @@ func test_dash_lanes() -> void:
 
 ## Clear every scrap of dash state so a test dash starts from nothing --
 ## the cooldown from an earlier dash would otherwise silently swallow it.
+## Also grants dash_taught: a Game.new_run() now leaves the dash LOCKED
+## until the mentor teaches it, and every dash test is about the mechanic,
+## not the gate (there is a dedicated section for the gate).
 func _reset_dash(p: Node) -> void:
+	Game.dash_taught = true
 	p._dash_burst = 0.0
 	p._dash_cool = 0.0
 	p._dash_cancel_grace = 0.0

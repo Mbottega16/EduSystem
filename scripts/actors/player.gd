@@ -532,7 +532,10 @@ func _tick_double_tap_dash(delta: float) -> bool:
 			if float(_tap_since[action]) <= Balance.teacher_dash_double_tap_window:
 				fired = true
 			_tap_since[action] = 0.0
-	return fired
+	# The tap clocks still tick above (so a tap during the window still
+	# counts toward the next legal dash), but the dash itself does not
+	# exist until the mentor teaches it -- see Game.dash_taught.
+	return fired and Game.dash_taught
 
 
 func _tick_dash(delta: float, dir: Vector2) -> void:
@@ -586,7 +589,10 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 		return
 	if dir == Vector2.ZERO or _dash_burst > 0.0 or _dash_cool > 0.0:
 		return
-	if Game.claim_action("dash") or double_tapped:
+	# Always consume the claim, but only act on it once the mentor has
+	# taught the dash. double_tapped is already gated in _tick_double_tap_dash().
+	var wants_dash := Game.claim_action("dash") or double_tapped
+	if wants_dash and Game.dash_taught:
 		Balance.ensure_loaded()
 		_dash_burst = Balance.teacher_dash_duration
 		_dash_cool = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown

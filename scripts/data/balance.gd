@@ -171,6 +171,16 @@ static var term_path_hand_min: int = 3
 static var term_path_hand_max: int = 3
 static var term_paths: Array = []
 
+# --- the roguelike subject boss ------------------------------------------
+## Boss cards are folded into the term-path fork pool on every
+## boss_term_interval-th term (Game.draw_term_paths), tagged kind:"boss",
+## and excluded on every other term so a boss is a telegraphed choice, not
+## an ambush. `bosses` is the card TABLE -- full term-path card dicts plus
+## an id, strand, target bar and trophy_id. See the note on `bosses` in
+## balance.json, and scripts/data/trophies.gd for the shelf they land on.
+static var boss_term_interval: int = 3
+static var bosses: Array = []
+
 # --- the subject you trained in ------------------------------------------
 static var spec_relief: float = 1.0
 static var spec_penalty: float = 0.7
@@ -487,6 +497,10 @@ static func apply(d: Dictionary) -> void:
 	term_path_hand_min = int(tp.get("hand_size_min", term_path_hand_min))
 	term_path_hand_max = int(tp.get("hand_size_max", term_path_hand_max))
 	term_paths = tp.get("paths", term_paths)
+
+	var bs: Dictionary = d.get("bosses", {})
+	boss_term_interval = int(bs.get("term_interval", boss_term_interval))
+	bosses = bs.get("table", bosses)
 
 	var sp: Dictionary = d.get("specialism", {})
 	spec_relief = float(sp.get("difficulty_relief", spec_relief))

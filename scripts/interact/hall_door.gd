@@ -48,6 +48,8 @@ func prompt_text() -> String:
 			return "Step into the hallway" if leads_out else "Back to your room"
 		"office":
 			return "The principal's office"
+		"mentor":
+			return "The mentor teacher's room"
 		"open":
 			return "Open a room (%d coins)" % Game.room_cost()
 		_:

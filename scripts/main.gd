@@ -9,6 +9,7 @@ extends Node2D
 @onready var world: Node2D = $World
 @onready var hud: Control = $UI/HUD
 @onready var hallway: Node2D = $Hallway
+@onready var mentor_room: Node2D = $MentorRoom
 
 var placement: Placement = null
 
@@ -65,6 +66,19 @@ func _ready() -> void:
 	# landmarks -- it never gets torn down and rebuilt, so this connection
 	# is made once here rather than re-made in _wire_room().
 	hallway.door_chosen.connect(_on_hallway_door)
+	# The mentor room, likewise, is a permanent scene -- its exit door hands
+	# the player back to the hallway.
+	mentor_room.exit_chosen.connect(_leave_mentor)
+
+	# A one-line nudge toward the mentor, the first time a day ends before
+	# the player has been down the hall to meet them. Non-blocking: it rides
+	# the same once-per-run corner popup every other tutorial line uses, and
+	# never forces a walk. A grandfathered save loads with dash_taught true,
+	# so it never sees this.
+	Game.day_changed.connect(func(_d: int) -> void:
+		if not Game.dash_taught:
+			hud.queue_hint("see_the_mentor",
+				"There is a mentor teacher down the hall now."))
 
 	# The storyline cutscene. hud.gd owns the WORDS and their paging; this is
 	# the wiring that turns "the slate was dismissed" into an actual teacher
@@ -115,6 +129,15 @@ func _intro_pull_desk() -> void:
 		return
 	var left := Game.intro_pull_desk()
 	Sfx.play("blip")
+	# The desk that just came out of the cabinet. rebuild_desks_only() has
+	# already run (Game.intro_pull_desk -> intro_desks_changed), so ask the
+	# world which body is newest and settle it in -- squash-and-land plus a
+	# little dust, the same visual language Fx.land() gives placed shop
+	# furniture, so a desk ARRIVES rather than snapping into place.
+	var desk_node: StaticBody2D = world.newest_desk()
+	if desk_node != null and is_instance_valid(desk_node):
+		Fx.land(desk_node)
+		Fx.puff(world, desk_node.global_position, Color(0.82, 0.77, 0.7, 0.75), 4)
 	if world.player != null and is_instance_valid(world.player):
 		Fx.puff(world, world.player.global_position + Vector2(0, -3),
 			Color(0.82, 0.77, 0.7, 0.75), 3)
@@ -362,6 +385,47 @@ func _return_home() -> void:
 	world.visible = true
 
 
+## Into the mentor teacher's room, off the hallway. Reparents the SAME
+## Actor -- never a second body -- exactly as the hallway/room transitions
+## already do. The first visit runs the teaching dialogue; a revisit shows
+## an idle line, or a prose readiness read if a boss term is due.
+func _enter_mentor() -> void:
+	mentor_room.visible = true
+	var p: Actor = world.player
+	hallway.remove_child(p)
+	mentor_room.add_child(p)
+	p.position = mentor_room.entry_position()
+	p.facing = p.DIR_RIGHT
+	mentor_room.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	hallway.visible = false
+	world.visible = false
+	# Locked here rather than left to hud._open()'s own best-effort lock,
+	# which goes through a _player reference hud only discovers lazily in
+	# _process() -- the same reason the intro locks the player in _ready().
+	p.input_locked = true
+	hud.show_mentor()
+
+
+## Back out through the mentor room's door, into the hallway.
+func _leave_mentor() -> void:
+	hallway.rebuild()
+	var p: Actor = world.player
+	mentor_room.remove_child(p)
+	hallway.add_child(p)
+	p.position = hallway.entry_position()
+	p.facing = p.DIR_DOWN
+	hallway.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	mentor_room.visible = false
+	world.visible = false
+	hallway.visible = true
+
+
 func _on_hallway_door(kind: String, room_index: int) -> void:
 	match kind:
 		"home":
@@ -370,6 +434,8 @@ func _on_hallway_door(kind: String, room_index: int) -> void:
 			Game.met_principal = true
 			hud._sel = 0
 			hud.show_office()
+		"mentor":
+			_enter_mentor()
 		"open":
 			var err := Game.open_room()
 			if err != "":

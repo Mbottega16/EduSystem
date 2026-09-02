@@ -76,12 +76,27 @@ static func requires(id: String) -> String:
 	return String(get_def(id).get("needs", ""))
 
 
+## The trophy this item is gated behind, if any. "*" means "any boss
+## trophy at all" -- the one cosmetic the roguelike subject boss unlocks.
+static func requires_trophy(id: String) -> String:
+	return String(get_def(id).get("needs_trophy", ""))
+
+
 ## Is it on sale yet? Gating a few items on concepts means the shop grows as
 ## you TEACH and not only as you earn -- so a term spent on science opens a
-## different catalogue from a term spent on English.
+## different catalogue from a term spent on English. A handful are gated on
+## a boss trophy instead (needs_trophy), reading Game.trophies the same way
+## the concept check reads Game's taught list.
 static func is_unlocked(id: String) -> bool:
 	var need := requires(id)
-	return need == "" or Game.knows_concept(need)
+	if need != "" and not Game.knows_concept(need):
+		return false
+	var trophy := requires_trophy(id)
+	if trophy == "*":
+		return not Game.trophies.is_empty()
+	if trophy != "" and not Game.trophies.has(trophy):
+		return false
+	return true
 
 
 ## What the shop can list right now, in one category.

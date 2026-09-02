@@ -3,11 +3,13 @@ extends RefCounted
 
 ## One per boss the roguelike endgame can set you: a subject boss for
 ## each strand, plus the mixed gauntlet. A trophy is AWARDED by beating
-## that boss (Game.award_trophy) -- never derived from ordinary play, the
-## way a milestone is. It pays nothing and gates nothing on its own; the
-## boss encounter itself is still to build (docs/ROGUELIKE_DESIGN.md).
-## This is the shelf it lands on, and it is saved so a run keeps its
-## record.
+## that boss (Game.award_trophy, from Game.next_term()'s boss branch) --
+## never derived from ordinary play, the way a milestone is. The trophy
+## itself pays nothing; clearing the boss also puts the cosmetic decor
+## gated on it on sale (Items.is_unlocked). Boss cards, the fight and the
+## stakes are the term-path fork's `bosses` table -- see data/balance.json
+## and docs/ROGUELIKE_DESIGN.md. This is the shelf trophies land on, saved
+## so a run keeps its record.
 ##
 ## THE RULE FOR ADDING ONE, same as a milestone: it must name something a
 ## player would tell somebody else about. If it reads like "cleared

@@ -95,10 +95,11 @@ func rebuild() -> void:
 			a.queue_free()
 	_door_art.clear()
 
-	# Slot 0 is always home, slot 1 is always the office -- neither counts
-	# against Game.rooms or the max_rooms cap, both being about YOU rather
-	# than a room you are running.
-	var n := 2 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
+	# Slots 0-2 are always home, the office, and the mentor teacher's room --
+	# none of the three counts against Game.rooms or the max_rooms cap, all
+	# three being about YOU rather than a room you are running. Rooms you
+	# hold follow from slot 3.
+	var n := 3 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
 	for i in n:
 		var kind: String
 		var idx := -1
@@ -106,9 +107,11 @@ func rebuild() -> void:
 			kind = "home"
 		elif i == 1:
 			kind = "office"
-		elif i <= 1 + Game.rooms.size():
+		elif i == 2:
+			kind = "mentor"
+		elif i <= 2 + Game.rooms.size():
 			kind = "room"
-			idx = i - 2
+			idx = i - 3
 		else:
 			kind = "open"
 		var dx := MARGIN + float(i) * SPACING
@@ -163,6 +166,10 @@ func _door_tint(kind: String, idx: int) -> Color:
 			return Color(1.15, 1.0, 0.7)      # warm gold -- matches the
 			                                    # principal's own colour
 			                                    # everywhere else it appears
+		"mentor":
+			return Color(1.15, 0.85, 0.7)      # warm rust -- the mentor's own
+			                                    # cardigan colour, and clearly
+			                                    # not the office's gold
 		"room":
 			if idx >= 0 and idx < Game.rooms.size():
 				var r: Dictionary = Game.rooms[idx]

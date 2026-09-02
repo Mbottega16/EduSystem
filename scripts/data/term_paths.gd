@@ -24,9 +24,16 @@ static func by_id(id: String) -> Dictionary:
 
 
 ## A small hand, weighted, without replacement.
-static func draw(rng: RandomNumberGenerator, count: int) -> Array:
+##
+## `explicit_pool` lets a caller narrow (or widen) what is drawn from --
+## Game.draw_term_paths() passes the ordinary paths plus, only on an
+## eligible term, the boss cards. Every existing caller passes nothing and
+## gets the full paths() list, exactly as before.
+static func draw(rng: RandomNumberGenerator, count: int,
+		explicit_pool: Array = []) -> Array:
 	Balance.ensure_loaded()
-	var pool: Array = paths().duplicate()
+	var pool: Array = (explicit_pool if not explicit_pool.is_empty()
+		else paths()).duplicate()
 	var out: Array = []
 	var n: int = mini(count, pool.size())
 	for i in n:

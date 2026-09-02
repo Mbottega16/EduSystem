@@ -107,10 +107,8 @@ func check_milestones() -> Array:
 
 ## Trophies won by beating a roguelike endgame boss -- one per subject
 ## boss plus the gauntlet, see scripts/data/trophies.gd. Unlike milestones
-## these are never derived from ordinary play: something has to call
-## award_trophy(). The boss encounter that would do that is still to
-## build (docs/ROGUELIKE_DESIGN.md); the shelf and the save slot are
-## here so that work has somewhere to land.
+## these are never derived from ordinary play: next_term()'s boss branch
+## calls award_trophy() when the class clears a boss card's target bar.
 var trophies: Array = []
 
 signal trophy_earned(id: String)
@@ -453,10 +451,25 @@ func complication_density_mult() -> float:
 ## Rolled once, at the moment a new term opens -- see next_term(). Not
 ## rolled on demand, so the report screen that just closed can hand
 ## straight off to a hand that's already waiting.
+##
+## Boss cards (kind:"boss") are folded into the fork pool ONLY on an
+## eligible term -- every boss_term_interval-th one -- and excluded on
+## every other term, so a boss is a real telegraphed card alongside the
+## ordinary Quiet/Ordinary/Busy/Chaotic ones, never a random ambush.
 func draw_term_paths() -> Array:
 	Balance.ensure_loaded()
-	term_path_hand = TermPaths.draw(rng, Balance.term_path_hand_min)
+	var pool: Array = TermPaths.paths().duplicate()
+	if boss_term_eligible():
+		pool.append_array(Balance.bosses)
+	term_path_hand = TermPaths.draw(rng, Balance.term_path_hand_min, pool)
 	return term_path_hand
+
+
+## Is the CURRENT term one a subject boss can be offered on?
+func boss_term_eligible() -> bool:
+	Balance.ensure_loaded()
+	return Balance.boss_term_interval > 0 \
+		and term % Balance.boss_term_interval == 0
 
 
 func choose_term_path(i: int) -> Dictionary:
@@ -505,6 +518,20 @@ var met_principal: bool = false
 ## existing hint already does -- a single throwaway line reappearing after
 ## a reload is a shrug, the whole opening scene doing it is not.
 var intro_seen: bool = false
+
+## Two verbs the mentor teacher unlocks -- the dash and the mass-help
+## "answer all". Locked mechanically until then: player.gd's tap-dash and
+## answer_all_caller.can_interact() both gate on the matching flag.
+##
+## GRANDFATHER, the same pattern intro_seen uses: a brand-new career sets
+## both false in new_run(); a save written before this feature has no key,
+## so from_dict() defaults both to TRUE -- an existing run keeps the verbs
+## it has always had rather than losing them to a mentor it never met.
+## dash_taught doubles as "has visited the mentor": the first visit always
+## teaches the dash, so `not dash_taught` is the same as "not been down the
+## hall yet" -- what the day-end nudge and the first-visit dialogue check.
+var dash_taught: bool = false
+var answer_all_taught: bool = false
 
 signal teacher_levelled(level: int)
 
@@ -608,6 +635,8 @@ func new_run(seed_value: int = 0) -> void:
 	unlimited_coins = false
 	met_principal = false
 	intro_seen = false
+	dash_taught = false
+	answer_all_taught = false
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -1131,7 +1160,21 @@ func next_term() -> Dictionary:
 	# Missing the target ends the RUN. Everything below still happens, so
 	# the final screen can say what the term was, but no next term opens.
 	var target := term_target()
-	var hit := met_target(int(result.get("passed", 0)))
+	# A BOSS TERM is judged differently -- and ONLY differently. It reuses
+	# the class AVERAGE the exam above already produced (no new formula --
+	# see the source-scan guard in test_boss()), measured against this
+	# boss's own `target` bar rather than the seat-count target. Clearing it
+	# awards the trophy and unlocks the cosmetic gated on it; missing it is
+	# run_over, exactly like missing an ordinary term. The non-boss path
+	# below is untouched.
+	var hit: bool
+	if String(term_path.get("kind", "")) == "boss":
+		var bar := float(term_path.get("target", 1.0))
+		hit = float(result.get("average", 0.0)) >= bar
+		if hit:
+			award_trophy(String(term_path.get("trophy_id", "")))
+	else:
+		hit = met_target(int(result.get("passed", 0)))
 	if not hit:
 		run_over = true
 
@@ -2650,6 +2693,8 @@ func to_dict() -> Dictionary:
 		"cheated": cheated,
 		"met_principal": met_principal,
 		"intro_seen": intro_seen,
+		"dash_taught": dash_taught,
+		"answer_all_taught": answer_all_taught,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -2703,6 +2748,11 @@ func from_dict(d: Dictionary) -> void:
 	cheated = bool(d.get("cheated", false))
 	met_principal = bool(d.get("met_principal", false))
 	intro_seen = bool(d.get("intro_seen", false))
+	# No key -> an older save from before the mentor. Grandfather both verbs
+	# as already taught, so a run in progress does not lose the dash and the
+	# mass-help it has always had. A new career sets them false in new_run().
+	dash_taught = bool(d.get("dash_taught", true))
+	answer_all_taught = bool(d.get("answer_all_taught", true))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()

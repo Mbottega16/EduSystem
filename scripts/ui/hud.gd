@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS }
+	ADS, PATHS, MENTOR }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -217,6 +217,13 @@ func _process(_delta: float) -> void:
 		_ad_watching = maxf(0.0, _ad_watching - _delta)
 		if _ad_watching <= 0.0:
 			_finish_ad()
+	# A hint that was parked because a screen was up when it fired -- the
+	# mentor nudge does this, since a day ends WITH the day report on
+	# screen. Shown the moment the player is back in free roam.
+	if mode == Mode.NONE and not _queued_hint.is_empty():
+		var q: Array = _queued_hint
+		_queued_hint = []
+		principal_says(String(q[0]), String(q[1]))
 
 
 ## ALL input, on ONE clock.
@@ -649,6 +656,18 @@ func principal_says(id: String, text: String) -> void:
 	mascot_portrait.visible = true
 	mascot_box.visible = true
 	_hint_until = Time.get_ticks_msec() / 1000.0 + 5.0
+
+
+## A hint parked until the player is next in free roam (mode NONE). The
+## mentor nudge needs this: it fires from Game.day_changed, which lands
+## while the day report is still on screen, so principal_says() would just
+## no-op. _process() drains this the first frame nothing else is up.
+var _queued_hint: Array = []
+
+func queue_hint(id: String, text: String) -> void:
+	if _shown_hints.has(id) or not Settings.show_hints:
+		return
+	_queued_hint = [id, text]
 
 
 var _hint_until: float = 0.0
@@ -1925,37 +1944,44 @@ const TUTORIALS := [
 ## honestly as what is actually coming, not a bigger promise than the
 ## game can keep.
 ## The title card -- a film's slate, said once before the scene itself
-## starts. Panel-fit verified the same way every other screen is.
+## starts. Backstory and voice, not a control sheet: what the keys DO is
+## the mentor's job now (scripts/world/mentor_room.gd), not this. The one
+## instruction left is the one the cutscene then acts out -- "start with
+## the desks" -- so the words and the action still match. Panel-fit
+## verified the same way every other screen is: <= 11 lines at font 16.
 const INTRO_SLATE := [
-	"Twelve years teaching, and it still comes to this: a bare",
-	"room, a class list of names you have not met, and a tall",
-	"grey cabinet in the corner with everything you own folded",
-	"up inside it. The bell is in twenty minutes.",
+	"Sixteen years, and every September opens the",
+	"same way. A room that smells of floor polish.",
+	"A register of names you will know by Friday.",
+	"A grey cabinet holding all you own, folded flat.",
 	"",
-	"Nobody applies for this. Start with the desks.",
+	"Nobody chooses this room for you. Nobody makes",
+	"it work for you either. Yours to shape, or not.",
+	"",
+	"The bell goes in twenty minutes.",
+	"Start with the desks.",
 ]
 
-## The scene itself, re-cut for the shape it is actually said in: a comic
-## bubble holds two SHORT lines, not a paragraph wrapped narrower -- and
-## fixed at two, not "two or three", because the room's own front row
-## (where this is said, once the teacher has walked in and taken their
-## place) sits close enough to the top wall that a taller bubble crowds
-## the status bar above it. Found by screenshotting the actual worst-case
-## page, not by counting characters.
-## Said from a bubble above the teacher's own head as they walk in and
-## take their place at the front -- see main.gd's _start_intro_cutscene().
+## The scene itself: said from a bubble above the teacher's own head as
+## they walk the empty room and pull the desks out -- see main.gd's
+## _start_intro_cutscene(). Voice, not instruction: no key names anywhere
+## in here (that teaching moved to the mentor). A comic bubble holds two
+## SHORT lines, not a paragraph wrapped narrower -- and fixed at two, not
+## "two or three", because the front row where this is said sits close
+## enough to the top wall that a taller bubble crowds the status bar.
+## Found by screenshotting the worst-case page, not by counting characters.
 const INTRO_PAGES := [
-	["WASD walks.", "E does the small things."],
-	["Help. Collect.", "Clean up the mess."],
-	["F is the cabinet", "and the shop."],
-	["L starts the lesson.", "Do that first."],
-	["Or nothing gets", "done today."],
-	["Do this well enough,", "long enough..."],
-	["...and the room stops", "being the whole job."],
-	["There'll be a hallway.", "Other rooms."],
-	["Other people's kids.", "A reputation, even."],
-	["Nobody warns you", "about that part."],
-	["Consider this", "the warning."],
+	["Desks first.", "The rest can wait."],
+	["Eight desks, eight kids", "to grow into them."],
+	["Some will be quick.", "Some will need you near."],
+	["You never know which", "till you stand here."],
+	["A room talks before", "a word is said."],
+	["Where the chairs face.", "How near the walls."],
+	["Crowd them and you", "fight it all term."],
+	["Give them room and", "it half runs itself."],
+	["Keep this up and the", "room stops being it."],
+	["A hallway. More rooms.", "Other people's kids."],
+	["Nobody warns you.", "Consider this it."],
 ]
 
 
@@ -1969,8 +1995,10 @@ func _render_intro() -> void:
 	if _sel == -1:
 		overlay.visible = true
 		title.text = "MONDAY"
-		body.add_theme_font_size_override("font_size", 18)
-		body.add_theme_constant_override("line_spacing", 4)
+		# Font 16 / spacing 2, the same panel budget every other screen is
+		# fit to (CLAUDE.md: 11 rows at font 16). The slate runs to ten.
+		body.add_theme_font_size_override("font_size", 16)
+		body.add_theme_constant_override("line_spacing", 2)
 		body.text = "\n".join(INTRO_SLATE)
 		hint.text = "E - go on"
 		return
@@ -2016,6 +2044,192 @@ func _handle_intro_input() -> void:
 	else:
 		Game.intro_seen = true
 		intro_finished.emit()
+		close()
+
+
+# ---------------------------------------------------------------- the mentor
+#
+# The teacher down the hall. First visit is a short paged dialogue -- the
+# same page-at-a-time-on-E shape as the intro's slate, generalised only as
+# far as it needs to be (its own Mode, its own pages, one _handle_*_input).
+# It teaches the two verbs that are locked until now (the dash and the
+# mass-help "answer all") and, standing in a room whose desks are visibly
+# spaced out, is honest about what a neighbour is worth both ways. After
+# that, a revisit shows an idle line -- or, when a boss term is due, a
+# prose-only RoomSim readiness read (a tier of confidence, never a number).
+
+## Which page teaches which verb: leaving that page sets the flag, so a
+## verb unlocks exactly as it is explained.
+const MENTOR_DASH_PAGE := 1
+const MENTOR_ANSWER_ALL_PAGE := 2
+const MENTOR_PAGES := [
+	[
+		"Shut the door. Look how these desks sit --",
+		"room between every one of them. That is not",
+		"me being tidy. It is the whole lesson, and I",
+		"will show you. Two things first, though, for",
+		"when a room gets away from you.",
+	],
+	[
+		"Your feet. When a child is about to go off,",
+		"you will not always have time to walk over.",
+		"",
+		"Double-tap a direction and you break into a",
+		"run. A short burst, then a breath before the",
+		"next one. Try it on your way out.",
+	],
+	[
+		"The whole room at once. There is a key for",
+		"it -- answer all.",
+		"",
+		"One press and every stuck hand goes down and",
+		"every flagged quiz settles. It costs you most",
+		"of the lesson clock and a long wait after. A",
+		"rope to grab, not a way to teach.",
+	],
+	[
+		"Now the desks. Sit two children side by side",
+		"and each works about an eighth slower -- the",
+		"price of a crowded table.",
+		"",
+		"But it runs both ways. A calm neighbour will",
+		"quietly help the one who is stuck. A restless",
+		"one makes stalling spread like a cold.",
+	],
+	[
+		"So it is not spread them out and forget it.",
+		"It is knowing who you have sat next to whom,",
+		"and moving a desk when the pairing is wrong.",
+		"",
+		"Off you go. Mind the gaps on the way.",
+	],
+]
+
+const _MENTOR_IDLE := [
+	"Still room between the desks, I see. Good.",
+	"",
+	"Come back when there is a big paper on the way",
+	"and I will tell you if the room is ready for it.",
+]
+
+## TEACH is the first-visit paged dialogue; READ is the boss-term
+## readiness projection; IDLE is the plain revisit line.
+enum MentorTalk { TEACH, READ, IDLE }
+var _mentor_talk: int = MentorTalk.IDLE
+
+
+func show_mentor() -> void:
+	_open(Mode.MENTOR)
+	if not Game.dash_taught:
+		_mentor_talk = MentorTalk.TEACH
+		_sel = 0
+	elif _boss_term_due():
+		_mentor_talk = MentorTalk.READ
+	else:
+		_mentor_talk = MentorTalk.IDLE
+	_render_mentor()
+
+
+## A boss term is the current one, or the next one is on the cadence -- so
+## "just before" a boss term counts as well as being in it. See
+## Game.draw_term_paths() / Balance.boss_term_interval.
+func _boss_term_due() -> bool:
+	Balance.ensure_loaded()
+	if String(Game.term_path.get("kind", "")) == "boss":
+		return true
+	return Balance.boss_term_interval > 0 \
+		and Game.term % Balance.boss_term_interval == 0
+
+
+func _render_mentor() -> void:
+	overlay.visible = true
+	body.visible = true
+	rich.visible = false
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_constant_override("line_spacing", 2)
+	# The mentor's own portrait -- a recolour of the one character model,
+	# same as show_student() does for a child.
+	var at := AtlasTexture.new()
+	at.atlas = load("res://art/mentor.png")
+	at.region = Rect2(0, 0, 32, 48)
+	portrait.texture = at
+	portrait.visible = true
+	match _mentor_talk:
+		MentorTalk.TEACH:
+			_sel = clampi(_sel, 0, MENTOR_PAGES.size() - 1)
+			title.text = "THE MENTOR"
+			body.text = "\n".join(MENTOR_PAGES[_sel])
+			hint.text = "E - go on" if _sel < MENTOR_PAGES.size() - 1 \
+				else "E - back to it"
+		MentorTalk.READ:
+			title.text = "A WORD BEFORE THE PAPER"
+			body.text = _mentor_readiness_text()
+			hint.text = "E - close"
+		_:
+			title.text = "THE MENTOR"
+			body.text = "\n".join(_MENTOR_IDLE)
+			hint.text = "E - close"
+
+
+## RoomSim, run against the player's OWN roster and room, phrased as a tier
+## of confidence. Never a number: this game does not print a score for a
+## child, and a boss preview is not where it starts. Runs on a COPY of the
+## roster and a throwaway RNG, so reading it neither scrambles the class's
+## lesson state nor perturbs the seeded run.
+func _mentor_readiness_text() -> String:
+	Balance.ensure_loaded()
+	if Game.roster.is_empty():
+		return "\n".join([
+			"No class to read yet. Come back once there",
+			"are children in the room."])
+	var probe: Array = []
+	for s: StudentData in Game.roster:
+		probe.append(StudentData.from_dict(s.to_dict()))
+	var rv := 0.0
+	var seats := 0
+	for i in Layout.seat_count():
+		if Game.student_in_seat(i) != null:
+			rv += Game.room_score(i)
+			seats += 1
+	rv = rv / maxf(1.0, float(seats))
+	var throw := RandomNumberGenerator.new()
+	throw.seed = int(Game.rng.seed) + Game.term * 7919 + Game.day
+	var sim := RoomSim.play_day(probe, Staff.archetype("steady"), rv,
+		Game.lesson, throw)
+	var avg := float(sim.get("average", 0.0))
+	if avg >= Balance.grade_band_b:
+		return "\n".join([
+			"I have watched rooms like yours walk a paper",
+			"like this. Go in expecting to pass it."])
+	if avg >= Balance.grade_band_c:
+		return "\n".join([
+			"It could go either way. Move a desk or two,",
+			"teach it hard, and you are in with a shout."])
+	return "\n".join([
+		"Honestly? Not yet. As the room stands, this",
+		"paper will be a hard morning for the class."])
+
+
+func _handle_mentor_input() -> void:
+	if not Game.claim_interact():
+		return
+	Sfx.play("blip")
+	if _mentor_talk != MentorTalk.TEACH:
+		close()
+		return
+	# Each verb unlocks as the mentor finishes explaining it.
+	if _sel == MENTOR_DASH_PAGE:
+		Game.dash_taught = true
+	elif _sel == MENTOR_ANSWER_ALL_PAGE:
+		Game.answer_all_taught = true
+	if _sel < MENTOR_PAGES.size() - 1:
+		_sel += 1
+		_render_mentor()
+	else:
+		# belt and braces: whatever page order a future edit lands on, the
+		# visit as a whole always leaves both verbs taught
+		Game.dash_taught = true
+		Game.answer_all_taught = true
 		close()
 
 
@@ -3326,6 +3540,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.INTRO:
 		_handle_intro_input()
+		return
+
+	if mode == Mode.MENTOR:
+		_handle_mentor_input()
 		return
 
 	if mode == Mode.ADS:

@@ -65,6 +65,17 @@ CHARACTERS = {
         "legs": (54, 46, 40), "shoe": (30, 26, 22),
         "long_hair": False, "skirt": False,
     },
+    # The mentor teacher, in the small room off the hallway. Another
+    # colleague rather than an authority figure, so a WARM everyday palette
+    # -- rust cardigan, grey-streaked hair -- that reads as "an older
+    # teacher" without borrowing the principal's purple or the inspector's
+    # grey suit. One palette entry, same generator, same as everyone else.
+    "mentor": {
+        "hair": (150, 138, 120), "hair_d": (112, 100, 84),
+        "shirt": (176, 96, 58), "shirt_d": (132, 68, 40),
+        "legs": (86, 74, 62), "shoe": (52, 42, 34),
+        "long_hair": True, "skirt": False,
+    },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
     # rather than any new drawing code. Keys must match Names.ART in

@@ -661,6 +661,18 @@
       "blurb": "Every opinion goes in the same slot.",
       "teaches": "civics.taking_part"
     },
+    "winners_flag": {
+      "name": "Winner's Flag",
+      "cat": "decor",
+      "cost": 150,
+      "art": "state_flag",
+      "w": 1,
+      "range": 6,
+      "bonus": 0.06,
+      "flat": true,
+      "needs_trophy": "*",
+      "blurb": "Flown after the class walked a paper the district set. On sale once any boss is beaten."
+    },
     "season_wheel": {
       "name": "Season Wheel",
       "cat": "decor",
@@ -737,6 +749,7 @@
     "alphabet_frieze",
     "season_wheel",
     "vote_box",
+    "winners_flag",
     "fish_tank",
     "coffee",
     "photocopies",
@@ -1253,6 +1266,77 @@
         "lesson_mult": 1.45,
         "coin_mult": 1.35,
         "density_mult": 2.4
+      }
+    ]
+  },
+  "bosses": {
+    "_note": "The roguelike subject boss. On every boss_term_interval-th term Game.draw_term_paths() folds these cards into the same fork pool the ordinary Quiet/Ordinary/Busy/Chaotic cards are drawn from, tagged kind:\"boss\" -- a telegraphed choice alongside them, never an ambush. A boss term otherwise plays exactly like an ordinary one (every multiplier 1.0); what changes is the exam. Game.next_term() judges the class AVERAGE that sit_exam() already produced against this card's `target` instead of the seat-count term target. Clear it: award the matching trophy (scripts/data/trophies.gd) and unlock the cosmetic decor gated on any boss trophy. Miss it: run_over, exactly as missing an ordinary term. `target` is on sit_exam()'s own 0..1 grade-average scale.",
+    "term_interval": 3,
+    "table": [
+      {
+        "id": "boss_ela",
+        "name": "Reading Paper",
+        "kind": "boss",
+        "strand": "ela",
+        "target": 0.7,
+        "trophy_id": "boss_ela",
+        "weight": 20,
+        "blurb": "The paper the district sends round. One morning, the whole class.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
+      },
+      {
+        "id": "boss_math",
+        "name": "Number Gauntlet",
+        "kind": "boss",
+        "strand": "math",
+        "target": 0.7,
+        "trophy_id": "boss_math",
+        "weight": 20,
+        "blurb": "Every child, every fact, against the clock. Nobody may freeze.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
+      },
+      {
+        "id": "boss_science",
+        "name": "Science Fair",
+        "kind": "boss",
+        "strand": "science",
+        "target": 0.7,
+        "trophy_id": "boss_science",
+        "weight": 20,
+        "blurb": "They explain their own experiments to a room of strangers.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
+      },
+      {
+        "id": "boss_social",
+        "name": "Mock Election",
+        "kind": "boss",
+        "strand": "social",
+        "target": 0.7,
+        "trophy_id": "boss_social",
+        "weight": 20,
+        "blurb": "Both sides argued, and the votes counted out in the open.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
+      },
+      {
+        "id": "boss_gauntlet",
+        "name": "Open Evening",
+        "kind": "boss",
+        "strand": "gauntlet",
+        "target": 0.74,
+        "trophy_id": "boss_gauntlet",
+        "weight": 20,
+        "blurb": "Parents, inspectors, the lot. The room has to hold up under it.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
       }
     ]
   }

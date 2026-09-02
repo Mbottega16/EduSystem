@@ -148,6 +148,7 @@ func build() -> void:
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
 	cabinet = RoomBuilder.build_cabinet(self, grid)
+	RoomBuilder.build_decor(self, grid)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
@@ -386,6 +387,7 @@ func rebuild_room() -> void:
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
 	cabinet = RoomBuilder.build_cabinet(self, grid)
+	RoomBuilder.build_decor(self, grid)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
@@ -843,7 +845,11 @@ func clear_students() -> void:
 ## Not rebuild_room(): that re-rolls the day's mess off Game.rng and
 ## rebuilds every prop, and this fires once per desk. Frees every seat's
 ## grid cell first so build_desks() can re-block just the ones it builds.
-func rebuild_desks_only() -> void:
+##
+## Returns the desk BODIES built this call, newest last -- so main.gd's
+## cold-open desk-pull can land an Fx.land() on the one that just appeared
+## rather than guessing which child of the y-sorted world is newest.
+func rebuild_desks_only() -> Array:
 	for n in get_tree().get_nodes_in_group("desk_part"):
 		if n is Node and n.get_parent() == self:
 			remove_child(n)
@@ -853,6 +859,23 @@ func rebuild_desks_only() -> void:
 		grid.set_cell(Layout.desk_tile(i), Grid.Cell.FREE)
 	stations = RoomBuilder.build_desks(self, grid)
 	_connect_desk_movers()
+	_last_desks_built.clear()
+	for st: Interactable in stations:
+		var body: Node = st.get_parent()
+		if body is StaticBody2D:
+			_last_desks_built.append(body)
+	return _last_desks_built
+
+
+## The desk bodies from the last rebuild_desks_only(), newest last. Used by
+## the cold open to animate each pulled desk in. Empty before any rebuild.
+var _last_desks_built: Array = []
+
+func newest_desk() -> StaticBody2D:
+	if _last_desks_built.is_empty():
+		return null
+	var b: Object = _last_desks_built[_last_desks_built.size() - 1]
+	return (b as StaticBody2D) if (b is StaticBody2D and is_instance_valid(b)) else null
 
 
 ## The last desk is out; bring the class in from the door. Called once by

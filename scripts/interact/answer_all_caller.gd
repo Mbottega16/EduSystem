@@ -19,6 +19,9 @@ func _init() -> void:
 
 
 func can_interact() -> bool:
+	# Locked until the mentor teaches it -- see Game.answer_all_taught.
+	if not Game.answer_all_taught:
+		return false
 	if Game.phase != Game.Phase.LESSON:
 		return false
 	if Game.test_active or not Game.answer_all_ready():
