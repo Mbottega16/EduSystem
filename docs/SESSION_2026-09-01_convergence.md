@@ -42,36 +42,56 @@ gameplay phase.** Suite: 1375 -> **1439 assertions**, green.
 
 ## Not done
 
-- **Phase 5b — the cold-open cutscene** (empty room -> teacher walks to
-  the cabinet -> pulls the desks out one by one -> class files in). The
-  backstory/copy is in; the cutscene is not. It restructures when desks
-  and students spawn (touches `build_desks`, `_spawn_students`, and the
-  intro state machine across `hud.gd` + `main.gd`), and the project's #1
-  rule is "verify by looking at the running game" — this environment's
-  title/scene screenshot tool hangs, so I would not commit an
-  unverifiable cutscene blind. `test_scene()` already drives the intro
-  end to end and can be extended to verify it.
-- **Phase 6 — roguelike subject boss + trophies.** Not started. The full
-  design is in the plan file: a boss term in the `TermPaths` fork
-  (subject boss you specialise against, or a randomised gauntlet for a
-  rarer trophy); RoomSim projection ("your room looks ready" in prose)
-  for readiness; losing a boss term is a run-over like a missed target;
-  winning gives a trophy (`Trophies` table, parallel to milestones,
-  pays/gates nothing) plus one cosmetic decor piece. Documented as a
-  deliberate exception to `docs/SALVAGE.md`'s "no ELO / no boss manager"
-  guidance, the same way `Game.auto_teach` is an exception in CLAUDE.md.
+- **Phase 6 — the roguelike subject boss FIGHT.** The trophy shelf is
+  built (`8cb3f9c` -- `scripts/data/trophies.gd`, `Game.trophies`,
+  `award_trophy`, save/load, shown on the career screen). What is NOT
+  built is the encounter that calls `award_trophy`: a boss term in the
+  `TermPaths` fork (a subject boss you specialise against, or a
+  randomised gauntlet for a rarer trophy); RoomSim projection ("your
+  room looks ready" in prose) for readiness; losing a boss term is a
+  run-over like a missed target; winning also unlocks one cosmetic decor
+  piece. To be documented as a deliberate exception to
+  `docs/SALVAGE.md`'s "no ELO / no boss manager" guidance, the same way
+  `Game.auto_teach` is an exception in CLAUDE.md.
+
+## Follow-on work done after the first handoff (commits `be49fa4`..`7896529`)
+
+- **`be49fa4`** — audit tool now covers every verb (built from
+  `Interactable.KEY_ACTIONS`, so L/K/J show), plus a cabinet row; and
+  `respond` was added to `player.targets` (the one action missing from
+  the literal).
+- **`8c856b5`** — `/deep_update` pass: resynced the counts that drifted
+  across the phases and did NOT machine-check -- balance sections
+  37 -> 39, `static var` tunables 187 -> 192 (CLAUDE.md and GDD.md
+  disagreed here; unified), suite sections 91 -> 94, milestones 22 -> 23,
+  GDD header date. `check_docs.py` was already green on the machine-checked
+  facts.
+- **`8cb3f9c`** — Phase 6 groundwork: the boss trophy shelf (5 trophies,
+  `Game.trophies`, `award_trophy`, save/load, on the career screen). No
+  boss fight yet -- nothing calls `award_trophy`.
+- **`7896529`** — Phase 5b, the cold open: leaving the slate empties the
+  room, the teacher walks to the cabinet and pulls each desk out, then
+  the class comes in. Desk rebuild goes through its own signal so it does
+  not re-roll mess off `Game.rng`. `test_scene()` drives it end to end.
+
+Suite now **1473 assertions**, `check_docs` 299/299, contract still
+0.63/0.71/0.97.
 
 ## Caveats
 
-- **No visual verification** of anything from Phases 1-5 — logo wordmark,
-  status-strip pips, cabinet prop, cabinet screen. All covered by
-  headless assertions; a real screenshot pass is worth doing.
+- **The cold open needs a visual check.** `test_scene()` proves the logic
+  (room empties, teacher walks to the cabinet, eight pulls, class in,
+  pages, teacher at the front), but nobody has *watched* it. Launch
+  `Play EDUSystem.bat`, start a New term, and confirm it looks right --
+  the desk sprites landing on their seats, the teacher's path, the dust
+  puff. The title/scene screenshot tool hangs in the Claude Code
+  environment, so this one is on you.
+- **No visual verification** of the rest either — logo wordmark,
+  status-strip cooldown pips, cabinet prop and screen, the career
+  screen's trophy rows. All covered by headless assertions.
 - Harmless **pre-existing** "2 ObjectDB instances leaked / 1 resource in
   use at exit" warning on every suite run. Present before this work,
   does not fail the gate.
-- `audit.tscn`'s columns are still E/F/Q/H/M — it never grew columns for
-  L/K/J, so it does not display the teach / respond / answer-all verbs.
-  Not a regression; the suite covers them. Worth updating the tool.
 - **Manual, off-repo:** the GitHub repo is still `EduSystems-Code/PixelRoom`
   (GitHub auto-redirects a rename; `CLAUDE.md` documents the current name
   honestly). The Desktop `Play PixelRoom.lnk` shortcut still has the old
