@@ -43,8 +43,12 @@ signal perk_bought()
 ## rather than hud reaching into world.player directly.
 signal intro_line_changed(text: String)
 ## Fired once, the moment the title slate is dismissed -- main.gd's cue to
-## move the teacher to the door and start the walk-in.
+## put the teacher at the door, stash the desks, and start the walk to
+## the cabinet.
 signal intro_walk_requested()
+## One press of E during the desk-pull phase -- main.gd pulls one desk
+## out of the cabinet and, on the last one, brings the class in.
+signal intro_desk_pull_requested()
 signal intro_finished()
 
 @onready var status: Label = $Status
@@ -1957,7 +1961,7 @@ const INTRO_PAGES := [
 
 func show_intro() -> void:
 	_open(Mode.INTRO)
-	_sel = -1     # the slate; _sel >= 0 indexes INTRO_PAGES
+	_sel = -1     # -1 slate, -2 desk-pull, >= 0 indexes INTRO_PAGES
 	_render_intro()
 
 
@@ -1974,6 +1978,16 @@ func _render_intro() -> void:
 	# bubble for the rest of the scene, which is the whole point of a
 	# cutscene over a panel that talks ABOUT the room instead.
 	overlay.visible = false
+	if _sel == -2:
+		# The desk-pull. A bubble over the teacher's head; the prompt bar
+		# counts down what is left folded up in the cabinet.
+		var left: int = Game.desks_in_store
+		intro_line_changed.emit("Chairs are stacked.\nDesks are in the cabinet.")
+		prompt.text = ("E - pull a desk out  (%d left)" % left) if left > 0 \
+			else "E - right then"
+		prompt.visible = true
+		prompt_box.visible = true
+		return
 	intro_line_changed.emit("\n".join(INTRO_PAGES[_sel]))
 	prompt.text = "E - go on" if _sel < INTRO_PAGES.size() - 1 else "E - right then"
 	prompt.visible = true
@@ -1985,8 +1999,16 @@ func _handle_intro_input() -> void:
 		return
 	Sfx.play("blip")
 	if _sel == -1:
-		_sel = 0
+		# Leave the slate -> the desk-pull. main.gd puts the teacher at the
+		# door, stashes every desk, and walks them to the cabinet.
+		_sel = -2
 		intro_walk_requested.emit()
+		_render_intro()
+	elif _sel == -2:
+		if Game.desks_in_store > 0:
+			intro_desk_pull_requested.emit()
+		if Game.desks_in_store <= 0:
+			_sel = 0                    # room furnished; on to the scene proper
 		_render_intro()
 	elif _sel < INTRO_PAGES.size() - 1:
 		_sel += 1

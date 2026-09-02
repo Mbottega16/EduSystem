@@ -524,6 +524,35 @@ func test_scene() -> void:
 		world.player.is_walking_scripted() or
 		world.player.global_position != door_tile)
 
+	# The cold open: the room is empty. Every desk is stashed, the class is
+	# held at the door, and the teacher walks to the cabinet to pull them
+	# out one by one.
+	chk("leaving the slate stashes every desk in the cabinet",
+		Game.desks_in_store == Layout.seat_count(), Game.desks_in_store)
+	chk("so no desks are built yet",
+		get_tree().get_nodes_in_group("desk_part").is_empty())
+	chk("and nobody has come in", world.students.is_empty())
+
+	var guard0 := 0
+	while world.player.is_walking_scripted() and guard0 < 500:
+		await step(1)
+		guard0 += 1
+	chk("the teacher walked to the cabinet, not straight to the front",
+		world.player.global_position.distance_to(
+			Grid.tile_to_world(Layout.CABINET + Vector2i(0, 1))) < 16.0,
+		world.player.global_position)
+
+	var seats := Layout.seat_count()
+	for i in seats:
+		var before_i: int = Game.desks_in_store
+		await tap("interact")
+		await step(2)
+		chk("pull %d takes one desk out of the cabinet" % (i + 1),
+			Game.desks_in_store == before_i - 1, Game.desks_in_store)
+	chk("every desk is out now", Game.desks_in_store == 0)
+	chk("the room has its desks", not get_tree().get_nodes_in_group("desk_part").is_empty())
+	chk("and the class is on its way in", not world.students.is_empty())
+
 	var pages: int = hud.INTRO_PAGES.size()
 	for i in pages:
 		chk("bubble %d fits above the teacher's head" % i,

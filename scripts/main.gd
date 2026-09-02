@@ -71,9 +71,11 @@ func _ready() -> void:
 	# walking across an actual room, and "a page turned" into a line above
 	# their own head instead of hud reaching into world.player directly.
 	hud.intro_walk_requested.connect(_start_intro_cutscene)
+	hud.intro_desk_pull_requested.connect(_intro_pull_desk)
 	hud.intro_line_changed.connect(func(t: String) -> void:
 		world.player.say(t))
 	hud.intro_finished.connect(func() -> void:
+		Game.desks_in_store = 0
 		world.player.input_locked = false
 		world.player.hide_bubble())
 
@@ -92,13 +94,33 @@ func _ready() -> void:
 
 
 ## The storyline cutscene's second beat: the slate is gone, the room is
-## visible, and the teacher walks in from the door rather than already
-## standing at the front the way every other boot leaves them. Triggered by
-## hud's own intro_walk_requested, fired once the slate is dismissed -- see
-## hud.gd's INTRO_SLATE/INTRO_PAGES split.
+## visible -- and empty. Every desk is stashed in the cabinet, the four
+## children build() had already seated are cleared, and the teacher walks
+## from the door to the cabinet to start pulling desks out. Triggered by
+## hud's intro_walk_requested, fired once the slate is dismissed.
 func _start_intro_cutscene() -> void:
 	world.player.global_position = Grid.tile_to_world(Layout.DOOR + Vector2i(1, 0))
-	world.player.start_scripted_walk(world.teacher_start_world())
+	Game.intro_begin_desks()
+	world.clear_students()
+	world.player.start_scripted_walk(
+		Grid.tile_to_world(Layout.CABINET + Vector2i(0, 1)))
+
+
+## One press of E at the cabinet: pull a desk out, kick up a little dust,
+## and once the last one is out, bring the class in from the door and
+## send the teacher to the front where every ordinary day begins.
+func _intro_pull_desk() -> void:
+	# Let them actually reach the cabinet before anything comes out of it.
+	if world.player != null and world.player.is_walking_scripted():
+		return
+	var left := Game.intro_pull_desk()
+	Sfx.play("blip")
+	if world.player != null and is_instance_valid(world.player):
+		Fx.puff(world, world.player.global_position + Vector2(0, -3),
+			Color(0.82, 0.77, 0.7, 0.75), 3)
+	if left <= 0:
+		world.intro_bring_students_in()
+		world.player.start_scripted_walk(world.teacher_start_world())
 
 
 ## The fixed props are NEW NODES after the room is rebuilt at a bigger size,

@@ -108,6 +108,7 @@ func _ready() -> void:
 	build()
 	Game.room_changed.connect(_rebuild_purchased)
 	Game.room_resized.connect(rebuild_room)
+	Game.intro_desks_changed.connect(rebuild_desks_only)
 	# A new run builds a whole new roster. Without this the actor nodes stay
 	# bound to the PREVIOUS run's StudentData -- the room carries on showing
 	# and animating children who are no longer in the class, and every
@@ -409,7 +410,13 @@ func rebuild_room() -> void:
 ## Everyone starts at the doorway and walks to their own chair. If a seat
 ## somehow can't be reached they are placed directly rather than left
 ## standing in the doorway forever.
+##
+## Held at the door entirely while the opening scene still has desks in
+## the cabinet -- there is nowhere for them to sit yet. main.gd calls
+## intro_bring_students_in() once the last desk is out.
 func _spawn_students(walk_in: bool = true) -> void:
+	if Game.desks_in_store > 0:
+		return
 	var n := 0
 	for s: StudentData in Game.roster:
 		if s.seat_index < 0 or s.seat_index >= Layout.seat_count():
@@ -821,6 +828,38 @@ func _respawn_students() -> void:
 	_spawn_students()
 	if player != null:
 		player.global_position = Grid.tile_to_world(TEACHER_START)
+
+
+## Take the class off the board -- the opening scene starts with an empty
+## room, so main.gd clears the four that build() spawned before the
+## teacher walks to the cabinet.
+func clear_students() -> void:
+	for n: Actor in students:
+		n.queue_free()
+	students.clear()
+
+
+## Rebuild ONLY the desks, for the opening scene's pull-them-out beat.
+## Not rebuild_room(): that re-rolls the day's mess off Game.rng and
+## rebuilds every prop, and this fires once per desk. Frees every seat's
+## grid cell first so build_desks() can re-block just the ones it builds.
+func rebuild_desks_only() -> void:
+	for n in get_tree().get_nodes_in_group("desk_part"):
+		if n is Node and n.get_parent() == self:
+			remove_child(n)
+			n.queue_free()
+	for i in Layout.seat_count():
+		grid.set_cell(Layout.seat(i), Grid.Cell.FREE)
+		grid.set_cell(Layout.desk_tile(i), Grid.Cell.FREE)
+	stations = RoomBuilder.build_desks(self, grid)
+	_connect_desk_movers()
+
+
+## The last desk is out; bring the class in from the door. Called once by
+## main.gd's intro cutscene.
+func intro_bring_students_in() -> void:
+	clear_students()
+	_spawn_students(true)
 
 
 ## Rebuild just the bought furniture. Cheaper and far less error-prone than

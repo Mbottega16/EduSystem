@@ -213,9 +213,14 @@ static func build_walls(parent: Node2D, grid: Grid) -> void:
 ## Eight desks and eight chairs, present whether or not anyone sits at them —
 ## the roster grows into the room rather than the room growing around it.
 ## Each desk carries its own Interactable so work can be collected from it.
+##
+## The opening scene withholds some: Game.desks_in_store is how many are
+## still folded up in the cabinet, so this builds seat_count() minus that,
+## from seat 0 up, and the room fills in as the teacher pulls them out.
 static func build_desks(parent: Node2D, grid: Grid) -> Array:
 	var stations: Array = []
-	for i in Layout.seat_count():
+	var built := maxi(0, Layout.seat_count() - Game.desks_in_store)
+	for i in built:
 		var seat: Vector2i = Layout.seat(i)
 		var desk: Vector2i = Layout.desk_tile(i)
 

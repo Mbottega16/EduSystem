@@ -576,6 +576,7 @@ func new_run(seed_value: int = 0) -> void:
 	roster.clear()
 	room_items.clear()
 	cabinet.clear()
+	desks_in_store = 0
 	homework_out = false
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
@@ -2521,6 +2522,38 @@ signal cabinet_changed()
 
 var cabinet: Array = []   ## item ids, one entry per owned copy
 
+## Desks the opening scene is still holding back in the cabinet. 0 in
+## every ordinary run -- build_desks() builds seat_count() desks then.
+## The cold open stashes all of them, rebuilds the room empty, and the
+## teacher pulls them out one at a time. Saved so a mid-cutscene reload
+## does not strand the class; an older save has no key and loads at 0.
+var desks_in_store: int = 0
+
+
+## Rebuild just the desks -- NOT the whole room. A full rebuild re-rolls
+## the day's mess off Game.rng, and the opening scene fires this eight
+## times; routing it through its own signal keeps the rng stream and
+## every other prop untouched.
+signal intro_desks_changed()
+
+
+## The opening scene: stash every desk in the cabinet and rebuild the
+## room with none. classroom._spawn_students() holds the class at the
+## door while this is non-zero.
+func intro_begin_desks() -> void:
+	desks_in_store = Layout.seat_count()
+	intro_desks_changed.emit()
+
+
+## Pull one desk out of the cabinet. Returns how many are still in it --
+## 0 means the room is furnished and the class can come in.
+func intro_pull_desk() -> int:
+	if desks_in_store <= 0:
+		return 0
+	desks_in_store -= 1
+	intro_desks_changed.emit()
+	return desks_in_store
+
 
 ## Buy `id` into the cabinet. Returns "" on success or why it was refused.
 ## The shop stays open afterwards -- there is no placement to start yet.
@@ -2651,6 +2684,7 @@ func to_dict() -> Dictionary:
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
 		"cabinet": cabinet.duplicate(),
+		"desks_in_store": desks_in_store,
 	}
 
 
@@ -2726,6 +2760,7 @@ func from_dict(d: Dictionary) -> void:
 			"tile": Vector2i(int(p.get("tx", 0)), int(p.get("ty", 0)))})
 	# An older save has no cabinet key -- it simply loads with an empty one.
 	cabinet = (d.get("cabinet", []) as Array).duplicate()
+	desks_in_store = int(d.get("desks_in_store", 0))
 	phase = Phase.MORNING
 	roster.clear()
 	for sd: Dictionary in d.get("roster", []):
