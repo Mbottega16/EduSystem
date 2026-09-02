@@ -55,22 +55,24 @@ func offer(action: String) -> String:
 	return it.prompt_text() if it.can_interact() else ""
 
 
-## Every action a landmark could answer on now, not just E/F -- quiz,
-## homework and move_desk each got their own dedicated key when the
-## whole scheme changed, Aug 2026, and an audit tool that only ever
-## printed two of five possible columns would be misleading players
-## into thinking the other three still shared E or F contextually.
+## Every action a landmark could answer on now, not just E/F. Built from
+## Interactable.KEY_ACTIONS -- the authoritative list -- so it never
+## drifts out of date again: quiz, homework, move_desk, teach, respond
+## and answer_all each got their own dedicated key as the scheme grew,
+## and an audit that only printed E and F would tell a player the rest
+## still share them contextually. Only the keys actually offering
+## something are printed, keyed by their real binding, so the line stays
+## readable however many verbs a landmark grows.
 func row(label: String, tile: Vector2i, facing: int) -> void:
 	await stand_at(tile, facing)
-	var e := offer("interact")
-	var f := offer("manage")
-	var q := offer("quiz")
-	var h := offer("homework")
-	var m := offer("move_desk")
-	print("   %-16s E: %-24s F: %-20s Q: %-14s H: %-14s M: %s" % [
-		label, e if e != "" else "-", f if f != "" else "-",
-		q if q != "" else "-", h if h != "" else "-",
-		m if m != "" else "-"])
+	var parts: Array[String] = []
+	for action: String in Interactable.KEY_ACTIONS:
+		var v := offer(action)
+		if v == "":
+			continue
+		var key := Settings.binding_text(action).split(",")[0].strip_edges()
+		parts.append("%s:%s" % [key, v])
+	print("   %-16s %s" % [label, "   ".join(parts) if not parts.is_empty() else "-"])
 
 
 func _audit() -> void:
@@ -100,6 +102,7 @@ func _audit() -> void:
 			Actor.DIR_UP)
 		await row("bell", Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
 		await row("noticeboard", Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+		await row("cabinet", Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
 		for i in mini(3, Layout.seat_count()):
 			await row("desk %d" % (i + 1), Layout.seat(i) + Vector2i(1, 1),
 				Actor.DIR_LEFT)

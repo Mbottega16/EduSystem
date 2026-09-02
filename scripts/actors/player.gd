@@ -29,7 +29,7 @@ signal carrying_changed(count: int)
 var targets: Dictionary = {
 	"interact": null, "manage": null,
 	"quiz": null, "homework": null, "move_desk": null, "teach": null,
-	"answer_all": null,
+	"respond": null, "answer_all": null,
 }
 
 ## The one to describe in the prompt. USE wins when both are live: it is the
