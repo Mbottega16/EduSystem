@@ -2841,6 +2841,17 @@ func test_panels_fit() -> void:
 		hud.body.text.contains("Extra tuition")
 		and hud.body.text.contains("parents")
 		and hud.body.text.contains("Send them up"), hud.body.text)
+
+	# the STORY page, with a full reel -- the other half of the file
+	for k: String in ["got_stuck", "quiz_caught", "grade_jump", "grade_drop",
+			"kept_back", "graduated"]:
+		s.note_moment(k, s.joined_day + 5)
+		s.note_moment(k, s.joined_day + 9)
+	hud.show_student(s)                 # ensure _bio == s, then turn the page
+	hud._bio_page = hud.BIO_STORY
+	hud.show_student(s)
+	chk("the student's story page fits with a full reel",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
 	hud.close()
 
 	hud.show_class_list()
@@ -8643,6 +8654,22 @@ func test_bio() -> void:
 	chk("the file says which seat and when they joined",
 		hud.body.text.contains("Seat %d" % (who.seat_index + 1))
 		and hud.body.text.contains("day %d" % who.joined_day), hud.body.text)
+
+	# Tab turns to their STORY -- a second page, not more crammed onto the
+	# first. Give them a beat worth telling.
+	who.note_moment("grade_jump", who.joined_day + 8)
+	await tap("menu")
+	chk("Tab opens their story page",
+		hud.mode == hud.Mode.STUDENT and hud.body.text.to_lower().contains("record"),
+		hud.body.text)
+	chk("the reel is rendered as prose, not raw kind ids",
+		not hud.body.text.contains("grade_jump")
+		and hud.body.text.to_lower().contains("grade"), hud.body.text)
+	chk("the story page shows no raw number either",
+		not hud.body.text.contains("0.") and not hud.body.text.contains("%"),
+		hud.body.text)
+	await tap("menu")
+	chk("Tab turns back to the file", hud.body.text.contains("Seat"))
 
 	# Esc is the way back out of the file. E is no longer -- it acts on the
 	# highlighted row now (tuition / parents / send them up), so a player

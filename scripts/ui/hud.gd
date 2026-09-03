@@ -150,6 +150,13 @@ var _shown_hints := {}
 ## exactly one transition to remember (class list -> bio -> back).
 var _bio: StudentData = null
 var _bio_sel: int = 0
+## A student's file has two pages, cycled by the same "menu" key the shop
+## and dashboard already use for tabs: the FILE (seat, ability, actions)
+## and their STORY (transcript arc + the notable-moments reel, in prose).
+## Paging beats cramming -- the file was already at the panel's row limit.
+const BIO_FILE := 0
+const BIO_STORY := 1
+var _bio_page: int = BIO_FILE
 ## The exam is the one screen whose closing DOES something, so it has to be
 ## told apart from every other report.
 var _showing_exam: bool = false
@@ -951,6 +958,8 @@ func _render_class_list() -> void:
 func show_student(s: StudentData) -> void:
 	if s == null:
 		return
+	if _bio != s:
+		_bio_page = BIO_FILE      # a file just opened always starts on page one
 	_bio = s
 	_open(Mode.STUDENT)
 	body.add_theme_font_size_override("font_size", 16)
@@ -969,6 +978,10 @@ func show_student(s: StudentData) -> void:
 	portrait.texture = at
 	portrait.visible = true
 
+	if _bio_page == BIO_STORY:
+		_render_student_story(s)
+		return
+
 	# The portrait sits top-RIGHT and the text runs full width beneath it.
 	# An earlier version put the portrait on the left and indented the text
 	# with spaces to clear it -- but a space is about 2px at font 8, not the
@@ -985,7 +998,79 @@ func show_student(s: StudentData) -> void:
 	# limit, and the "> " markers already tell the actions from the prose.
 	lines.append_array(_bio_actions(s))
 	body.text = "\n".join(lines)
-	hint.text = "Up/Down choose    E do it    Esc back"
+	hint.text = "Tab their story   Up/Down choose   E do it   Esc back"
+
+
+## Page two of a child's file: what actually HAPPENED to them, as prose.
+## The transcript arc, then the notable-moments reel rendered from its kind
+## ids to sentences HERE -- which is how "prose, never numbers" stays a
+## rule the stored data obeys and only the screen bends. Read-only: no
+## actions, so Up/Down/E do nothing here and only Tab / Esc are live.
+func _render_student_story(s: StudentData) -> void:
+	var lines: Array[String] = []
+	lines.append(_transcript_line(s))
+	lines.append("")
+	var story := _moments_prose(s)
+	if story.is_empty():
+		lines.append("Nothing has stood out yet -- early days for them.")
+	else:
+		lines.append_array(story)
+	body.text = "\n".join(lines)
+	hint.text = "Tab back to the file    Esc back"
+
+
+## The notable-moments reel, as at most four sentences. Grouped by kind so
+## a child who got stuck ten times reads as "got stuck a lot", not ten
+## lines. Ordered by when each kind first happened, so it runs start to
+## finish and a graduation lands last.
+func _moments_prose(s: StudentData) -> Array[String]:
+	if s.moments.is_empty():
+		return []
+	var order: Array[String] = []
+	var first_day := {}
+	var count := {}
+	for m: Dictionary in s.moments:
+		var k := String(m.get("kind", ""))
+		if not order.has(k):
+			order.append(k)
+			first_day[k] = int(m.get("day", 0))
+		count[k] = int(count.get(k, 0)) + 1
+	var out: Array[String] = []
+	for k: String in order:
+		var line := _moment_sentence(k, int(count[k]), int(first_day[k]), s)
+		if line != "":
+			out.append(line)
+	if out.size() > 4:
+		out = out.slice(0, 2) + out.slice(out.size() - 2)
+	return out
+
+
+## One kind of moment, in a sentence. `n` is how many times it happened,
+## `day` the first time. Never a number in the returned text.
+func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
+	var when := "early on" if day <= s.joined_day + 3 else "later"
+	match kind:
+		"got_stuck":
+			if n > 1:
+				return "Got stuck a lot at first, the work stalling until someone came over."
+			return "Hit a wall early on and needed a hand to get going again."
+		"quiz_caught":
+			return "A quiz caught them out %s -- the first clear sign they had slipped behind." % when
+		"grade_jump":
+			if n > 1:
+				return "Their work came together in bursts, jumping a grade more than once."
+			return "Their work jumped a whole grade %s, the day it clicked." % when
+		"grade_drop":
+			if n > 1:
+				return "Lost a grade more than once, and clawed it back each time."
+			return "Slid a grade for a stretch %s before finding their feet." % when
+		"kept_back":
+			if n > 1:
+				return "Was not ready at the bell more than once, and stayed on each time."
+			return "Was not ready when the term ended, and stayed on for another."
+		"graduated":
+			return "Left your class ready for what came next."
+	return ""
 
 
 ## What you can DO for this child. The file was read-only; spending on one
@@ -3679,20 +3764,25 @@ func _handle_input() -> void:
 	if mode == Mode.STUDENT:
 		# The file is a menu now, so E acts on the highlighted row instead of
 		# backing out. Esc is the way out -- E used to be both, which is the
-		# overloaded-button problem all over again.
+		# overloaded-button problem all over again. Tab turns the page between
+		# the file and their story; the story page is read-only.
 		if Input.is_action_just_pressed("cancel"):
 			Sfx.play("blip")
 			_bio = null
 			show_class_list(true)      # back to the list, on the same student
-		elif Input.is_action_just_pressed("move_down"):
+		elif Input.is_action_just_pressed("menu"):
+			_bio_page = BIO_STORY if _bio_page == BIO_FILE else BIO_FILE
+			Sfx.play("blip")
+			show_student(_bio)
+		elif _bio_page == BIO_FILE and Input.is_action_just_pressed("move_down"):
 			_bio_sel = (_bio_sel + 1) % Act.COUNT
 			Sfx.play("blip")
 			show_student(_bio)
-		elif Input.is_action_just_pressed("move_up"):
+		elif _bio_page == BIO_FILE and Input.is_action_just_pressed("move_up"):
 			_bio_sel = (_bio_sel - 1 + Act.COUNT) % Act.COUNT
 			Sfx.play("blip")
 			show_student(_bio)
-		elif Game.claim_interact():
+		elif _bio_page == BIO_FILE and Game.claim_interact():
 			_do_bio_action()
 		return
 
