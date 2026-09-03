@@ -107,6 +107,13 @@ var last_grade: float = -1.0
 ## [{lesson, name, standard, day, grade}]
 var transcript: Array = []
 
+## The highlight reel: a handful of things that HAPPENED to this particular
+## child -- the first time they got stuck, a grade that jumped, the day the
+## quiz caught them out. Stored as {kind, day}, never prose, so the story
+## page renders it (and "prose never numbers" stays a display concern).
+## Append-only via note_moment(); capped at Balance.moments_cap.
+var moments: Array = []
+
 var _since_stall: float = 0.0
 
 
@@ -135,6 +142,34 @@ func record_result(lesson: Dictionary, grade: float, day: int,
 		"standard": String(lesson.get("standard", "")),
 		"day": day, "grade": grade, "test": was_test,
 	})
+	# A grade that lands a letter band away from how they had been doing is
+	# worth remembering. The caller appends `grade` to `grades` BEFORE this
+	# runs, so the "before" picture is every grade except the last.
+	if grades.size() >= Balance.moments_grade_min_history + 1:
+		var prior := 0.0
+		for i in grades.size() - 1:
+			prior += grades[i]
+		prior /= float(grades.size() - 1)
+		if Game.grade_letter(grade) != Game.grade_letter(prior):
+			note_moment("grade_jump" if grade > prior else "grade_drop", day)
+
+
+## Add one moment to the highlight reel. Deliberately dumb: it stores a
+## `kind` id and a day, nothing prose, and it caps itself by keeping the
+## FIRST entry (their origin beat) plus the most recent ones.
+func note_moment(kind: String, day: int) -> void:
+	moments.append({"kind": kind, "day": day})
+	if moments.size() > Balance.moments_cap:
+		moments.remove_at(1)
+
+
+## Has this child already had a moment of this kind? For the once-only
+## beats -- the first stall, the first time the quiz caught them out.
+func has_moment(kind: String) -> bool:
+	for m: Dictionary in moments:
+		if String(m.get("kind", "")) == kind:
+			return true
+	return false
 
 
 ## Only the tests. A unit result carries more than a day's lesson did, and
@@ -280,6 +315,8 @@ func take_quiz(rng: RandomNumberGenerator, strand: String) -> int:
 			right += 1
 	quiz_score = float(right) / float(maxi(1, Balance.quiz_questions))
 	quiz_flagged = quiz_score < Balance.quiz_flag_below
+	if quiz_flagged and not has_moment("quiz_caught"):
+		note_moment("quiz_caught", Game.day)
 	# Retrieval practice: being asked is itself a small piece of learning,
 	# for everyone, whether or not they got it right.
 	work_timer = maxf(0.0, work_timer - Balance.quiz_retrieval_seconds)
@@ -376,6 +413,8 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null,
 			confusion = 1.0
 			_since_stall = 0.0
 			_hidden_for = 0.0
+			if not has_moment("got_stuck"):
+				note_moment("got_stuck", Game.day)
 	return false
 
 
@@ -571,6 +610,7 @@ func to_dict() -> Dictionary:
 		"hw_set_total": hw_set_total, "hw_done_total": hw_done_total,
 		"grades": grades, "last_grade": last_grade,
 		"transcript": transcript,
+		"moments": moments,
 	}
 
 
@@ -601,4 +641,5 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.last_grade = float(d.get("last_grade", -1.0))
 	s.grades.assign(d.get("grades", []))
 	s.transcript = d.get("transcript", []).duplicate()
+	s.moments = d.get("moments", []).duplicate()
 	return s

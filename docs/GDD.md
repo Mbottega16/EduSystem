@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-01**, against build `b38`, with **1548 assertions
+> **Measured on 2026-09-01**, against build `b38`, with **1563 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -142,7 +142,7 @@ One seeded `RandomNumberGenerator` on `Game.rng`. Global `randi()`/`randf()`
 are banned project-wide. Without it, none of the balance testing could exist.
 
 ### Numbers do not live in code
-`data/balance.json` is the single table — **39 sections**, 192 tunables
+`data/balance.json` is the single table — **40 sections**, 194 tunables
 (counting numbers directly in a section, not the item and trait tables).
 Nothing tunable is a `const` in a `.gd` file.
 
@@ -253,7 +253,7 @@ assignment hand · specialism · difficulty · economy · homework · items ·
 input arbitration (`claim_action`) · save/load · the cheat flag.
 
 ### Data — `scripts/data/`
-`balance.gd` (192 tunables, static so it works with no SceneTree) ·
+`balance.gd` (194 tunables, static so it works with no SceneTree) ·
 `student_data.gd` (one child's whole record) · `curriculum.gd` ·
 `items.gd` · `assignments.gd` · `traits.gd` · `events.gd` · `progress.gd`
 (every perk effect funnelled through one place) · `questions.gd` (four
@@ -334,7 +334,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 11 WAVs |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1548 assertions** across **99 sections** |
+| Tests | **1563 assertions** across **100 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

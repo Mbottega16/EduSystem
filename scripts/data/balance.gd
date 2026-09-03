@@ -290,6 +290,10 @@ static var answer_all_cooldown_seconds: float = 75.0
 static var grad_base_coins: int = 90
 static var grad_coins_per_level: int = 45
 static var grad_teacher_xp: int = 45
+
+# --- notable moments (the per-student highlight reel) ------------------
+static var moments_cap: int = 12
+static var moments_grade_min_history: int = 2
 static var coach_tuition_cost: int = 90
 static var coach_tuition_step: float = 0.07
 static var coach_parents_cost: int = 70
@@ -592,6 +596,10 @@ static func apply(d: Dictionary) -> void:
 	grad_base_coins = int(gr.get("base_coins", grad_base_coins))
 	grad_coins_per_level = int(gr.get("coins_per_extra_level", grad_coins_per_level))
 	grad_teacher_xp = int(gr.get("teacher_xp", grad_teacher_xp))
+
+	var mo: Dictionary = d.get("moments", {})
+	moments_cap = int(mo.get("cap", moments_cap))
+	moments_grade_min_history = int(mo.get("grade_min_history", moments_grade_min_history))
 
 	var co: Dictionary = d.get("coaching", {})
 	coach_tuition_cost = int(co.get("tuition_cost", coach_tuition_cost))

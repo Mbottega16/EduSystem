@@ -190,6 +190,7 @@ func _main() -> void:
 	test_lifetime_counters()
 	test_meta()
 	test_graduate_record()
+	test_moments()
 	await test_bio()
 	test_student_levels()
 	test_teacher_levels()
@@ -8933,6 +8934,151 @@ func test_graduate_record() -> void:
 		"%d new in alumni, %d passed" % [
 			(Game.meta["alumni"] as Array).size() - alumni_before, passed])
 	Game.delete_save()
+
+	Game.new_run(SEED)   # isolate from whatever follows
+
+
+## The per-student highlight reel -- kind ids, never prose, capped, and it
+## rides along into the alumni snapshot.
+func test_moments() -> void:
+	section("NOTABLE MOMENTS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var s: StudentData = Game.roster[0]
+
+	# --- the raw mechanism ---
+	s.moments.clear()
+	s.note_moment("got_stuck", 3)
+	chk("a moment is a kind and a day, nothing else",
+		s.moments.size() == 1
+		and String(s.moments[0]["kind"]) == "got_stuck"
+		and int(s.moments[0]["day"]) == 3,
+		s.moments)
+	chk("has_moment sees it", s.has_moment("got_stuck") and not s.has_moment("graduated"))
+
+	# the cap keeps the FIRST entry plus the most recent -- a highlight reel
+	s.moments.clear()
+	for i in Balance.moments_cap + 6:
+		s.note_moment("beat_%d" % i, i)
+	chk("the reel is capped", s.moments.size() == Balance.moments_cap)
+	chk("and it keeps the origin beat plus the latest",
+		String(s.moments[0]["kind"]) == "beat_0"
+		and String(s.moments[s.moments.size() - 1]["kind"])
+			== "beat_%d" % (Balance.moments_cap + 5))
+
+	# --- a grade a band away from the running average ---
+	var g: StudentData = Game.roster[1]
+	g.grades.clear()
+	g.moments.clear()
+	var lesson: Dictionary = Curriculum.lessons[0]
+	for _c in 3:
+		g.grades.append(0.65)
+		g.record_result(lesson, 0.65, 1)
+	chk("a steady run of grades makes no jump or drop",
+		not g.has_moment("grade_jump") and not g.has_moment("grade_drop"))
+	g.grades.append(0.95)
+	g.record_result(lesson, 0.95, 5)
+	chk("a grade a whole band above their average is remembered as a jump",
+		g.has_moment("grade_jump"))
+	g.grades.append(0.20)
+	g.record_result(lesson, 0.20, 9)
+	chk("and a crash below it as a drop", g.has_moment("grade_drop"))
+
+	# --- the quiz catching a child out, once ---
+	var q: StudentData = Game.roster[2]
+	q.moments.clear()
+	q.aptitude = 0.0
+	q.confusion = 1.0                  # struggling -> understanding bottoms out
+	var qr := RandomNumberGenerator.new()
+	var flagged := false
+	for seed_try in 30:
+		qr.seed = 1000 + seed_try
+		q.quiz_flagged = false
+		q.take_quiz(qr, "math")
+		if q.quiz_flagged:
+			flagged = true
+			break
+	chk("a quiz that catches a child out is remembered",
+		flagged and q.has_moment("quiz_caught"))
+	var before: int = q.moments.size()
+	q.take_quiz(qr, "math")
+	chk("but only the first time, not every quiz", q.moments.size() == before)
+
+	# --- the first stall, once ---
+	var w: StudentData = Game.roster[3]
+	w.moments.clear()
+	w.aptitude = 0.0
+	w.assign_work()
+	var wr := RandomNumberGenerator.new()
+	wr.seed = 42
+	var ticks := 0
+	while w.confusion < 1.0 and ticks < 6000:
+		w.tick_work(0.1, wr, 0.0)
+		ticks += 1
+	var stuck_count := 0
+	for m: Dictionary in w.moments:
+		if String(m.get("kind", "")) == "got_stuck":
+			stuck_count += 1
+	chk("the first time a child gets stuck is remembered",
+		w.confusion >= 1.0 and stuck_count == 1,
+		"stuck after %d ticks, reel %s" % [ticks, w.moments])
+	w.confusion = 0.0                  # "helped" -- let them roll a stall again
+	w.assign_work()
+	var ticks2 := 0
+	while w.confusion < 1.0 and ticks2 < 6000:
+		w.tick_work(0.1, wr, 0.0)
+		ticks2 += 1
+	var stuck_after := 0
+	for m: Dictionary in w.moments:
+		if String(m.get("kind", "")) == "got_stuck":
+			stuck_after += 1
+	chk("...and only the first time", stuck_after == 1)
+
+	# --- it survives a save ---
+	Game.new_run(SEED)
+	Game.roster[0].moments.clear()
+	Game.roster[0].note_moment("got_stuck", 2)
+	Game.roster[0].note_moment("grade_jump", 6)
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("the reel round-trips through a save",
+		Game.roster[0].has_moment("got_stuck")
+		and Game.roster[0].has_moment("grade_jump"),
+		Game.roster[0].moments)
+	Game.delete_save()
+
+	# --- graduating is the last beat, and it rides into the alumni snapshot ---
+	Game.new_run(SEED)
+	var up: StudentData = Game.roster[0]
+	while not up.is_ready_to_graduate():
+		up.add_xp(up.xp_for_next_level())
+	Game.graduate(up)
+	chk("being sent up is a moment on the child's reel", up.has_moment("graduated"))
+	chk("and the alumni snapshot carries the reel, not just a name", (func() -> bool:
+		var a: Array = Game.meta["alumni"]
+		if a.is_empty():
+			return false
+		for m: Dictionary in (a[a.size() - 1].get("moments", []) as Array):
+			if String(m.get("kind", "")) == "graduated":
+				return true
+		return false).call())
+
+	# --- a child kept back for another term knows it ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var idx := 0
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95 if idx % 2 == 0 else 0.08)
+		idx += 1
+	Game.sit_exam()
+	Game.next_term()
+	chk("a child kept back for another term has that on their reel", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if st.has_moment("kept_back"):
+				return true
+		return false).call())
 
 	Game.new_run(SEED)   # isolate from whatever follows
 

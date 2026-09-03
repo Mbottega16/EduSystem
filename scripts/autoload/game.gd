@@ -1225,9 +1225,11 @@ func next_term() -> Dictionary:
 	for row: Dictionary in result.get("rows", []):
 		var s: StudentData = row["student"]
 		if bool(row.get("passed", false)) and Balance.term_pass_moves_up:
+			s.note_moment("graduated", day)
 			moved_up.append(s.display_name)
 			_add_graduation(s)
 		else:
+			s.note_moment("kept_back", day)
 			stayed.append(s)
 
 	term_history.append({
@@ -1379,6 +1381,7 @@ func graduate_record(s: StudentData) -> Dictionary:
 		"favourite": s.favourite, "joined_day": s.joined_day,
 		"helps_total": s.helps_total, "best_subject": s.best_subject(),
 		"transcript": s.transcript.duplicate(true),
+		"moments": s.moments.duplicate(true),
 	}
 
 
@@ -1407,6 +1410,7 @@ func graduate(s: StudentData) -> Dictionary:
 		return {}
 	var extra := maxi(0, s.level - Balance.stu_ready_level)
 	var coins_won := Balance.grad_base_coins + Balance.grad_coins_per_level * extra
+	s.note_moment("graduated", day)
 	var record := _add_graduation(s)
 	add_coins(coins_won)
 	add_teacher_xp(Balance.grad_teacher_xp)
