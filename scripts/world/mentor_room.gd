@@ -32,6 +32,45 @@ const DESK_SPOTS := [
 	Vector2(150, 244), Vector2(312, 232),
 ]
 
+## The dressing. This room is the mentor's argument that a good classroom is
+## DESIGNED, not packed -- a reading nook, a teacher corner and a maths
+## station, each with real space around it, rather than a grid stuffed with
+## the priciest furniture. A player should walk out with a picture of what
+## their own room could be. Authored positions, not rng-placed, because a
+## showcase is composed.
+##
+##   "wall"  hung flat, no floor contact, no collider, drawn behind actors
+##   "rug"   flat on the floor, drawn under everything but the floor itself
+##   "floor" stands on the floor: a small collider, y-sorted like a desk
+##   "prop"  free-standing decoration, y-sorted, but NO collider
+##   "hang"  from the ceiling, no collider, drawn over everything
+const DRESSING := [
+	# the display along the back wall -- spaced out, a gap left behind the
+	# mentor on purpose (negative space behind the focal point)
+	["alphabet_frieze", Vector2(44, 10),   "wall"],
+	["whiteboard",      Vector2(128, 6),   "wall"],
+	["wall_clock",      Vector2(250, 10),  "wall"],
+	["class_banner",    Vector2(320, 8),   "wall"],
+	# a reading nook in the near-left corner: the cosy anchor
+	["rug",             Vector2(54, 244),  "rug"],
+	["bookshelf",       Vector2(20, 210),  "floor"],
+	["beanbag",         Vector2(46, 240),  "prop"],
+	["floor_cushion",   Vector2(76, 254),  "prop"],
+	["lamp",            Vector2(16, 250),  "prop"],
+	["plant",           Vector2(12, 285),  "prop"],
+	# a teacher corner against the right wall: worked-in, not showroom
+	["teacher_desk",    Vector2(344, 104), "floor"],
+	["supply_shelf",    Vector2(342, 24),  "wall"],
+	["filing_cart",     Vector2(346, 168), "floor"],
+	# a maths station in the far-right corner
+	["number_line",     Vector2(150, 280), "wall"],
+	["low_shelf",       Vector2(298, 268), "prop"],
+	# odds and ends that make it lived-in
+	["coat_hooks",      Vector2(32, 22),   "wall"],
+	["paper_mobile",    Vector2(150, 26),  "hang"],
+	["plant",           Vector2(370, 286), "prop"],
+]
+
 var mentor: Node = null
 var _built := false
 
@@ -103,6 +142,11 @@ func _build() -> void:
 		body.add_child(cs)
 		add_child(body)
 
+	# The dressing -- the room the mentor's dialogue actually points at.
+	for i in DRESSING.size():
+		var row: Array = DRESSING[i]
+		_add_prop(i, String(row[0]), row[1] as Vector2, String(row[2]))
+
 	# The mentor, up near the front. A recolour of the one character model,
 	# exactly like the principal and the inspector -- not new artwork.
 	mentor = STUDENT_SCENE.instantiate()
@@ -124,6 +168,55 @@ func _build() -> void:
 	door.set_pick_radius(28.0)
 	door.chosen.connect(func(_k: String, _i: int) -> void: exit_chosen.emit())
 	add_child(door)
+
+
+## One piece of dressing. Sprites are un-centred, like the desks above, so
+## `anchor` is the point the piece sits ON: bottom-centre for anything on
+## the floor, top-centre for anything on the wall.
+func _add_prop(idx: int, tex_name: String, anchor: Vector2, kind: String) -> void:
+	var tex: Texture2D = load("res://art/%s.png" % tex_name)
+	if tex == null:
+		push_error("mentor room: missing dressing texture %s" % tex_name)
+		return
+	var w := float(tex.get_width())
+	var h := float(tex.get_height())
+
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.centered = false
+	spr.name = "prop_%d_%s" % [idx, tex_name]
+	spr.add_to_group("mentor_dressing")
+	match kind:
+		"wall":
+			spr.position = anchor - Vector2(w * 0.5, 0.0)
+			spr.z_index = -10
+		"hang":
+			spr.position = anchor - Vector2(w * 0.5, 0.0)
+			spr.z_index = 900
+		"rug":
+			spr.position = anchor - Vector2(w * 0.5, h * 0.5)
+			spr.z_index = -15
+		_:  # "floor" / "prop" -- bottom-centre on the anchor, y-sorted
+			spr.position = anchor - Vector2(w * 0.5, h)
+			spr.z_index = int(anchor.y)
+	add_child(spr)
+
+	if kind != "floor":
+		return
+	# A small collider hugging the wall it stands against, so the room feels
+	# solid without turning the walkable space into a maze.
+	var body := StaticBody2D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.position = anchor
+	body.add_to_group("mentor_solid")
+	var cs := CollisionShape2D.new()
+	var cr := RectangleShape2D.new()
+	cr.size = Vector2(minf(w - 6.0, 28.0), 10.0)
+	cs.shape = cr
+	cs.position = Vector2(0.0, -5.0)
+	body.add_child(cs)
+	add_child(body)
 
 
 ## Where a fresh arrival stands: just inside the door, facing in. Local

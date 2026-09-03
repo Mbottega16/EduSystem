@@ -6506,6 +6506,37 @@ func test_mentor() -> void:
 					return false
 		return true).call())
 
+	# and it is dressed -- a designed classroom, which is the mentor's point
+	var dressing: Array = get_tree().get_nodes_in_group("mentor_dressing")
+	chk("every piece of dressing was built",
+		dressing.size() == (mentor_room.DRESSING as Array).size(),
+		"%d built, %d listed" % [dressing.size(),
+			(mentor_room.DRESSING as Array).size()])
+	chk("every dressing texture loads", (func() -> bool:
+		for row: Array in mentor_room.DRESSING:
+			if load("res://art/%s.png" % String(row[0])) == null:
+				return false
+		return true).call())
+	chk("every piece sits inside the room", (func() -> bool:
+		for spr: Node in dressing:
+			var p: Vector2 = spr.position
+			if p.x < -8.0 or p.x > mentor_room.ROOM_W \
+					or p.y < -20.0 or p.y > mentor_room.ROOM_H:
+				return false
+		return true).call())
+	# an authored layout that traps the player is worse than a plain room:
+	# nothing solid may land on a desk, the mentor, the doorway or the spawn
+	chk("no solid piece blocks a desk, the mentor or the way in", (func() -> bool:
+		var keepouts: Array = (mentor_room.DESK_SPOTS as Array).duplicate()
+		keepouts.append(mentor_room.entry_position())
+		keepouts.append(Vector2(192, 80))     # the mentor
+		keepouts.append(Vector2(0, 130))      # the doorway
+		for body: Node in get_tree().get_nodes_in_group("mentor_solid"):
+			for k: Vector2 in keepouts:
+				if (body.position as Vector2).distance_to(k) < 34.0:
+					return false
+		return true).call())
+
 	# --- leaving: back to the hallway, same body ---
 	var exit_door: Node2D = null
 	for c in mentor_room.get_children():

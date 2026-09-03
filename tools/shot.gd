@@ -224,6 +224,22 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		"mentor":
+			# The mentor's room, dressed. Reparent the same body in, park it
+			# by the door looking in, pin the camera -- the layout is what
+			# this shot is for.
+			var mroom: Node2D = main.get_node("MentorRoom")
+			mroom.visible = true
+			world.player.get_parent().remove_child(world.player)
+			mroom.add_child(world.player)
+			world.player.position = mroom.entry_position()
+			world.player.facing = Actor.DIR_RIGHT
+			mroom.refresh_camera_limits(world.camera)
+			if world.camera != null:
+				world.camera.make_current()
+				world.camera.reset_smoothing()
+			world.visible = false
+			main.get_node("Hallway").visible = false
 		"intro":
 			# The title slate. new_run(0) then force intro_seen back off:
 			# new_run() already resets it, but a case run right after another
