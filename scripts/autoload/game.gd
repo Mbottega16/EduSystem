@@ -431,6 +431,24 @@ var teacher_level: int = 1
 var perk_ranks: Dictionary = {}      ## perk id -> ranks bought
 var graduated: Array = []            ## [{name, level, readiness, day}]
 
+## Career-wide memory that OUTLIVES a single run. new_run() rebuilds a run
+## from nothing but never touches this; only wipe_everything() clears it.
+## The alumni wall and the run-count ratchet both read from here. Every key
+## is topped up by _ensure_meta_keys() -- the same forward-compat shape
+## from_dict() uses, so a save written before "meta" existed still loads.
+var meta: Dictionary = {}
+
+## The default for each meta key. Read-only -- _ensure_meta_keys() copies
+## the containers so a caller never mutates this template.
+const META_DEFAULTS := {
+	"alumni": [],                ## graduate snapshots, appended every graduation, kept across runs
+	"best_term": 0,              ## highest term reached in any run
+	"runs_finished": 0,          ## runs that ended in run_over -- the ratchet key
+	"lifetime_graduated": 0,     ## every child ever sent up, across every run
+	"lifetime_milestones": [],   ## milestone ids ever earned, so cross-run beats fire once
+	"career_boon": {},           ## small persistent leg-up per finished run (filled in a later slice)
+}
+
 # --- the fork at the start of each term ------------------------------
 ## The drawn-but-not-yet-chosen hand, and the path actually active for
 ## the CURRENT term (empty dict = every multiplier below reads as 1.0,
@@ -592,6 +610,27 @@ func _migrate_one(old_abs: String, new_path: String) -> void:
 	dst.close()
 
 
+## Fill any missing meta key with a fresh copy of its default, in place.
+## Never overwrites a value already present -- so it is safe on load, in
+## new_run(), and at boot. This is meta's equivalent of from_dict()'s
+## per-key .get(default).
+func _ensure_meta_keys() -> void:
+	for k: String in META_DEFAULTS:
+		if not meta.has(k):
+			var d: Variant = META_DEFAULTS[k]
+			meta[k] = d.duplicate() if (d is Array or d is Dictionary) else d
+
+
+## A true reset: everything new_run() clears, PLUS the career-wide meta
+## block. This is "start over completely" -- the title-screen wipe, a
+## deleted save. new_run() on its own is a fresh RUN inside the same
+## career and deliberately leaves meta standing.
+func wipe_everything() -> void:
+	meta.clear()
+	_ensure_meta_keys()
+	new_run()
+
+
 func new_run(seed_value: int = 0) -> void:
 	if seed_value == 0:
 		rng.randomize()
@@ -645,6 +684,9 @@ func new_run(seed_value: int = 0) -> void:
 	background_id = ""
 	auto_teach = false
 	graduated.clear()
+	# meta is NOT cleared here -- it outlives the run. This only tops up a
+	# key a mid-upgrade save might be missing, so the block is always whole.
+	_ensure_meta_keys()
 	taught.clear()
 	lesson_crafts.clear()
 	pending_craft.clear()
@@ -2690,6 +2732,7 @@ func to_dict() -> Dictionary:
 		"perk_ranks": perk_ranks,
 		"term_path": term_path,
 		"graduated": graduated,
+		"meta": meta,
 		"cheated": cheated,
 		"met_principal": met_principal,
 		"intro_seen": intro_seen,
@@ -2757,6 +2800,11 @@ func from_dict(d: Dictionary) -> void:
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()
 	graduated = d.get("graduated", []).duplicate()
+	# The career block that survives new_run(). An older save has no "meta"
+	# key -- _ensure_meta_keys() then fills a fresh one, exactly like every
+	# other forward-compat default in this function.
+	meta = (d.get("meta", {}) as Dictionary).duplicate(true)
+	_ensure_meta_keys()
 	# An older save has no size, so it simply reopens at the base room.
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))

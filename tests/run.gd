@@ -188,6 +188,7 @@ func _main() -> void:
 	test_curriculum()
 	test_names()
 	test_lifetime_counters()
+	test_meta()
 	await test_bio()
 	test_student_levels()
 	test_teacher_levels()
@@ -8766,6 +8767,72 @@ func test_lifetime_counters() -> void:
 		"%d/%d/%d/%d" % [back.joined_day, back.helps_total,
 			back.hw_set_total, back.hw_done_total])
 	Game.delete_save()
+
+
+## The career-wide block that survives new_run(). Alumni, the run counter,
+## the lifetime tallies -- everything a fresh RUN is not allowed to erase.
+func test_meta() -> void:
+	section("META")
+	Game.new_run(SEED)
+
+	chk("a fresh run has a meta block with every key",
+		Game.meta.has("alumni") and Game.meta.has("best_term")
+		and Game.meta.has("runs_finished") and Game.meta.has("lifetime_graduated")
+		and Game.meta.has("lifetime_milestones") and Game.meta.has("career_boon"),
+		Game.meta.keys())
+	chk("it starts empty",
+		(Game.meta["alumni"] as Array).is_empty()
+		and int(Game.meta["runs_finished"]) == 0
+		and int(Game.meta["lifetime_graduated"]) == 0
+		and int(Game.meta["best_term"]) == 0)
+
+	# new_run() must NOT wipe meta -- a new RUN inside the same career is
+	# the whole reason the block exists.
+	Game.meta["runs_finished"] = 3
+	(Game.meta["alumni"] as Array).append({"name": "Ada"})
+	Game.new_run(SEED)
+	chk("new_run() leaves meta standing",
+		int(Game.meta["runs_finished"]) == 3
+		and (Game.meta["alumni"] as Array).size() == 1,
+		"%d / %d" % [int(Game.meta["runs_finished"]),
+			(Game.meta["alumni"] as Array).size()])
+
+	# wipe_everything() DOES clear it, then rebuilds a fresh block
+	Game.wipe_everything()
+	chk("wipe_everything() resets meta to a fresh block",
+		(Game.meta["alumni"] as Array).is_empty()
+		and int(Game.meta["runs_finished"]) == 0)
+
+	# and it round-trips through a save
+	Game.new_run(SEED)
+	Game.meta["runs_finished"] = 5
+	Game.meta["best_term"] = 4
+	(Game.meta["alumni"] as Array).append({"name": "Grace", "level": 6})
+	(Game.meta["lifetime_milestones"] as Array).append("first_graduate")
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("a save reload restores meta whole",
+		int(Game.meta["runs_finished"]) == 5
+		and int(Game.meta["best_term"]) == 4
+		and (Game.meta["alumni"] as Array).size() == 1
+		and String((Game.meta["alumni"] as Array)[0].get("name", "")) == "Grace"
+		and (Game.meta["lifetime_milestones"] as Array).has("first_graduate"),
+		Game.meta)
+	Game.delete_save()
+
+	# a save written before "meta" existed still loads, with a fresh block
+	Game.new_run(SEED)
+	var raw := Game.to_dict()
+	raw.erase("meta")
+	Game.from_dict(raw)
+	chk("a pre-meta save loads with a fresh meta block",
+		Game.meta.has("alumni")
+		and (Game.meta["alumni"] as Array).is_empty()
+		and int(Game.meta["runs_finished"]) == 0,
+		Game.meta)
+
+	Game.new_run(SEED)   # fully isolated from whatever follows
 
 
 # ==================================================== levels & graduation
