@@ -1226,11 +1226,7 @@ func next_term() -> Dictionary:
 		var s: StudentData = row["student"]
 		if bool(row.get("passed", false)) and Balance.term_pass_moves_up:
 			moved_up.append(s.display_name)
-			graduated.append({
-				"name": s.display_name, "level": s.level,
-				"readiness": s.readiness(), "day": day, "term": term,
-				"art": s.art,
-			})
+			_add_graduation(s)
 		else:
 			stayed.append(s)
 
@@ -1370,6 +1366,34 @@ func buy_perk(id: String) -> String:
 
 # --- graduation ------------------------------------------------------
 
+## A consistent snapshot of a child who is leaving -- the SAME shape from
+## both exit paths (an exam pass in next_term(), or you sending them up
+## early in graduate()). Carries their whole record, not just a name and a
+## final grade, so the alumni wall can tell their story later. Pure: it
+## builds a dict, it appends nowhere.
+func graduate_record(s: StudentData) -> Dictionary:
+	return {
+		"name": s.display_name, "level": s.level,
+		"readiness": s.readiness(), "day": day, "term": term, "art": s.art,
+		"trait_id": s.trait_id, "aptitude": s.aptitude,
+		"favourite": s.favourite, "joined_day": s.joined_day,
+		"helps_total": s.helps_total, "best_subject": s.best_subject(),
+		"transcript": s.transcript.duplicate(true),
+	}
+
+
+## Record a graduation into BOTH lists: `graduated` (this run -- what the
+## end-of-run yearbook reads) and `meta.alumni` (the career -- what the
+## alumni wall reads, and it survives new_run()). Returns the `graduated`
+## entry, so a caller can tack its own fields on (graduate() adds coins
+## and replaced_by).
+func _add_graduation(s: StudentData) -> Dictionary:
+	var rec := graduate_record(s)
+	graduated.append(rec)
+	meta.alumni.append(rec.duplicate(true))
+	return rec
+
+
 ## Send a child up. YOUR decision -- is_ready_to_graduate() only says they
 ## could be, and readiness() says how well prepared they would leave.
 ##
@@ -1383,11 +1407,7 @@ func graduate(s: StudentData) -> Dictionary:
 		return {}
 	var extra := maxi(0, s.level - Balance.stu_ready_level)
 	var coins_won := Balance.grad_base_coins + Balance.grad_coins_per_level * extra
-	var record := {
-		"name": s.display_name, "level": s.level,
-		"readiness": s.readiness(), "day": day,
-	}
-	graduated.append(record)
+	var record := _add_graduation(s)
 	add_coins(coins_won)
 	add_teacher_xp(Balance.grad_teacher_xp)
 	roster.erase(s)

@@ -189,6 +189,7 @@ func _main() -> void:
 	test_names()
 	test_lifetime_counters()
 	test_meta()
+	test_graduate_record()
 	await test_bio()
 	test_student_levels()
 	test_teacher_levels()
@@ -8833,6 +8834,76 @@ func test_meta() -> void:
 		Game.meta)
 
 	Game.new_run(SEED)   # fully isolated from whatever follows
+
+
+## The unified graduation snapshot -- one shape from both exit paths, and
+## every leaver also lands in meta.alumni for the career-long wall.
+func test_graduate_record() -> void:
+	section("GRADUATE RECORD")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	var s: StudentData = Game.roster[0]
+	s.transcript.append({"lesson": "counting", "name": "Counting",
+		"standard": "K.CC.1", "day": 2, "grade": 0.8, "test": false})
+	var rec := Game.graduate_record(s)
+	chk("the snapshot carries the whole child, not just a grade",
+		rec.has("name") and rec.has("level") and rec.has("readiness")
+		and rec.has("day") and rec.has("term") and rec.has("art")
+		and rec.has("trait_id") and rec.has("aptitude") and rec.has("favourite")
+		and rec.has("joined_day") and rec.has("helps_total")
+		and rec.has("best_subject") and rec.has("transcript"),
+		rec.keys())
+
+	var tlen := (rec["transcript"] as Array).size()
+	s.transcript.append({"lesson": "adding", "name": "Adding",
+		"standard": "1.OA.1", "day": 3, "grade": 0.5, "test": false})
+	chk("the snapshot's transcript is a copy -- later rows do not leak in",
+		(rec["transcript"] as Array).size() == tlen
+		and s.transcript.size() == tlen + 1)
+	chk("graduate_record() appends nowhere on its own",
+		Game.graduated.is_empty() and (Game.meta["alumni"] as Array).is_empty())
+
+	# the manual path -- sending a ready child up early
+	while not s.is_ready_to_graduate():
+		s.add_xp(s.xp_for_next_level())
+	var got := Game.graduate(s)
+	chk("graduate() records into this run's list",
+		Game.graduated.size() == 1
+		and String(Game.graduated[0]["name"]) == String(got["name"]))
+	chk("and into the career-long alumni list",
+		(Game.meta["alumni"] as Array).size() == 1
+		and String((Game.meta["alumni"] as Array)[0]["name"]) == String(got["name"]))
+	chk("the alumni entry has the same unified shape",
+		(Game.meta["alumni"] as Array)[0].has("transcript")
+		and (Game.meta["alumni"] as Array)[0].has("trait_id"))
+	chk("the run list still gets graduate()'s own extra fields",
+		Game.graduated[0].has("coins") and Game.graduated[0].has("replaced_by"))
+
+	# and the alumni list outlives the run
+	Game.new_run(SEED)
+	chk("a fresh run keeps the alumni you already graduated",
+		(Game.meta["alumni"] as Array).size() == 1)
+	chk("but this run's own graduated list is clear again",
+		Game.graduated.is_empty())
+
+	# the exam-pass path also feeds meta.alumni -- measured as a DELTA,
+	# because new_run() above deliberately kept the earlier graduate.
+	Game.new_run(SEED)
+	var alumni_before: int = (Game.meta["alumni"] as Array).size()
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)
+	var passed: int = int(Game.sit_exam()["passed"])
+	Game.next_term()
+	chk("passing the exam lands each passer in meta.alumni too",
+		(Game.meta["alumni"] as Array).size() == alumni_before + passed and passed > 0,
+		"%d new in alumni, %d passed" % [
+			(Game.meta["alumni"] as Array).size() - alumni_before, passed])
+	Game.delete_save()
+
+	Game.new_run(SEED)   # isolate from whatever follows
 
 
 # ==================================================== levels & graduation
