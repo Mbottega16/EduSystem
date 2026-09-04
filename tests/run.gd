@@ -6978,6 +6978,18 @@ func test_mentor() -> void:
 		world.player.get_parent() == mentor_room and is_instance_valid(world.player))
 	chk("and the mentor room is what's on screen",
 		mentor_room.visible and not hallway.visible and not world.visible)
+	# The one above passed for two sessions while the screen was EMPTY: the
+	# room really was dressed and really was visible, and nothing checked
+	# where the camera was pointing. Camera2D limits are global, main.tscn
+	# parks this room at (0, 20000), and refresh_camera_limits() used to set
+	# room-LOCAL limits -- pinning the camera 20,000px above the room.
+	await step(2)
+	var room_rect := Rect2(mentor_room.global_position,
+		Vector2(mentor_room.ROOM_W, mentor_room.ROOM_H))
+	chk("and the camera is pointed at the room, not at its local origin",
+		room_rect.has_point(world.camera.get_screen_center_position()),
+		"camera centre %s is outside %s" % [
+			world.camera.get_screen_center_position(), room_rect])
 	chk("the first visit opens the teaching dialogue", hud.mode == hud.Mode.MENTOR)
 
 	var guard := 0

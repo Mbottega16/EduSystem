@@ -248,6 +248,13 @@ func _open_screen(main: Node, screen: String) -> void:
 			# The mentor's room, dressed. Reparent the same body in, park it
 			# by the door looking in, pin the camera -- the layout is what
 			# this shot is for.
+			# The intro slate is still up on a fresh run and it is a full
+			# CanvasLayer, so without closing it this photographs MONDAY's
+			# wall of text with the room dimly behind it. Every other case
+			# here happens to drive the HUD to a screen of its own, which is
+			# why only this one needed saying out loud.
+			Game.intro_seen = true
+			hud.close()
 			var mroom: Node2D = main.get_node("MentorRoom")
 			mroom.visible = true
 			world.player.get_parent().remove_child(world.player)
