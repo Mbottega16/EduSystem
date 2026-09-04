@@ -118,6 +118,7 @@ func _ready() -> void:
 		# screen, but this cutscene shows the room FROM that first frame.
 		world.player.input_locked = true
 		hud.show_intro()
+	Music.play("music_room")
 
 
 ## The storyline cutscene's second beat: the slate is gone, the room is

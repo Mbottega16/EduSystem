@@ -258,6 +258,7 @@ func _main() -> void:
 	await test_cabinet()
 	await test_ad_poster()
 	await test_progress_bar()
+	await test_music()
 
 	print("")
 	if failed == 0:
@@ -4711,11 +4712,9 @@ func test_boss_fight() -> void:
 	# they are banned
 	var bf_code := ""
 	for line: String in FileAccess.get_file_as_string(
-			"res://scripts/data/boss_fight.gd").split("
-"):
+			"res://scripts/data/boss_fight.gd").split("\n"):
 		if not line.strip_edges().begins_with("#"):
-			bf_code += line + "
-"
+			bf_code += line + "\n"
 	chk("the fight rolls only the run's own rng",
 		bf_code.count("randf(") == bf_code.count("rng.randf(")
 		and bf_code.count("randi_range(") == bf_code.count("rng.randi_range(")
@@ -10368,3 +10367,153 @@ func test_cheats() -> void:
 	Game.new_run(SEED)
 	Game.cheated = false
 	Game.unlimited_coins = false
+
+
+# ====================================================== music & ambience
+
+func test_music() -> void:
+	section("MUSIC AND AMBIENCE")
+
+	# The tracks. The same seam make_art.py has: written by a script,
+	# imported by Godot, and nothing in between -- so LOAD them, do not
+	# just look for the files.
+	var tracks: Array[String] = []
+	var broken: Array[String] = []
+	var da := DirAccess.open("res://audio")
+	if da != null:
+		da.list_dir_begin()
+		var f := da.get_next()
+		while f != "":
+			if f.begins_with("music_") and f.ends_with(".wav"):
+				tracks.append(f.get_basename())
+				var path := "res://audio/%s" % f
+				if not ResourceLoader.exists(path) or load(path) == null:
+					broken.append(f)
+			f = da.get_next()
+		da.list_dir_end()
+	tracks.sort()
+	chk("there are five music tracks",
+		tracks == ["music_fight", "music_lose", "music_room", "music_title", "music_win"],
+		tracks)
+	chk("and every one of them loads", broken.is_empty(), broken)
+	for t: String in tracks:
+		var w: AudioStreamWAV = load("res://audio/%s.wav" % t)
+		if w == null:
+			continue
+		var secs := w.get_length()
+		if t in ["music_win", "music_lose"]:
+			chk("%s is a short sting" % t, secs >= 2.0 and secs <= 3.0, secs)
+		else:
+			chk("%s is a real loop, not a blip" % t, secs >= 20.0 and secs <= 32.0, secs)
+
+	# The bus: music and effects on separate faders.
+	var idx := AudioServer.get_bus_index("Music")
+	chk("there is a Music bus", idx >= 0)
+	chk("and it feeds Master", idx >= 0 and AudioServer.get_bus_send(idx) == &"Master")
+	chk("the project's bus layout is its own file",
+		String(ProjectSettings.get_setting("audio/buses/default_bus_layout"))
+			== "res://default_bus_layout.tres")
+	var layout: Resource = load("res://default_bus_layout.tres")
+	chk("and that file loads with the Music bus in it",
+		layout is AudioBusLayout and String(layout.get("bus/1/name")) == "Music")
+	chk("Sfx stays on Master", Sfx._players[0].bus == "Master")
+
+	# The autoload.
+	chk("the Music autoload exists", get_node_or_null("/root/Music") != null)
+	Music.enabled = true
+	Music.stop(0.0)
+	chk("stopped means no current track", Music.current == "")
+	var n0: int = Music.starts
+	Music.play("music_title", 0.0)
+	chk("play() switches current", Music.current == "music_title")
+	chk("and actually starts a player",
+		Music.starts == n0 + 1 and Music._live.stream != null and Music._live.playing)
+	var live: AudioStreamPlayer = Music._live
+	Music.play("music_title", 0.0)
+	chk("playing the track already playing is a no-op, not a restart",
+		Music.starts == n0 + 1 and Music._live == live)
+	var bed: AudioStreamWAV = live.stream
+	chk("the bed loops forward over its whole length",
+		bed.loop_mode == AudioStreamWAV.LOOP_FORWARD and bed.loop_end > 0
+		and bed.loop_end == int(round(bed.get_length() * bed.mix_rate)),
+		[bed.loop_mode, bed.loop_end])
+	chk("...on a duplicate, so the imported resource is untouched",
+		(load("res://audio/music_title.wav") as AudioStreamWAV).loop_mode
+			== AudioStreamWAV.LOOP_DISABLED)
+	Music.play("music_room", 0.0)
+	chk("a different track switches players",
+		Music.current == "music_room" and Music._live != live and Music.starts == n0 + 2)
+	Music.sting("music_win")
+	chk("a sting does not change the bed", Music.current == "music_room" and Music._live.playing)
+	chk("it plays on its own player", Music._sting.playing and Music._sting.stream != null)
+	chk("and it does not loop",
+		(Music._sting.stream as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_DISABLED)
+	chk("a missing track is a warning, not a crash", (func() -> bool:
+		Music.sting("music_no_such_thing")
+		return true).call())
+	Music.stop(0.0)
+	chk("stop() clears current", Music.current == "")
+	chk("and silences both bed players", not Music._a.playing and not Music._b.playing)
+	chk("every music player is on the Music bus",
+		Music._a.bus == "Music" and Music._b.bus == "Music" and Music._sting.bus == "Music")
+
+	# Cues by listening: the game never calls Music itself.
+	Game.new_run(SEED)
+	chk("a new run puts the classroom under play", Music.current == "music_room")
+	Music.play("music_fight", 0.0)
+	chk("the assessment track is there for the fight code to call",
+		Music.current == "music_fight")
+	Game.term_began.emit(2)
+	chk("and a new term brings the classroom back", Music.current == "music_room")
+	Music.enabled = false
+	chk("switching music off silences it", not Music._live.playing)
+	Music.enabled = true
+	chk("and switching it back on resumes the same bed",
+		Music.current == "music_room" and Music._live.playing)
+
+	# Settings: its own volume, saved, with a default for old files.
+	var snapshot := Settings.to_dict()
+	chk("music has its own volume, and it defaults to 0.6",
+		is_equal_approx(float(Settings.FACTORY["music_volume"]), 0.6))
+	Settings.music_volume = 0.35
+	var d := Settings.to_dict()
+	chk("it is saved", d.has("music_volume"))
+	Settings.from_dict({})
+	Settings.from_dict(d)
+	chk("and round-trips", is_equal_approx(Settings.music_volume, 0.35))
+	var old := snapshot.duplicate()
+	old.erase("music_volume")
+	Settings.from_dict(old)
+	chk("a settings file from before music loads with the default",
+		is_equal_approx(Settings.music_volume, 0.6))
+	Settings.music_volume = 0.0
+	Settings.apply_audio()
+	chk("zero silences the Music bus", AudioServer.is_bus_mute(idx) and not Music.enabled)
+	Settings.music_volume = 0.5
+	Settings.apply_audio()
+	chk("and any other value reaches the bus",
+		not AudioServer.is_bus_mute(idx) and Music.enabled
+		and AudioServer.get_bus_volume_db(idx) < 0.0)
+	Settings.from_dict(snapshot)
+	Settings.apply_audio()
+
+	# The settings page: a Music row next to Sound, same left/right idiom.
+	Music.stop(0.0)
+	var t: Node2D = load("res://scenes/ui/title.tscn").instantiate()
+	add_child(t)
+	await step(3)
+	chk("the title screen plays the title theme", Music.current == "music_title")
+	t._go(t.Page.SETTINGS)
+	chk("the settings page has a Music row right after Sound",
+		t._rows().find("music") == t._rows().find("sfx") + 1, t._rows())
+	chk("and still fits the panel budget", t._rows().size() <= 11, t._rows().size())
+	var before: float = Settings.music_volume
+	t.sel = t._rows().find("music")
+	t._adjust(-1)
+	chk("Left turns the music down", Settings.music_volume < before)
+	t._adjust(1)
+	chk("and Right turns it back up", is_equal_approx(Settings.music_volume, before))
+	chk("the row shows itself", t.menu.text.contains("Music"))
+	t.queue_free()
+	await step(2)
+	Music.stop(0.0)

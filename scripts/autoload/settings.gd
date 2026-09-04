@@ -75,6 +75,7 @@ signal changed()
 
 var master_volume: float = 0.8
 var sfx_volume: float = 0.9
+var music_volume: float = 0.6
 var window_scale: int = 3
 var fullscreen: bool = false
 var show_hints: bool = true
@@ -154,11 +155,15 @@ func apply_audio() -> void:
 	if master >= 0:
 		AudioServer.set_bus_volume_db(master, linear_to_db(maxf(0.0001, master_volume)))
 		AudioServer.set_bus_mute(master, master_volume <= 0.001)
-	# Sfx keeps its own multiplier because there is no separate bus yet;
-	# routing every sound through one autoload makes that a one-line change
-	# if music ever arrives.
+	# Sfx keeps its own multiplier on Master, as it always has. Music got
+	# the separate bus when it arrived, so its volume is a bus fader.
 	Sfx.volume_db = linear_to_db(maxf(0.0001, sfx_volume))
 	Sfx.enabled = sfx_volume > 0.001
+	var music := AudioServer.get_bus_index(Music.BUS)
+	if music >= 0:
+		AudioServer.set_bus_volume_db(music, linear_to_db(maxf(0.0001, music_volume)))
+		AudioServer.set_bus_mute(music, music_volume <= 0.001)
+	Music.enabled = music_volume > 0.001
 
 
 # -------------------------------------------------------------- window
@@ -186,6 +191,7 @@ func to_dict() -> Dictionary:
 		b[k] = bindings[k]
 	return {
 		"master_volume": master_volume, "sfx_volume": sfx_volume,
+		"music_volume": music_volume,
 		"window_scale": window_scale, "fullscreen": fullscreen,
 		"show_hints": show_hints, "bindings": b,
 	}
@@ -195,13 +201,14 @@ func to_dict() -> Dictionary:
 ## to be in memory. Defaulting to the current value made from_dict({}) a
 ## silent no-op, which meant "reset to defaults" reset nothing.
 const FACTORY := {
-	"master_volume": 0.8, "sfx_volume": 0.9,
+	"master_volume": 0.8, "sfx_volume": 0.9, "music_volume": 0.6,
 	"window_scale": 3, "fullscreen": false, "show_hints": true,
 }
 
 func from_dict(d: Dictionary) -> void:
 	master_volume = clampf(float(d.get("master_volume", FACTORY["master_volume"])), 0.0, 1.0)
 	sfx_volume = clampf(float(d.get("sfx_volume", FACTORY["sfx_volume"])), 0.0, 1.0)
+	music_volume = clampf(float(d.get("music_volume", FACTORY["music_volume"])), 0.0, 1.0)
 	window_scale = clampi(int(d.get("window_scale", FACTORY["window_scale"])), 1, 6)
 	fullscreen = bool(d.get("fullscreen", FACTORY["fullscreen"]))
 	show_hints = bool(d.get("show_hints", FACTORY["show_hints"]))

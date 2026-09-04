@@ -35,6 +35,7 @@ func _ready() -> void:
 	Balance.ensure_loaded()
 	_make_dust()
 	_render()
+	Music.play("music_title")
 
 
 func _make_dust() -> void:
@@ -147,7 +148,7 @@ func _rows() -> Array:
 			m.append("quit")
 			return m
 		Page.SETTINGS:
-			return ["master", "sfx", "scale", "fullscreen", "hints", "back"]
+			return ["master", "sfx", "music", "scale", "fullscreen", "hints", "back"]
 		Page.CONTROLS:
 			var c: Array = []
 			for entry: Dictionary in Settings.ACTIONS:
@@ -234,6 +235,10 @@ func _adjust(dir: int) -> void:
 			Settings.sfx_volume = clampf(Settings.sfx_volume + 0.1 * dir, 0.0, 1.0)
 			Settings.apply_audio()
 			Sfx.play("blip")
+		"music":
+			Settings.music_volume = clampf(Settings.music_volume + 0.1 * dir, 0.0, 1.0)
+			Settings.apply_audio()
+			Sfx.play("blip")
 		"scale":
 			Settings.window_scale = clampi(Settings.window_scale + dir, 1, 6)
 			Settings.fullscreen = false
@@ -290,6 +295,7 @@ func _render() -> void:
 			var vals := {
 				"master": _bar(Settings.master_volume),
 				"sfx": _bar(Settings.sfx_volume),
+				"music": _bar(Settings.music_volume),
 				"scale": "x%d" % Settings.window_scale,
 				"fullscreen": "on" if Settings.fullscreen else "off",
 				"hints": "on" if Settings.show_hints else "off",
@@ -297,6 +303,7 @@ func _render() -> void:
 			}
 			var names := {
 				"master": "Master volume", "sfx": "Sound effects",
+				"music": "Music",
 				"scale": "Window size", "fullscreen": "Fullscreen",
 				"hints": "Show hints", "back": "Back",
 			}

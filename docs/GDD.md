@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-04**, against build `b39`, with **1676 assertions
+> **Measured on 2026-09-04**, against build `b39`, with **1720 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -352,10 +352,10 @@ milestone and having taught it, not a number going up.
 | Teacher perks | **5** (10 rank purchases) |
 | Names | 96 first, 64 surnames, 8 sprite sheets |
 | Homework questions | 89, 3 to a sheet |
-| Art | 71 PNGs · Audio: 11 WAVs |
+| Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1676 assertions** across **103 sections** |
+| Tests | **1720 assertions** across **104 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -686,21 +686,46 @@ classroom · year-group visual identity.
 
 ## 13. Audio
 
-**Music and ambience — effectively from nothing.**
+**Music and ambience — no longer nothing.** This section used to end
+"this is the one area where the procedural approach probably has to
+stop." That call has been revisited: the same script that draws every
+sprite now composes real music in the same standard-library Python,
+on the same principle — a number gets retuned, nothing gets sourced.
 
-| now | needed |
+| now | before this pass |
 |---|---|
-| 11 procedural WAVs (`make_audio.py`) | A score |
-| One bus, one volume | A second bus so music and SFX are separate |
-| 8-voice pool with a throttle table | Room tone: murmur, chairs, pages, a clock, weather |
+| 5 procedural tracks: a 30s title theme, a 30s classroom bed, a 23s assessment track, two 2.5s stings (win/lose) | 11 short SFX and nothing else |
+| A composition layer in `make_audio.py` — wavetables, ADSR envelopes, a step sequencer, a circular loop buffer, filters, echo, a slow swell — real melody, harmony and rhythm | one tone plus one envelope per sound |
+| Two buses (Master, Sfx stays put; Music is new) | one bus, one volume |
+| `Music` autoload: crossfading `play()`, `stop()`, a one-shot `sting()` that doesn't touch the bed, its own `music_volume` fader | no music system |
 
-This is **the one area where the procedural approach probably has to stop.**
-Synthesised blips are charming; synthesised music is not, and a paid release
-will be judged on it. Either a composition pass or licensed tracks.
+**How it holds together**, in `scripts/autoload/music.gd`:
+- Two players crossfade the bed; a third plays a sting over the top
+  without disturbing it. All three sit on the `Music` bus
+  (`default_bus_layout.tres`), so `Settings.music_volume` moves them
+  without touching Sfx, which stays on Master exactly as before.
+- Cues come from **listening**, not from the game reaching into Music:
+  `Game.run_started` and `Game.term_began` put the classroom bed
+  (`music_room`) under play; the title screen asks for `music_title`
+  itself in its own `_ready()`. `music_fight`, `sting("music_win")` and
+  `sting("music_lose")` are built and covered by the test suite, but
+  nothing in the game yet detects "the assessment has started" or
+  "it ended" — so nothing calls them. That detection is real remaining
+  work; it is not a gap in the audio system, which is ready for it.
+- Every loop is an exact sample count with nothing faded at the seam.
+  `make_audio.py` measures peak, RMS and the jump across the loop point
+  for every track it writes, and refuses to save one where the seam is
+  the loudest jump in the file. The classroom bed sits roughly 2x under
+  the RMS of the quietest sound effect on purpose — it is a bed, and
+  the stuck-child cue still has to win.
 
-Ambience is the higher-value half: a classroom that *sounds* occupied does
-more for this game than a melody would, and it can be layered by state —
-quieter during a test, restless when the room is noisy.
+**Honestly still open:** whether the composed music is actually *good*
+is a judgement call a script cannot make — it has been measured, not
+listened to end-to-end by a person yet. And the layered, per-state
+ambience `docs/AUDIO_BRIEF.md` originally imagined (a lesson bed that
+differs from an exam bed that differs from a noisy room) is not built;
+one classroom bed covers all of play for now. Both are additive on top
+of what exists, not a redesign of it.
 
 ---
 

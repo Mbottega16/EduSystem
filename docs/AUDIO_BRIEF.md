@@ -1,9 +1,10 @@
-# EDUSystem — audio brief (draft)
+# EDUSystem — audio brief
 
-*Content batch, August 2026. Source: ChatGPT, integrated without changes
-(copy only — nothing here touches code, balance or the contract. Not yet
-built: no music or SFX assets exist for any of this. Filenames below are
-proposals, not registered `Sfx`/`Fx` calls.)*
+*Originally a content batch from ChatGPT (August 2026), integrated as a
+draft brief only — copy, not code. A later pass (September 2026) built
+real music and ambience against the spirit of that draft, not a literal
+implementation of it. This file now says, section by section, what
+shipped and what is still just the original proposal.*
 
 ## Feel
 
@@ -15,7 +16,49 @@ slightly harder to manage while you are already deciding which child
 needs you next. The music should support concentration rather than
 compete with the stuck-child cue.
 
-## Ambience layers
+This still holds and guided the built tracks: the classroom bed is a
+murmur under everything, well below the sound effects, and the
+assessment track leans on pressure (a driving bass, a lead that never
+quite resolves) rather than volume.
+
+## What actually exists now
+
+Five WAVs, written by `tools/make_audio.py` the same way every sound
+effect is, played by the `Music` autoload:
+
+| track | length | role |
+|---|---|---|
+| `music_title` | 30s loop | the title screen, from `_ready()` |
+| `music_room` | 30s loop | the one bed under all of play — put there by *listening* for `Game.run_started` and `Game.term_began`, not by a scene calling it |
+| `music_fight` | 23s loop | built and tested; **not yet triggered** — nothing in the game currently detects "the assessment started" |
+| `music_win` | 2.5s one-shot | built and tested; **not yet triggered** — same gap, the other side |
+| `music_lose` | 2.5s one-shot | built and tested; **not yet triggered** |
+
+Two buses now: Master (everything else, unchanged) and Music, so
+`Settings.music_volume` — its own row on the Settings screen, next to
+Sound effects — moves the score without moving a single sound effect.
+Crossfades between tracks; a sting plays over the bed without cutting it.
+
+Every loop is an exact sample count with nothing faded at the seam, and
+`make_audio.py` prints and checks peak, RMS and the jump across the loop
+point for each one before it will save the file — a click at the seam is
+exactly a jump bigger than any other in the file, and that's now a build
+failure, not something to notice by ear later. What no script can check:
+whether the composed music is actually *good*. It has been measured, not
+sat through end-to-end by a person yet.
+
+## What's still just this draft's proposal (not built)
+
+Everything below this line describes the **original ChatGPT brief**,
+kept for anyone tackling the next round — it was not implemented as
+written, and the built tracks above do not map onto it one-to-one.
+
+### Ambience layers (proposed, not built)
+
+One classroom bed (`music_room`) currently covers all of play. The
+richer state-dependent layering below — different ambience for morning,
+a lesson, a silent test, a noisy room, the afternoon, an exam — is
+future work, additive on top of what exists, not a redesign of it.
 
 **Morning.** Low room tone, distant corridor movement, occasional chair
 scrape and faint paper handling. Keep the layer sparse so the player's
@@ -40,17 +83,16 @@ room should feel like the day is winding down.
 pencils and the occasional movement should dominate. Avoid music that
 tells the player whether they are winning.
 
-## Music cues
+### Music cues (original proposal, superseded by the table above)
 
-| cue | length | mood | type |
-|---|---|---|---|
-| `morning_loop` | ~3 min | restrained, prepared, slightly hopeful | loop |
-| `lesson_loop` | ~4 min | focused, steady | loop |
-| `afternoon_loop` | ~3 min | tired but settled | loop |
-| `exam_loop` | ~4 min | concentrated, restrained tension | loop |
-| `term_pass` | <10s | quiet relief | one-shot |
-| `term_fail` | <8s | disappointment without melodrama | one-shot |
-| `graduation` | ~15s | reflective, warm | one-shot |
+The brief originally asked for seven mood-tagged cues (`morning_loop`,
+`lesson_loop`, `afternoon_loop`, `exam_loop`, `term_pass`, `term_fail`,
+`graduation`) built around per-state ambience. What shipped instead is
+five tracks around three situations the game can currently tell apart —
+title, in-play, and (unwired) the assessment plus its two outcomes. If
+the state layering above ever gets built, splitting `music_room` into
+several of these moods is the natural next step rather than starting
+over.
 
 `morning_loop`: sparse piano or mallet figures, soft bass, a gentle
 rhythmic pulse. Leave enough space that it can repeat without becoming
@@ -72,7 +114,11 @@ cinematic escalation.
 `graduation`: a simple melodic phrase that feels like a pupil moving
 onwards rather than a victory screen.
 
-## New sound effects
+## New sound effects (proposed, not built)
+
+None of these exist yet. Filenames below are proposals, not registered
+`Sfx` calls — unrelated to the music/ambience work above and untouched
+by it.
 
 | effect | trigger | brief |
 |---|---|---|
