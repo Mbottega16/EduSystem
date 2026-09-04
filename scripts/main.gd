@@ -196,12 +196,18 @@ func _on_term_ended(result: Dictionary) -> void:
 func _on_fight_started(_seated: int) -> void:
 	hud.principal_says("boss_fight",
 		"Steady whoever freezes. Settle whoever kicks off. Stay near whoever is up front.")
+	Music.play("music_fight", 1.5)
 
 
 ## The paper is over. The same bump the exam gets: this is the morning
-## that decides it.
+## that decides it. The room word IS the verdict -- steady/wobbling read
+## as a win worth a sting, cracking/gone as a loss -- and either way the
+## bed comes back for the ordinary afternoon that follows.
 func _on_fight_ended(report: Dictionary) -> void:
 	_bump(3.0)
+	var composure := String(report.get("composure", ""))
+	Music.sting("music_win" if composure in ["steady", "wobbling"] else "music_lose")
+	Music.play("music_room", 2.0)
 	hud.show_fight_report(report)
 
 

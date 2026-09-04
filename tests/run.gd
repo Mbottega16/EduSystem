@@ -259,6 +259,7 @@ func _main() -> void:
 	await test_ad_poster()
 	await test_progress_bar()
 	await test_music()
+	await test_fight_music()
 
 	print("")
 	if failed == 0:
@@ -10515,5 +10516,43 @@ func test_music() -> void:
 	chk("and Right turns it back up", is_equal_approx(Settings.music_volume, before))
 	chk("the row shows itself", t.menu.text.contains("Music"))
 	t.queue_free()
+	await step(2)
+	Music.stop(0.0)
+
+
+## The boss paper switches the bed to music_fight and back, with a sting
+## for how it went -- the one piece connecting the two branches this
+## session merged. Driven through the PODIUM's own interact(), not the
+## direct API test_boss_fight() uses, so main.gd's real signal wiring
+## (fight_started -> Music.play, fight_ended -> Music.sting + play) is
+## what is actually being checked.
+func test_fight_music() -> void:
+	section("THE FIGHT'S OWN MUSIC")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	while Game.enrol() != null:
+		pass
+	await step(2)
+	var boss: Dictionary = {}
+	for c: Dictionary in Balance.bosses:
+		if String(c.get("strand", "")) == "ela":
+			boss = c.duplicate()
+	Game.term_path = boss
+	Game.day = Balance.term_days
+	Music.play("music_room", 0.0)
+	await step(2)
+	world.podium.interact(world.player)
+	await step(2)
+	chk("beginning the paper switches the bed to music_fight",
+		Music.current == "music_fight", Music.current)
+	var guard := 0
+	while Game.fight_active() and guard < 100000:
+		Game.fight.tick(0.5, Game.rng, Layout.PODIUM)
+		guard += 1
+	await step(3)
+	chk("the paper being over brings the classroom bed back",
+		Music.current == "music_room", Music.current)
+	Game.new_run(SEED)
 	await step(2)
 	Music.stop(0.0)
