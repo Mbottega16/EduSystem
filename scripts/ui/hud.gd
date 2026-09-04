@@ -165,6 +165,8 @@ var _bio_sel: int = 0
 ## Paging beats cramming -- the file was already at the panel's row limit.
 const BIO_FILE := 0
 const BIO_STORY := 1
+## Page three: everything pulling on this child RIGHT NOW.
+const BIO_ACTING := 2
 var _bio_page: int = BIO_FILE
 ## The exam is the one screen whose closing DOES something, so it has to be
 ## told apart from every other report.
@@ -1157,6 +1159,9 @@ func show_student(s: StudentData) -> void:
 	if _bio_page == BIO_STORY:
 		_render_student_story(s)
 		return
+	if _bio_page == BIO_ACTING:
+		_render_student_acting(s)
+		return
 
 	# The portrait sits top-RIGHT and the text runs full width beneath it.
 	# An earlier version put the portrait on the left and indented the text
@@ -1177,6 +1182,98 @@ func show_student(s: StudentData) -> void:
 	hint.text = "Tab their story   Up/Down choose   E do it   Esc back"
 
 
+## Page three: everything acting on this child RIGHT NOW, as prose.
+##
+## The point of this page is a question the game could not answer before:
+## "why is THIS one struggling?" Every pull on a child was real and none of
+## it was legible -- their trait, the day, the room, where you happen to be
+## standing, what they are doing to themselves.
+##
+## It NAMES each influence and which way it pulls. It never prints the
+## value, because the rule this whole file obeys is that the stored data
+## keeps the numbers and only the screen bends -- and a page of decimals
+## about a child is exactly what that rule exists to prevent. You are meant
+## to read this the way a teacher reads a room, not the way a spreadsheet
+## reads a row.
+##
+## Ordered worst-first: what is holding them back comes before what is
+## helping, because the reason you opened this page is that something is
+## wrong. Capped to the panel budget, so a child with everything going on
+## still fits.
+func _render_student_acting(s: StudentData) -> void:
+	var against: Array[String] = []
+	var helping: Array[String] = []
+
+	# --- what they brought with them ---
+	if s.trait_id != "":
+		against.append("%s. %s" % [Traits.name_of(s.trait_id), Traits.blurb(s.trait_id)])
+
+	# --- the day itself ---
+	var ev := String(Game.event.get("id", "none"))
+	if ev != "none":
+		against.append(String(Game.event.get("blurb", "")))
+
+	# --- the room they are sitting in ---
+	var strand := Game.lesson_strand()
+	var suited := ""
+	for placed: Dictionary in Game.room_items:
+		var def := Items.get_def(String(placed.get("id", "")))
+		if String(def.get("strand", "")) == strand and strand != "":
+			suited = String(def.get("name", ""))
+			break
+	if suited != "":
+		helping.append("The %s is out, and it suits today's subject." % suited)
+	elif strand != "":
+		against.append("Nothing in the room is set out for today's subject.")
+	if Game.cluster_rate_mult(s) < 1.0:
+		against.append("Their desk is hemmed in by the others, so they work slower.")
+
+	# --- where YOU are, right now ---
+	if s.seat_index >= 0:
+		if Game.calm_multiplier_at(s.seat_index) < 1.0:
+			helping.append("You are near enough to keep them settled.")
+		else:
+			against.append("You are too far away to steady them from here.")
+
+	# --- what they are doing this minute ---
+	if s.flaring():
+		against.append("They are going off right now, and it will spread.")
+	elif s.disrupting:
+		against.append("They have stopped working and are playing up.")
+	if s.is_struggling():
+		against.append("They are stuck, and their work is not moving at all.")
+	if s.copied:
+		against.append("They have copied their way past it, so the gap is hidden.")
+	if s.quiz_flagged:
+		against.append("The quiz caught them out on this.")
+	if s.hw_state == StudentData.HW.ASSIGNED:
+		against.append("Last night's homework is still not handed in.")
+
+	# --- what you have already spent on them ---
+	if s.coached > 0:
+		helping.append("You have paid for extra help for them before.")
+
+	var lines: Array[String] = []
+	if against.is_empty() and helping.is_empty():
+		lines.append("Nothing much is pulling on them either way today.")
+	else:
+		if not against.is_empty():
+			lines.append("AGAINST THEM")
+			lines.append_array(against)
+		if not helping.is_empty():
+			if not against.is_empty():
+				lines.append("")
+			lines.append("FOR THEM")
+			lines.append_array(helping)
+	# The panel is the panel. Anything past it is the least urgent thing on
+	# a page that is already ordered worst-first.
+	if lines.size() > 11:
+		lines = lines.slice(0, 11)
+	body.text = "
+".join(lines)
+	hint.text = "Tab back to the file    Esc back"
+
+
 ## Page two of a child's file: what actually HAPPENED to them, as prose.
 ## The transcript arc, then the notable-moments reel rendered from its kind
 ## ids to sentences HERE -- which is how "prose, never numbers" stays a
@@ -1192,7 +1289,7 @@ func _render_student_story(s: StudentData) -> void:
 	else:
 		lines.append_array(story)
 	body.text = "\n".join(lines)
-	hint.text = "Tab back to the file    Esc back"
+	hint.text = "Tab what's acting on them    Esc back"
 
 
 ## The notable-moments reel, as at most four sentences. Grouped by kind so
@@ -4143,7 +4240,7 @@ func _handle_input() -> void:
 			_bio = null
 			show_class_list(true)      # back to the list, on the same student
 		elif Input.is_action_just_pressed("menu"):
-			_bio_page = BIO_STORY if _bio_page == BIO_FILE else BIO_FILE
+			_bio_page = (_bio_page + 1) % 3
 			Sfx.play("blip")
 			show_student(_bio)
 		elif _bio_page == BIO_FILE and Input.is_action_just_pressed("move_down"):

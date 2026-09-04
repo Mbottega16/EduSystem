@@ -244,6 +244,23 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		"acting":
+			# Page three of a child's file, with plenty acting on them --
+			# a trait, a bad day, and something they are doing to
+			# themselves -- so the shot shows a full page rather than a
+			# nearly-empty one.
+			Game.intro_seen = true
+			hud.close()
+			Game.event = DayEvent.by_id("restless")
+			var kid: StudentData = Game.roster[0]
+			kid.trait_id = "ghost"
+			kid.copied = true
+			kid.coached = 1
+			# show_student() resets to page one whenever the CHILD changes,
+			# so the page has to be set after the first call, not before it.
+			hud.show_student(kid)
+			hud._bio_page = hud.BIO_ACTING
+			hud.show_student(kid)
 		"caller":
 			# Someone at your desk, mid-decision. The principal rather than a
 			# child, because her portrait is a fixed asset and a child's is

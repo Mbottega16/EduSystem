@@ -182,6 +182,7 @@ func _main() -> void:
 	await test_mid_lesson_mess()
 	await test_desk_interruption()
 	await test_callers()
+	await test_acting_on_them()
 	await test_cluster_penalty()
 	await test_dash_lanes()
 	await test_bell_rush()
@@ -8404,6 +8405,78 @@ func test_mid_lesson_mess() -> void:
 ## Mid-lesson complications: the phone/conference desk interruption, and
 ## the mess kind's own onset. Mirrors test_flares()'s shape -- catch it,
 ## let it run out, the per-lesson cap, and that it starts on its own.
+## Page three of a child's file: what is pulling on them right now.
+func test_acting_on_them() -> void:
+	section("WHAT'S ACTING ON THEM")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	var s: StudentData = Game.roster[0]
+
+	# Tab cycles three pages now, not two, and comes back round.
+	hud.show_student(s)
+	chk("a file opens on page one", hud._bio_page == hud.BIO_FILE)
+	hud._bio_page = hud.BIO_STORY
+	hud.show_student(s)
+	chk("page two is still their story", hud.hint.text.contains("acting on them"),
+		hud.hint.text)
+	hud._bio_page = hud.BIO_ACTING
+	hud.show_student(s)
+	chk("page three says what is acting on them",
+		hud.body.text != "", hud.body.text)
+	chk("and it offers the way back to the file",
+		hud.hint.text.contains("back to the file"), hud.hint.text)
+
+	# It NAMES influences. It never prints their value -- that is the rule
+	# the whole student file exists to obey.
+	var digits := RegEx.new()
+	digits.compile("[0-9]")
+	chk("nothing on the page prints a number about a child",
+		digits.search(hud.body.text) == null, hud.body.text)
+	chk("and it fits the panel budget",
+		hud.body.text.split("
+").size() <= 11, hud.body.text.split("
+").size())
+
+	# --- it actually reacts to what is true ---
+	s.trait_id = "restless"
+	hud.show_student(s)
+	chk("a child's own trait is named on the page",
+		hud.body.text.contains(Traits.name_of("restless")), hud.body.text)
+
+	s.disrupting = true
+	hud.show_student(s)
+	chk("playing up shows up as something against them",
+		hud.body.text.contains("playing up"), hud.body.text)
+	s.disrupting = false
+
+	s.copied = true
+	hud.show_student(s)
+	chk("copying shows up, because the gap it hides is the point",
+		hud.body.text.contains("copied"), hud.body.text)
+	s.copied = false
+
+	# The day itself is an influence, and it is already prose in the table.
+	Game.event = DayEvent.by_id("restless")
+	hud.show_student(s)
+	chk("today's own event is named too",
+		hud.body.text.contains(String(DayEvent.by_id("restless").get("blurb", ""))),
+		hud.body.text)
+	Game.event = DayEvent.by_id("none")
+	hud.show_student(s)
+	chk("an ordinary day is not listed as though it were a problem",
+		not hud.body.text.contains("Nothing out of the usual"), hud.body.text)
+
+	# Both directions: the page has to be able to say something is HELPING.
+	s.coached = 1
+	hud.show_student(s)
+	chk("what you have already done for them counts as for them",
+		hud.body.text.contains("FOR THEM"), hud.body.text)
+	s.coached = 0
+	hud.close()
+
+
 ## Someone at your desk who wants an answer, not a nod.
 func test_callers() -> void:
 	section("SOMEONE AT YOUR DESK")
@@ -9348,8 +9421,14 @@ func test_bio() -> void:
 	chk("the story page shows no raw number either",
 		not hud.body.text.contains("0.") and not hud.body.text.contains("%"),
 		hud.body.text)
+	# Tab again: page THREE, what is acting on them right now (Sept 2026).
+	# This used to turn straight back to the file, when there were two pages.
 	await tap("menu")
-	chk("Tab turns back to the file", hud.body.text.contains("Seat"))
+	chk("Tab turns on to what's acting on them",
+		hud.hint.text.contains("back to the file"), hud.hint.text)
+	await tap("menu")
+	chk("and Tab once more comes back round to the file",
+		hud.body.text.contains("Seat"), hud.body.text)
 
 	# Esc is the way back out of the file. E is no longer -- it acts on the
 	# highlighted row now (tuition / parents / send them up), so a player
