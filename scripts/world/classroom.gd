@@ -835,11 +835,14 @@ func _drain_fight_events() -> void:
 				Sfx.play("start")
 			"rallied":
 				_fight_pop(sid, "rose to it!", Color(0.55, 1.0, 0.6))
+				_flash_pose(sid, Actor.POSE_JUMP)
 			"held":
 				_fight_pop(sid, "held", Color(0.9, 0.9, 0.8))
+				# the neutral middle -- no pose, a pose here would be noise
 			"dropped":
 				_fight_pop(sid, "lost it", Color(1.0, 0.55, 0.5))
 				Sfx.play("deny")
+				_flash_pose(sid, Actor.POSE_SAD)
 			"present":
 				_fight_pop(sid, "up front", PRESENT_BUBBLE_TINT)
 	f.events.clear()
@@ -852,6 +855,20 @@ func _fight_pop(sid: int, text: String, colour: Color) -> void:
 	var at := Grid.tile_to_world(Layout.seat(s.seat_index)) + Vector2(0, -36)
 	Floater.pop(self, at, text, colour)
 	Fx.puff(self, at + Vector2(0, 26), colour, 4)
+
+
+## Cosmetic pose flash on a child's own node, found by id -- shared by the
+## disrupting edge (a flare timing out, or an ignored interruption picking
+## someone) and a boss-fight round's own outcome. Does nothing if the child
+## has no seat right now, or no node exists for it; this is a one-shot
+## flourish, never worth guarding harder than that.
+func _flash_pose(sid: int, pose: int) -> void:
+	var s := Game.student_by_id(sid)
+	if s == null or s.seat_index < 0:
+		return
+	var n := student_node(s.seat_index)
+	if n != null:
+		n.play_pose(pose)
 
 
 ## The examiner stands at the front, beside the podium, facing the class,
@@ -1073,6 +1090,7 @@ func _tick_flares(delta: float, rng: RandomNumberGenerator) -> void:
 		s.flare_left = maxf(0.0, s.flare_left - delta)
 		if s.flare_left == 0.0:
 			s.disrupting = true          # missed it -- the ordinary mechanic
+			_flash_pose(s.id, Actor.POSE_CHAT)
 		else:
 			flare_active = true
 	if flare_active or Game._flares_today >= Balance.flare_max_per_day:
@@ -1143,6 +1161,7 @@ func _resolve_ignored_interruption(row: Dictionary) -> void:
 			for s: StudentData in Game.roster:
 				if s.seat_index >= 0 and not s.disrupting:
 					s.disrupting = true
+					_flash_pose(s.id, Actor.POSE_CHAT)
 					break
 		"reputation":
 			Game.nudge_reputation(-float(row.get("ignored_value", 1.0)))

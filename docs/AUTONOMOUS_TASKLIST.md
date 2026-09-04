@@ -350,10 +350,22 @@ for no reason.
       flashes the hand-off pose on every pickup/hand-in
       (`player.gd::carry_work/drop_all_work` etc.), and a student flashes
       jump-for-joy on WORKING->DONE and the sad pose whenever their
-      stuck bubble comes on. Chatting between students and anything
-      fancier than these two edge-triggered moments is NOT wired --
-      the art and the plumbing exist, the behaviour that would call them
-      more often does not.
+      stuck bubble comes on.
+      *(Sept 2026 -- two more triggers.)* A child who tips into
+      `disrupting` flashes POSE_CHAT on the edge, from both sites that
+      set the flag: a flare left too long, and an ignored interruption
+      picking someone. Chatting instead of working is exactly what the
+      flag means, so the pose reads true rather than decorating. And a
+      boss-fight round's outcome flashes on the child it touched --
+      rallied -> POSE_JUMP, dropped -> POSE_SAD, held -> nothing, since
+      the neutral middle earns no flourish. Both go through one
+      `_flash_pose()` helper on `classroom.gd`, hung off
+      `_drain_fight_events()`, which already drains those outcomes to pop
+      text -- rather than reaching into `boss_fight.gd`, a data script
+      with no business knowing an Actor exists.
+      **Still NOT wired:** students chatting to each other, and every
+      other ambient use of these poses. Those need behaviour that does
+      not exist yet, not another call site.
 - [x] **D4. One `Dev Console.bat` menu for every root launcher.**
       *(Aug 2026 -- user request.)* Every individual `.bat` still exists
       and still works stand-alone; the console just calls them, so this
