@@ -36,6 +36,7 @@ const CHEATS := [
 	{"label": "Bigger room (+1 wide, +1 long)", "id": "grow"},
 	{"label": "Skip a day", "id": "day"},
 	{"label": "End the term now", "id": "term"},
+	{"label": "Boss paper now (Reading Paper)", "id": "boss"},
 ]
 
 var open: bool = false
@@ -192,6 +193,16 @@ func _do_cheat(id: String) -> void:
 		"term":
 			Game.day = Balance.term_days
 			_msg = "last day of term"
+		"boss":
+			# The last day of a boss term, so the podium offers the paper.
+			# The ELA card, deterministically -- this is a way to LOOK at
+			# the fight, not to roll one.
+			if not Balance.bosses.is_empty():
+				Game.term_path = (Balance.bosses[0] as Dictionary).duplicate()
+			Game.day = Balance.term_days
+			Game.fight_done = false
+			Game.set_phase(Game.Phase.MORNING)
+			_msg = "boss paper at the podium"
 
 
 ## `force_on`: for "all", where toggling would be the wrong verb -- a

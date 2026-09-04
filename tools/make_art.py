@@ -76,6 +76,17 @@ CHARACTERS = {
         "legs": (86, 74, 62), "shoe": (52, 42, 34),
         "long_hair": True, "skirt": False,
     },
+    # The examiner, at the front of the room for exactly as long as the
+    # boss paper runs (scripts/world/classroom.gd refresh_examiner). A
+    # third authority figure, so a third colour nobody else wears: charcoal
+    # with silver hair, austere next to the inspector's grey suit and the
+    # principal's purple. One palette entry, same generator.
+    "examiner": {
+        "hair": (214, 214, 220), "hair_d": (168, 168, 178),
+        "shirt": (44, 48, 66), "shirt_d": (30, 32, 46),
+        "legs": (38, 40, 52), "shoe": (24, 22, 28),
+        "long_hair": True, "skirt": False,
+    },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
     # rather than any new drawing code. Keys must match Names.ART in

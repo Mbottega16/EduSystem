@@ -40,7 +40,7 @@ untouched; cabinet = real persistent storage (full reroute); boss stakes
 **Balance contract 0.63 / 0.71 / 0.97 verified unmoved after every
 gameplay phase.** Suite: 1375 -> **1439 assertions**, green.
 
-## Not done
+## Not done *(at the time -- see the 2026-09-03 note at the end)*
 
 - **Phase 6 — the roguelike subject boss FIGHT.** The trophy shelf is
   built (`8cb3f9c` -- `scripts/data/trophies.gd`, `Game.trophies`,
@@ -97,3 +97,12 @@ Suite now **1473 assertions**, `check_docs` 299/299, contract still
   honestly). The Desktop `Play PixelRoom.lnk` shortcut still has the old
   name. Confirm the save migration lands your real dev save on first
   launch of the renamed build.
+
+## Update, 2026-09-03
+
+The boss FIGHT is built: the last day of a boss term is now played in
+the room, in rounds, against the card's own move list --
+`scripts/data/boss_fight.gd`, documented in `docs/ROGUELIKE_DESIGN.md`
+("The fight"). The trophy shelf, the term-path card and the bar it is
+judged against are unchanged; the fight feeds a small, clamped
+per-child nudge into the exam the class sits at the bell.

@@ -214,6 +214,7 @@ func _main() -> void:
 	test_term_paths()
 	test_term_target()
 	test_boss()
+	await test_boss_fight()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -4353,6 +4354,374 @@ func test_boss() -> void:
 		nt.count("sit_exam(") == 1, nt.count("sit_exam("))
 
 	Game.new_run(SEED)
+
+
+## The boss paper, PLAYED: rounds, moves, marks, the nudge on the exam, and
+## the morning in the room. See scripts/data/boss_fight.gd.
+func test_boss_fight() -> void:
+	section("THE BOSS PAPER")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	while Game.enrol() != null:
+		pass
+	await step(2)
+
+	# --- the table: every card carries a move list the fight understands ---
+	chk("every boss card lists its moves", (func() -> bool:
+		for c: Dictionary in Balance.bosses:
+			var mv: Array = c.get("moves", [])
+			if mv.is_empty():
+				return false
+			for m in mv:
+				if not BossFight.KINDS.has(String(m)):
+					return false
+		return true).call())
+	chk("every boss card carries a tactic line, in prose", (func() -> bool:
+		for c: Dictionary in Balance.bosses:
+			var tx := String(c.get("tactic", ""))
+			if tx.length() < 20:
+				return false
+			for ch in "0123456789":
+				if tx.contains(ch):
+					return false
+		return true).call())
+	chk("the fight's tunables are read from the table",
+		Balance.fight_round_seconds > 0.0 and Balance.fight_max_swing > 0.0
+		and Balance.fight_freeze_count > 0)
+	chk("every question line is prose", (func() -> bool:
+		for kind: String in BossFight.QUESTIONS:
+			for st: String in BossFight.QUESTIONS[kind]:
+				for line: String in BossFight.QUESTIONS[kind][st]:
+					for ch in "0123456789":
+						if line.contains(ch):
+							return false
+		return true).call())
+
+	var ela: Dictionary = {}
+	var math_card: Dictionary = {}
+	var sci: Dictionary = {}
+	var soc: Dictionary = {}
+	for c: Dictionary in Balance.bosses:
+		match String(c.get("strand", "")):
+			"ela": ela = c.duplicate()
+			"math": math_card = c.duplicate()
+			"science": sci = c.duplicate()
+			"social": soc = c.duplicate()
+
+	# --- a headless fight, driven by hand: freeze / steady / drop ---
+	var f := BossFight.new()
+	f.start(ela, Game.roster, Game.rng)
+	chk("it opens on a breath, before the first question",
+		f.stage == BossFight.Stage.BREATH)
+	chk("one round per move on the card", f.total_rounds() == ela["moves"].size())
+	chk("the clock is the whole paper",
+		is_equal_approx(f.seconds_left(), f.total_seconds()))
+	chk("the first question is named, with no decimal in it",
+		f.question_text().begins_with("Question 1 of")
+		and not f.question_text().contains("0."), f.question_text())
+	f.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Layout.PODIUM)
+	chk("the breath ends and the first question opens",
+		f.stage == BossFight.Stage.ROUND)
+	chk("the reading paper's first move is a freeze",
+		f.round_kind() == "freeze", f.round_kind())
+	var frozen_now: Array = []
+	for s: StudentData in Game.roster:
+		if s.is_struggling():
+			frozen_now.append(s)
+	chk("it freezes exactly the table's count of children",
+		frozen_now.size() == Balance.fight_freeze_count, frozen_now.size())
+	chk("a frozen child shows it at once, whatever their trait",
+		(frozen_now[0] as StudentData).is_visibly_struggling())
+	chk("the room heard about each freeze", (func() -> bool:
+		var n := 0
+		for ev: String in f.events:
+			if ev.begins_with("freeze:"):
+				n += 1
+		return n == frozen_now.size()).call())
+	f.events.clear()
+
+	# steady one at once, one late, leave one
+	var quick: StudentData = frozen_now[0]
+	var late: StudentData = frozen_now[1]
+	var left: StudentData = frozen_now[2]
+	quick.help()
+	f.tick(0.1, Game.rng, Layout.PODIUM)
+	chk("steadied inside the quick window: rallied",
+		int(f.tally[quick.id]["rallied"]) == 1, f.tally[quick.id])
+	f.tick(Balance.fight_quick_seconds + 0.5, Game.rng, Layout.PODIUM)
+	late.help()
+	f.tick(0.1, Game.rng, Layout.PODIUM)
+	chk("steadied after the window: held, not rallied",
+		int(f.tally[late.id]["held"]) == 1 and int(f.tally[late.id]["rallied"]) == 0,
+		f.tally[late.id])
+	chk("the room is still steady -- nothing dropped yet",
+		f.composure_word() == "steady")
+	f.tick(Balance.fight_round_seconds, Game.rng, Layout.PODIUM)
+	chk("whoever is still frozen when the question moves on drops it",
+		int(f.tally[left.id]["dropped"]) == 1, f.tally[left.id])
+	chk("and is unfrozen without anyone having helped",
+		not left.is_struggling() and left.helps_received == 0)
+	chk("the next breath is announced",
+		f.events.has("breath") and f.stage == BossFight.Stage.BREATH)
+	chk("the tally moved the room off steady", f.composure() < 1.0)
+
+	# --- J: everyone talked through it counts as held ---
+	f.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Layout.PODIUM)
+	chk("question two is a freeze too", f.round_kind() == "freeze")
+	var before_mass := f.counts()
+	f.mass_steady()
+	for s: StudentData in Game.roster:
+		s.help()
+	f.tick(0.1, Game.rng, Layout.PODIUM)
+	var after_mass := f.counts()
+	chk("the mass-help resolves them as held, never rallied",
+		int(after_mass["held"]) - int(before_mass["held"]) == Balance.fight_freeze_count
+		and after_mass["rallied"] == before_mass["rallied"], after_mass)
+
+	# --- a chain spreads along adjacent desks ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	Layout.move_seat(b.seat_index, Layout.seat(a.seat_index) + Vector2i(1, 0))
+	var chain_card := math_card.duplicate()
+	chain_card["moves"] = ["chain"]
+	var fc := BossFight.new()
+	fc.start(chain_card, Game.roster, Game.rng)
+	fc.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Layout.PODIUM)
+	var first_frozen := 0
+	var chain_seed: StudentData = null
+	for s: StudentData in Game.roster:
+		if s.is_struggling():
+			first_frozen += 1
+			chain_seed = s
+	chk("a chain starts on one child", first_frozen == 1, first_frozen)
+	if Game.neighbours_of(chain_seed).is_empty():
+		# the seed landed on a child with no neighbour this draw -- move the
+		# link to the pair that has one, so the spread itself is what is tested
+		chain_seed.unfreeze()
+		fc.frozen.clear()
+		fc._freeze(a)
+	fc.tick(Balance.fight_chain_spread_seconds + 0.05, Game.rng, Layout.PODIUM)
+	var now_frozen := 0
+	for s: StudentData in Game.roster:
+		if s.is_struggling():
+			now_frozen += 1
+	chk("...and freezes the next desk along", now_frozen == 2, now_frozen)
+	Layout.reset_seats()
+
+	# --- noise: the paper sets them arguing; settling them is the answer ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var noise_card := soc.duplicate()
+	noise_card["moves"] = ["noise"]
+	var fn := BossFight.new()
+	fn.start(noise_card, Game.roster, Game.rng)
+	fn.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Layout.PODIUM)
+	var loud: Array = []
+	for s: StudentData in Game.roster:
+		if s.disrupting:
+			loud.append(s)
+	chk("a noise move sets off the table's count of children",
+		loud.size() == Balance.fight_noise_count, loud.size())
+	(loud[0] as StudentData).settle()
+	fn.tick(0.1, Game.rng, Layout.PODIUM)
+	chk("settling one quickly counts as rallied",
+		int(fn.tally[(loud[0] as StudentData).id]["rallied"]) == 1)
+	fn.tick(Balance.fight_round_seconds, Game.rng, Layout.PODIUM)
+	chk("the rest drop it and are calmed when the question moves on",
+		int(fn.tally[(loud[1] as StudentData).id]["dropped"]) == 1
+		and not (loud[1] as StudentData).disrupting)
+
+	# --- present: stand with the child up front ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var pres_card := sci.duplicate()
+	pres_card["moves"] = ["present"]
+	var fp := BossFight.new()
+	fp.start(pres_card, Game.roster, Game.rng)
+	fp.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Layout.PODIUM)
+	chk("a present move puts one child up front", fp.presenting >= 0)
+	var pres: StudentData = Game.student_by_id(fp.presenting)
+	var beside: Vector2i = Layout.seat(pres.seat_index) + Vector2i(1, 0)
+	var tt := 0.0
+	while tt < Balance.fight_present_rally_seconds + 0.2:
+		fp.tick(0.25, Game.rng, beside)
+		tt += 0.25
+	fp.tick(Balance.fight_round_seconds, Game.rng, beside)
+	chk("stood with for the whole question: rallied",
+		int(fp.tally[pres.id]["rallied"]) == 1, fp.tally[pres.id])
+	chk("the paper is over after its last move", not fp.active())
+	var report := fp.finish()
+	chk("the presenter who rose to it carries a small positive nudge",
+		pres.boss_delta > 0.0 and pres.boss_delta <= Balance.fight_max_swing,
+		pres.boss_delta)
+
+	var fp2 := BossFight.new()
+	fp2.start(pres_card, Game.roster, Game.rng)
+	fp2.tick(Balance.fight_breath_seconds + 0.01, Game.rng, Vector2i(0, 0))
+	var pres2: StudentData = Game.student_by_id(fp2.presenting)
+	fp2.tick(Balance.fight_round_seconds + 0.1, Game.rng, Vector2i(0, 0))
+	chk("left alone up front: dropped",
+		int(fp2.tally[pres2.id]["dropped"]) == 1, fp2.tally[pres2.id])
+	report = fp2.finish()
+	chk("finish() hands back one row per child",
+		report["rows"].size() == Game.roster.size())
+	chk("the one left alone carries a small negative nudge",
+		pres2.boss_delta < 0.0 and pres2.boss_delta >= -Balance.fight_max_swing,
+		pres2.boss_delta)
+	chk("every row's word is prose", (func() -> bool:
+		for r: Dictionary in report["rows"]:
+			var w := String(r.get("word", ""))
+			if w.is_empty():
+				return false
+			for ch in "0123456789.%":
+				if w.contains(ch):
+					return false
+		return true).call())
+	chk("the room is read in a word",
+		["steady", "wobbling", "cracking", "gone"].has(String(report["composure"])))
+	chk("a child the paper never touched sat it quietly", (func() -> bool:
+		for r: Dictionary in report["rows"]:
+			if int(r["rallied"]) + int(r["held"]) + int(r["dropped"]) == 0:
+				return String(r["word"]) == "sat it quietly"
+		return true).call())
+
+	# --- the swing clamps both ways ---
+	var big := BossFight.new()
+	big.start(pres_card, Game.roster, Game.rng)
+	var victim: StudentData = Game.roster[0]
+	big.tally[victim.id] = {"rallied": 0, "held": 0, "dropped": 40}
+	big.finish()
+	chk("a terrible morning is capped at the table's max swing",
+		is_equal_approx(victim.boss_delta, -Balance.fight_max_swing), victim.boss_delta)
+	big.tally[victim.id] = {"rallied": 40, "held": 0, "dropped": 0}
+	big.finish()
+	chk("and so is a brilliant one",
+		is_equal_approx(victim.boss_delta, Balance.fight_max_swing))
+
+	# --- the exam reads it, and only it ---
+	victim.grades.append(0.6)
+	victim.boss_delta = 0.0
+	var plain := Game.exam_score_for(victim)
+	victim.boss_delta = 0.04
+	chk("exam_score_for adds the nudge on top of the record",
+		is_equal_approx(Game.exam_score_for(victim), plain + 0.04))
+	victim.boss_delta = 0.0
+	chk("and a zero nudge is the ordinary exam",
+		is_equal_approx(Game.exam_score_for(victim), plain))
+	victim.boss_delta = 0.03
+	var rt := StudentData.from_dict(victim.to_dict())
+	chk("the nudge survives a save round-trip", is_equal_approx(rt.boss_delta, 0.03))
+	var old := victim.to_dict()
+	old.erase("boss_delta")
+	chk("a record from before the fight loads with none",
+		StudentData.from_dict(old).boss_delta == 0.0)
+
+	# --- the day: the podium offers the paper, and only on that morning ---
+	Game.new_run(SEED)
+	await step(2)
+	while Game.enrol() != null:
+		pass
+	await step(2)
+	chk("an ordinary morning has no paper on offer", not Game.boss_fight_today())
+	Game.term_path = ela.duplicate()
+	chk("a boss term's first morning has none either", not Game.boss_fight_today())
+	Game.day = Balance.term_days
+	chk("the last morning of a boss term does", Game.boss_fight_today())
+	chk("the podium says so", world.podium.prompt_text().begins_with("Begin the"),
+		world.podium.prompt_text())
+	var seated: int = world.start_boss_fight()
+	await step(2)
+	chk("beginning the paper starts it for the whole class",
+		seated == Game.roster.size())
+	chk("the day is in its lesson phase", Game.phase == Game.Phase.LESSON)
+	chk("the paper is live", Game.fight_active())
+	chk("the podium cannot end it early", not world.podium.can_interact())
+	chk("the examiner is in the room",
+		world.examiner != null and is_instance_valid(world.examiner))
+	chk("no work is on the desks -- nothing is graded today", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.work_state != StudentData.Work.NONE:
+				return false
+		return true).call())
+	chk("the clock is the paper's", world.lesson_left > Balance.lesson_seconds)
+	var guard := 0
+	while Game.fight.stage != BossFight.Stage.ROUND and guard < 400:
+		await step(1)
+		guard += 1
+	chk("the room ticks the paper into its first question",
+		Game.fight.stage == BossFight.Stage.ROUND)
+	chk("the banner names the question",
+		hud.banner.visible and hud.banner.text.begins_with("Question"), hud.banner.text)
+	var fz: StudentData = null
+	for s: StudentData in Game.roster:
+		if s.is_struggling():
+			fz = s
+			break
+	chk("a child froze", fz != null)
+	var st: Interactable = world.station(fz.seat_index)
+	chk("their desk offers to steady them",
+		st.can_interact() and st.prompt_text().begins_with("Steady"), st.prompt_text())
+	await step(2)
+	chk("the strip reads the question and the room's hold",
+		hud.status.text.contains("Q1/") and hud.status.text.contains("hold"),
+		hud.status.text)
+	chk("and never a decimal", not hud.status.text.contains("0."), hud.status.text)
+	guard = 0
+	while Game.fight_active() and guard < 100000:
+		Game.fight.tick(0.5, Game.rng, Layout.PODIUM)
+		guard += 1
+	await step(2)
+	chk("when the paper ends the room moves to the afternoon",
+		Game.phase == Game.Phase.AFTERNOON)
+	chk("the examiner has gone", world.examiner == null)
+	chk("it cannot be sat twice", not Game.boss_fight_today())
+	chk("the report is on screen",
+		hud.mode == hud.Mode.REPORT
+		and hud.title.text.contains(String(ela["name"]).to_upper()), hud.title.text)
+	chk("it fits the panel", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	chk("and prints no decimal about a child", not hud.rich.text.contains("0."),
+		hud.rich.text)
+	hud.close()
+	await step(2)
+	var res := Game.sit_exam()
+	hud.show_exam(res)
+	await step(2)
+	chk("the exam screen is the paper's",
+		hud.title.text.contains(String(ela["name"]).to_upper()), hud.title.text)
+	chk("and says which side of the bar the class landed",
+		hud.rich.text.to_lower().contains("cleared"), hud.rich.text)
+	hud.close()
+	await step(2)
+
+	# --- guards: the contract sim never sees any of this; no bare dice ---
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never touches the fight",
+		not sim_src.contains("BossFight") and not sim_src.contains("boss_delta")
+		and not sim_src.contains("start_boss_fight"))
+	# code only -- the file's own comments name the banned calls to say
+	# they are banned
+	var bf_code := ""
+	for line: String in FileAccess.get_file_as_string(
+			"res://scripts/data/boss_fight.gd").split("
+"):
+		if not line.strip_edges().begins_with("#"):
+			bf_code += line + "
+"
+	chk("the fight rolls only the run's own rng",
+		bf_code.count("randf(") == bf_code.count("rng.randf(")
+		and bf_code.count("randi_range(") == bf_code.count("rng.randi_range(")
+		and bf_code.count("randi(") == 0)
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_screens_explain_themselves() -> void:
@@ -9734,7 +10103,8 @@ func test_global_classes_registered() -> void:
 	section("GLOBAL CLASSES ARE REGISTERED")
 	for cls: String in ["Fx", "Floater", "Items", "Traits", "Curriculum",
 			"Balance", "Layout", "Grid", "Progress", "StudentData",
-			"Interactable", "Placement", "RoomBuilder", "DayEvent", "DayBeats"]:
+			"Interactable", "Placement", "RoomBuilder", "DayEvent", "DayBeats",
+			"BossFight"]:
 		chk("%s is a registered global class" % cls,
 			ClassDB.class_exists(cls) or _gdscript_class_exists(cls), cls)
 

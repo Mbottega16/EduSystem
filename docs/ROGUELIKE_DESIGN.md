@@ -118,6 +118,77 @@ skill below is a rank on that *existing* board, not a new subsystem.
 | Thrifty | shop discount (buy price only, not sell) | `thrifty` | shipped |
 | Iron Will | disruption *spread* reduced (not boredom/frustration onset) | `iron_will` | shipped |
 
+## The boss term — shipped (the card, the bar, the trophy)
+
+Every `boss_term_interval`-th term (3), `Game.draw_term_paths()` folds
+the five boss cards from `balance.json`'s `bosses.table` into the same
+fork the Quiet/Ordinary/Busy/Chaotic cards are drawn from -- one per
+strand (Reading Paper, Number Gauntlet, Science Fair, Mock Election)
+plus the mixed Open Evening. A boss term plays like an ordinary one
+until the exam: `Game.next_term()`'s boss branch judges the class
+AVERAGE that `sit_exam()` already produced against the card's own
+`target` bar instead of the seat-count target. Clear it and the
+matching trophy lands on the career screen (`scripts/data/trophies.gd`)
+and the cosmetic decor gated on any trophy goes on sale; miss it and the
+run is over, exactly as a missed ordinary target ends it.
+
+This is the one deliberate exception to `docs/SALVAGE.md`'s "no ELO /
+no boss manager" guidance, documented the same way `Game.auto_teach` is
+an exception in CLAUDE.md.
+
+## The fight — shipped (2026-09-03): the last day of a boss term is PLAYED
+
+`scripts/data/boss_fight.gd`. The last morning of a boss term the
+podium does not deal a hand; it reads **"Begin the Reading Paper"**.
+Press it and the paper is sat in the room, in real time, with the
+examiner standing at the front:
+
+- **Rounds.** The card's own `moves` list is the paper's attack pattern,
+  one move per round (`bosses.fight.round_seconds` each, with a short
+  `breath_seconds` between, the question across the top of the screen as
+  each opens). Four kinds of move:
+  - `freeze` -- `freeze_count` children freeze on the question (weighted
+    toward the ones who find the work hardest, drawn off `Game.rng`);
+    their desk's E reads *Steady Nora*.
+  - `chain` -- one child freezes and, every `chain_spread_seconds`, the
+    freeze spreads to an adjacent occupied desk (through the same
+    `Game.neighbours_of()` the seating plan already uses). Spreading the
+    desks out is the counter, same as the cluster penalty.
+  - `noise` -- `noise_count` children start arguing (`disrupting`);
+    settle them at the desk or with your voice.
+  - `present` -- one child is put up front (a gold bubble); the teacher
+    has to STAND WITH them, within `present_radius_tiles`, for
+    `present_seconds` of the round (`present_rally_seconds` to rally),
+    while the audience gets restless at `restless_per_second`.
+- **Marks.** Each child a round touches ends it *rallied* (dealt with
+  inside `quick_seconds`), *held* (dealt with in time), or *dropped*
+  (still frozen / still shouting / left alone up front when the question
+  moved on). J -- answer all -- talks everyone through it at once, but
+  they count as held, never rallied: a panic button, never the best play.
+- **The nudge.** `BossFight.finish()` turns the tally into
+  `StudentData.boss_delta = rally_mark * rallied - drop_mark * dropped`,
+  clamped to `+-max_swing` (about half a letter band), which
+  `Game.exam_score_for()` adds on top of the child's own record at the
+  bell. The record still decides the exam; the day decides the margin.
+  `next_term()`'s boss branch is untouched -- it still reads the one
+  `sit_exam()` average against the bar.
+- **What the player sees.** The strip drops the day counter for
+  `Q3/6  41s  hold ||||. steady  voice |||.` -- composure is pips and
+  a word banded by `composure_*`, never a number. A floater over each
+  desk as it resolves (*rose to it!* / *held* / *lost it*). A report
+  when it is over (one line per child, the room in a sentence), then the
+  bell sits the exam, whose screen is titled with the paper's name and
+  says CLEARED / NOT cleared instead of the seat count. The mentor's
+  readiness read gains the card's `tactic` line. A child who rose to it
+  twice, or froze twice, gets a moment on their story page.
+- **What it is not.** No work is set, nothing is graded that day, the
+  unit test is not offered that morning, and the contract sim
+  (`tools/sim.gd`) never touches any of it -- `test_boss_fight()` scans
+  for that, and for bare `randi()/randf()` in the fight.
+
+Dev: the tuning panel's CHEATS page has *Boss paper now (Reading
+Paper)*; `Take a Screenshot.bat boss_fight` / `fight_report` capture it.
+
 ## NG+ — still not built
 
 - **More students.** Class size scales up per NG+ level, applied to the

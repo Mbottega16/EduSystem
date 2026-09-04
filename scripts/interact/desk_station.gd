@@ -64,10 +64,13 @@ func prompt_text() -> String:
 	if s == null:
 		return ""
 	var who: String = s.first_name()
+	# The same verbs, reworded for the paper: you cannot HELP a child with
+	# an exam question, but you can steady one who has frozen on it.
+	var fight: bool = Game.fight_active()
 	match action():
 		Action.DEFUSE: return "Head off %s before they kick off" % who
-		Action.SETTLE: return "Have a word with %s" % who
-		Action.HELP: return "Help %s" % who
+		Action.SETTLE: return ("Settle %s" if fight else "Have a word with %s") % who
+		Action.HELP: return ("Steady %s" if fight else "Help %s") % who
 		Action.COLLECT_WORK: return "Collect %s's work" % who
 		Action.GO_OVER: return "Go over the quiz with %s" % who
 		Action.COLLECT_HW: return "Take %s's homework" % who
@@ -93,7 +96,8 @@ func interact(by: Node) -> void:
 		Action.HELP:
 			if s.help():
 				Sfx.play("help")
-				_pop("got it!", Color(0.55, 1.0, 0.6))
+				_pop("steady" if Game.fight_active() else "got it!",
+					Color(0.55, 1.0, 0.6))
 				used.emit(by)
 		Action.COLLECT_WORK:
 			if s.collect_work():

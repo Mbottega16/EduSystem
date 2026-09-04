@@ -34,6 +34,10 @@ signal answer_all_requested()
 signal voice_raised(settled: int)
 ## The inspector has seen enough.
 signal inspected(report: Dictionary)
+## The boss paper: one line for the banner as each question opens, and the
+## report when the paper is over.
+signal fight_banner(text: String)
+signal fight_ended(report: Dictionary)
 signal curriculum_requested()
 signal marking_requested()
 signal test_requested(lesson_id: String)
@@ -42,6 +46,10 @@ signal room_rebuilt()
 ## The bubble over a child the quiz caught out — cooler than the amber
 ## "stuck" one, because it is a different kind of problem.
 const QUIZ_BUBBLE_TINT := Color(0.62, 0.82, 1.0)
+## The child the boss paper has put up front to present: gold, because
+## the instruction is the opposite of every other bubble -- not "go and
+## fix", but "go and STAY".
+const PRESENT_BUBBLE_TINT := Color(1.0, 0.87, 0.42)
 ## Messing about. Hot, because unlike the other two it gets WORSE while you
 ## are somewhere else.
 const NOISE_BUBBLE_TINT := Color(1.0, 0.45, 0.35)
@@ -65,6 +73,8 @@ var hall_door: Interactable = null
 ## Standing at the back on inspection days. Not in `students`, so nothing
 ## that walks the roster ever mistakes them for a child.
 var inspector: Actor = null
+## The examiner, at the front for exactly as long as the boss paper runs.
+var examiner: Actor = null
 var camera: Camera2D = null
 
 var lesson_left: float = 0.0
@@ -166,6 +176,7 @@ func build() -> void:
 	_spawn_player()
 	_spawn_mess()
 	refresh_inspector()
+	refresh_examiner()
 
 
 ## New clutter for a new day. Any mess left uncleaned from before is simply
@@ -449,7 +460,14 @@ func _spawn_students(walk_in: bool = true) -> void:
 ## assert on it. On the idle tick it would be however many variable-length
 ## frames the machine happened to render, which is not assertable at all.
 func _physics_process(delta: float) -> void:
-	if Game.phase == Game.Phase.LESSON:
+	if Game.phase == Game.Phase.LESSON and Game.fight != null:
+		# The boss paper: its own clock, its own moves, no work ticking.
+		# `fight != null` rather than fight_active(): the tick is also what
+		# CLOSES a paper that has just run out, and a paper driven to its
+		# end by hand (a test, a screenshot) must still be closed by the
+		# room rather than falling through to the ordinary lesson below.
+		_tick_fight(delta)
+	elif Game.phase == Game.Phase.LESSON:
 		# The clock is what makes this a game rather than a chore list.
 		# Without it nothing ended the lesson but the player, so you could
 		# always reach every student and there was no triage to do.
@@ -559,6 +577,7 @@ func _refresh_bubbles() -> void:
 		var noisy: bool = n.seated and n.data.disrupting
 		var stuck: bool = n.seated and n.data.is_visibly_struggling()
 		var flagged: bool = n.seated and n.data.quiz_flagged
+		var presenting: bool = n.seated and Game.fight != null 			and Game.fight.presenting == n.data.id
 		var tint := QUIZ_BUBBLE_TINT
 		if flaring:
 			tint = FLARE_BUBBLE_TINT
@@ -566,7 +585,9 @@ func _refresh_bubbles() -> void:
 			tint = NOISE_BUBBLE_TINT
 		elif stuck:
 			tint = Color.WHITE
-		n.set_bubble(flaring or noisy or stuck or flagged, tint)
+		elif presenting:
+			tint = PRESENT_BUBBLE_TINT
+		n.set_bubble(flaring or noisy or stuck or flagged or presenting, tint)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
@@ -578,7 +599,7 @@ func _refresh_bubbles() -> void:
 func _on_student_arrived(s: StudentData) -> void:
 	if s == null:
 		return
-	if Game.phase == Game.Phase.LESSON and s.work_state == StudentData.Work.NONE:
+	if Game.phase == Game.Phase.LESSON and s.work_state == StudentData.Work.NONE 			and not Game.fight_active():
 		s.assign_work()
 
 
@@ -750,6 +771,129 @@ func run_answer_all() -> Dictionary:
 	return result
 
 
+## The boss paper, from the podium on the last morning of a boss term.
+## Not a lesson: no hand, no work on the desks, nothing graded today. The
+## examiner comes in, the clock is the paper's own, and the desks are the
+## whole job until it is over. Returns how many sat it.
+func start_boss_fight() -> int:
+	Balance.ensure_loaded()
+	var f := Game.start_boss_fight()
+	lesson_left = f.seconds_left()
+	refresh_examiner()
+	_drain_fight_events()
+	_refresh_bubbles()
+	return Game.roster.size()
+
+
+## One physics tick of the paper. Voice still recharges, the mass-help
+## cooldown still drains, weather still drifts -- but no work ticks, no
+## ordinary stalls or flares roll, and attention is not a thing: nobody is
+## teaching, the paper is being sat.
+func _tick_fight(delta: float) -> void:
+	var f: BossFight = Game.fight
+	Game.answer_all_cooldown = maxf(0.0, Game.answer_all_cooldown - delta)
+	_tick_weather(delta)
+	var where: Vector2i = Layout.PODIUM
+	if player != null and is_instance_valid(player):
+		where = Grid.world_to_tile(player.global_position)
+	f.tick(delta, Game.rng, where)
+	lesson_left = f.seconds_left()
+	lesson_tick.emit(lesson_left)
+	Game.tick_voice(delta)
+	_drain_fight_events()
+	if not f.active():
+		fight_ended.emit(end_boss_fight())
+
+
+## The paper is over: close the tally, calm the room, send the examiner
+## home. end_lesson()'s shape, without the grading.
+func end_boss_fight() -> Dictionary:
+	lesson_left = 0.0
+	var report := Game.end_boss_fight()
+	_refresh_bubbles()
+	for st: Interactable in stations:
+		st.show_paper(false)
+	refresh_examiner()
+	return report
+
+
+## Turn the fight's event list into things in the room: a banner line as a
+## question opens, a word over the desk as each child's round resolves.
+func _drain_fight_events() -> void:
+	var f: BossFight = Game.fight
+	if f == null:
+		return
+	for ev: String in f.events:
+		var parts := ev.split(":")
+		var kind := parts[0]
+		var sid: int = int(parts[1]) if parts.size() > 1 else -1
+		match kind:
+			"breath":
+				fight_banner.emit(f.question_text())
+				Sfx.play_varied("paper")
+			"round":
+				Sfx.play("start")
+			"rallied":
+				_fight_pop(sid, "rose to it!", Color(0.55, 1.0, 0.6))
+			"held":
+				_fight_pop(sid, "held", Color(0.9, 0.9, 0.8))
+			"dropped":
+				_fight_pop(sid, "lost it", Color(1.0, 0.55, 0.5))
+				Sfx.play("deny")
+			"present":
+				_fight_pop(sid, "up front", PRESENT_BUBBLE_TINT)
+	f.events.clear()
+
+
+func _fight_pop(sid: int, text: String, colour: Color) -> void:
+	var s := Game.student_by_id(sid)
+	if s == null or s.seat_index < 0:
+		return
+	var at := Grid.tile_to_world(Layout.seat(s.seat_index)) + Vector2(0, -36)
+	Floater.pop(self, at, text, colour)
+	Fx.puff(self, at + Vector2(0, 26), colour, 4)
+
+
+## The examiner stands at the front, beside the podium, facing the class,
+## for exactly as long as the paper runs -- the same "you can SEE the
+## judgement being formed" reasoning as the inspector, at the other end of
+## the room so the two are never confused. Their own sprite when the art
+## exists; the inspector's suit until it does.
+func refresh_examiner() -> void:
+	var wanted: bool = Game.fight_active()
+	if wanted == (examiner != null and is_instance_valid(examiner)):
+		return
+	if not wanted:
+		if examiner != null and is_instance_valid(examiner):
+			examiner.queue_free()
+		examiner = null
+		return
+	examiner = STUDENT_SCENE.instantiate()
+	add_child(examiner)
+	var path := "res://art/examiner.png"
+	if not ResourceLoader.exists(path):
+		path = "res://art/inspector.png"
+	var tex: Texture2D = load(path)
+	if tex != null and examiner.has_node("Sprite2D"):
+		examiner.get_node("Sprite2D").texture = tex
+	examiner.global_position = Grid.tile_to_world(_examiner_tile())
+	examiner.facing = Actor.DIR_DOWN
+	examiner.set_idle()
+
+
+## Beside the podium, on whichever side is free; then anywhere free.
+func _examiner_tile() -> Vector2i:
+	var y: int = Layout.PODIUM.y + 1
+	for dx: int in [3, -3, 4, -4, 5, -5]:
+		var t := Vector2i(Layout.PODIUM.x + dx, y)
+		if grid.is_free(t) and Game.item_at(t).is_empty():
+			return t
+	for t: Vector2i in grid.free_tiles():
+		if Game.item_at(t).is_empty():
+			return t
+	return Vector2i(Layout.PODIUM.x + 3, y)
+
+
 ## Podium, during a lesson. Grades everyone on what actually happened, then
 ## sets tonight's homework.
 func end_lesson() -> Array:
@@ -804,6 +948,7 @@ func end_day() -> Dictionary:
 	_respawn_students()
 	_spawn_mess()
 	refresh_inspector()
+	refresh_examiner()
 	day_started.emit(Game.day)
 	return report
 

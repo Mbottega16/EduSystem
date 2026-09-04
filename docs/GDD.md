@@ -235,6 +235,27 @@ children who passed move up and out.
 > *"So a term you taught well empties your class of exactly the children you
 > got good at teaching."*
 
+### The boss term, and the paper *(built Sep 2026)*
+Every third term the fork at the start of term deals a **boss card**
+alongside the ordinary paths -- a subject paper (Reading Paper, Number
+Gauntlet, Science Fair, Mock Election) or the mixed Open Evening. The
+term plays as normal; the exam is judged on the class average against
+the card's own bar rather than the seat count, and clearing it puts a
+trophy on the career screen and a cosmetic on sale. Missing it ends the
+run like any missed target.
+
+**The last morning of a boss term is played, not sat.** The podium reads
+*Begin the Reading Paper*; the examiner stands at the front; the paper
+makes one move a round from the card's own list (children freeze, a
+freeze chains along adjacent desks, the room starts arguing, one child is
+put up front to present) and the teacher answers with the verbs they
+already have -- steady, settle, stand with, or talk the whole room
+through it on J. Each child a round touches ends it rallied, held or
+dropped; the tally becomes a small, clamped nudge on that child's exam
+score that afternoon (`bosses.fight.max_swing`, about half a letter).
+The record still decides the exam; the day decides the margin. The
+contract sim never sees any of it. Full design: `docs/ROGUELIKE_DESIGN.md`.
+
 ---
 
 ## 5. Systems reference

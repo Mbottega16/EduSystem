@@ -113,6 +113,12 @@ var transcript: Array = []
 ## page renders it (and "prose never numbers" stays a display concern).
 ## Append-only via note_moment(); capped at Balance.moments_cap.
 var moments: Array = []
+## How they held up on the day of the boss assessment: the fight's per-child
+## nudge on the exam, set by BossFight.finish() and read by
+## Game.exam_score_for(). Zero on any ordinary term. Clamped to
+## +-Balance.fight_max_swing before it is ever stored, saved so quitting
+## between the paper and the bell does not lose the morning.
+var boss_delta: float = 0.0
 
 var _since_stall: float = 0.0
 
@@ -584,6 +590,24 @@ func help() -> bool:
 	return true
 
 
+## The paper has frozen them. Visible AT ONCE, whatever their trait: a
+## Quiet child hides an ordinary stall for a few seconds, but a freeze in
+## an exam hall is the whole room's business. Same state as being stuck
+## (confusion), so the desk's ordinary help verb is what steadies them.
+func freeze() -> void:
+	confusion = 1.0
+	_since_stall = 0.0
+	_hidden_for = 1000.0
+
+
+## The question moved on without them. NOT help(): nobody came, so no
+## XP and no help counted -- the record stays honest about what happened.
+func unfreeze() -> void:
+	confusion = 0.0
+	_since_stall = 0.0
+	_hidden_for = 0.0
+
+
 # ------------------------------------------------------------ homework
 
 func homework_ready_to_mark() -> bool:
@@ -611,6 +635,7 @@ func to_dict() -> Dictionary:
 		"grades": grades, "last_grade": last_grade,
 		"transcript": transcript,
 		"moments": moments,
+		"boss_delta": boss_delta,
 	}
 
 
@@ -642,4 +667,5 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.grades.assign(d.get("grades", []))
 	s.transcript = d.get("transcript", []).duplicate()
 	s.moments = d.get("moments", []).duplicate()
+	s.boss_delta = float(d.get("boss_delta", 0.0))
 	return s

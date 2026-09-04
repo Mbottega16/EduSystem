@@ -178,6 +178,26 @@ func _open_screen(main: Node, screen: String) -> void:
 				s.hw_sheet = Questions.make_sheet(s.hw_true_accuracy, Game.rng, "math")
 			hud.open_marking()
 			hud.sheet.stamp(true)
+		"boss_fight":
+			# The paper, mid-question: the examiner up front, three children
+			# frozen, the banner across the top, the strip reading the room.
+			Game.new_run(0)
+			Game.term_path = (Balance.bosses[0] as Dictionary).duplicate()
+			Game.day = Balance.term_days
+			world.start_boss_fight()
+			Game.fight.tick(Balance.fight_breath_seconds + 0.05, Game.rng, Layout.PODIUM)
+			world._drain_fight_events()
+			hud.show_banner(Game.fight.question_text(), 30.0)
+		"fight_report":
+			Game.new_run(0)
+			Game.term_path = (Balance.bosses[0] as Dictionary).duplicate()
+			Game.day = Balance.term_days
+			world.start_boss_fight()
+			var fguard := 0
+			while Game.fight_active() and fguard < 100000:
+				Game.fight.tick(0.5, Game.rng, Layout.PODIUM)
+				fguard += 1
+			hud.show_fight_report(world.end_boss_fight())
 		"school":
 			Game.coins = 999999
 			for ri in 3:

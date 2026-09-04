@@ -52,6 +52,9 @@ signal intro_desk_pull_requested()
 signal intro_finished()
 
 @onready var status: Label = $Status
+## One line across the top of the room -- a question opening in the boss
+## paper. Outside $Overlay, like the mascot box, so it shows in free roam.
+@onready var banner: Label = $Banner
 @onready var prompt: Label = $Prompt
 @onready var prompt_box: ColorRect = $PromptBox
 @onready var overlay: ColorRect = $Overlay
@@ -247,6 +250,8 @@ func _process(_delta: float) -> void:
 			_beat_chars = mini(_beat_full.length(),
 				_beat_chars + maxi(1, int(ceil(_delta * 45.0))))
 			prompt.text = _beat_full.substr(0, _beat_chars)
+	if banner.visible and _banner_until <= Time.get_ticks_msec() / 1000.0:
+		banner.visible = false
 
 
 ## ALL input, on ONE clock.
@@ -326,7 +331,9 @@ func _update_status() -> void:
 	if Game.auto_teach:
 		bits.append("AUTO-TEACH")
 
-	if teaching:
+	if teaching and Game.fight_active():
+		_fight_bits(bits)
+	elif teaching:
 		var room := get_tree().get_first_node_in_group("classroom")
 		if room != null:
 			bits.append("%ds" % int(ceil(room.lesson_left)))
@@ -418,6 +425,22 @@ func _update_status() -> void:
 		bits.append("answer-all %s%s" % ["|".repeat(aa_ready), ".".repeat(4 - aa_ready)])
 
 	status.text = _clip_visibly("   ".join(bits))
+
+
+## The strip while the boss paper is being sat: which question, the
+## paper's clock, how the room is holding (pips and a word, never a
+## number), the voice. The day counter goes -- the banner already said
+## what day it is, and the width is needed.
+func _fight_bits(bits: Array[String]) -> void:
+	var f: BossFight = Game.fight
+	bits.clear()
+	bits.append("Q%d/%d" % [f.round + 1, f.total_rounds()])
+	bits.append("%ds" % int(ceil(f.seconds_left())))
+	var pips := int(round(f.composure() * 5.0))
+	bits.append("hold %s%s %s" % ["|".repeat(pips), ".".repeat(5 - pips),
+		f.composure_word()])
+	var vp := int(round(Game.voice * 4.0))
+	bits.append("voice %s%s" % ["|".repeat(vp), ".".repeat(4 - vp)])
 
 
 func _update_prompt() -> void:
@@ -731,7 +754,22 @@ func queue_day_beat(text: String) -> void:
 		_queued_beat = text
 
 
+## A line across the top of the room, faded in, gone after `seconds`. The
+## boss paper's questions come through here; anything else the whole room
+## should read at once can too.
+func show_banner(text: String, seconds: float = 4.0) -> void:
+	if text.is_empty():
+		return
+	banner.text = _clip(text)
+	banner.visible = true
+	banner.modulate = Color(1, 1, 1, 0)
+	var tw := banner.create_tween()
+	tw.tween_property(banner, "modulate:a", 1.0, 0.25)
+	_banner_until = Time.get_ticks_msec() / 1000.0 + seconds
+
+
 var _hint_until: float = 0.0
+var _banner_until: float = 0.0
 
 
 ## YOUR OWN DASHBOARD. Not a landmark verb -- you are not standing anywhere
@@ -1122,6 +1160,10 @@ func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
 			if n > 1:
 				return "Was not ready at the bell more than once, and stayed on each time."
 			return "Was not ready when the term ended, and stayed on for another."
+		"rose_to_paper":
+			return "Rose to the paper on the day, while the room around them wobbled."
+		"froze_on_paper":
+			return "Froze on the paper more than once, and carried that morning for a while."
 		"graduated":
 			return "Left your class ready for what came next."
 	return ""
@@ -1269,7 +1311,10 @@ func show_exam(result: Dictionary) -> void:
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 16)
 
-	title.text = "END OF TERM  -  %s" % String(result.get("letter", "F"))
+	var boss_term: bool = String(Game.term_path.get("kind", "")) == "boss"
+	title.text = "%s  -  %s" % [
+		String(Game.term_path.get("name", "")).to_upper() if boss_term else "END OF TERM",
+		String(result.get("letter", "F"))]
 
 	# Two children to a line, in the colour of their verdict. Twenty days
 	# come down to this screen, and a column of identical "(no)"s says
@@ -1290,12 +1335,24 @@ func show_exam(result: Dictionary) -> void:
 	# The TARGET, not just the count. A number you are measured against
 	# after the fact is a punishment; the same number known all term is a
 	# thing to play towards -- and this is the only screen where it resolves.
-	var target: int = Game.term_target()
-	var met: bool = passed >= target
-	lines.append("[color=#%s]%d of %d passed[/color]   need %d   [color=#%s]%s[/color]" % [
-		C_GOOD if met else C_BAD, passed, total, target,
-		C_GOOD if met else C_BAD,
-		"kept the job" if met else "NOT ENOUGH"])
+	if boss_term:
+		# A boss term is judged on the class as a whole against the paper's
+		# own bar (Game.next_term()'s boss branch), not the seat count -- so
+		# this line says which side of the bar, in words. The bar itself is
+		# never printed.
+		var cleared: bool = float(result.get("average", 0.0)) \
+			>= float(Game.term_path.get("target", 1.0))
+		lines.append("[color=#%s]%d of %d passed[/color]   [color=#%s]%s[/color]" % [
+			C_GOOD if cleared else C_BAD, passed, total,
+			C_GOOD if cleared else C_BAD,
+			"the paper is CLEARED" if cleared else "the paper is NOT cleared"])
+	else:
+		var target: int = Game.term_target()
+		var met: bool = passed >= target
+		lines.append("[color=#%s]%d of %d passed[/color]   need %d   [color=#%s]%s[/color]" % [
+			C_GOOD if met else C_BAD, passed, total, target,
+			C_GOOD if met else C_BAD,
+			"kept the job" if met else "NOT ENOUGH"])
 
 	# What you BUILT, not just what they scored. The room, the curriculum
 	# and the children you saw all the way through are the three things a
@@ -1354,6 +1411,66 @@ func _exam_cell(row: Dictionary) -> String:
 	var s: StudentData = row["student"]
 	return "%-9s %s %s" % [s.first_name(), String(row["letter"]),
 		"(ok)" if bool(row["passed"]) else "(no)"]
+
+
+## The paper is over. One line per child, in the colour of how they held
+## up, then the room in a word. Nothing here is a grade: the exam is sat
+## at the bell, and this morning is what feeds into it.
+func show_fight_report(report: Dictionary) -> void:
+	_open(Mode.REPORT)
+	Sfx.play("grade")
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
+	title.text = "%s  -  %s" % [String(report.get("boss", "THE PAPER")).to_upper(),
+		String(report.get("composure", "")).to_upper()]
+	var rows: Array = report.get("rows", [])
+	var lines: Array[String] = []
+	var i := 0
+	while i < rows.size() and lines.size() < 7:
+		var cell := _fight_cell(rows[i])
+		if i + 1 < rows.size():
+			cell += "  " + _fight_cell(rows[i + 1])
+		lines.append(cell)
+		i += 2
+	if i < rows.size():
+		lines.append("[color=#%s]...[/color]" % DIM)
+	lines.append("")
+	lines.append("[color=#%s]%s[/color]" % [C_KNOW,
+		_composure_sentence(String(report.get("composure", "")))])
+	lines.append("[color=#%s]The results are read at the bell.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.6)
+	hint.text = "E - close.   Ring the bell to sit the results."
+
+
+## One child on the paper board: their name and how they held up, green
+## if they rose to it, red if they lost it, plain otherwise.
+func _fight_cell(row: Dictionary) -> String:
+	var s: StudentData = row["student"]
+	var r := int(row.get("rallied", 0))
+	var h := int(row.get("held", 0))
+	var d := int(row.get("dropped", 0))
+	var hue := DIM
+	if d > 0 and r + h < d:
+		hue = "d08a86"
+	elif r > 0 and d == 0:
+		hue = strand_colour("ela")
+	elif r + h + d > 0:
+		hue = "cfcfcf"
+	return "[color=#%s]%-7s %-14s[/color]" % [hue, s.first_name().substr(0, 7),
+		String(row.get("word", ""))]
+
+
+## The room, in a sentence. The last thing the paper says.
+func _composure_sentence(word: String) -> String:
+	match word:
+		"steady": return "The room held. Every question, answered as a class."
+		"wobbling": return "It wobbled, but it held. They will remember this one."
+		"cracking": return "The room cracked under it. Some of them got through."
+		"gone": return "The room came apart. A hard morning for everyone in it."
+	return "The paper is sat."
 
 
 ## What the inspector made of it.
@@ -2302,7 +2419,7 @@ func _render_mentor() -> void:
 				else "E - back to it"
 		MentorTalk.READ:
 			title.text = "A WORD BEFORE THE PAPER"
-			body.text = _mentor_readiness_text()
+			body.text = _mentor_readiness_text() + _mentor_tactic_text()
 			hint.text = "E - close"
 		_:
 			title.text = "THE MENTOR"
@@ -2347,6 +2464,18 @@ func _mentor_readiness_text() -> String:
 	return "\n".join([
 		"Honestly? Not yet. As the room stands, this",
 		"paper will be a hard morning for the class."])
+
+
+## What the paper actually DOES, from its card, so the readiness read is
+## followed by something to do about it. Only once a boss card has been
+## taken at the fork; before that there is nothing to point at.
+func _mentor_tactic_text() -> String:
+	if String(Game.term_path.get("kind", "")) != "boss":
+		return ""
+	var tactic := String(Game.term_path.get("tactic", ""))
+	if tactic.is_empty():
+		return ""
+	return "\n\n" + _wrap(tactic, 46, 3)
 
 
 func _handle_mentor_input() -> void:
@@ -2514,6 +2643,10 @@ func show_new_term(info: Dictionary) -> void:
 		Game.teacher_level, Game.coins])
 	lines.append("[color=#%s]This term you need %d of them through.[/color]" % [
 		C_BAD, int(info.get("target", Game.term_target()))])
+	var boss_prev := String(prev.get("boss", ""))
+	if boss_prev != "" and bool(prev.get("met", false)):
+		lines.append("[color=#%s]%s: cleared. The trophy is on the shelf.[/color]" % [
+			C_COIN, boss_prev])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.5)
 	hint.text = "E - first day of term %d" % int(info.get("term", Game.term))

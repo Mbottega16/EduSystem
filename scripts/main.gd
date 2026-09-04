@@ -32,6 +32,10 @@ func _ready() -> void:
 		_bump(3.0 if not bool(r.get("passed", false)) else 1.5)
 		hud.show_inspection(r))
 	world.test_auto_ended.connect(hud.show_test_report)
+	# The boss paper: each question across the top as it opens, the report
+	# when it is over. Both belong to the world, so connected once.
+	world.fight_banner.connect(func(t: String) -> void: hud.show_banner(t))
+	world.fight_ended.connect(_on_fight_ended)
 	world.room_rebuilt.connect(_wire_room)
 	_wire_room()
 
@@ -185,11 +189,27 @@ func _on_term_ended(result: Dictionary) -> void:
 	hud.show_exam(result)
 
 
+## The paper has begun. The one line of instruction it gets, once per run,
+## from the principal -- the day's beat and the mentor's tactic line have
+## already said the rest.
+func _on_fight_started(_seated: int) -> void:
+	hud.principal_says("boss_fight",
+		"Steady whoever freezes. Settle whoever kicks off. Stay near whoever is up front.")
+
+
+## The paper is over. The same bump the exam gets: this is the morning
+## that decides it.
+func _on_fight_ended(report: Dictionary) -> void:
+	_bump(3.0)
+	hud.show_fight_report(report)
+
+
 func _wire_room() -> void:
 	var pairs := [
 		[world.podium, "hand_requested", _offer_hand],
 		[world.podium, "lesson_ended", _on_lesson_ended],
 		[world.podium, "test_ended", hud.show_test_report],
+		[world.podium, "fight_started", _on_fight_started],
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],

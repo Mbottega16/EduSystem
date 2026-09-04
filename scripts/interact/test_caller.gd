@@ -38,6 +38,9 @@ func _classroom() -> Node:
 func can_interact() -> bool:
 	if Game.phase != Game.Phase.MORNING or Game.roster.is_empty():
 		return false
+	# The morning of the boss paper belongs to the paper.
+	if Game.boss_fight_today():
+		return false
 	# Same reasoning as the podium: never offer nothing at the landmark the
 	# day starts from. Latecomers are handed their paper when they sit.
 	return not Game.testable_lesson().is_empty()

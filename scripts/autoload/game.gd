@@ -125,6 +125,68 @@ func award_trophy(id: String) -> bool:
 
 signal term_began(term: int)
 
+# --- the boss paper --------------------------------------------------
+## The assessment in progress (scripts/data/boss_fight.gd), or null.
+## Lesson-scoped and transient, like `interruption`: never saved. The room
+## ticks it, the podium starts it, end_boss_fight() closes it.
+var fight: BossFight = null
+## The last paper's report, for the screen that shows it. Transient.
+var fight_report: Dictionary = {}
+## Has today's paper been sat? Reset every morning, so quitting between
+## the paper and the bell re-offers the paper rather than losing the day.
+var fight_done: bool = false
+
+signal fight_started(card: Dictionary)
+signal fight_ended(report: Dictionary)
+
+
+func fight_active() -> bool:
+	return fight != null and fight.active()
+
+
+## Is the paper on offer at the podium this morning? The last day of a
+## boss term, before it has been sat.
+func boss_fight_today() -> bool:
+	Balance.ensure_loaded()
+	return String(term_path.get("kind", "")) == "boss" 		and day >= Balance.term_days and phase == Phase.MORNING 		and not fight_done and not term_over
+
+
+## The podium, on the last morning of a boss term. Replaces the lesson:
+## no hand, no work set, no grade for the day. The class sits the paper,
+## and the afternoon's exam reads how they held up (StudentData.boss_delta,
+## through exam_score_for()).
+func start_boss_fight() -> BossFight:
+	Balance.ensure_loaded()
+	fight = BossFight.new()
+	for s: StudentData in roster:
+		s.boss_delta = 0.0
+		s.reset_lesson()
+	fight.start(term_path, roster, rng)
+	quiz_done = true            # no quizzing the paper
+	quiz_focus = false
+	answer_all_cooldown = 0.0   # the panic button comes in fresh
+	test_active = false
+	set_phase(Phase.LESSON)
+	fight_started.emit(term_path)
+	return fight
+
+
+## The paper is over. Closes the tally into each child's boss_delta, moves
+## the day to the afternoon and hands back the report for the screen.
+func end_boss_fight() -> Dictionary:
+	if fight == null:
+		return {}
+	fight_report = fight.finish()
+	fight = null
+	fight_done = true
+	for s: StudentData in roster:
+		s.confusion = 0.0
+		s.disrupting = false
+		s.flare_left = 0.0
+	set_phase(Phase.AFTERNOON)
+	fight_ended.emit(fight_report)
+	return fight_report
+
 # --- the school ------------------------------------------------------
 ## Rooms you do not stand in. Each has its own children, its own teacher and
 ## its own furniture, and is resolved every day by RUNNING THE LESSON with
@@ -663,6 +725,9 @@ func new_run(seed_value: int = 0) -> void:
 	term_over = false
 	term = 1
 	term_history.clear()
+	fight = null
+	fight_done = false
+	fight_report = {}
 	run_over = false
 	milestones.clear()
 	trophies.clear()
@@ -1160,7 +1225,11 @@ func exam_score_for(s: StudentData) -> float:
 	var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
 	var built: float = clampf(
 		(room_score(s.seat_index) - Balance.room_base) / span, 0.0, 1.0)
-	return clampf(s.average_grade() + built * Balance.exam_room_bonus, 0.0, 1.0)
+	# ...plus how they held up on the morning of a boss paper: zero on any
+	# ordinary term, and never more than fight.max_swing either way. See
+	# BossFight.finish().
+	return clampf(s.average_grade() + built * Balance.exam_room_bonus
+		+ s.boss_delta, 0.0, 1.0)
 
 
 ## How many children have to pass THIS term for you to keep the job.
@@ -1238,6 +1307,8 @@ func next_term() -> Dictionary:
 		"total": int(result.get("total", 0)),
 		"moved_up": moved_up.size(),
 		"target": target, "met": hit,
+		"boss": String(term_path.get("name", ""))
+			if String(term_path.get("kind", "")) == "boss" else "",
 	})
 
 	if run_over:
@@ -1255,6 +1326,7 @@ func next_term() -> Dictionary:
 	for s: StudentData in stayed:
 		s.grades.clear()
 		s.last_grade = -1.0
+		s.boss_delta = 0.0
 		s.reset_lesson()
 		s.hw_state = StudentData.HW.NONE
 		s.misjudged = false
@@ -1263,6 +1335,9 @@ func next_term() -> Dictionary:
 	term += 1
 	day = 1
 	term_over = false
+	fight = null
+	fight_done = false
+	fight_report = {}
 	exam_result = {}
 	homework_out = false
 	quiz_done = false
@@ -2205,6 +2280,11 @@ func answer_all_ready() -> bool:
 ## contract -- see the guard in tests/run.gd test_balance().
 func run_answer_all() -> Dictionary:
 	Balance.ensure_loaded()
+	# During the paper, talking the room through it counts as HELD for
+	# everyone frozen right now -- never rallied. Flagged before the
+	# confusion clears, so the fight's own tick sees why they came round.
+	if fight != null:
+		fight.mass_steady()
 	var helped := 0
 	var flagged_cleared := 0
 	for s: StudentData in roster:
@@ -2371,6 +2451,7 @@ func advance_day() -> Dictionary:
 	_reset_consumables()
 	event = DayEvent.roll(rng)
 	_flares_today = 0
+	fight_done = false
 	interruption = {}
 	_complications_today = 0
 	bell_rush_left = 0.0

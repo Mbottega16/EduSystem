@@ -180,6 +180,25 @@ static var term_paths: Array = []
 ## balance.json, and scripts/data/trophies.gd for the shelf they land on.
 static var boss_term_interval: int = 3
 static var bosses: Array = []
+## The fight itself -- see the `_fight_note` on `bosses.fight` in
+## balance.json and scripts/data/boss_fight.gd. Seconds, marks and the
+## composure bands; the per-boss MOVE list lives on each card in `bosses`.
+static var fight_round_seconds: float = 14.0
+static var fight_breath_seconds: float = 3.0
+static var fight_quick_seconds: float = 5.0
+static var fight_rally_mark: float = 0.02
+static var fight_drop_mark: float = 0.03
+static var fight_max_swing: float = 0.06
+static var fight_freeze_count: int = 3
+static var fight_chain_spread_seconds: float = 2.5
+static var fight_noise_count: int = 3
+static var fight_present_radius: int = 2
+static var fight_present_seconds: float = 6.0
+static var fight_present_rally_seconds: float = 10.0
+static var fight_restless_per_second: float = 0.04
+static var fight_composure_steady: float = 0.85
+static var fight_composure_wobbling: float = 0.6
+static var fight_composure_cracking: float = 0.35
 
 # --- the subject you trained in ------------------------------------------
 static var spec_relief: float = 1.0
@@ -505,6 +524,23 @@ static func apply(d: Dictionary) -> void:
 	var bs: Dictionary = d.get("bosses", {})
 	boss_term_interval = int(bs.get("term_interval", boss_term_interval))
 	bosses = bs.get("table", bosses)
+	var fg: Dictionary = bs.get("fight", {})
+	fight_round_seconds = float(fg.get("round_seconds", fight_round_seconds))
+	fight_breath_seconds = float(fg.get("breath_seconds", fight_breath_seconds))
+	fight_quick_seconds = float(fg.get("quick_seconds", fight_quick_seconds))
+	fight_rally_mark = float(fg.get("rally_mark", fight_rally_mark))
+	fight_drop_mark = float(fg.get("drop_mark", fight_drop_mark))
+	fight_max_swing = float(fg.get("max_swing", fight_max_swing))
+	fight_freeze_count = int(fg.get("freeze_count", fight_freeze_count))
+	fight_chain_spread_seconds = float(fg.get("chain_spread_seconds", fight_chain_spread_seconds))
+	fight_noise_count = int(fg.get("noise_count", fight_noise_count))
+	fight_present_radius = int(fg.get("present_radius_tiles", fight_present_radius))
+	fight_present_seconds = float(fg.get("present_seconds", fight_present_seconds))
+	fight_present_rally_seconds = float(fg.get("present_rally_seconds", fight_present_rally_seconds))
+	fight_restless_per_second = float(fg.get("restless_per_second", fight_restless_per_second))
+	fight_composure_steady = float(fg.get("composure_steady", fight_composure_steady))
+	fight_composure_wobbling = float(fg.get("composure_wobbling", fight_composure_wobbling))
+	fight_composure_cracking = float(fg.get("composure_cracking", fight_composure_cracking))
 
 	var sp: Dictionary = d.get("specialism", {})
 	spec_relief = float(sp.get("difficulty_relief", spec_relief))
