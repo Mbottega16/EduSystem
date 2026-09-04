@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-04**, against build `b39`, with **1723 assertions
+> **Measured on 2026-09-04**, against build `b40`, with **1733 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -355,7 +355,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1723 assertions** across **106 sections** |
+| Tests | **1733 assertions** across **106 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -694,7 +694,7 @@ on the same principle — a number gets retuned, nothing gets sourced.
 
 | now | before this pass |
 |---|---|
-| 5 procedural tracks: a 30s title theme, a 30s classroom bed, a 23s assessment track, two 2.5s stings (win/lose) | 11 short SFX and nothing else |
+| 8 procedural tracks: a 30s title theme, four 30s beds (morning, lesson, silent test, afternoon), a 23s assessment track, two 2.5s stings (win/lose) | 11 short SFX and nothing else |
 | A composition layer in `make_audio.py` — wavetables, ADSR envelopes, a step sequencer, a circular loop buffer, filters, echo, a slow swell — real melody, harmony and rhythm | one tone plus one envelope per sound |
 | Two buses (Master, Sfx stays put; Music is new) | one bus, one volume |
 | `Music` autoload: crossfading `play()`, `stop()`, a one-shot `sting()` that doesn't touch the bed, its own `music_volume` fader | no music system |
@@ -707,11 +707,13 @@ on the same principle — a number gets retuned, nothing gets sourced.
 - Cues come from **listening**, not from the game reaching into Music:
   `Game.run_started` and `Game.term_began` put the classroom bed
   (`music_room`) under play; the title screen asks for `music_title`
-  itself in its own `_ready()`. `music_fight`, `sting("music_win")` and
-  `sting("music_lose")` are built and covered by the test suite, but
-  nothing in the game yet detects "the assessment has started" or
-  "it ended" — so nothing calls them. That detection is real remaining
-  work; it is not a gap in the audio system, which is ready for it.
+  itself in its own `_ready()`. `Game.phase_changed` carries the rest of
+  the day — `music_morning` while the class files in, the lesson bed once
+  it starts, `music_test` instead when that lesson is a silent unit test,
+  `music_afternoon` once the desks are done. The phase listener stands
+  down while `Game.fight_active()`, because the paper owns the bed for as
+  long as it runs: `main.gd` switches to `music_fight` when the paper
+  begins and stings `music_win` / `music_lose` when it is marked.
 - Every loop is an exact sample count with nothing faded at the seam.
   `make_audio.py` measures peak, RMS and the jump across the loop point
   for every track it writes, and refuses to save one where the seam is
@@ -721,11 +723,17 @@ on the same principle — a number gets retuned, nothing gets sourced.
 
 **Honestly still open:** whether the composed music is actually *good*
 is a judgement call a script cannot make — it has been measured, not
-listened to end-to-end by a person yet. And the layered, per-state
-ambience `docs/AUDIO_BRIEF.md` originally imagined (a lesson bed that
-differs from an exam bed that differs from a noisy room) is not built;
-one classroom bed covers all of play for now. Both are additive on top
-of what exists, not a redesign of it.
+listened to end-to-end by a person yet. That is the real one, and no
+amount of further building answers it.
+
+The per-state ambience `docs/AUDIO_BRIEF.md` imagined is now built for
+the day's own phases, but **not for the room's mood** — the brief also
+wanted a noisy room to sound different from a settled one, and nothing
+here listens to attention or disruption. It was left alone deliberately:
+a bed that switches on a value ticking up and down mid-lesson would
+chatter between two tracks, and the honest fix is a continuous mix rather
+than another crossfade target. Additive on top of what exists, when it
+comes.
 
 ---
 

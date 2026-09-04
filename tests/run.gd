@@ -10452,8 +10452,9 @@ func test_music() -> void:
 			f = da.get_next()
 		da.list_dir_end()
 	tracks.sort()
-	chk("there are five music tracks",
-		tracks == ["music_fight", "music_lose", "music_room", "music_title", "music_win"],
+	chk("there are eight music tracks",
+		tracks == ["music_afternoon", "music_fight", "music_lose", "music_morning",
+			"music_room", "music_test", "music_title", "music_win"],
 		tracks)
 	chk("and every one of them loads", broken.is_empty(), broken)
 	for t: String in tracks:
@@ -10530,6 +10531,51 @@ func test_music() -> void:
 	Music.enabled = true
 	chk("and switching it back on resumes the same bed",
 		Music.current == "music_room" and Music._live.playing)
+
+	# The day's own shape: Game.phase_changed already announces morning,
+	# the lesson and the afternoon, and Game.test_active is read at the
+	# moment the lesson begins -- nothing new was wired into the game to
+	# hear any of this, only into Music.
+	chk("the run so far left the day in the morning", Game.phase == Game.Phase.MORNING)
+	Game.set_phase(Game.Phase.LESSON)
+	chk("an ordinary lesson plays the classroom bed",
+		Music.current == "music_room", Music.current)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	chk("afternoon winds the room down on its own bed",
+		Music.current == "music_afternoon", Music.current)
+	Game.set_phase(Game.Phase.MORNING)
+	chk("and morning gets its own sparse bed",
+		Music.current == "music_morning", Music.current)
+	Game.test_active = true
+	Game.set_phase(Game.Phase.LESSON)
+	chk("a silent unit test gets its own bed, not the ordinary lesson's",
+		Music.current == "music_test", Music.current)
+	Game.test_active = false
+	Game.set_phase(Game.Phase.AFTERNOON)
+	Game.set_phase(Game.Phase.LESSON)
+	chk("and an ordinary lesson afterwards goes back to the classroom bed",
+		Music.current == "music_room", Music.current)
+
+	# A live assessment still owns the bed: the phase listener steps aside
+	# rather than racing the fight code for the same two players. Leave
+	# test_active on so a listener that did NOT step aside would reach for
+	# music_test instead -- proving this is the guard holding, not luck.
+	Game.term_path = (Balance.bosses[0] as Dictionary).duplicate()
+	Game.day = Balance.term_days
+	Game.test_active = true
+	Music.play("music_room", 0.0)
+	Game.start_boss_fight()
+	chk("the phase listener does not steal the bed from a live paper",
+		Music.current == "music_room", Music.current)
+	Game.test_active = false
+	Game.fight = null
+	Game.fight_done = false
+	# Leaving Game.phase at LESSON with no fight would let the world's own
+	# per-frame ticking (still live from earlier sections) carry on as if
+	# a lesson were running and eventually change the phase again on its
+	# own -- a new run is a clean, known state for whatever comes next.
+	Game.new_run(SEED)
+	Music.stop(0.0)
 
 	# Settings: its own volume, saved, with a default for old files.
 	var snapshot := Settings.to_dict()
