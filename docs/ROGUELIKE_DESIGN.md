@@ -1,7 +1,7 @@
 # The roguelike pivot — design doc
 
 *(Supersedes the raw idea captured in the business vault at
-`my-brain/projects/pixelroom/roguelike-idea.md` — that file was a
+`my-brain/projects/edusystem/roguelike-idea.md` — that file was a
 placeholder for exactly this. Real design decisions belong here, in
 EDUSystem's own repo, not the business vault.)*
 

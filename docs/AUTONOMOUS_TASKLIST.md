@@ -331,7 +331,7 @@ for no reason.
       is a setting in the OneDrive client, not something a script can set
       reliably. Right-click `.godot` in Explorer → *Always keep on this
       device* off, or move the repo outside OneDrive.
-- [ ] **D2. Run `/deep_update` after any batch integration.** Counts move
+- [x] **D2. Run `/deep_update` after any batch integration.** Counts move
       in six documents at once and disagreement is worse than staleness.
       *(Last run 2026-08-19.)* Found real drift beyond assertion counts:
       the suite has grown to **79 sections** (CLAUDE.md said 74, GDD said
@@ -341,6 +341,19 @@ for no reason.
       (`b30`/"a reputation you can lose" → `b31`/"a door to every room
       you hold"). A3/A4 on this list were also stale — both integrations
       landed sessions ago but the checkboxes were never ticked.
+      *(Run again 2026-09-04, after the ambience / poses / mentor merge.)*
+      The same three kinds of drift, all worse. The count had moved to
+      **1740** across four documents. `hud.gd` was still quoted at 2741
+      lines and is **4156**. The architecture line claimed 11 interactable
+      types (**17**) and "16 screen modes, 20 of them sharing `REPORT`" --
+      stale and self-contradictory at once, since there are **21** modes.
+      Worst of the lot: `version.gd` still stamped **b38 / 2026-08-22 /
+      "doors show who needs you"** while GDD's own header claimed `b40`.
+      The stamp sat still through the whole convergence push AND the
+      finishing push -- the one thing on the title screen that answers
+      "what am I actually running" was two majors behind. Bumped to
+      **b41**, and the GDD header corrected to match the code rather than
+      the other way round.
 - [x] **D3. Sheet grid expanded 5x4 -> 9x4 for real animation room.**
       *(Aug 2026 -- user request.)* `tools/make_art.py` draws four new
       one-shot poses per character (`POSE_HANDOFF/CHAT/JUMP/SAD`,

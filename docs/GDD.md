@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-04**, against build `b40`, with **1733 assertions
+> **Measured on 2026-09-04**, against build `b41`, with **1740 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -298,8 +298,8 @@ should still look like the plain room they have always been.
 
 ### Actors, interactables, UI
 `actor.gd` / `player.gd` (per-button targeting, hold-to-confirm, autopilot) /
-`student.gd` · 11 interactable types · `hud.gd` (2741 lines, 16 screen modes,
-20 of them sharing `REPORT`) · `title.gd` (6 pages) · `debug_panel.gd` ·
+`student.gd` · 17 interactable types · `hud.gd` (4156 lines, 21 screen
+modes) · `title.gd` (6 pages) · `debug_panel.gd` ·
 `fx.gd` · `floater.gd` · `sfx.gd` · `settings.gd`.
 
 ### Concepts are texture, not a collection
@@ -355,7 +355,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1733 assertions** across **106 sections** |
+| Tests | **1740 assertions** across **106 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
