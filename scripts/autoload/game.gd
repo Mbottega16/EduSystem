@@ -2399,6 +2399,49 @@ func boost_speed_mult() -> float:
 	return Balance.comp_boost_speed_mult
 
 
+## Is today a materials day?
+func supplies_day() -> bool:
+	return bool(event.get("supplies", false))
+
+
+## Empty every child's hands on a materials day, and fill them on any other.
+## Called once when the day rolls over, never mid-lesson.
+func _set_up_supplies() -> void:
+	var needed := supplies_day()
+	for s: StudentData in roster:
+		s.has_supply = not needed
+
+
+## How much slower a child works for having nothing in front of them. 1.0
+## on every ordinary day, and on a materials day for every child you got to
+## in time. This is a PACE penalty on the child's own stall rate -- it does
+## not touch their record, and it cannot fire at all unless the day rolled
+## a materials event, which tools/sim.gd never does.
+func supply_rate_mult(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	if s == null or s.has_supply:
+		return 1.0
+	return Balance.supplies_stall_mult
+
+
+## Hand one child their materials. Returns false if they already had them,
+## so the desk can offer the job only while it is still a job.
+func give_supply(s: StudentData) -> bool:
+	if s == null or s.has_supply:
+		return false
+	s.has_supply = true
+	return true
+
+
+## How many are still waiting, for the one line the room shows you.
+func awaiting_supplies() -> int:
+	var n := 0
+	for s: StudentData in roster:
+		if s.seat_index >= 0 and not s.has_supply:
+			n += 1
+	return n
+
+
 func add_coins(amount: int) -> void:
 	coins = maxi(0, coins + amount)
 	if amount > 0 and is_inside_tree():
@@ -2532,6 +2575,10 @@ func advance_day() -> Dictionary:
 	_bell_rush_done.clear()
 	if event.has("bonus_coins"):
 		add_coins(int(event["bonus_coins"]))
+	# A materials day starts with every seated child empty-handed. The
+	# end-of-day report that announces tomorrow's event is what warns you --
+	# it already prints the blurb, so no new announcement was needed.
+	_set_up_supplies()
 	if day > Balance.term_days:
 		term_over = true
 	set_phase(Phase.MORNING)

@@ -130,6 +130,43 @@ fight and the mass-help are guarded, so the measured rows cannot drift.
 price — "Give what you can", not "-40 coins" — and you feel it at the
 purse afterwards. Asserted, not just intended.
 
+## A materials day, and reading a child — shipped (2026-09-04)
+
+Two halves of the same idea: making what the sim is already doing to a
+child legible, and giving the teacher a job that is unmistakably theirs.
+
+**A child's file has a third page.** Tab cycles the file, their story, and
+now *what is acting on them* — their trait, the day's own event, whether
+the room has anything out for today's subject, whether their desk is
+hemmed in, whether you are stood close enough to settle them, and what
+they are doing to themselves. Sorted under AGAINST THEM and FOR THEM,
+worst first, because the reason you opened the page is that something is
+wrong.
+
+It names each influence and which way it pulls, and **never prints a
+value** — the rule the rest of the file already obeys, asserted by a test
+that refuses any digit on the page. You read it the way a teacher reads a
+room, not the way a spreadsheet reads a row.
+
+**A materials day.** A new `DayEvent` row: the class arrives with nothing
+in front of them and it is your job to walk round and hand their things
+out before the bell. No new announcement machinery was needed — the
+end-of-day report already prints tomorrow's event, so you are warned the
+night before and can plan the morning around it.
+
+Handing out is a new top-priority action on the existing desk station,
+above even a flare-up: a child with nothing cannot start at all, whereas
+a child kicking off at least had something to stop doing. A child you
+never reach works at `lesson.supplies_stall_mult` of the normal rate for
+the day — a pace penalty on their own work, exactly like the desk-cluster
+penalty, and **never a term in their grade**. It shows up in plain words
+on their file's third page, so a bad grade at the bell has a visible
+cause you can trace back to your own morning.
+
+It cannot fire unless the day actually rolled the materials event, which
+`tools/sim.gd` never does; a source-scan guard asserts the simulator
+never reaches the supplies path, so the contract rows cannot see it.
+
 ## Term paths — shipped, the PokeRogue-style fork
 
 Modeled directly on the assignment-hand system (draw several pre-rolled

@@ -10,8 +10,13 @@ extends RefCounted
 
 const TABLE := [
 	{
-		"id": "none", "weight": 30, "name": "An ordinary day",
+		"id": "none", "weight": 24, "name": "An ordinary day",
 		"blurb": "Nothing out of the usual.",
+	},
+	{
+		"id": "supplies", "weight": 6, "name": "Materials day",
+		"blurb": "They each need their own things today. Hand them out before the bell.",
+		"supplies": true,
 	},
 	{
 		"id": "restless", "weight": 8, "name": "Restless class",

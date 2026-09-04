@@ -38,6 +38,7 @@ static var grade_band_e: float = 0.38
 static var work_seconds: float = 14.0
 static var lesson_seconds: float = 60.0
 static var stall_chance_per_second: float = 0.10
+static var supplies_stall_mult: float = 0.7
 static var stall_grace_seconds: float = 1.5
 static var attention_per_help: float = 0.06
 static var entry_stagger: float = 0.35
@@ -410,6 +411,7 @@ static func apply(d: Dictionary) -> void:
 	work_seconds = float(l.get("work_seconds", work_seconds))
 	lesson_seconds = float(l.get("lesson_seconds", lesson_seconds))
 	stall_chance_per_second = float(l.get("stall_chance_per_second", stall_chance_per_second))
+	supplies_stall_mult = float(l.get("supplies_stall_mult", supplies_stall_mult))
 	stall_grace_seconds = float(l.get("stall_grace_seconds", stall_grace_seconds))
 	attention_per_help = float(l.get("attention_per_help", attention_per_help))
 	uncollected_hint_after = float(l.get("uncollected_hint_after", uncollected_hint_after))

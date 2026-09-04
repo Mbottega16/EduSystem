@@ -3,7 +3,8 @@ extends Interactable
 ## One student's desk. Everything you do to an individual student happens
 ## here, chosen by priority rather than by a menu:
 ##
-##   0. a flare-up is brewing -> catch it before the countdown runs out
+##   0. it is a materials day and they have nothing -> hand it to them
+##   1. a flare-up is brewing -> catch it before the countdown runs out
 ##   1. they're playing up    -> settle them
 ##   2. they're stuck        -> help them
 ##   3. classwork finished   -> collect it
@@ -15,7 +16,7 @@ extends Interactable
 ## unsticking them, they stay stuck — the priority makes the urgent thing the
 ## default thing.
 
-enum Action { NONE, DEFUSE, SETTLE, HELP, COLLECT_WORK, GO_OVER, COLLECT_HW }
+enum Action { NONE, HAND_OUT, DEFUSE, SETTLE, HELP, COLLECT_WORK, GO_OVER, COLLECT_HW }
 
 var seat_index: int = -1
 var paper: Sprite2D = null      ## the finished sheet sitting on the desk
@@ -29,8 +30,15 @@ func action() -> int:
 	var s := student()
 	if s == null:
 		return Action.NONE
+	# On a materials day, a child with nothing in front of them cannot get
+	# started at all, so putting that right outranks every other job at the
+	# desk -- including a flare-up, which at least means they had something
+	# to stop doing. Only ever offered on a materials day; on every other
+	# day has_supply is already true for everyone.
+	if not s.has_supply:
+		return Action.HAND_OUT
 	# A flare-up is on a clock and catching it stops a disruption before it
-	# starts, so it outranks everything -- including settling.
+	# starts, so it outranks everything else -- including settling.
 	if s.flaring():
 		return Action.DEFUSE
 	# Settling comes next, above even a stuck child. Messing about spreads
@@ -68,6 +76,7 @@ func prompt_text() -> String:
 	# an exam question, but you can steady one who has frozen on it.
 	var fight: bool = Game.fight_active()
 	match action():
+		Action.HAND_OUT: return "Give %s their things" % who
 		Action.DEFUSE: return "Head off %s before they kick off" % who
 		Action.SETTLE: return ("Settle %s" if fight else "Have a word with %s") % who
 		Action.HELP: return ("Steady %s" if fight else "Help %s") % who
@@ -82,6 +91,13 @@ func interact(by: Node) -> void:
 	if s == null:
 		return
 	match action():
+		Action.HAND_OUT:
+			if Game.give_supply(s):
+				Sfx.play_varied("paper")
+				_pop("ta!", Color(1, 0.92, 0.6))
+				if by != null and by.has_method("play_pose"):
+					by.play_pose(Actor.POSE_HANDOFF)
+				used.emit(by)
 		Action.DEFUSE:
 			if s.defuse():
 				Game.add_coins(Balance.flare_reward)

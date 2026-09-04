@@ -35,6 +35,13 @@ var trait_id: String = ""
 ## and wants you, a disruptive one has stopped and is stopping the children
 ## either side of them as well.
 var disrupting: bool = false
+
+## Have they got the materials for today's lesson in front of them?
+## True on an ordinary day -- only a materials day (DayEvent "supplies")
+## ever sets it false, and then it is the teacher's job to walk round and
+## put that right before the bell. A child who starts the lesson without
+## their things works slower all day, and the file's third page says so.
+var has_supply: bool = true
 ## A flare-up brewing: seconds left on the warning before they tip over into
 ## disrupting. 0 means no flare. Catch it with E at their desk in time and
 ## it is defused; let it run out and `disrupting` takes over. See the flare

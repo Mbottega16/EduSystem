@@ -183,6 +183,7 @@ func _main() -> void:
 	await test_desk_interruption()
 	await test_callers()
 	await test_acting_on_them()
+	await test_materials_day()
 	await test_cluster_penalty()
 	await test_dash_lanes()
 	await test_bell_rush()
@@ -8405,6 +8406,93 @@ func test_mid_lesson_mess() -> void:
 ## Mid-lesson complications: the phone/conference desk interruption, and
 ## the mess kind's own onset. Mirrors test_flares()'s shape -- catch it,
 ## let it run out, the per-lesson cap, and that it starts on its own.
+## A materials day: the class starts empty-handed and it is your job to fix
+## that before the bell.
+func test_materials_day() -> void:
+	section("MATERIALS DAY")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	# The event table still adds up, with the new row in it.
+	var total := 0
+	for row: Dictionary in DayEvent.TABLE:
+		total += int(row.get("weight", 0))
+	chk("the day-event weights still sum to exactly 100", total == 100, total)
+	var mats := DayEvent.by_id("supplies")
+	chk("there is a materials day to roll", not mats.is_empty())
+	chk("and it says in prose what it wants of you",
+		String(mats.get("blurb", "")).contains("Hand them out"), mats.get("blurb", ""))
+
+	# --- an ORDINARY day is untouched: everyone already has their things ---
+	Game.event = DayEvent.by_id("none")
+	Game._set_up_supplies()
+	chk("nobody is short of anything on an ordinary day",
+		Game.awaiting_supplies() == 0, Game.awaiting_supplies())
+	chk("and nothing slows their work",
+		is_equal_approx(Game.supply_rate_mult(Game.roster[0]), 1.0))
+
+	# --- a materials day empties every seated child's hands ---
+	Game.event = mats
+	Game._set_up_supplies()
+	var seated := 0
+	for s: StudentData in Game.roster:
+		if s.seat_index >= 0:
+			seated += 1
+	chk("a materials day starts the whole class empty-handed",
+		Game.awaiting_supplies() == seated, Game.awaiting_supplies())
+
+	var kid: StudentData = Game.roster[0]
+	chk("a child with nothing works slower for it",
+		Game.supply_rate_mult(kid) < 1.0, Game.supply_rate_mult(kid))
+
+	# --- the desk offers the job, and only while it IS a job ---
+	var desk: Interactable = null
+	for n: Node in world.stations:
+		if n is Interactable and n.seat_index == kid.seat_index:
+			desk = n
+	chk("the child's desk is there to hand things to", desk != null)
+	if desk != null:
+		chk("and it offers to hand their things over first of all",
+			desk.action() == desk.Action.HAND_OUT, desk.action())
+		chk("saying so in prose", desk.prompt_text().contains("their things"),
+			desk.prompt_text())
+		desk.interact(world.player)
+		chk("handing them over settles it", kid.has_supply)
+		chk("so they are back to working at their own pace",
+			is_equal_approx(Game.supply_rate_mult(kid), 1.0))
+		chk("and the desk stops offering a job that is done",
+			desk.action() != desk.Action.HAND_OUT)
+		chk("one fewer is waiting", Game.awaiting_supplies() == seated - 1)
+	chk("handing twice to the same child does nothing",
+		not Game.give_supply(kid))
+
+	# --- it shows up on the page that says what is acting on them ---
+	var hud := _hud()
+	var empty: StudentData = null
+	for s: StudentData in Game.roster:
+		if s.seat_index >= 0 and not s.has_supply:
+			empty = s
+			break
+	if empty != null:
+		hud.show_student(empty)
+		hud._bio_page = hud.BIO_ACTING
+		hud.show_student(empty)
+		chk("a child with nothing is told so on their own page",
+			hud.body.text.contains("nothing in front of them"), hud.body.text)
+		hud.close()
+
+	# --- and the simulator never sees any of it ---
+	var sim := FileAccess.open("res://tools/sim.gd", FileAccess.READ)
+	if sim != null:
+		var src := sim.get_as_text()
+		chk("the term simulator never touches materials, so the contract holds",
+			not src.contains("supply") and not src.contains("supplies"),
+			"sim.gd reaches into the materials path")
+	Game.event = DayEvent.by_id("none")
+	Game._set_up_supplies()
+
+
 ## Page three of a child's file: what is pulling on them right now.
 func test_acting_on_them() -> void:
 	section("WHAT'S ACTING ON THEM")

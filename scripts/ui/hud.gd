@@ -1225,6 +1225,8 @@ func _render_student_acting(s: StudentData) -> void:
 		helping.append("The %s is out, and it suits today's subject." % suited)
 	elif strand != "":
 		against.append("Nothing in the room is set out for today's subject.")
+	if not s.has_supply:
+		against.append("They have nothing in front of them to work with.")
 	if Game.cluster_rate_mult(s) < 1.0:
 		against.append("Their desk is hemmed in by the others, so they work slower.")
 

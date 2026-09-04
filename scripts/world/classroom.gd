@@ -495,6 +495,10 @@ func _physics_process(delta: float) -> void:
 			var s_rate: float = rate
 			if not Game.test_active:
 				s_rate *= Game.cluster_rate_mult(s)
+				# ...and a child you never got their materials to on a
+				# materials day. Same shape as the cluster penalty: it slows
+				# the work, it never touches the record.
+				s_rate *= Game.supply_rate_mult(s)
 			if s.tick_work(delta, roll, s_rate):
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
