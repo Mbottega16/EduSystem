@@ -225,13 +225,24 @@ func entry_position() -> Vector2:
 	return Vector2(40.0, 138.0)
 
 
-## The corridor-style camera clamp. The room is one screen, so this mostly
-## pins the camera; it exists so a bigger viewport still cannot see past
-## the walls.
+## Pin the camera on the room. The room is smaller than one screen, so this
+## centres the view on it rather than clamping to a box the view cannot fit
+## inside.
+##
+## Camera2D limits are GLOBAL, and main.tscn parks this room at (0, 20000)
+## so it cannot overlap the classroom. The original numbers here were
+## room-LOCAL (-16 .. ROOM_H + 16), which pinned the camera 20,000px above
+## the room and rendered an empty screen -- in the real game's own
+## _enter_mentor() as much as in `Take a Screenshot.bat mentor`, since both
+## call this same function. It was read as a screenshot-harness quirk for
+## two sessions because test_mentor() asserts the room is DRESSED, which it
+## always was; nothing asserted what the camera could see.
 func refresh_camera_limits(camera: Camera2D) -> void:
 	if camera == null or not is_instance_valid(camera):
 		return
-	camera.limit_left = -16
-	camera.limit_top = -16
-	camera.limit_right = int(ROOM_W + 16.0)
-	camera.limit_bottom = int(ROOM_H + 16.0)
+	var view: Vector2 = camera.get_viewport_rect().size / camera.zoom
+	var centre: Vector2 = global_position + Vector2(ROOM_W, ROOM_H) * 0.5
+	camera.limit_left = int(centre.x - view.x * 0.5)
+	camera.limit_right = int(centre.x + view.x * 0.5)
+	camera.limit_top = int(centre.y - view.y * 0.5)
+	camera.limit_bottom = int(centre.y + view.y * 0.5)
