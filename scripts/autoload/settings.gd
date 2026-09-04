@@ -33,6 +33,7 @@ const ACTIONS := [
 	{"action": "fire", "label": "Let go a hired teacher"},
 	{"action": "respond", "label": "Answer what's waiting at your desk"},
 	{"action": "pause", "label": "Pause"},
+	{"action": "help", "label": "Controls / help"},
 ]
 ## Bound, but not offered for rebinding: Escape always means "back out".
 const FIXED := ["cancel"]
@@ -64,6 +65,9 @@ const DEFAULTS := {
 	"fire": [KEY_G],
 	"respond": [KEY_K],
 	"pause": [KEY_P],
+	# The in-game controls sheet. "/" because "?" is on it on most
+	# layouts, and every letter near the home row is already a verb.
+	"help": [KEY_SLASH],
 	"cancel": [KEY_ESCAPE],
 }
 

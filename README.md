@@ -36,6 +36,7 @@ career once you've walked through it.
 | **V** | **watch a delegated room's day, from the school screen** | yes |
 | **G** | **let go a hired teacher, from the school screen** | yes |
 | P | pause | yes |
+| **/** | **what the keys do -- the in-play controls sheet** | yes |
 | Esc | back out | no, always Escape |
 | F1/F2, **`**, or **Shift+D** to toggle | live tuning + cheats panel (Tab for the CHEATS page; try "EVERYTHING") | dev only, not rebindable |
 
@@ -436,7 +437,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1568 assertions
+Run Tests.bat            1676 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

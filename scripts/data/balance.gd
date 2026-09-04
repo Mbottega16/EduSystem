@@ -171,6 +171,14 @@ static var term_path_hand_min: int = 3
 static var term_path_hand_max: int = 3
 static var term_paths: Array = []
 
+# --- the class, in a word -------------------------------------------------
+## See the `mood` note in balance.json and Game.class_mood().
+static var mood_noisy_weight: float = 0.15
+static var mood_stuck_weight: float = 0.08
+static var mood_with_you: float = 0.6
+static var mood_drifting: float = 0.35
+static var mood_restless: float = 0.1
+
 # --- the roguelike subject boss ------------------------------------------
 ## Boss cards are folded into the term-path fork pool on every
 ## boss_term_interval-th term (Game.draw_term_paths), tagged kind:"boss",
@@ -521,6 +529,12 @@ static func apply(d: Dictionary) -> void:
 	term_path_hand_max = int(tp.get("hand_size_max", term_path_hand_max))
 	term_paths = tp.get("paths", term_paths)
 
+	var md: Dictionary = d.get("mood", {})
+	mood_noisy_weight = float(md.get("noisy_weight", mood_noisy_weight))
+	mood_stuck_weight = float(md.get("stuck_weight", mood_stuck_weight))
+	mood_with_you = float(md.get("with_you", mood_with_you))
+	mood_drifting = float(md.get("drifting", mood_drifting))
+	mood_restless = float(md.get("restless", mood_restless))
 	var bs: Dictionary = d.get("bosses", {})
 	boss_term_interval = int(bs.get("term_interval", boss_term_interval))
 	bosses = bs.get("table", bosses)

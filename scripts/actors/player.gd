@@ -505,6 +505,8 @@ var _dash_stumbled: bool = false
 ## room node the effect sprites hang on, and a timer so the trail is a
 ## handful of ghosts rather than one per frame. Neither touches Game.rng.
 var _dash_fx_room: Node = null
+## The most ghosts a trail may hold at once. Decoration, not a tunable.
+const DASH_TRAIL_CAP := 12
 var _dash_ghost_t: float = 0.0
 
 ## Double-tap-a-direction trigger. Seconds since the last just_pressed on
@@ -569,13 +571,17 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 
 	# A few fading ghosts while the burst is live -- the trail draws itself
 	# as we move on. Decoration: throttled, and never off Game.rng.
-	if _dash_burst > 0.0 and sprite != null:
+	# Gated on actually being in play (a cutscene or a locked screen spawns
+	# none) and capped, so a trail can never outlive the moment it
+	# decorates or pile up in a state nobody is watching.
+	if _dash_burst > 0.0 and sprite != null and not input_locked \
+			and not _walking_scripted:
 		_dash_ghost_t += delta
 		if _dash_ghost_t >= 0.03:
 			_dash_ghost_t = 0.0
 			if _dash_fx_room == null or not is_instance_valid(_dash_fx_room):
 				_dash_fx_room = get_tree().get_first_node_in_group("classroom")
-			if _dash_fx_room != null:
+			if _dash_fx_room != null and Fx.afterimage_count(_dash_fx_room) < DASH_TRAIL_CAP:
 				Fx.afterimage(sprite, _dash_fx_room)
 
 	# The frame the burst runs out is the frame the grace window opens --

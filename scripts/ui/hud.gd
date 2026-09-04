@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR }
+	ADS, PATHS, MENTOR, HELP }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -306,6 +306,8 @@ func _physics_process(_delta: float) -> void:
 			show_dashboard()
 		elif Input.is_action_just_pressed("pause"):
 			show_pause()
+		elif Input.is_action_just_pressed("help"):
+			show_help()
 		return
 	if mode == Mode.PAUSE:
 		_pause_input()
@@ -349,10 +351,10 @@ func _update_status() -> void:
 		if not Game.test_active:
 			# Attention first: it is the difference between a lesson
 			# happening and a lesson not happening, so it outranks the rest.
-			var att := int(round(Game.attention * 5.0))
-			bits.append("%steaching %s%s" % [
-				"" if Game.teaching else "NOT ",
-				"|".repeat(att), ".".repeat(5 - att)])
+			# The class in a word, not attention as pips: "is the room with
+			# me" was the one thing a new player had to add up from bars.
+			bits.append("%steaching" % ("" if Game.teaching else "NOT "))
+			bits.append("room: %s" % Game.class_mood())
 			var pips := int(round(Game.voice * 4.0))
 			bits.append("voice %s%s" % ["|".repeat(pips), ".".repeat(4 - pips)])
 		# A buff you cannot see is a buff you do not believe in.
@@ -436,9 +438,9 @@ func _fight_bits(bits: Array[String]) -> void:
 	bits.clear()
 	bits.append("Q%d/%d" % [f.round + 1, f.total_rounds()])
 	bits.append("%ds" % int(ceil(f.seconds_left())))
-	var pips := int(round(f.composure() * 5.0))
-	bits.append("hold %s%s %s" % ["|".repeat(pips), ".".repeat(5 - pips),
-		f.composure_word()])
+	# The word alone. Pips beside it pushed "N stuck" -- the one thing
+	# you act on -- off the end of the line; the word already bands it.
+	bits.append("hold %s" % f.composure_word())
 	var vp := int(round(Game.voice * 4.0))
 	bits.append("voice %s%s" % ["|".repeat(vp), ".".repeat(4 - vp)])
 
@@ -560,6 +562,8 @@ func _open(m: int) -> void:
 	_showing_new_term = false
 	_hiring = false
 	overlay.visible = true
+	# a banner belongs to the room; it has no business under a report
+	banner.visible = false
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = true
 
@@ -616,14 +620,21 @@ func _render_pause() -> void:
 	var rows := ["Resume", "The school  %d room%s" % [Game.rooms.size() + 1,
 		"" if Game.rooms.is_empty() else "s"],
 		"Your career  %d/%d" % [Game.milestones.size(), Milestones.count()],
+		"Controls  (%s in play)" % Settings.binding_text("help"),
 		"Sound  %s" % _vol_bar(), "Quit to title"]
 	var lines: Array[String] = ["", ""]
 	for i in rows.size():
 		lines.append("      %s %s" % [">" if i == _pause_sel else " ", rows[i]])
-	lines.append("")
+	# No blank separator here: a sixth row (Controls) pushed this one line
+	# past PANEL_LINES_SMALL, and the day line below earns its place more
+	# than a spacer does.
 	lines.append("      Day %d of %d, %s" % [Game.day, Balance.term_days, Game.subject])
 	body.text = "\n".join(lines)
 	hint.text = "Left/Right changes volume.  E picks."
+
+
+## Resume / school / career / controls / sound / quit.
+const PAUSE_ROWS := 6
 
 
 func _vol_bar() -> String:
@@ -633,13 +644,13 @@ func _vol_bar() -> String:
 
 func _pause_input() -> void:
 	if Input.is_action_just_pressed("move_down"):
-		_pause_sel = (_pause_sel + 1) % 5
+		_pause_sel = (_pause_sel + 1) % PAUSE_ROWS
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_up"):
-		_pause_sel = (_pause_sel + 4) % 5
+		_pause_sel = (_pause_sel + PAUSE_ROWS - 1) % PAUSE_ROWS
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
-		if _pause_sel == 3:
+		if _pause_sel == 4:
 			var d := 0.1 if Input.is_action_just_pressed("move_right") else -0.1
 			Settings.sfx_volume = clampf(Settings.sfx_volume + d, 0.0, 1.0)
 			Settings.apply_audio()
@@ -660,12 +671,93 @@ func _pause_input() -> void:
 			_sel = 0
 			show_career()
 			return
-		elif _pause_sel == 4:
+		elif _pause_sel == 3:
+			show_help()
+			return
+		elif _pause_sel == 5:
 			Game.save_game()
 			close()
 			get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
 			return
 	_render_pause()
+
+
+## What every verb does, in one line each, keyed by action. The controls
+## page on the title screen lists the bindings; this is the in-play sheet
+## that says what they are FOR. Kept next to Settings.ACTIONS rather than
+## inside it so the settings autoload stays about bindings, and asserted
+## complete by the suite so a new verb cannot ship without a line here.
+const HELP_LINES := {
+	"move_up": "Walk. Every verb is somewhere you stand.",
+	"move_down": "Walk.",
+	"move_left": "Walk.",
+	"move_right": "Walk.",
+	"interact": "Help a stuck child, collect work, hand it in, clean up.",
+	"manage": "Ring the bell, open the shop, step through a door.",
+	"teach": "Start the lesson at the podium. Begin the paper on its day.",
+	"quiz": "A quick quiz, mid-lesson. Costs time, tells you who is behind.",
+	"answer_all": "Unstick the whole room at once. Long wait after.",
+	"homework": "Mark the homework you collected, at your desk.",
+	"move_desk": "Move a desk. Spread them out; crowding slows them.",
+	"voice": "Settle the desks within earshot.",
+	"build": "Rearrange the room from a free cursor. Not mid-lesson.",
+	"autopilot": "Walk to whoever needs you. Never presses a button.",
+	"auto_teach": "Hand the lesson to the simulation. Toggle.",
+	"dash": "A burst of speed. Or double-tap a direction.",
+	"menu": "The class list. Cycles the shop's tabs.",
+	"dashboard": "You: items, skills, wardrobe.",
+	"watch": "Watch a delegated room's day, from the school board.",
+	"fire": "Let a hired teacher go, from the school board.",
+	"respond": "Answer the phone or the parent at your desk.",
+	"pause": "Pause.",
+	"help": "This sheet.",
+}
+## How many verbs the help sheet shows at once, leaving room for the
+## heading and the window marker.
+const HELP_ROWS := 8
+
+
+## The in-play controls sheet: every verb, its key, and what it is for.
+## Windowed like the Controls page, since the list is longer than the
+## panel. Read-only -- rebinding stays on the title screen.
+func show_help() -> void:
+	_open(Mode.HELP)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", 16)
+	var acts: Array = Settings.ACTIONS
+	_sel = clampi(_sel, 0, maxi(0, acts.size() - 1))
+	var lo := _window_start(acts.size(), HELP_ROWS)
+	title.text = "WHAT THE KEYS DO   %d-%d of %d" % [
+		lo + 1, mini(acts.size(), lo + HELP_ROWS), acts.size()]
+	var lines: Array[String] = []
+	for i in range(lo, mini(acts.size(), lo + HELP_ROWS)):
+		var a := String((acts[i] as Dictionary).get("action", ""))
+		lines.append("[color=#%s]%s[/color] [color=#%s]%-6s[/color] %s" % [
+			C_ROOM if i == _sel else DIM, ">" if i == _sel else " ",
+			C_COIN, Settings.binding_text(a).substr(0, 6),
+			_clip(String(HELP_LINES.get(a, String((acts[i] as Dictionary).get("label", "")))))])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.2)
+	hint.text = "Up/Down more    Esc or %s - close    (rebind on the title screen)" % \
+		Settings.binding_text("help")
+
+
+func _handle_help_input() -> void:
+	var n: int = Settings.ACTIONS.size()
+	if Input.is_action_just_pressed("cancel") or Input.is_action_just_pressed("help") \
+			or Game.claim_interact():
+		Sfx.play("blip")
+		close()
+	elif Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % n
+		Sfx.play("blip")
+		show_help()
+	elif Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + n) % n
+		Sfx.play("blip")
+		show_help()
 
 
 ## A one-off nudge, shown once per run. Silence is the worst teacher.
@@ -3808,6 +3900,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.OFFICE:
 		_handle_office_input()
+		return
+
+	if mode == Mode.HELP:
+		_handle_help_input()
 		return
 
 	if mode == Mode.INTRO:

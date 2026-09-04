@@ -61,11 +61,24 @@ static func afterimage(src: Sprite2D, parent: Node2D,
 	g.global_position = src.global_position
 	g.z_index = src.z_index - 1
 	g.modulate = tint
+	g.set_meta("afterimage", true)
 	parent.add_child(g)
 	var tw := g.create_tween()
 	tw.tween_property(g, "modulate:a", 0.0, seconds) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(g.queue_free)
+
+
+## How many afterimages `parent` is holding right now -- the cap the dash
+## trail checks before spawning another.
+static func afterimage_count(parent: Node) -> int:
+	if parent == null or not is_instance_valid(parent):
+		return 0
+	var n := 0
+	for c in parent.get_children():
+		if c.has_meta("afterimage"):
+			n += 1
+	return n
 
 
 ## A quick squash-and-settle, for something that has just landed.

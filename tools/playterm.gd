@@ -14,14 +14,14 @@ extends Node
 ##   godot --path . res://tools/playterm.tscn
 
 const MAIN := preload("res://scenes/main.tscn")
-## Seconds actually spent at the front before ending the lesson early.
-##
-## This was 1.2, which taught almost nothing -- so the trace failed every
-## term's target, the run ended, and it silently started a NEW one. Four
-## restarts in a row read as "the term never resolves" when the game was
-## working exactly as designed. A walkthrough has to play well enough to
-## reach the thing it is meant to be checking.
-const TEACH_SECONDS := 14.0
+## There used to be a bare TEACH_SECONDS here (1.2, then 14), after which
+## the harness ended the lesson early with nothing collected. Fourteen
+## seconds finishes no assignment (work_seconds is 20) and uncollected
+## work counts half, so every child landed in the F band, every term
+## missed its target, and the run silently restarted four times in a
+## row -- "the term never resolves" when the game was working exactly as
+## designed. A walkthrough has to PLAY well enough to reach the thing it
+## is checking, so it now plays the lesson out; see _play_lesson().
 
 ## Run the whole thing faster than real time.
 ##
@@ -104,14 +104,55 @@ func hold(action: String, seconds: float) -> void:
 
 
 ## Close whatever is on screen, however many screens deep it goes.
+##
+## STOPS on run_over. Closing the exam calls next_term(), which sets
+## run_over on a missed target; the NEXT press closes the run-over screen
+## and starts a fresh run -- which clears run_over again. Pressing through
+## both inside one call erased the flag before the loop ever read it, so
+## a run that ended four times printed as "the term never resolved".
 func clear_screens(limit: int = 6) -> void:
 	for i in limit:
-		if hud.mode == hud.Mode.NONE:
+		if hud.mode == hud.Mode.NONE or Game.run_over:
 			return
 		await tap("interact")
 	if hud.mode != hud.Mode.NONE:
 		hud.close()
 		await frames(2)
+
+
+## The desk that needs the teacher right now, by the desk's own priority
+## (settle, unstick, collect), or -1 when the room is fine.
+func _desk_needing_me() -> int:
+	var best := -1
+	var best_rank := 99
+	for s: StudentData in Game.roster:
+		if s.seat_index < 0:
+			continue
+		var r: int = s.attention_rank()
+		if r > 0 and r < best_rank:
+			best_rank = r
+			best = s.seat_index
+	return best
+
+
+## One lesson, played: at the front until somebody needs me, then to that
+## desk and back. The clock ends the lesson.
+func _play_lesson() -> void:
+	var guard := 0
+	while Game.phase == Game.Phase.LESSON and guard < 4000:
+		guard += 1
+		var seat := _desk_needing_me()
+		if seat < 0:
+			await frames(secs(0.5))
+			continue
+		var stand: Vector2i = Layout.seat(seat) + Layout.DESK_OFFSET + Vector2i(0, 1)
+		if not await walk_to(stand, 240):
+			await frames(4)
+			continue
+		await tap("interact")
+		await walk_to(Layout.PODIUM + Vector2i(0, 1), 300)
+	if Game.phase == Game.Phase.LESSON:
+		await hold("teach", 0.8)                # the clock did not end it; we do
 
 
 func _play() -> void:
@@ -151,8 +192,10 @@ func _play() -> void:
 				% [day, Game.phase, _offer("teach")])
 			break
 
-		await frames(secs(TEACH_SECONDS))
-		await hold("teach", 0.8)                # end the lesson early
+		# Play the lesson the way a competent player does: teach from the
+		# front, and when a child is stuck or has finished, walk over,
+		# press E, walk back. The clock ends the lesson.
+		await _play_lesson()
 		await clear_screens()
 
 		if Game.phase != Game.Phase.AFTERNOON:

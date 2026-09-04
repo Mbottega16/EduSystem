@@ -1073,6 +1073,14 @@
     "floor_rate": 0.0,
     "drift_hint_below": 0.35
   },
+  "mood": {
+    "_note": "The class, in a word, on the status strip: the attention bar minus a penalty per child messing about and per child visibly stuck, banded into with you / drifting / restless / lost them. The critique that asked for it: the strip drew attention and voice as ASCII pips, and the one thing a new player needs from the strip -- is the room with me or not -- was arithmetic on a row of bars. Never a number on screen.",
+    "noisy_weight": 0.15,
+    "stuck_weight": 0.08,
+    "with_you": 0.6,
+    "drifting": 0.35,
+    "restless": 0.1
+  },
   "difficulty": {
     "_note": "How much a lesson's difficulty rating actually moves. Difficulty 3 is the neutral middle: work_mult and stall_mult are 1.0 there, and each step away from it scales by these amounts. A 1 is noticeably easier to get a class through than a 5, without either being a different game.",
     "_furniture_note": "A furnished desk makes the work EASIER, not just better-marked. room_score used to feed the grade and nothing else, so a bookshelf was worth points and changed nothing you could watch. It now takes the edge off difficulty for whoever sits near it -- which is what the player expects a well-equipped desk to do.",

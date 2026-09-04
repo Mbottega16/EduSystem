@@ -2226,6 +2226,33 @@ func tick_attention(delta: float, at_front: bool) -> void:
 		class_drifted.emit()
 
 
+## The class, in a word, for the status strip. Attention, less a slice
+## per child messing about and per child visibly stuck -- the three things
+## the strip used to make the player add up from pips. Thresholds and
+## weights in balance.json's `mood`. A word, never a number: "the room is
+## with you" is a thing you can act on.
+func class_mood() -> String:
+	Balance.ensure_loaded()
+	var noisy := 0
+	var stuck := 0
+	for s: StudentData in roster:
+		if s.seat_index < 0:
+			continue
+		if s.disrupting:
+			noisy += 1
+		elif s.is_visibly_struggling():
+			stuck += 1
+	var m: float = attention - Balance.mood_noisy_weight * float(noisy) \
+		- Balance.mood_stuck_weight * float(stuck)
+	if m >= Balance.mood_with_you:
+		return "with you"
+	if m >= Balance.mood_drifting:
+		return "drifting"
+	if m >= Balance.mood_restless:
+		return "restless"
+	return "lost them"
+
+
 ## Is this tile close enough to the front to teach from?
 ##
 ## Measured against the PODIUM, which makes the front of the room somewhere

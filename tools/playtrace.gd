@@ -53,9 +53,12 @@ func state() -> String:
 	var phase: String = ["MORNING", "LESSON", "AFTERNOON"][Game.phase]
 	var use: String = _prompt_of("interact")
 	var man: String = _prompt_of("manage")
-	return "day %d  %s  hud=%s  locked=%s  E=[%s]  F=[%s]" % [
+	# L is the lesson's own key since the Aug 2026 remap; a trace that
+	# only printed E and F could not see the one verb the day starts on.
+	var tch: String = _prompt_of("teach")
+	return "day %d  %s  hud=%s  locked=%s  E=[%s]  F=[%s]  L=[%s]" % [
 		Game.day, phase, hud.mode,
-		player.input_locked, use, man]
+		player.input_locked, use, man, tch]
 
 
 func _prompt_of(action: String) -> String:
@@ -132,13 +135,17 @@ func _trace() -> void:
 		say("!! COULD NOT WALK TO THE PODIUM")
 	say("at podium: " + state())
 
-	await tap("manage")
+	# "teach" (L), not "manage" (F): the podium's start verb moved to its
+	# own key in the Aug 2026 remap, and this trace kept pressing the old
+	# one -- so it stalled on day one and was read as "the term never
+	# resolves" for a week. playterm.gd had the same fix; this did not.
+	await tap("teach")
 	# The podium draws a hand of papers now; the lesson starts when you
 	# take one. Two presses, not one.
 	if hud.mode == hud.Mode.HAND:
 		await tap("interact")
 		await frames(4)
-	say("tapped F, took a paper: " + state())
+	say("tapped L, took a paper: " + state())
 
 	# let the clock run all the way out, the way an idle player would
 	var guard := 0

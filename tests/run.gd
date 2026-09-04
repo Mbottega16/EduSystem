@@ -215,6 +215,7 @@ func _main() -> void:
 	test_term_target()
 	test_boss()
 	await test_boss_fight()
+	await test_legibility()
 	test_transcript()
 	test_unlockables()
 	await test_unit_test()
@@ -4719,6 +4720,113 @@ func test_boss_fight() -> void:
 		bf_code.count("randf(") == bf_code.count("rng.randf(")
 		and bf_code.count("randi_range(") == bf_code.count("rng.randi_range(")
 		and bf_code.count("randi(") == 0)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The in-play help sheet, the class-mood word, and the dash-trail cap:
+## the legibility pass a design critique asked for.
+func test_legibility() -> void:
+	section("LEGIBILITY: HELP SHEET, MOOD WORD, TRAIL CAP")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	hud.close()
+	await step(2)
+
+	# --- the help sheet ---
+	chk("help is a real, rebindable action", Settings.DEFAULTS.has("help")
+		and (func() -> bool:
+			for e: Dictionary in Settings.ACTIONS:
+				if String(e.get("action", "")) == "help":
+					return true
+			return false).call())
+	chk("every listed action has a line saying what it is for", (func() -> bool:
+		for e: Dictionary in Settings.ACTIONS:
+			var a := String(e.get("action", ""))
+			if String(hud.HELP_LINES.get(a, "")).is_empty():
+				return false
+		return true).call())
+	chk("no help line prints a number about a child", (func() -> bool:
+		for a: String in hud.HELP_LINES:
+			var line := String(hud.HELP_LINES[a])
+			if line.contains("%") or line.contains("0."):
+				return false
+		return true).call())
+	await tap("help")
+	chk("pressing it in free roam opens the sheet", hud.mode == hud.Mode.HELP, hud.mode)
+	chk("the sheet fits the panel", hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	chk("it names the key for the first verb",
+		hud.rich.text.contains(Settings.binding_text("move_up").substr(0, 6)), hud.rich.text)
+	# page all the way down: every action appears somewhere
+	var seen := {}
+	for i in Settings.ACTIONS.size() + 2:
+		for e: Dictionary in Settings.ACTIONS:
+			var lbl := String(hud.HELP_LINES.get(String(e.get("action", "")), ""))
+			if lbl != "" and hud.rich.text.contains(lbl.substr(0, 12)):
+				seen[String(e.get("action", ""))] = true
+		await tap("move_down")
+	chk("paging reaches every verb", seen.size() == Settings.ACTIONS.size(),
+		"%d of %d" % [seen.size(), Settings.ACTIONS.size()])
+	await tap("cancel")
+	chk("Esc closes it", hud.mode == hud.Mode.NONE)
+	await tap("help")
+	await tap("help")
+	chk("and so does the help key itself", hud.mode == hud.Mode.NONE)
+	# the pause menu has a row for it
+	hud.show_pause()
+	chk("the pause menu offers the sheet", hud.body.text.contains("Controls"), hud.body.text)
+	chk("and still fits the panel", hud.body.text.split("\n").size() <= 11)
+	hud.close()
+	await step(2)
+
+	# --- the mood word ---
+	Game.new_run(SEED)
+	await step(2)
+	for s: StudentData in Game.roster:
+		s.disrupting = false
+		s.confusion = 0.0
+	Game.attention = 1.0
+	chk("a full, calm room is with you", Game.class_mood() == "with you", Game.class_mood())
+	Game.attention = 0.0
+	chk("an unattended room is lost", Game.class_mood() == "lost them", Game.class_mood())
+	Game.attention = 1.0
+	var n := 0
+	for s: StudentData in Game.roster:
+		if n < 3:
+			s.disrupting = true
+			n += 1
+	chk("three children messing about drag a full room down",
+		Game.class_mood() != "with you", Game.class_mood())
+	chk("the words are the table's own four", (func() -> bool:
+		for att in [0.0, 0.2, 0.4, 0.7, 1.0]:
+			Game.attention = att
+			if not ["with you", "drifting", "restless", "lost them"].has(Game.class_mood()):
+				return false
+		return true).call())
+	for s: StudentData in Game.roster:
+		s.disrupting = false
+	Game.attention = 1.0
+	world.start_lesson()
+	await step(3)
+	chk("the strip reads the room in a word", hud.status.text.contains("room:"), hud.status.text)
+	chk("and no longer as pips of attention", not hud.status.text.contains("teaching |"),
+		hud.status.text)
+	world.end_lesson()
+	await step(2)
+
+	# --- the dash trail is capped ---
+	chk("afterimages are counted", Fx.afterimage_count(world) == 0)
+	for i in 30:
+		Fx.afterimage(world.player.sprite, world)
+	chk("...and the count sees them", Fx.afterimage_count(world) == 30)
+	await step(30)
+	chk("they clean themselves up", Fx.afterimage_count(world) < 30)
+	chk("the player holds a cap on the trail", world.player.DASH_TRAIL_CAP > 0
+		and world.player.DASH_TRAIL_CAP < 40)
 
 	Game.new_run(SEED)
 	await step(2)
