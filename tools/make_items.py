@@ -366,14 +366,48 @@ def draw_photocopies():
 # flat stain or a scattered pile reads as ON the floor, not standing on it.
 
 def draw_mess_trash():
+    """Litter, not two lenses. (Sept 2026: the old shape was two paper
+    balls of the same size, side by side at the same height, with a
+    wrapper bridging them -- at gameplay scale that is a pair of
+    spectacles, and the art pass's rim light only sharpened the misread.
+    The fix is silhouette, not shading. A flat dropped sheet reads as
+    paper more reliably than any blob does, so the mess is now one flat
+    sheet with a folded corner, one crumpled ball creased enough not to
+    read as round, and one torn strip set apart. Sheet and ball touch on
+    purpose: finish() outlines each island of alpha separately, so three
+    detached blobs come back as three ringed pebbles.)"""
     im = Image.new("RGBA", (18, 12), (0, 0, 0, 0))
-    # two crumpled balls of paper and a dropped wrapper
-    rect(im, 2, 5, 6, 9, PAPER)
-    rect(im, 3, 6, 5, 8, (228, 224, 214))
-    rect(im, 9, 6, 12, 10, PAPER)
-    rect(im, 10, 7, 11, 9, (228, 224, 214))
-    rect(im, 13, 4, 17, 7, CLOTH_L)
-    rect(im, 14, 5, 16, 6, CLOTH)
+    PAPER_M = (232, 230, 222)
+    PAPER_D = (214, 210, 200)
+
+    # the flat sheet -- stepped edges, because creased paper is angular
+    rect(im, 1, 8, 9, 10, PAPER)
+    rect(im, 2, 7, 8, 7, PAPER)
+    rect(im, 4, 6, 6, 6, PAPER)
+    px(im, 1, 6, PAPER)               # a corner lifted off the floor --
+    px(im, 2, 7, PAPER)               # the one cue that says "sheet"
+    rect(im, 7, 8, 9, 9, PAPER_D)     # a corner flipped over on itself
+    px(im, 6, 9, PAPER_D)
+    px(im, 3, 8, PAPER_M)             # a crease catching the light
+    px(im, 4, 9, PAPER_M)
+    px(im, 5, 8, PAPER_M)
+
+    # the crumpled ball, touching the sheet so one outline wraps the mess
+    rect(im, 10, 5, 15, 9, PAPER)
+    px(im, 11, 4, PAPER)              # a notched top, so the ball does not
+    rect(im, 13, 4, 14, 4, PAPER)     # dome over into a cloud
+    px(im, 15, 3, PAPER)
+    px(im, 16, 7, PAPER)
+    px(im, 16, 8, PAPER)
+    px(im, 12, 6, PAPER_D)            # creases -- crumpled, not spherical
+    px(im, 13, 7, PAPER_D)
+    px(im, 11, 8, PAPER_D)
+    px(im, 14, 5, PAPER_M)
+    px(im, 13, 8, PAPER_M)
+
+    # a torn strip, set clear of both -- litter is scattered, not stacked
+    rect(im, 12, 11, 16, 11, PAPER_M)
+
     return finish(im)
 
 
