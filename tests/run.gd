@@ -256,6 +256,7 @@ func _main() -> void:
 	await test_cabinet()
 	await test_ad_poster()
 	await test_progress_bar()
+	test_portraits()
 
 	print("")
 	if failed == 0:
@@ -9890,3 +9891,30 @@ func test_cheats() -> void:
 	Game.new_run(SEED)
 	Game.cheated = false
 	Game.unlimited_coins = false
+
+
+## The art overhaul (Sept 2026) added make_portrait() to tools/make_art.py:
+## a 96x96 bust per CHARACTERS entry, for a future HUD/bio panel that wants
+## a face rather than a desk-distance 32x48 sheet frame. Not wired into any
+## scene yet -- that is a UI change, and out of scope for the art pass that
+## drew the busts -- so nothing else in this suite would catch a broken or
+## missing one before a screen goes looking for it. "examiner" is excluded
+## on purpose: that character (and its art) belongs to a parallel session
+## working in the main repo, not this pass.
+func test_portraits() -> void:
+	section("PORTRAITS")
+	var names := ["player", "inspector", "principal", "mentor",
+		"student_a", "student_b", "student_c", "student_d",
+		"student_e", "student_f", "student_g", "student_h"]
+	var missing: Array[String] = []
+	var wrong_size: Array[String] = []
+	for n: String in names:
+		var path := "res://art/portrait_%s.png" % n
+		if not ResourceLoader.exists(path):
+			missing.append(n)
+			continue
+		var tex: Texture2D = load(path)
+		if tex == null or tex.get_width() != 96 or tex.get_height() != 96:
+			wrong_size.append(n)
+	chk("every character has a portrait bust", missing.is_empty(), missing)
+	chk("and each one is a 96x96 image", wrong_size.is_empty(), wrong_size)

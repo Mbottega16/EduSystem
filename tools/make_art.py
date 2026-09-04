@@ -10,7 +10,7 @@ import io
 import os
 import random
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -31,18 +31,56 @@ POSE_CHAT = 6            # must match Actor.POSE_CHAT
 POSE_JUMP = 7            # must match Actor.POSE_JUMP
 POSE_SAD = 8             # must match Actor.POSE_SAD
 
-SKIN = (240, 200, 160)
+# --- skin tones ------------------------------------------------------
+# Named so a palette entry can say "tan" rather than carry three tuples.
+# A raw (r, g, b) is still accepted in the `skin` key.
+SKINS = {
+    "fair": (250, 222, 196),
+    "light": (240, 200, 160),
+    "tan": (218, 170, 120),
+    "brown": (170, 118, 78),
+    "dark": (118, 78, 52),
+}
+SKIN = SKINS["light"]          # the historical default; other tools import it
 SKIN_D = (206, 162, 122)
 
-# One drawing routine, three palettes. `long_hair` adds hair past the jaw
-# and `skirt` replaces the trousers — between them that is enough to read
-# three distinct people without writing three draw functions.
+MOUTH = (118, 58, 62)          # a smile line; dark enough on every skin tone
+MOUTH_OPEN = (70, 30, 36)      # the inside of an open mouth
+TONGUE = (214, 104, 112)
+TEETH = (250, 248, 244)
+BLUSH = (240, 150, 140, 120)   # rosy cheeks, alpha-blended over any skin
+TEAR = (120, 184, 244)
+GLASS_FRAME = (48, 44, 54)
+LENS = (200, 230, 255, 48)
+HAIR_BAND = (226, 196, 96)     # the tie on a ponytail
+LANYARD = (206, 64, 68)
+BADGE = (246, 244, 236)
+BADGE_STRIPE = (96, 150, 206)
+
+HAIR_STYLES = ("short", "long", "curly", "spiky", "bob", "bun", "buzz",
+               "ponytail")
+PATTERNS = ("plain", "stripes", "dungarees", "collar", "tie", "cardigan",
+            "lanyard")
+
+# One drawing routine, many palettes. The REQUIRED keys are the ones
+# Make a Sprite.bat has always written (hair/hair_d, shirt/shirt_d, legs,
+# shoe, long_hair, skirt). Everything else is OPTIONAL with a safe default,
+# so an old entry still draws and a new one can say more:
+#   hair_style  one of HAIR_STYLES (default: "long" if long_hair else "short")
+#   skin        a SKINS name or an (r, g, b) (default "light")
+#   glasses     True/False (default False)
+#   pattern     one of PATTERNS (default "plain") -- the adult cues
+#               (tie / cardigan / lanyard) live here alongside the kids'
+#               stripes and dungarees
+#   sleeves     "long" or "short" (default "long")
+#   tie, inner  the tie colour and the shirt seen inside a cardigan/collar
 CHARACTERS = {
     "player": {
         "hair": (107, 74, 47), "hair_d": (74, 50, 30),
         "shirt": (59, 125, 216), "shirt_d": (40, 90, 165),
         "legs": (78, 92, 130), "shoe": (74, 53, 36),
         "long_hair": False, "skirt": False,
+        "hair_style": "short", "skin": "light", "pattern": "lanyard",
     },
     # The inspector. Grey, and in a suit nobody else in the building owns,
     # because the entire job of this sprite is to be recognised across the
@@ -53,6 +91,8 @@ CHARACTERS = {
         "shirt": (52, 56, 72), "shirt_d": (36, 38, 52),
         "legs": (42, 44, 56), "shoe": (28, 26, 30),
         "long_hair": False, "skirt": False,
+        "hair_style": "short", "skin": "light", "pattern": "tie",
+        "tie": (150, 40, 44),
     },
     # The principal. Older (white hair, same trick as the inspector's grey)
     # and in a colour nobody else in the building wears, so a popup can
@@ -64,6 +104,8 @@ CHARACTERS = {
         "shirt": (96, 48, 92), "shirt_d": (68, 32, 66),
         "legs": (54, 46, 40), "shoe": (30, 26, 22),
         "long_hair": False, "skirt": False,
+        "hair_style": "short", "skin": "brown", "pattern": "tie",
+        "tie": (222, 178, 70),
     },
     # The mentor teacher, in the small room off the hallway. Another
     # colleague rather than an authority figure, so a WARM everyday palette
@@ -75,60 +117,93 @@ CHARACTERS = {
         "shirt": (176, 96, 58), "shirt_d": (132, 68, 40),
         "legs": (86, 74, 62), "shoe": (52, 42, 34),
         "long_hair": True, "skirt": False,
+        "hair_style": "long", "skin": "light", "pattern": "cardigan",
+        "glasses": True,
+    },
+    # The examiner, who invigilates the end-of-term assessment. Austere:
+    # charcoal-navy suit, silver hair in a bun, glasses -- built to be told
+    # apart from the grey-suited inspector and the purple principal at a
+    # glance, since all three are adults who turn up unannounced.
+    "examiner": {
+        "hair": (198, 200, 206), "hair_d": (148, 150, 160),
+        "shirt": (40, 48, 82), "shirt_d": (26, 32, 58),
+        "legs": (34, 38, 60), "shoe": (24, 22, 30),
+        "long_hair": False, "skirt": True,
+        "hair_style": "bun", "skin": "fair", "pattern": "collar",
+        "glasses": True,
     },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
     # rather than any new drawing code. Keys must match Names.ART in
-    # scripts/data/names.gd.
+    # scripts/data/names.gd. Each one differs in at least two of hair
+    # style / skin / clothing pattern from every other, so they read as
+    # eight people at desk distance and not as recolours.
     "student_a": {
         "hair": (58, 44, 38), "hair_d": (38, 28, 24),
         "shirt": (86, 166, 96), "shirt_d": (58, 124, 68),
         "legs": (104, 84, 64), "shoe": (58, 46, 40),
         "long_hair": False, "skirt": False,
+        "hair_style": "spiky", "skin": "tan", "pattern": "stripes",
+        "sleeves": "short",
     },
     "student_b": {
         "hair": (168, 102, 52), "hair_d": (126, 74, 36),
         "shirt": (214, 96, 124), "shirt_d": (170, 66, 94),
         "legs": (196, 158, 190), "shoe": (92, 60, 72),
         "long_hair": True, "skirt": True,
+        "hair_style": "bob", "skin": "light", "pattern": "collar",
+        "sleeves": "short",
     },
     "student_c": {
         "hair": (222, 190, 104), "hair_d": (176, 142, 66),
         "shirt": (238, 200, 84), "shirt_d": (194, 156, 52),
         "legs": (72, 96, 148), "shoe": (54, 44, 38),
         "long_hair": False, "skirt": False,
+        "hair_style": "short", "skin": "fair", "pattern": "dungarees",
+        "sleeves": "short",
     },
     "student_d": {
         "hair": (72, 52, 44), "hair_d": (48, 34, 30),
         "shirt": (150, 108, 196), "shirt_d": (110, 76, 152),
         "legs": (188, 166, 208), "shoe": (74, 58, 76),
         "long_hair": True, "skirt": True,
+        "hair_style": "long", "skin": "brown", "pattern": "plain",
+        "sleeves": "long",
     },
     "student_e": {
         "hair": (206, 108, 58), "hair_d": (158, 76, 38),
         "shirt": (232, 138, 72), "shirt_d": (184, 100, 48),
         "legs": (108, 112, 120), "shoe": (56, 50, 46),
         "long_hair": False, "skirt": False,
+        "hair_style": "curly", "skin": "light", "pattern": "stripes",
+        "sleeves": "short",
     },
     "student_f": {
         "hair": (40, 38, 48), "hair_d": (26, 24, 32),
         "shirt": (78, 176, 172), "shirt_d": (50, 132, 130),
         "legs": (160, 176, 184), "shoe": (52, 58, 62),
         "long_hair": True, "skirt": True,
+        "hair_style": "ponytail", "skin": "dark", "pattern": "plain",
+        "sleeves": "short",
     },
     "student_g": {
         "hair": (140, 104, 66), "hair_d": (100, 72, 44),
         "shirt": (206, 82, 76), "shirt_d": (160, 54, 52),
         "legs": (58, 68, 104), "shoe": (48, 42, 40),
         "long_hair": False, "skirt": False,
+        "hair_style": "buzz", "skin": "brown", "pattern": "collar",
+        "sleeves": "long",
     },
     "student_h": {
         "hair": (222, 218, 208), "hair_d": (176, 172, 166),
         "shirt": (128, 206, 168), "shirt_d": (88, 160, 126),
         "legs": (200, 196, 188), "shoe": (70, 74, 72),
         "long_hair": True, "skirt": True,
+        "hair_style": "bun", "skin": "fair", "pattern": "dungarees",
+        "sleeves": "short",
     },
 }
+
 
 # --- furniture -------------------------------------------------------
 WOOD = (156, 110, 66)
@@ -150,28 +225,55 @@ DOOR_TILES = [(0, 7), (0, 8)]
 WINDOW_COLS = [(5, 6), (12, 13)]
 
 # Classroom vinyl: warm off-white squares with a faint speckle, the way
-# school flooring actually looks, rather than a chequerboard.
+# school flooring actually looks, rather than a chequerboard. Grout
+# warmed and softened Sept 2026 -- the old cool grey read as concrete
+# next to the new warm plaster walls.
 FLOOR_A = (224, 214, 194)
 FLOOR_B = (214, 203, 182)
-FLOOR_GROUT = (188, 176, 156)
-FLOOR_FLECK = (200, 190, 172)
+FLOOR_GROUT = (204, 188, 160)
+FLOOR_FLECK = (202, 190, 168)
 
-# Red brick.
-WALL = (152, 76, 62)
-WALL_L = (176, 96, 78)
-WALL_D = (116, 54, 44)
-WALL_TOP = (196, 122, 102)
-WALL_BASE = (92, 42, 34)
-MORTAR = (206, 192, 176)
+# Warm painted plaster -- Sept 2026, the art overhaul. Replaces the flat
+# red brick every wall used to be, one of the launch complaints ("heavy
+# flat-red-brick walls"): a lived-in classroom is a painted wall, not
+# exposed brick, and cream reads warmer under the window light besides.
+# The names (WALL, WALL_L, ...) are unchanged so door_tile()/window_tile()
+# below did not need to change what they ask for, only what they get.
+WALL = (230, 210, 178)
+WALL_L = (242, 226, 198)
+WALL_D = (204, 182, 150)
+WALL_TOP = (246, 234, 210)     # the lit course along the very top of the wall
+WALL_BASE = (72, 48, 30)       # now doubles as the skirting-board colour
 
-# Painted door and window frames, deliberately NOT brick-coloured so the
-# ways in and out read at a glance against a wall of red.
+# The dado: a painted wood wainscot along the ROOM-FACING wall
+# (tile_wall_bottom only -- see wall_tile()), finished with a chair rail
+# above it and the dark WALL_BASE skirting board where it meets the floor.
+DADO = (146, 100, 62)
+DADO_L = (176, 128, 82)
+DADO_D = (104, 70, 42)
+RAIL = (208, 184, 142)
+
+# Painted door and window frames, deliberately NOT wall-coloured so the
+# ways in and out read at a glance against the plaster.
 DOOR_PAINT = (58, 118, 132)
 DOOR_PAINT_L = (86, 154, 168)
 DOOR_PAINT_D = (36, 80, 92)
-GLASS = (176, 214, 232)
-GLASS_L = (208, 234, 246)
-GLASS_D = (150, 192, 214)
+HANDLE = (222, 186, 108)
+HANDLE_D = (164, 130, 66)
+
+# The window: a dusk sky gradient rather than flat daytime blue -- cool
+# blue-violet near the ceiling, warming toward the sill, like the last
+# light of the day. GLASS/GLASS_L/GLASS_D keep their old names (used by
+# the top- and bottom-half tiles respectively) but now carry that
+# gradient instead of one flat blue.
+GLASS = (150, 138, 180)         # upper pane: dusk blue-violet
+GLASS_L = (176, 162, 204)
+GLASS_D = (238, 176, 110)       # lower pane: warm, low-in-the-sky glow
+GLASS_D_L = (250, 202, 144)
+SKY_MID = (206, 146, 128)       # the horizon band each half fades toward
+CURTAIN = (172, 78, 66)
+CURTAIN_L = (200, 108, 90)
+CURTAIN_D = (128, 54, 46)
 FRAME = (238, 234, 224)
 FRAME_L = (250, 248, 242)
 FRAME_D = (176, 170, 158)
@@ -268,165 +370,704 @@ def scale2x(img):
 # characters
 # ====================================================================
 
+def mix(c, target, amt):
+    return tuple(int(round(c[i] + (target[i] - c[i]) * amt)) for i in range(3))
+
+
+def lighter(c, amt=0.22):
+    return mix(c[:3], (255, 255, 255), amt)
+
+
+def darker(c, amt=0.22):
+    return mix(c[:3], (0, 0, 0), amt)
+
+
+def blend(img, x, y, c):
+    """Alpha-blend an (r, g, b, a) over whatever is at (x, y)."""
+    if not (0 <= x < img.width and 0 <= y < img.height):
+        return
+    r, g, b, a = img.getpixel((x, y))
+    if a == 0:
+        return
+    t = c[3] / 255.0
+    img.putpixel((x, y), (int(r + (c[0] - r) * t), int(g + (c[1] - g) * t),
+                          int(b + (c[2] - b) * t), a))
+
+
+def blend_rect(img, x0, y0, x1, y1, c):
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            blend(img, x, y, c)
+
+
+# Pixel masks for a rounded corner, by radius: which (i, j) offsets from
+# the corner are left out. Explicit rather than a circle test, because at
+# 2-4px a circle test rounds either too little or too much to read.
+_CORNER = {
+    0: (),
+    1: ((0, 0),),
+    2: ((0, 0), (1, 0), (0, 1)),
+    3: ((0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (0, 2)),
+    4: ((0, 0), (1, 0), (2, 0), (3, 0), (0, 1), (1, 1), (0, 2), (0, 3)),
+    5: ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (0, 1), (1, 1), (2, 1),
+        (0, 2), (1, 2), (0, 3), (0, 4)),
+}
+
+
+def _corner_cut(i, j, r):
+    if i >= r or j >= r:
+        return False
+    if r <= 5:
+        return (i, j) in _CORNER[r]
+    dx = r - 0.5 - i
+    dy = r - 0.5 - j
+    return dx * dx + dy * dy > r * r
+
+
+def rrect(img, x0, y0, x1, y1, c, r=2, r_top=None, r_bottom=None):
+    """A filled rectangle with rounded corners. Corners are SKIPPED, not
+    cleared, so a rounded shape can sit over something already drawn."""
+    rt = r if r_top is None else r_top
+    rb = r if r_bottom is None else r_bottom
+    w = x1 - x0 + 1
+    h = y1 - y0 + 1
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            i = x - x0
+            j = y - y0
+            if rt and _corner_cut(i, j, rt):
+                continue
+            if rt and _corner_cut(w - 1 - i, j, rt):
+                continue
+            if rb and _corner_cut(i, h - 1 - j, rb):
+                continue
+            if rb and _corner_cut(w - 1 - i, h - 1 - j, rb):
+                continue
+            px(img, x, y, c)
+
+
+def ring(img, x0, y0, x1, y1, c, r=2, thickness=1):
+    """The outline of a rounded rectangle only -- for spectacle frames."""
+    m = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    rrect(m, x0, y0, x1, y1, c, r)
+    inner = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    rrect(inner, x0 + thickness, y0 + thickness, x1 - thickness,
+          y1 - thickness, c, max(0, r - thickness))
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if 0 <= x < img.width and 0 <= y < img.height:
+                if m.getpixel((x, y))[3] and not inner.getpixel((x, y))[3]:
+                    px(img, x, y, c)
+
+
+def refill(img, x0, y0, x1, y1, frm, to):
+    """Recolour only the pixels of one colour inside a box -- a stripe that
+    stops at the edge of the shirt rather than the edge of the box."""
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if 0 <= x < img.width and 0 <= y < img.height:
+                if img.getpixel((x, y))[:3] == tuple(frm[:3]):
+                    px(img, x, y, to)
+
+
+def rim_light(img, amt=0.18):
+    """The one shading rule everything shares: light from the upper-left.
+
+    Every opaque pixel on the silhouette's top or left edge is lifted, and
+    every one on its bottom or right edge is dropped. Applied AFTER a
+    frame is mirrored, so a right-facing sprite is lit from the same side
+    as a left-facing one -- which a mirrored highlight would not be.
+    """
+    src = img.copy()
+    w, h = img.size
+    get = src.getpixel
+    for y in range(h):
+        for x in range(w):
+            c = get((x, y))
+            if c[3] == 0:
+                continue
+            up = y == 0 or get((x, y - 1))[3] == 0
+            left = x == 0 or get((x - 1, y))[3] == 0
+            down = y == h - 1 or get((x, y + 1))[3] == 0
+            right = x == w - 1 or get((x + 1, y))[3] == 0
+            lit = up or left
+            dark = down or right
+            if lit and not dark:
+                img.putpixel((x, y), lighter(c, amt) + (c[3],))
+            elif dark and not lit:
+                img.putpixel((x, y), darker(c, amt) + (c[3],))
+
+
+def finish(im, amt=0.14):
+    """The furniture/props finishing pass -- the art overhaul's consistency
+    rule (Sept 2026): every placed object gets the SAME upper-left highlight,
+    lower-right shade that draw_char() gives every person, so a desk and the
+    teacher standing at it agree about where the window is. A softer `amt`
+    than characters use (0.18) -- most furniture is flatter, larger blocks of
+    colour than a 32x48 sprite, and the stronger amount blew out the flattest
+    fills (a whiteboard's face, a table top) into visibly banded steps.
+    Call this in place of a bare `outline(im)` at the end of a draw_*()."""
+    rim_light(im, amt)
+    return outline(im)
+
+
+def resolve_palette(pal):
+    """Fill in every optional key and derive the shading tones."""
+    p = dict(pal)
+    p.setdefault("long_hair", False)
+    p.setdefault("skirt", False)
+    p.setdefault("hair_style", "long" if p["long_hair"] else "short")
+    p.setdefault("skin", "light")
+    p.setdefault("glasses", False)
+    p.setdefault("pattern", "plain")
+    p.setdefault("sleeves", "long")
+    p.setdefault("tie", (176, 52, 56))
+    p.setdefault("inner", (236, 232, 222))
+    p.setdefault("eyes", EYE)
+    if p["hair_style"] not in HAIR_STYLES:
+        p["hair_style"] = "short"
+    if p["pattern"] not in PATTERNS:
+        p["pattern"] = "plain"
+    skin = p["skin"]
+    if isinstance(skin, str):
+        skin = SKINS.get(skin, SKINS["light"])
+    p["skin_c"] = tuple(skin)
+    p["skin_d"] = darker(skin, 0.18)
+    p["skin_l"] = lighter(skin, 0.18)
+    p["hair_l"] = lighter(p["hair"], 0.28)
+    p["shirt_l"] = lighter(p["shirt"], 0.28)
+    p["legs_d"] = darker(p["legs"], 0.25)
+    p["shoe_l"] = lighter(p["shoe"], 0.35)
+    p["tie_l"] = lighter(p["tie"], 0.3)
+    return p
+
+
+# Head box shared by every facing: x 4..27, y 4..29 in a 32x48 cell, hair
+# top at y=4 -- the row Player.refresh_hat()'s HatSprite offset assumes.
+HX0, HY0, HX1, HY1 = 4, 4, 27, 29
+# Torso box, front/back: x 8..23, y 30..39. Profile: x 10..21.
+TX0, TY0, TX1, TY1 = 8, 30, 23, 39
+
+
+def _hair_front(im, p, dy, extras_only=False):
+    """Hair as seen from the front, per style. Long styles also lay hair
+    down beside the body; the caller draws those strands BEFORE the torso
+    (behind the shoulders) by calling with extras_only."""
+    st = p["hair_style"]
+    hair, hair_d, hair_l = p["hair"], p["hair_d"], p["hair_l"]
+    if extras_only:
+        if st == "long":
+            rrect(im, 3, 10 + dy, 6, 36 + dy, hair, r_top=0, r_bottom=2)
+            rrect(im, 25, 10 + dy, 28, 36 + dy, hair, r_top=0, r_bottom=2)
+            rect(im, 3, 35 + dy, 6, 36 + dy, hair_d)
+            rect(im, 25, 35 + dy, 28, 36 + dy, hair_d)
+        elif st == "ponytail":
+            rrect(im, 25, 12 + dy, 29, 31 + dy, hair, r_top=0, r_bottom=2)
+            rect(im, 26, 13 + dy, 29, 13 + dy, HAIR_BAND)
+        return
+    if st == "bun":
+        rrect(im, 11, 0 + dy, 20, 5 + dy, hair, r=2)
+        rect(im, 12, 5 + dy, 19, 5 + dy, hair_d)
+    if st == "buzz":
+        rrect(im, HX0, HY0 + dy, HX1, 9 + dy, hair, r_top=3, r_bottom=0)
+        rect(im, HX0 + 1, 9 + dy, HX1 - 1, 9 + dy, hair_d)
+        rect(im, 8, 5 + dy, 14, 5 + dy, hair_l)
+        return
+    # the cap every other style shares
+    rrect(im, HX0, HY0 + dy, HX1, 11 + dy, hair, r_top=3, r_bottom=0)
+    rect(im, HX0, 11 + dy, HX1, 11 + dy, hair_d)
+    rect(im, 8, 5 + dy, 15, 6 + dy, hair_l)
+    if st == "bob":
+        rect(im, HX0, 12 + dy, HX1, 12 + dy, hair)        # straight fringe
+        rect(im, HX0, 13 + dy, HX1, 13 + dy, hair_d)
+        rrect(im, 3, 12 + dy, 6, 25 + dy, hair, r_top=0, r_bottom=2)
+        rrect(im, 25, 12 + dy, 28, 25 + dy, hair, r_top=0, r_bottom=2)
+        rect(im, 3, 24 + dy, 6, 25 + dy, hair_d)
+        rect(im, 25, 24 + dy, 28, 25 + dy, hair_d)
+        return
+    # a fringe with a few notches, so it is hair rather than a helmet
+    for x0, x1 in ((6, 8), (13, 16), (21, 23)):
+        rect(im, x0, 12 + dy, x1, 12 + dy, hair_d)
+    # side locks down past the ears
+    rect(im, HX0, 12 + dy, HX0 + 1, 15 + dy, hair)
+    rect(im, HX1 - 1, 12 + dy, HX1, 15 + dy, hair)
+    if st == "curly":
+        for x, y in ((3, 7), (3, 8), (3, 12), (3, 13), (28, 7), (28, 8),
+                     (28, 12), (28, 13), (6, 3), (7, 3), (12, 3), (13, 3),
+                     (18, 3), (19, 3), (24, 3), (25, 3)):
+            px(im, x, y + dy, hair)
+        for x, y in ((7, 8), (11, 6), (16, 9), (20, 5), (24, 8), (10, 10),
+                     (22, 10)):
+            px(im, x, y + dy, hair_d)
+    elif st == "spiky":
+        for cx in (7, 12, 17, 22):
+            rect(im, cx - 1, 3 + dy, cx, 3 + dy, hair)
+            px(im, cx, 2 + dy, hair)
+            px(im, cx + 1, 1 + dy, hair)
+    elif st == "long":
+        rect(im, 3, 10 + dy, 3, 11 + dy, hair)
+        rect(im, 28, 10 + dy, 28, 11 + dy, hair)
+
+
+def _face_front(im, p, dy, pose):
+    eyes = p["eyes"]
+    # eyes with the highlight that makes them look alive
+    for ex in (8, 20):
+        rect(im, ex, 16 + dy, ex + 3, 20 + dy, eyes)
+        rect(im, ex, 16 + dy, ex + 1, 17 + dy, (255, 255, 255))
+    # brows
+    if pose == POSE_SAD:
+        for x, y in ((8, 15), (9, 15), (10, 14), (11, 14),
+                     (20, 14), (21, 14), (22, 15), (23, 15)):
+            px(im, x, y + dy, p["hair_d"])
+    else:
+        rect(im, 8, 14 + dy, 11, 14 + dy, p["hair_d"])
+        rect(im, 20, 14 + dy, 23, 14 + dy, p["hair_d"])
+    # nose
+    rect(im, 15, 22 + dy, 16, 22 + dy, p["skin_d"])
+    # mouth, by mood
+    if pose == POSE_SAD:
+        rect(im, 15, 24 + dy, 16, 25 + dy, MOUTH)
+        px(im, 8, 21 + dy, TEAR)
+        px(im, 8, 22 + dy, TEAR)
+    elif pose == POSE_CHAT:
+        rect(im, 14, 24 + dy, 17, 26 + dy, MOUTH_OPEN)
+        rect(im, 15, 26 + dy, 16, 26 + dy, TONGUE)
+    elif pose == POSE_JUMP:
+        px(im, 12, 23 + dy, MOUTH)
+        px(im, 19, 23 + dy, MOUTH)
+        rect(im, 13, 24 + dy, 18, 25 + dy, MOUTH_OPEN)
+        rect(im, 14, 24 + dy, 17, 24 + dy, TEETH)
+    else:
+        px(im, 13, 24 + dy, MOUTH)
+        px(im, 18, 24 + dy, MOUTH)
+        rect(im, 14, 25 + dy, 17, 25 + dy, MOUTH)
+    # cheeks
+    blend_rect(im, 5, 22 + dy, 7, 23 + dy, BLUSH)
+    blend_rect(im, 24, 22 + dy, 26, 23 + dy, BLUSH)
+    if p["glasses"]:
+        blend_rect(im, 8, 16 + dy, 11, 20 + dy, LENS)
+        blend_rect(im, 20, 16 + dy, 23, 20 + dy, LENS)
+        ring(im, 7, 15 + dy, 12, 21 + dy, GLASS_FRAME, r=1)
+        ring(im, 19, 15 + dy, 24, 21 + dy, GLASS_FRAME, r=1)
+        rect(im, 13, 17 + dy, 18, 17 + dy, GLASS_FRAME)
+        rect(im, 4, 16 + dy, 6, 16 + dy, GLASS_FRAME)
+        rect(im, 25, 16 + dy, 27, 16 + dy, GLASS_FRAME)
+
+
+def _torso_pattern_front(im, p, dy, back=False):
+    """Clothing detail over a plain shirt box x 8..23, y 30..39 (+dy)."""
+    pat = p["pattern"]
+    shirt, shirt_l, shirt_d = p["shirt"], p["shirt_l"], p["shirt_d"]
+    y0 = TY0 + dy
+    if pat == "stripes":
+        for y in (y0 + 3, y0 + 4, y0 + 7, y0 + 8):
+            refill(im, 0, y, CW - 1, y, shirt, shirt_l)
+    elif pat == "dungarees":
+        rect(im, 11, y0 + 3, 20, y0 + 9, p["legs"])
+        rect(im, 11, y0, 12, y0 + 3, p["legs"])
+        rect(im, 19, y0, 20, y0 + 3, p["legs"])
+        rect(im, 11, y0 + 9, 20, y0 + 9, p["legs_d"])
+        if not back:
+            px(im, 12, y0 + 3, HAIR_BAND)
+            px(im, 19, y0 + 3, HAIR_BAND)
+    elif pat == "collar":
+        rect(im, 12, y0, 19, y0 + 1, p["inner"])
+        if not back:
+            px(im, 12, y0 + 2, p["inner"])
+            px(im, 19, y0 + 2, p["inner"])
+            rect(im, 15, y0 + 2, 16, y0 + 2, shirt_d)
+    elif pat == "tie" and not back:
+        rect(im, 12, y0, 19, y0, p["inner"])
+        rect(im, 14, y0, 17, y0 + 1, p["tie"])
+        rect(im, 15, y0 + 2, 16, y0 + 7, p["tie"])
+        px(im, 15, y0 + 3, p["tie_l"])
+    elif pat == "cardigan" and not back:
+        rect(im, 13, y0, 18, y0 + 1, p["inner"])
+        rect(im, 14, y0 + 2, 17, y0 + 3, p["inner"])
+        rect(im, 15, y0 + 4, 16, y0 + 5, p["inner"])
+        rect(im, 12, y0, 12, y0 + 9, shirt_d)
+        rect(im, 19, y0, 19, y0 + 9, shirt_d)
+        px(im, 15, y0 + 7, LINE)
+        px(im, 16, y0 + 7, LINE)
+    elif pat == "lanyard":
+        if back:
+            rect(im, 12, y0, 19, y0, LANYARD)
+        else:
+            for x, y in ((12, 0), (12, 1), (13, 2), (13, 3), (14, 4), (14, 5),
+                         (19, 0), (19, 1), (18, 2), (18, 3), (17, 4), (17, 5)):
+                px(im, x, y0 + y, LANYARD)
+            rect(im, 14, y0 + 6, 17, y0 + 8, BADGE)
+            rect(im, 15, y0 + 7, 16, y0 + 7, BADGE_STRIPE)
+
+
+def _arm_front(im, p, x0, y0, length, hand=True):
+    """One arm hanging from (x0, y0), 3px wide: sleeve then hand."""
+    sleeve = length if p["sleeves"] == "long" else max(2, length // 2)
+    rect(im, x0, y0, x0 + 2, y0 + sleeve - 1, p["shirt"])
+    if sleeve < length:
+        rect(im, x0, y0 + sleeve, x0 + 2, y0 + length - 1, p["skin_c"])
+    if hand:
+        rect(im, x0, y0 + length, x0 + 2, y0 + length + 1, p["skin_c"])
+
+
+def _legs_front(im, p, step, seated, pose):
+    legs, legs_d, shoe, shoe_l = p["legs"], p["legs_d"], p["shoe"], p["shoe_l"]
+    if seated:
+        # thighs toward the camera, feet out of sight under the desk
+        for x0 in (9, 17):
+            rect(im, x0, 44, x0 + 4, 47, legs)
+            px(im, x0 + 4, 44, legs_d)
+            px(im, x0 + 4, 45, legs_d)
+        return
+    if pose == POSE_JUMP:
+        rect(im, 10, 36, 21, 40, legs)
+        rect(im, 9, 41, 21, 43, shoe)
+        return
+    lifts = {10: max(0, step) * 2, 17: max(0, -step) * 2}
+    for x0, lift in lifts.items():
+        rect(im, x0, 40 - lift, x0 + 4, 45 - lift, legs)
+        rect(im, x0 + 4, 40 - lift, x0 + 4, 45 - lift, legs_d)
+        rect(im, x0 - 1, 45 - lift, x0 + 4, 47 - lift, shoe)
+        px(im, x0, 45 - lift, shoe_l)
+
+
+def _front(im, p, dy, step, seated, pose):
+    skin, skin_d = p["skin_c"], p["skin_d"]
+    shirt, shirt_d, shirt_l = p["shirt"], p["shirt_d"], p["shirt_l"]
+    hy = dy   # head offset
+    _legs_front(im, p, step, seated, pose)
+    _hair_front(im, p, hy, extras_only=True)
+    # torso
+    rrect(im, TX0, TY0 + dy, TX1, TY1 + dy, shirt, r_top=1, r_bottom=0)
+    rect(im, 9, 31 + dy, 14, 31 + dy, shirt_l)
+    rect(im, TX0, TY1 - 1 + dy, TX1, TY1 + dy, shirt_d)
+    _torso_pattern_front(im, p, dy)
+    if p["skirt"] and not seated and pose != POSE_JUMP:
+        rect(im, 8, 38 + dy, 23, 38 + dy, shirt)
+        rect(im, 7, 39 + dy, 24, 40 + dy, shirt)
+        rect(im, 6, 41 + dy, 25, 41 + dy, shirt_d)
+    # arms
+    if pose == POSE_HANDOFF:
+        rect(im, 3, 32 + dy, 7, 34 + dy, shirt)
+        rect(im, 24, 32 + dy, 28, 34 + dy, shirt)
+        rect(im, 1, 32 + dy, 2, 34 + dy, skin)
+        rect(im, 29, 32 + dy, 30, 34 + dy, skin)
+    elif pose == POSE_SAD:
+        _arm_front(im, p, 5, 32 + dy, 9)
+        _arm_front(im, p, 24, 32 + dy, 9)
+    elif pose == POSE_JUMP:
+        rect(im, 1, 20 + dy, 3, 31 + dy, shirt)
+        rect(im, 28, 20 + dy, 30, 31 + dy, shirt)
+        rect(im, 1, 17 + dy, 3, 19 + dy, skin)
+        rect(im, 28, 17 + dy, 30, 19 + dy, skin)
+    elif seated:
+        rect(im, 5, 35 + dy, 7, 39 + dy, shirt)
+        rect(im, 24, 35 + dy, 26, 39 + dy, shirt)
+        rect(im, 6, 40 + dy, 9, 41 + dy, skin)
+        rect(im, 22, 40 + dy, 25, 41 + dy, skin)
+    elif pose == POSE_CHAT:
+        _arm_front(im, p, 5, 31 + dy, 6)
+    else:
+        _arm_front(im, p, 5, 31 + dy - step * 2, 6)
+        _arm_front(im, p, 24, 31 + dy + step * 2, 6)
+    # head
+    rrect(im, HX0, HY0 + hy, HX1, HY1 + hy, skin, r=3)
+    rect(im, 6, 28 + hy, 25, 29 + hy, skin_d)
+    _hair_front(im, p, hy)
+    _face_front(im, p, hy, pose)
+    if pose == POSE_CHAT:
+        # the other hand comes up beside the face, mid-sentence
+        rect(im, 25, 26 + dy, 27, 33 + dy, shirt)
+        rect(im, 25, 23 + dy, 27, 25 + dy, skin)
+
+
+def _back(im, p, dy, step, seated, pose):
+    skin, skin_d = p["skin_c"], p["skin_d"]
+    hair, hair_d, hair_l = p["hair"], p["hair_d"], p["hair_l"]
+    shirt, shirt_d = p["shirt"], p["shirt_d"]
+    st = p["hair_style"]
+    _legs_front(im, p, step, seated, pose)
+    rrect(im, TX0, TY0 + dy, TX1, TY1 + dy, shirt, r_top=1, r_bottom=0)
+    rect(im, TX0, TY1 - 1 + dy, TX1, TY1 + dy, shirt_d)
+    _torso_pattern_front(im, p, dy, back=True)
+    if p["skirt"] and not seated and pose != POSE_JUMP:
+        rect(im, 8, 38 + dy, 23, 38 + dy, shirt)
+        rect(im, 7, 39 + dy, 24, 40 + dy, shirt)
+        rect(im, 6, 41 + dy, 25, 41 + dy, shirt_d)
+    if pose == POSE_HANDOFF:
+        rect(im, 3, 32 + dy, 7, 34 + dy, shirt)
+        rect(im, 24, 32 + dy, 28, 34 + dy, shirt)
+        rect(im, 1, 32 + dy, 2, 34 + dy, skin)
+        rect(im, 29, 32 + dy, 30, 34 + dy, skin)
+    elif pose == POSE_SAD:
+        _arm_front(im, p, 5, 32 + dy, 9)
+        _arm_front(im, p, 24, 32 + dy, 9)
+    elif pose == POSE_JUMP:
+        rect(im, 1, 20 + dy, 3, 31 + dy, shirt)
+        rect(im, 28, 20 + dy, 30, 31 + dy, shirt)
+        rect(im, 1, 17 + dy, 3, 19 + dy, skin)
+        rect(im, 28, 17 + dy, 30, 19 + dy, skin)
+    elif seated:
+        rect(im, 5, 35 + dy, 7, 39 + dy, shirt)
+        rect(im, 24, 35 + dy, 26, 39 + dy, shirt)
+    elif pose == POSE_CHAT:
+        _arm_front(im, p, 5, 31 + dy, 6)
+        rect(im, 25, 26 + dy, 27, 33 + dy, shirt)
+        rect(im, 25, 23 + dy, 27, 25 + dy, skin)
+    else:
+        _arm_front(im, p, 5, 31 + dy - step * 2, 6)
+        _arm_front(im, p, 24, 31 + dy + step * 2, 6)
+    # head: skin at the nape, then hair over nearly all of it
+    rrect(im, HX0, HY0 + dy, HX1, HY1 + dy, skin, r=3)
+    rect(im, 6, 28 + dy, 25, 29 + dy, skin_d)
+    hair_bottom = {"buzz": 22, "short": 25, "spiky": 25, "curly": 25,
+                   "bun": 25, "ponytail": 25, "bob": 27, "long": 29}[st]
+    rrect(im, HX0, HY0 + dy, HX1, hair_bottom + dy, hair, r_top=3, r_bottom=2)
+    rect(im, HX0 + 1, hair_bottom + dy, HX1 - 1, hair_bottom + dy, hair_d)
+    rect(im, 8, 5 + dy, 15, 6 + dy, hair_l)
+    if st == "long":
+        rrect(im, 6, 26 + dy, 25, 38 + dy, hair, r_top=0, r_bottom=3)
+        rect(im, 7, 37 + dy, 24, 38 + dy, hair_d)
+    elif st == "bob":
+        rect(im, 3, 20 + dy, 3, 27 + dy, hair)
+        rect(im, 28, 20 + dy, 28, 27 + dy, hair)
+    elif st == "bun":
+        rrect(im, 11, 0 + dy, 20, 5 + dy, hair, r=2)
+        rect(im, 12, 5 + dy, 19, 5 + dy, hair_d)
+        rect(im, 13, 2 + dy, 16, 2 + dy, hair_l)
+    elif st == "ponytail":
+        rrect(im, 13, 22 + dy, 18, 37 + dy, hair, r_top=0, r_bottom=2)
+        rect(im, 13, 23 + dy, 18, 24 + dy, HAIR_BAND)
+        rect(im, 14, 36 + dy, 17, 37 + dy, hair_d)
+    elif st == "curly":
+        for x, y in ((3, 7), (3, 8), (3, 12), (3, 13), (3, 18), (3, 19),
+                     (28, 7), (28, 8), (28, 12), (28, 13), (28, 18), (28, 19),
+                     (6, 3), (7, 3), (12, 3), (13, 3), (18, 3), (19, 3),
+                     (24, 3), (25, 3)):
+            px(im, x, y + dy, hair)
+        for x, y in ((7, 9), (12, 13), (17, 8), (22, 12), (10, 18), (20, 20),
+                     (15, 22)):
+            px(im, x, y + dy, hair_d)
+    elif st == "spiky":
+        for cx in (7, 12, 17, 22):
+            rect(im, cx - 1, 3 + dy, cx, 3 + dy, hair)
+            px(im, cx, 2 + dy, hair)
+            px(im, cx + 1, 1 + dy, hair)
+
+
+def _profile(im, p, dy, step, seated, pose):
+    """Facing LEFT. The right-facing row is this, mirrored."""
+    skin, skin_d = p["skin_c"], p["skin_d"]
+    hair, hair_d, hair_l = p["hair"], p["hair_d"], p["hair_l"]
+    shirt, shirt_d, shirt_l = p["shirt"], p["shirt_d"], p["shirt_l"]
+    legs, legs_d, shoe, shoe_l = p["legs"], p["legs_d"], p["shoe"], p["shoe_l"]
+    st = p["hair_style"]
+    pat = p["pattern"]
+
+    # legs
+    if seated:
+        rect(im, 8, 42, 19, 45, legs)          # thigh forward
+        rect(im, 6, 44, 9, 47, legs)           # shin
+        rect(im, 4, 46, 9, 47, shoe)
+        rect(im, 16, 44, 19, 47, legs_d)       # the chair-side shadow
+    elif pose == POSE_JUMP:
+        rect(im, 10, 36, 19, 40, legs)
+        rect(im, 8, 41, 19, 43, shoe)
+    else:
+        fx = -step * 2                          # front leg strides forward
+        lift = abs(step) * 2
+        rect(im, 15 - fx, 40, 19 - fx, 45, legs)     # back leg
+        rect(im, 14 - fx, 45, 19 - fx, 47, shoe)
+        rect(im, 9 + fx, 40 - lift, 13 + fx, 45 - lift, legs)   # front leg
+        rect(im, 13 + fx, 40 - lift, 13 + fx, 45 - lift, legs_d)
+        rect(im, 7 + fx, 45 - lift, 13 + fx, 47 - lift, shoe)
+        px(im, 8 + fx, 45 - lift, shoe_l)
+
+    # hair that hangs behind the shoulder goes under the torso
+    if st == "long":
+        rrect(im, 19, 10 + dy, 27, 36 + dy, hair, r_top=0, r_bottom=3)
+        rect(im, 20, 35 + dy, 27, 36 + dy, hair_d)
+    elif st == "ponytail":
+        rrect(im, 25, 11 + dy, 30, 32 + dy, hair, r_top=2, r_bottom=2)
+        rect(im, 26, 13 + dy, 29, 14 + dy, HAIR_BAND)
+
+    # torso, narrower from the side
+    rrect(im, 10, TY0 + dy, 21, TY1 + dy, shirt, r_top=1, r_bottom=0)
+    rect(im, 10, TY1 - 1 + dy, 21, TY1 + dy, shirt_d)
+    y0 = TY0 + dy
+    if pat == "stripes":
+        for y in (y0 + 3, y0 + 4, y0 + 7, y0 + 8):
+            refill(im, 0, y, CW - 1, y, shirt, shirt_l)
+    elif pat == "dungarees":
+        rect(im, 11, y0 + 3, 20, y0 + 9, legs)
+        rect(im, 12, y0, 13, y0 + 3, legs)
+        px(im, 12, y0 + 3, HAIR_BAND)
+    elif pat == "collar":
+        rect(im, 11, y0, 16, y0 + 1, p["inner"])
+    elif pat == "tie":
+        rect(im, 11, y0, 15, y0, p["inner"])
+        rect(im, 12, y0 + 1, 13, y0 + 7, p["tie"])
+    elif pat == "cardigan":
+        rect(im, 10, y0, 11, y0 + 9, shirt_d)
+        rect(im, 12, y0, 13, y0 + 5, p["inner"])
+    elif pat == "lanyard":
+        rect(im, 13, y0, 13, y0 + 5, LANYARD)
+        rect(im, 12, y0 + 6, 14, y0 + 8, BADGE)
+    if p["skirt"] and not seated and pose != POSE_JUMP:
+        rect(im, 10, 38 + dy, 21, 38 + dy, shirt)
+        rect(im, 9, 39 + dy, 22, 40 + dy, shirt)
+        rect(im, 8, 41 + dy, 23, 41 + dy, shirt_d)
+
+    # the near arm, over the torso
+    def arm(x0, y0, length):
+        sleeve = length if p["sleeves"] == "long" else max(2, length // 2)
+        rect(im, x0, y0, x0 + 3, y0 + sleeve - 1, shirt)
+        if sleeve < length:
+            rect(im, x0, y0 + sleeve, x0 + 3, y0 + length - 1, skin)
+        rect(im, x0, y0 + length, x0 + 3, y0 + length + 1, skin)
+
+    if pose == POSE_HANDOFF:
+        rect(im, 4, 33 + dy, 14, 35 + dy, shirt)
+        rect(im, 1, 33 + dy, 3, 35 + dy, skin)
+    elif pose == POSE_SAD:
+        arm(12, 32 + dy, 9)
+    elif pose == POSE_JUMP:
+        rect(im, 12, 19 + dy, 14, 30 + dy, shirt)
+        rect(im, 12, 16 + dy, 14, 18 + dy, skin)
+    elif seated:
+        rect(im, 12, 35 + dy, 15, 39 + dy, shirt)
+        rect(im, 8, 40 + dy, 12, 41 + dy, skin)
+    elif pose != POSE_CHAT:
+        arm(12 - step * 2, 31 + dy, 6)
+
+    # head
+    rrect(im, HX0, HY0 + dy, HX1, HY1 + dy, skin, r=3)
+    rect(im, 6, 28 + dy, 25, 29 + dy, skin_d)
+    # hair: cap, plus the back of the head
+    if st == "buzz":
+        rrect(im, HX0, HY0 + dy, HX1, 9 + dy, hair, r_top=3, r_bottom=0)
+        rect(im, 18, 10 + dy, HX1, 21 + dy, hair)
+        rect(im, 5, 9 + dy, 17, 9 + dy, hair_d)
+        rect(im, 18, 21 + dy, HX1 - 1, 21 + dy, hair_d)
+    else:
+        rrect(im, HX0, HY0 + dy, HX1, 11 + dy, hair, r_top=3, r_bottom=0)
+        back_bottom = {"bob": 27, "long": 29}.get(st, 24)
+        rrect(im, 16, 12 + dy, HX1, back_bottom + dy, hair, r_top=0, r_bottom=2)
+        rect(im, 17, back_bottom + dy, HX1 - 1, back_bottom + dy, hair_d)
+        rect(im, 4, 11 + dy, 15, 11 + dy, hair_d)
+        rect(im, 4, 12 + dy, 8, 12 + dy, hair)          # the front lock
+        px(im, 4, 13 + dy, hair)
+        px(im, 5, 13 + dy, hair)
+        if st == "bob":
+            rect(im, 4, 12 + dy, 6, 24 + dy, hair)
+            rect(im, 4, 24 + dy, 6, 24 + dy, hair_d)
+        elif st == "long":
+            rect(im, 4, 12 + dy, 5, 20 + dy, hair)
+    rect(im, 8, 5 + dy, 15, 6 + dy, hair_l)
+    if st == "bun":
+        rrect(im, 21, 0 + dy, 28, 6 + dy, hair, r=2)
+        rect(im, 22, 6 + dy, 27, 6 + dy, hair_d)
+    elif st == "curly":
+        for x, y in ((28, 7), (28, 8), (28, 12), (28, 13), (28, 18), (28, 19),
+                     (6, 3), (7, 3), (12, 3), (13, 3), (18, 3), (19, 3),
+                     (24, 3), (25, 3), (3, 8), (3, 9)):
+            px(im, x, y + dy, hair)
+        for x, y in ((20, 9), (24, 14), (19, 19), (23, 22), (10, 7)):
+            px(im, x, y + dy, hair_d)
+    elif st == "spiky":
+        for cx in (8, 13, 18, 23):
+            rect(im, cx - 1, 3 + dy, cx, 3 + dy, hair)
+            px(im, cx, 2 + dy, hair)
+            px(im, cx + 1, 1 + dy, hair)
+    # ear, over the hair
+    rect(im, 17, 17 + dy, 19, 21 + dy, skin)
+    px(im, 18, 19 + dy, skin_d)
+    # face
+    rect(im, 7, 16 + dy, 9, 20 + dy, p["eyes"])
+    rect(im, 7, 16 + dy, 7, 17 + dy, (255, 255, 255))
+    if pose == POSE_SAD:
+        px(im, 7, 15 + dy, hair_d)
+        px(im, 8, 14 + dy, hair_d)
+        px(im, 9, 14 + dy, hair_d)
+    else:
+        rect(im, 7, 14 + dy, 9, 14 + dy, hair_d)
+    px(im, 3, 21 + dy, skin)                   # the nose, proud of the face
+    px(im, 3, 22 + dy, skin_d)
+    if pose == POSE_SAD:
+        rect(im, 5, 24 + dy, 6, 25 + dy, MOUTH)
+        px(im, 7, 21 + dy, TEAR)
+        px(im, 7, 22 + dy, TEAR)
+    elif pose == POSE_CHAT:
+        rect(im, 4, 24 + dy, 7, 26 + dy, MOUTH_OPEN)
+        rect(im, 5, 26 + dy, 6, 26 + dy, TONGUE)
+    elif pose == POSE_JUMP:
+        px(im, 9, 23 + dy, MOUTH)
+        rect(im, 4, 24 + dy, 8, 25 + dy, MOUTH_OPEN)
+        rect(im, 5, 24 + dy, 7, 24 + dy, TEETH)
+    else:
+        rect(im, 5, 25 + dy, 7, 25 + dy, MOUTH)
+        px(im, 8, 24 + dy, MOUTH)
+    blend_rect(im, 9, 22 + dy, 11, 23 + dy, BLUSH)
+    if p["glasses"]:
+        blend_rect(im, 7, 16 + dy, 9, 20 + dy, LENS)
+        ring(im, 5, 15 + dy, 10, 21 + dy, GLASS_FRAME, r=1)
+        rect(im, 11, 16 + dy, 17, 16 + dy, GLASS_FRAME)
+    if pose == POSE_CHAT:
+        rect(im, 10, 26 + dy, 12, 33 + dy, shirt)
+        rect(im, 9, 23 + dy, 12, 25 + dy, skin)
+
+
 def draw_char(direction, frame, pal):
-    """One 16x24 frame, CHIBI proportions: the head is most of the sprite.
+    """One 32x48 frame, CHIBI proportions: the head is most of the sprite.
 
     `direction` 0=down 1=left 2=right 3=up.
-    `frame` 0-3 is the walk cycle; frame 4 (SIT_FRAME) is the seated pose.
+    `frame` 0-3 is the walk cycle; frame 4 (SIT_FRAME) is the seated pose;
+    5-8 are the one-shot POSE_* frames.
 
-    The seated pose is drawn LOWERED INSIDE the same 16x24 cell rather than
+    The seated pose is drawn LOWERED INSIDE the same cell rather than
     compensated for with a node offset in the engine. That keeps one rule
-    true of every character sprite — the bottom of the cell is where this
-    person meets the floor — which is the rule the whole game positions and
-    depth-sorts by.
+    true of every character sprite -- the bottom of the cell is where this
+    person meets the floor -- which is the rule the whole game positions
+    and depth-sorts by.
 
-    *(Aug 2026, redesigned for a cute/chibi silhouette.)* The old figure
-    split the 24px cell roughly head 8 / body 7 / legs 4+shoes. This one is
-    head 12 / body 5 / legs 4 — the head is now wider than the shoulders,
-    which is the one proportion change that actually reads as "chibi"
-    rather than just "smaller person". Every character is still one
-    palette through this same routine; nothing about the per-character
-    data changed, only the shape everyone shares.
+    *(Sept 2026, the art overhaul.)* Drawn at the real 32x48 now rather
+    than as a doubled 16x24, which is what makes room for a face: eyes
+    with a highlight, brows, a mouth that changes with the pose, cheeks, a
+    nose on the profile. Hair is a real silhouette per style, clothes carry
+    a pattern, and one shading rule (rim_light: lit upper-left, shaded
+    lower-right) is applied to every frame after it is drawn so all four
+    facings agree about where the window is. Still one routine, many
+    palettes -- the only thing a character owns is its table entry.
     """
+    p = resolve_palette(pal)
     im = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
-    hair, hair_d = pal["hair"], pal["hair_d"]
-    shirt, shirt_d = pal["shirt"], pal["shirt_d"]
-
-    # The whole silhouette below is written ONCE, at the original 16x24
-    # coordinates, through R()/P() instead of rect()/px() -- they scale
-    # every call 2x on the way to the canvas, so this is a real doubling
-    # of both position AND size (not a blurry image resize afterward) with
-    # zero risk of the arithmetic drifting between two hand-written copies
-    # of the same figure. Extra detail the bigger canvas actually affords
-    # (cheeks, a mouth) is added separately below in real 32x48 pixels,
-    # since duplicating THOSE from nothing wouldn't mean anything.
-    def R(x0, y0, x1, y1, c):
-        rect(im, x0 * 2, y0 * 2, x1 * 2 + 1, y1 * 2 + 1, c)
-
-    def P(x, y, c):
-        rect(im, x * 2, y * 2, x * 2 + 1, y * 2 + 1, c)
-
     seated = (frame == SIT_FRAME)
     pose = frame if frame >= POSE_HANDOFF else None
-    dy = 2 if seated else (-3 if pose == POSE_JUMP else 1 if pose == POSE_SAD else 0)
-
-    # contact shadow, drawn before anything else so the figure sits on it.
-    # A jumper's shadow stays on the floor while the figure rises above it,
+    step = 1 if frame == 1 else (-1 if frame == 3 else 0)
+    if seated:
+        dy = 4
+    elif pose == POSE_JUMP:
+        dy = -4
+    elif pose == POSE_SAD:
+        dy = 2
+    else:
+        dy = -1 if step else 0           # a 1px head bob on the step frames
+    if direction == 0:
+        _front(im, p, dy, step, seated, pose)
+    elif direction == 3:
+        _back(im, p, dy, step, seated, pose)
+    else:
+        _profile(im, p, dy, step, seated, pose)
+        if direction == 2:
+            im = ImageOps.mirror(im)
+    rim_light(im)
+    outline(im)
+    # contact shadow LAST, so the outline pass does not trace it. A
+    # jumper's shadow stays on the floor while the figure rises above it,
     # which is most of what sells "in the air" at this scale.
     shadow(im, CW // 2, CH - 4, 12 if pose != POSE_JUMP else 8, 4)
-
-    # walk cycle: frames 1 and 3 lift opposite feet, 0 and 2 stand
-    step = 0
-    if frame == 1:
-        step = 1
-    elif frame == 3:
-        step = -1
-
-    # ---- legs: short and stubby, well under the big head ----
-    if seated:
-        R(5, 21, 7, 23, pal["legs"])
-        R(9, 21, 11, 23, pal["legs"])
-    elif pose == POSE_JUMP:
-        # both feet tucked together under the raised body
-        R(6, 17, 10, 19, pal["legs"])
-        R(6, 19, 10, 19, pal["shoe"])
-    else:
-        l_off = max(0, step)
-        r_off = max(0, -step)
-        leg_top = 21 if pal["skirt"] else 19   # a skirt covers the thighs
-        R(5, leg_top - l_off, 7, 22 - l_off, pal["legs"])
-        R(9, leg_top - r_off, 11, 22 - r_off, pal["legs"])
-        R(5, 23 - l_off, 7, 23 - l_off, pal["shoe"])
-        R(9, 23 - r_off, 11, 23 - r_off, pal["shoe"])
-
-    # ---- body: a small torso, mostly hidden under the head from the front ----
-    R(5, 15 + dy, 10, 19 + dy, shirt)
-    R(5, 18 + dy, 10, 19 + dy, shirt_d)   # shading under the torso
-    if pal["skirt"] and not seated and pose != POSE_JUMP:
-        R(5, 18, 10, 18, shirt)           # a flared hem over the legs
-        R(4, 19, 11, 20, shirt)
-        R(3, 21, 12, 21, shirt_d)
-
-    # ---- arms (short, swing opposite to the legs; still when seated) ----
-    if pose == POSE_HANDOFF:
-        # both arms reach straight out, a hand at full stretch on each side
-        # -- the pose for "here, take this" and "here, take it back" alike
-        R(1, 15 + dy, 4, 17 + dy, shirt_d)
-        R(11, 15 + dy, 14, 17 + dy, shirt_d)
-        P(1, 16 + dy, SKIN); P(2, 16 + dy, SKIN)
-        P(13, 16 + dy, SKIN); P(14, 16 + dy, SKIN)
-    elif pose == POSE_CHAT:
-        # one hand comes up near the face, mid-sentence
-        R(3, 16 + dy, 4, 18 + dy, shirt_d)
-        R(10, 10 + dy, 11, 15 + dy, shirt_d)
-        P(3, 19 + dy, SKIN); P(4, 19 + dy, SKIN)
-        P(10, 9 + dy, SKIN); P(11, 9 + dy, SKIN)
-    elif pose == POSE_JUMP:
-        # both arms thrown straight up over the head
-        R(2, 5 + dy, 3, 12 + dy, shirt_d)
-        R(12, 5 + dy, 13, 12 + dy, shirt_d)
-        P(2, 4 + dy, SKIN); P(3, 4 + dy, SKIN)
-        P(12, 4 + dy, SKIN); P(13, 4 + dy, SKIN)
-    elif pose == POSE_SAD:
-        # arms hang long and loose at the sides
-        R(3, 17 + dy, 4, 21 + dy, shirt_d)
-        R(11, 17 + dy, 12, 21 + dy, shirt_d)
-        P(3, 22 + dy, SKIN); P(4, 22 + dy, SKIN)
-        P(11, 22 + dy, SKIN); P(12, 22 + dy, SKIN)
-    else:
-        a_l = 0 if seated else -step
-        a_r = 0 if seated else step
-        R(3, 16 + dy + a_l, 4, 18 + dy + a_l, shirt_d)
-        R(11, 16 + dy + a_r, 12, 18 + dy + a_r, shirt_d)
-        P(3, 19 + dy + a_l, SKIN); P(4, 19 + dy + a_l, SKIN)
-        P(11, 19 + dy + a_r, SKIN); P(12, 19 + dy + a_r, SKIN)
-
-    # ---- head: the whole point. Wider than the body and most of the cell ----
-    R(2, 3 + dy, 13, 14 + dy, SKIN)
-    R(2, 13 + dy, 13, 14 + dy, SKIN_D)    # jaw shadow
-
-    # ---- long hair falls behind the head, so it goes down before the fringe
-    if pal["long_hair"]:
-        R(2, 6 + dy, 2, 18 + dy, hair)
-        R(13, 6 + dy, 13, 18 + dy, hair)
-        P(2, 18 + dy, hair_d); P(13, 18 + dy, hair_d)
-
-    # ---- hair and the big chibi eyes, which sell the facing ----
-    if direction == 3:                           # away: all hair, no face
-        R(2, 2 + dy, 13, 12 + dy, hair)
-        R(2, 12 + dy, 13, 12 + dy, hair_d)
-        if pal["long_hair"]:
-            R(2, 12 + dy, 13, 18 + dy, hair)   # full fall down the back
-            R(2, 18 + dy, 13, 18 + dy, hair_d)
-    elif direction == 0:                         # toward camera: fringe + eyes
-        R(2, 2 + dy, 13, 7 + dy, hair)
-        R(2, 7 + dy, 4, 8 + dy, hair)
-        R(11, 7 + dy, 13, 8 + dy, hair)
-        R(5, 9 + dy, 6, 10 + dy, EYE)
-        R(9, 9 + dy, 10, 10 + dy, EYE)
-        P(6, 9 + dy, (255, 255, 255, 220))     # a highlight per eye --
-        P(10, 9 + dy, (255, 255, 255, 220))    # the actual "cute" signal
-        P(7, 12 + dy, SKIN_D); P(8, 12 + dy, SKIN_D)
-        # The extra headroom is spent here: rosy cheeks and a mouth line,
-        # neither of which existed at 16x24 -- there was nowhere to put
-        # them without crowding the eyes off the face entirely. Real
-        # 32x48-space coordinates, not a doubled copy of anything.
-        cheek_y = 22 + dy * 2
-        rect(im, 6, cheek_y, 8, cheek_y + 1, (240, 150, 140, 130))
-        rect(im, 23, cheek_y, 25, cheek_y + 1, (240, 150, 140, 130))
-        rect(im, 15, cheek_y + 3, 16, cheek_y + 3, (150, 90, 80, 170))
-    elif direction == 1:                         # left profile
-        R(2, 2 + dy, 13, 7 + dy, hair)
-        R(11, 2 + dy, 13, 11 + dy, hair)
-        R(5, 9 + dy, 6, 10 + dy, EYE)
-        P(6, 9 + dy, (255, 255, 255, 220))
-    else:                                        # right profile
-        R(2, 2 + dy, 13, 7 + dy, hair)
-        R(2, 2 + dy, 4, 11 + dy, hair)
-        R(9, 9 + dy, 10, 10 + dy, EYE)
-        P(9, 9 + dy, (255, 255, 255, 220))
-
-    return outline(im)
+    return im
 
 
 def make_character(name, pal):
@@ -436,6 +1077,157 @@ def make_character(name, pal):
             sheet.alpha_composite(draw_char(d, f, pal), (f * CW, d * CH))
     save_png(sheet, name)
     return sheet.size
+
+
+# --- portraits -------------------------------------------------------
+# A 96x96 bust for the HUD's bio and mascot panels. The sheet's 32x48
+# frame has to work at desk distance; this one gets to be a face.
+
+PW, PH = 96, 96
+
+
+def draw_portrait(pal):
+    p = resolve_palette(pal)
+    im = Image.new("RGBA", (PW, PH), (0, 0, 0, 0))
+    skin, skin_d, skin_l = p["skin_c"], p["skin_d"], p["skin_l"]
+    hair, hair_d, hair_l = p["hair"], p["hair_d"], p["hair_l"]
+    shirt, shirt_d, shirt_l = p["shirt"], p["shirt_d"], p["shirt_l"]
+    st = p["hair_style"]
+    pat = p["pattern"]
+
+    # long hair falls behind the shoulders: drawn first
+    if st == "long":
+        rrect(im, 12, 30, 23, 84, hair, r_top=0, r_bottom=4)
+        rrect(im, 72, 30, 83, 84, hair, r_top=0, r_bottom=4)
+        rect(im, 13, 81, 22, 84, hair_d)
+        rect(im, 73, 81, 82, 84, hair_d)
+    elif st == "ponytail":
+        rrect(im, 74, 24, 86, 78, hair, r=4)
+        rect(im, 75, 36, 85, 38, HAIR_BAND)
+        rect(im, 76, 75, 84, 78, hair_d)
+
+    # neck and shoulders
+    rect(im, 40, 60, 55, 74, skin_d)
+    rrect(im, 8, 72, 87, PH - 1, shirt, r_top=9, r_bottom=0)
+    rect(im, 8, 91, 87, PH - 1, shirt_d)
+    rect(im, 14, 74, 28, 76, shirt_l)
+    if pat == "stripes":
+        for y in range(78, PH, 8):
+            refill(im, 0, y, PW - 1, y + 2, shirt, shirt_l)
+    elif pat == "dungarees":
+        rect(im, 30, 80, 65, PH - 1, p["legs"])
+        rect(im, 30, 72, 35, 80, p["legs"])
+        rect(im, 60, 72, 65, 80, p["legs"])
+        rect(im, 31, 80, 32, 81, HAIR_BAND)
+        rect(im, 63, 80, 64, 81, HAIR_BAND)
+        rect(im, 30, 94, 65, 95, p["legs_d"])
+    elif pat == "collar":
+        rect(im, 33, 72, 62, 74, p["inner"])
+        rect(im, 33, 75, 40, 78, p["inner"])
+        rect(im, 55, 75, 62, 78, p["inner"])
+        rect(im, 47, 80, 48, 81, LINE)
+    elif pat == "tie":
+        rect(im, 34, 72, 61, 75, p["inner"])
+        rect(im, 44, 72, 51, 76, p["tie"])
+        rect(im, 45, 77, 50, PH - 1, p["tie"])
+        rect(im, 46, 78, 47, PH - 1, p["tie_l"])
+    elif pat == "cardigan":
+        for y in range(72, 90):
+            w = max(1, int(12 - (y - 72) * 0.65))
+            rect(im, 48 - w, y, 47 + w, y, p["inner"])
+        rect(im, 33, 72, 35, PH - 1, shirt_d)
+        rect(im, 60, 72, 62, PH - 1, shirt_d)
+        rect(im, 47, 86, 48, 87, LINE)
+        rect(im, 47, 92, 48, 93, LINE)
+    elif pat == "lanyard":
+        for i in range(17):
+            rect(im, 38 + i * 7 // 17, 72 + i, 39 + i * 7 // 17, 72 + i, LANYARD)
+            rect(im, 56 - i * 7 // 17, 72 + i, 57 - i * 7 // 17, 72 + i, LANYARD)
+        rect(im, 42, 87, 53, PH - 1, BADGE)
+        rect(im, 44, 90, 51, 91, BADGE_STRIPE)
+
+    # head
+    rrect(im, 18, 6, 77, 69, skin, r=12)
+    for y in range(64, 70):
+        refill(im, 18, y, 77, y, skin, skin_d)
+    rect(im, 26, 20, 32, 34, skin_l)
+
+    # hair
+    if st == "bun":
+        rrect(im, 35, 0, 60, 12, hair, r=5)
+        rect(im, 37, 11, 58, 12, hair_d)
+        rect(im, 40, 3, 50, 4, hair_l)
+    if st == "buzz":
+        rrect(im, 18, 6, 77, 22, hair, r_top=12, r_bottom=0)
+        rect(im, 22, 22, 73, 22, hair_d)
+    else:
+        rrect(im, 18, 6, 77, 27, hair, r_top=12, r_bottom=0)
+        rect(im, 19, 27, 76, 27, hair_d)
+        if st == "bob":
+            rect(im, 18, 28, 77, 29, hair)
+            rect(im, 19, 30, 76, 30, hair_d)
+            rrect(im, 14, 28, 23, 60, hair, r_top=0, r_bottom=4)
+            rrect(im, 72, 28, 81, 60, hair, r_top=0, r_bottom=4)
+            rect(im, 15, 58, 22, 60, hair_d)
+            rect(im, 73, 58, 80, 60, hair_d)
+        else:
+            for x0, x1 in ((24, 31), (40, 49), (58, 66)):
+                rect(im, x0, 28, x1, 30, hair)
+                rect(im, x0 + 1, 31, x1 - 1, 31, hair_d)
+            rect(im, 18, 28, 22, 40, hair)
+            rect(im, 73, 28, 77, 40, hair)
+        if st == "long":
+            rect(im, 16, 24, 17, 40, hair)
+            rect(im, 78, 24, 79, 40, hair)
+        elif st == "curly":
+            for cx, cy in ((16, 20), (16, 34), (16, 48), (79, 20), (79, 34),
+                           (79, 48), (24, 4), (40, 1), (56, 1), (72, 4)):
+                rrect(im, cx - 4, cy - 4, cx + 3, cy + 3, hair, r=3)
+            for x, y in ((28, 14), (44, 10), (60, 16), (34, 22), (52, 24),
+                         (68, 22), (20, 30), (76, 30)):
+                rrect(im, x, y, x + 3, y + 3, hair_d, r=1)
+        elif st == "spiky":
+            for cx in (28, 42, 56, 70):
+                for hgt in range(8):
+                    half = (7 - hgt) // 2
+                    rect(im, cx - half, 6 - hgt, cx + half, 6 - hgt, hair)
+    rect(im, 28, 10, 48, 13, hair_l)
+
+    # brows, eyes, nose, mouth, cheeks
+    eyes = p["eyes"]
+    rect(im, 30, 31, 39, 32, hair_d)
+    rect(im, 56, 31, 65, 32, hair_d)
+    for ex in (30, 56):
+        rrect(im, ex, 35, ex + 9, 46, eyes, r=2)
+        rect(im, ex + 1, 36, ex + 3, 39, (255, 255, 255))
+        rect(im, ex + 6, 43, ex + 7, 44, (255, 255, 255))
+    rect(im, 46, 47, 47, 52, skin_d)
+    px(im, 48, 52, skin_d)
+    for x, y in ((38, 57), (39, 58), (56, 58), (57, 57)):
+        px(im, x, y, MOUTH)
+    rect(im, 40, 59, 55, 59, MOUTH)
+    rect(im, 41, 60, 54, 60, skin_d)
+    blend_rect(im, 23, 50, 30, 53, BLUSH)
+    blend_rect(im, 65, 50, 72, 53, BLUSH)
+    if p["glasses"]:
+        blend_rect(im, 28, 33, 41, 48, LENS)
+        blend_rect(im, 54, 33, 67, 48, LENS)
+        ring(im, 27, 32, 42, 49, GLASS_FRAME, r=3, thickness=2)
+        ring(im, 53, 32, 68, 49, GLASS_FRAME, r=3, thickness=2)
+        rect(im, 43, 39, 52, 40, GLASS_FRAME)
+        rect(im, 18, 38, 26, 39, GLASS_FRAME)
+        rect(im, 69, 38, 77, 39, GLASS_FRAME)
+
+    rim_light(im, 0.14)
+    outline(im)
+    return im
+
+
+def make_portrait(name, pal):
+    """Write art/portrait_<name>.png -- a 96x96 bust of one palette."""
+    im = draw_portrait(pal)
+    save_png(im, "portrait_" + name)
+    return im.size
 
 
 # ====================================================================
@@ -455,7 +1247,7 @@ def draw_chair():
     rect(im, 2, 7, 13, 8, WOOD_L)
     rect(im, 3, 12, 4, 16, WOOD_D)       # legs
     rect(im, 11, 12, 12, 16, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_table():
@@ -466,7 +1258,7 @@ def draw_table():
     rect(im, 1, 11, 30, 12, WOOD_D)      # underside lip
     rect(im, 3, 13, 5, 18, WOOD_D)       # legs
     rect(im, 26, 13, 28, 18, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_desk():
@@ -479,7 +1271,7 @@ def draw_desk():
     rect(im, 3, 11, 12, 11, METAL_D)
     rect(im, 2, 15, 3, 18, METAL_D)      # legs
     rect(im, 12, 15, 13, 18, METAL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_teacher_desk():
@@ -493,7 +1285,7 @@ def draw_teacher_desk():
     rect(im, 5, 16, 12, 16, WOOD_D)       # drawer pull
     rect(im, 2, 20, 4, 21, WOOD_D)        # legs
     rect(im, 27, 14, 29, 21, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_podium():
@@ -505,7 +1297,7 @@ def draw_podium():
     rect(im, 5, 9, 10, 17, WOOD)          # column
     rect(im, 5, 9, 6, 17, WOOD_L)
     rect(im, 3, 18, 12, 21, WOOD_D)       # base
-    return outline(im)
+    return finish(im)
 
 
 def draw_paper():
@@ -529,7 +1321,7 @@ def draw_bell():
     rect(im, 7, 13, 8, 14, (150, 118, 42))    # clapper
     rect(im, 5, 15, 10, 16, WOOD)             # stand
     rect(im, 3, 17, 12, 19, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_noticeboard():
@@ -542,7 +1334,7 @@ def draw_noticeboard():
     rect(im, 3, 8, 6, 11, (222, 216, 196))
     rect(im, 6, 14, 9, 16, WOOD)              # post
     rect(im, 4, 17, 11, 19, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_cabinet_body():
@@ -553,12 +1345,18 @@ def draw_cabinet_body():
     im = Image.new("RGBA", (16, 22), (0, 0, 0, 0))
     rect(im, 1, 1, 14, 21, WOOD_D)              # carcass
     rect(im, 2, 2, 13, 20, WOOD)                # front
+    rect(im, 1, 1, 14, 2, (170, 124, 78))      # cornice cap, proud of the front
     rect(im, 2, 2, 13, 3, (156, 112, 70))      # top lip
     rect(im, 7, 3, 8, 20, WOOD_D)              # centre stile between doors
     rect(im, 3, 4, 6, 19, (150, 106, 66))      # left door panel
     rect(im, 9, 4, 12, 19, (150, 106, 66))     # right door panel
+    # a recessed rectangle on each door, so the front reads as PANELLED
+    # rather than one flat plank -- the detail this piece was missing.
+    for x0 in (3, 9):
+        rect(im, x0 + 1, 6, x0 + 2, 16, WOOD_D)
     px(im, 6, 11, (60, 52, 40)); px(im, 9, 11, (60, 52, 40))   # handles
-    return outline(im)
+    rect(im, 0, 20, 15, 21, (90, 62, 38))       # plinth the doors sit on
+    return finish(im)
 
 
 def draw_ad_poster():
@@ -573,7 +1371,7 @@ def draw_ad_poster():
     rect(im, 7, 9, 7, 10, play)
     px(im, 8, 9, play)
     rect(im, 3, 15, 12, 16, WOOD_D)             # post
-    return outline(im)
+    return finish(im)
 
 
 def draw_bubble_q():
@@ -614,7 +1412,7 @@ def _shelf(body, trim):
         rect(im, x, 9, x + 1, 12, (trim[0] // 2 + 60, trim[1] // 2 + 60, trim[2] // 2 + 60))
     rect(im, 2, 19, 4, 21, WOOD_D)
     rect(im, 11, 19, 13, 21, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_bookshelf():
@@ -632,7 +1430,7 @@ def draw_lab_bench():
     rect(im, 22, 1, 25, 3, (146, 132, 206))
     rect(im, 3, 14, 5, 18, (92, 96, 106))
     rect(im, 26, 14, 28, 18, (92, 96, 106))
-    return outline(im)
+    return finish(im)
 
 
 def draw_art_easel():
@@ -645,7 +1443,7 @@ def draw_art_easel():
     rect(im, 4, 14, 5, 21, WOOD_D)            # legs
     rect(im, 10, 14, 11, 21, WOOD_D)
     rect(im, 7, 14, 8, 19, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_rug():
@@ -654,7 +1452,7 @@ def draw_rug():
     rect(im, 3, 3, 28, 14, (196, 128, 132))
     rect(im, 6, 5, 25, 12, (168, 96, 104))
     rect(im, 9, 7, 22, 10, (216, 176, 140))
-    return outline(im)
+    return finish(im)
 
 
 def draw_plant():
@@ -667,7 +1465,7 @@ def draw_plant():
         x1, y1 = pts[1]
         rect(im, min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1), (84, 152, 90))
     rect(im, 6, 3, 9, 9, (108, 180, 112))
-    return outline(im)
+    return finish(im)
 
 
 ITEM_ART = {
@@ -755,32 +1553,37 @@ def wall_tile(is_bottom_row, cap=True, row=0):
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
 
-    course = 4
-    for i, y in enumerate(range(0, TILE, course)):
-        offset = 0 if (i + row * 4) % 2 == 0 else 4
-        for bx in range(-8 + offset, TILE, 8):
-            shade = (WALL_L, WALL_D, WALL)[(bx // 8 + i) % 3]
-            for xx in range(bx + 1, min(TILE, bx + 8)):
-                if xx < 0:
-                    continue
-                for yy in range(y + 1, min(TILE, y + course)):
-                    px(t, xx, yy, shade)
-            if 0 <= bx < TILE:
-                for yy in range(y + 1, min(TILE, y + course)):
-                    px(t, bx, yy, MORTAR)
-        rect(t, 0, y, TILE - 1, y, MORTAR)
+    # a painted surface takes a fleck, not a mortar grid -- plaster is not
+    # laid in courses the way brick is. `row` still seeds it, so a 2-tile
+    # wall doesn't repeat one speckle exactly.
+    rnd = random.Random(9001 + row * 733)
+    for _ in range(11):
+        x, y = rnd.randrange(TILE), rnd.randrange(TILE)
+        px(t, x, y, WALL_L if rnd.random() < 0.5 else WALL_D)
 
     if cap:
-        rect(t, 0, 0, TILE - 1, 2, WALL_TOP)
+        rect(t, 0, 0, TILE - 1, 1, WALL_TOP)
+
     if is_bottom_row:
-        rect(t, 0, TILE - 3, TILE - 1, TILE - 1, WALL_BASE)
+        # This tile IS the near wall's whole visible height -- one course,
+        # not a strip at the foot of a taller plastered wall -- so the
+        # dado fills it, rather than sharing the tile with plaster above.
+        rect(t, 0, 0, TILE - 1, TILE - 1, DADO)
+        rect(t, 0, 0, TILE - 1, 1, RAIL)               # the chair rail
+        rect(t, 0, 1, TILE - 1, 1, DADO_D)              # its shaded underside
+        rect(t, 0, 2, TILE - 1, 2, DADO_L)              # panelling's lit top edge
+        for x in range(1, TILE, 4):
+            rect(t, x, 3, x, TILE - 4, DADO_D)          # panel grooves
+        rect(t, 0, TILE - 3, TILE - 1, TILE - 1, WALL_BASE)      # skirting board
+        rect(t, 0, TILE - 3, TILE - 1, TILE - 3, (98, 68, 42))   # its lit top edge
     return t
 
 
 def window_tile(left_half, top_half):
     """One quarter of a 2x2-tile window: a bevelled frame, panes split by a
-    glazing bar, glass with a sky gradient and a reflection streak, and --
-    on the lower half -- a moulded sill carried on a corbel."""
+    glazing bar, a dusk sky gradient with a reflection streak, a curtain
+    drawn back to the outer edge, and -- on the lower half -- a moulded
+    sill carried on a corbel."""
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
     x0 = 2 if left_half else 0
@@ -799,12 +1602,19 @@ def window_tile(left_half, top_half):
     gx1 = x1 if left_half else x1 - 2
     gy1 = y1 if top_half else y1 - 2
 
-    # glass, with a vertical sky gradient across the whole window
-    rect(t, gx0, gy0, gx1, gy1, GLASS)
+    # glass: a dusk gradient. Cool blue-violet near the ceiling (top_half),
+    # warming through a shared horizon band, to a low warm glow at the
+    # sill (bottom_half) -- "warm window light" rather than flat daytime
+    # blue, and each half fades TOWARD the other so the two stacked tiles
+    # read as one sky rather than two flat colours stacked on each other.
     if top_half:
-        rect(t, gx0, gy0, gx1, gy0 + 3, GLASS_L)
+        rect(t, gx0, gy0, gx1, gy1, GLASS)
+        rect(t, gx0, gy0, gx1, gy0 + 2, GLASS_L)
+        rect(t, gx0, gy1 - 2, gx1, gy1, SKY_MID)
     else:
-        rect(t, gx0, gy1 - 3, gx1, gy1, GLASS_D)
+        rect(t, gx0, gy0, gx1, gy1, GLASS_D)
+        rect(t, gx0, gy0, gx1, gy0 + 2, SKY_MID)
+        rect(t, gx0, gy1 - 2, gx1, gy1, GLASS_D_L)
 
     # a thin glazing bar across the middle -> two panes in every quarter
     bar = gy0 + (gy1 - gy0) // 2
@@ -812,15 +1622,27 @@ def window_tile(left_half, top_half):
     rect(t, gx0, bar + 1, gx1, bar + 1, FRAME_D)
 
     # one short diagonal reflection streak, in the upper pane of the quarter
+    streak = GLASS_L if top_half else GLASS_D_L
     for i in range(4):
-        px(t, gx0 + 2 + i, bar - 2 - i, GLASS_L)
-        px(t, gx0 + 3 + i, bar - 2 - i, GLASS_L)
+        px(t, gx0 + 2 + i, bar - 2 - i, streak)
+        px(t, gx0 + 3 + i, bar - 2 - i, streak)
 
     # the mullion's shaded inner edge, at the tile seam
     if left_half:
         rect(t, TILE - 1, gy0, TILE - 1, gy1, FRAME_D)
     else:
         rect(t, 0, gy0, 0, gy1, FRAME_D)
+
+    # a curtain, drawn back to the OUTER edge of the whole 2-tile window --
+    # only that side, so the pair of tiles reads as one curtain held open
+    # on each side rather than one hanging across the middle of the glass.
+    if left_half:
+        cx0, cx1 = gx0, gx0 + 2
+    else:
+        cx0, cx1 = gx1 - 2, gx1
+    rect(t, cx0, gy0, cx1, gy1, CURTAIN)
+    rect(t, cx0, gy0, cx0, gy1, CURTAIN_L if left_half else CURTAIN_D)
+    rect(t, cx1, gy0, cx1, gy1, CURTAIN_D if left_half else CURTAIN_L)
 
     if not top_half:
         rect(t, x0, y1 - 1, x1, y1 - 1, FRAME_L)      # lit nose of the sill
@@ -834,7 +1656,7 @@ def window_tile(left_half, top_half):
 
 def door_tile(top):
     """One tile of the two-tile doorway: a painted classroom door with a
-    vision panel."""
+    vision panel, a raised panel mould, and a proper handle."""
     t = Image.new("RGBA", (TILE, TILE))
     rect(t, 0, 0, TILE - 1, TILE - 1, WALL)
     rect(t, 1, 0, TILE - 2, TILE - 1, DOOR_PAINT)
@@ -849,11 +1671,19 @@ def door_tile(top):
         rect(t, 5, 6, 10, TILE - 1, GLASS)
         rect(t, 5, 6, 10, 7, GLASS_L)
         rect(t, 4, 5, 11, 5, FRAME)
+        # a raised panel mould below the vision panel's frame -- the
+        # "proper door" detail a flat-painted plank was missing.
+        rect(t, 4, 9, 11, 9, DOOR_PAINT_D)
     else:
-        rect(t, 5, 0, 10, 4, GLASS)
+        rect(t, 5, 0, 10, 4, GLASS_D)
         rect(t, 4, 5, 11, 5, FRAME)
-        px(t, TILE - 5, 8, (232, 220, 150))
-        px(t, TILE - 5, 9, (232, 220, 150))
+        rect(t, 4, 8, 11, 8, DOOR_PAINT_D)             # top of the raised panel
+        rect(t, 4, 8, 4, TILE - 3, DOOR_PAINT_D)
+        rect(t, 11, 8, 11, TILE - 3, DOOR_PAINT_L)
+        rect(t, 5, 9, 10, TILE - 4, DOOR_PAINT_L)      # the panel face itself
+        # a proper round handle rather than two bare pixels
+        rect(t, TILE - 6, 8, TILE - 4, 10, HANDLE_D)
+        px(t, TILE - 6, 8, HANDLE)
         rect(t, 1, TILE - 2, TILE - 2, TILE - 1, DOOR_PAINT_D)
     return t
 
@@ -1113,18 +1943,40 @@ CHALK = (238, 240, 232)
 CHALK_D = (188, 196, 190)
 BOARD = (44, 62, 52)
 BOARD_L = (56, 76, 64)
-FRAME_W = (128, 88, 52)
-FRAME_D = (92, 60, 34)
+# Named TITLE_FRAME_* rather than FRAME_W/FRAME_D: the room section above
+# already owns FRAME_D for the window/door trim's shaded edge (line 279),
+# a bare, off-white grey -- a second module-level FRAME_D here silently
+# replaced it (Python globals are last-assignment-wins), so window_tile()
+# and door_tile() were drawing their "shaded frame" with THIS dark wood
+# brown every time make_room_tiles() ran, since it executes after both
+# assignments regardless of definition order. Distinct names fix it.
+TITLE_FRAME_W = (128, 88, 52)
+TITLE_FRAME_D = (92, 60, 34)
 
 
 def draw_logo(scale=6, gap=4):   # doubled Aug 2026, was 3/2
-    """The wordmark, drawn big and chalky."""
+    """The wordmark: filled chalk letters, a dark outline, a soft drop
+    shadow, and a small chalk-apple flourish.
+
+    *(Sept 2026, the art overhaul.)* The old version was letters with no
+    outline and no shadow, speckled for "chalk grain" -- against the
+    board that speckle read as static and the wordmark washed out rather
+    than reading as a title. Outline + shadow is the same two-step every
+    character and prop in this file already gets (see `finish()`); the
+    apple is the one new shape, doodled the way a teacher actually draws
+    one on a board -- two overlapping rounded blobs, a stem, one leaf.
+    """
     word = "EDUSYSTEM"
     gw, gh = 5, 7
-    w = len(word) * (gw * scale + gap) - gap
-    h = gh * scale
-    im = Image.new("RGBA", (w + 2, h + 2), (0, 0, 0, 0))
-    x0 = 1
+    text_w = len(word) * (gw * scale + gap) - gap
+    text_h = gh * scale
+    pad = 1                       # margin left for outline() to trace into
+    apple_gap, apple_w, apple_h = 10, 24, 28
+
+    base = Image.new("RGBA", (pad * 2 + text_w + apple_gap + apple_w,
+                               pad * 2 + max(text_h, apple_h)), (0, 0, 0, 0))
+    x0 = pad
+    y_text = pad + (base.height - pad * 2 - text_h) // 2
     for ch in word:
         rows = GLYPHS[ch]
         for gy in range(gh):
@@ -1135,14 +1987,64 @@ def draw_logo(scale=6, gap=4):   # doubled Aug 2026, was 3/2
                     for sx in range(scale):
                         # a little grain so it reads as chalk rather than vinyl
                         c = CHALK if (sx + sy + gx + gy) % 5 else CHALK_D
-                        px(im, x0 + gx * scale + sx, 1 + gy * scale + sy, c)
+                        px(base, x0 + gx * scale + sx, y_text + gy * scale + sy, c)
         x0 += gw * scale + gap
-    return im
+
+    ax = x0 - gap + apple_gap
+    ay = pad + (base.height - pad * 2 - apple_h) // 2
+    APPLE, APPLE_L, APPLE_D = (216, 84, 70), (238, 130, 114), (168, 52, 46)
+    STEM, LEAF = (120, 84, 48), (110, 168, 100)
+    rrect(base, ax, ay + 8, ax + 21, ay + 27, APPLE, r=7)
+    rrect(base, ax + 1, ay + 9, ax + 10, ay + 17, APPLE_L, r=4)   # highlight
+    rect(base, ax + 9, ay + 22, ax + 15, ay + 27, APPLE_D)        # base shade
+    rect(base, ax + 10, ay, ax + 12, ay + 9, STEM)
+    rrect(base, ax + 12, ay - 1, ax + 20, ay + 6, LEAF, r=3)
+
+    lettered = outline(base)
+
+    # A soft drop shadow: a solid-colour silhouette of the outlined mark,
+    # offset down-right and composited BEHIND it -- not rim_light/finish(),
+    # which shades a shape's OWN pixels rather than casting one behind it.
+    off = 3
+    alpha = lettered.split()[3]
+    dark = Image.new("RGBA", lettered.size, (18, 22, 18, 0))
+    dark.putalpha(alpha.point(lambda a: 110 if a else 0))
+    out = Image.new("RGBA", (lettered.width + off, lettered.height + off),
+                     (0, 0, 0, 0))
+    out.alpha_composite(dark, (off, off))
+    out.alpha_composite(lettered, (0, 0))
+    return out
+
+
+def _silhouette(img, tint=(32, 27, 48), amt=0.72):
+    """A copy of `img` with every opaque pixel mixed toward `tint` -- a
+    backlit-furniture look for the title screen's window margin, without
+    needing the piece's own palette to harmonise with dusk light."""
+    out = img.convert("RGBA").copy()
+    data = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = data[x, y]
+            if a == 0:
+                continue
+            nr, ng, nb = mix((r, g, b), tint, amt)
+            data[x, y] = (nr, ng, nb, a)
+    return out
 
 
 def draw_title_bg():
-    """A blackboard in a wooden frame, with a chalk tray and some ghost
-    writing left over from the last lesson."""
+    """A classroom at dusk: the chalkboard the menu sits on, framed, with a
+    chalk tray and some ghost writing left over from the last lesson -- and,
+    down the left margin the menu text never reaches, a window with the
+    day's last light in it and a row of the game's own desks and chairs in
+    silhouette below it.
+
+    *(Sept 2026, the art overhaul.)* The board itself, and the whole strip
+    behind `scenes/ui/title.tscn`'s Menu label (x184-632, y68-300), are
+    UNCHANGED from before this pass -- that region's whole job is staying
+    low-contrast enough for the pale menu text sitting on it, so the new
+    scene lives entirely left of x=184, where there is no text to fight.
+    """
     W, H = 640, 352   # doubled Aug 2026, was 320x176
     im = Image.new("RGBA", (W, H), BOARD)
 
@@ -1173,16 +2075,89 @@ def draw_title_bg():
                             px(im, gx + dx, gy + dy, CHALK_D)
             gx += 10
 
+    # --- the left-margin classroom scene ---------------------------------
+    # Confined to x=12..183: inside the picture frame's left edge (0-11)
+    # and stopping before the Menu label's own left edge (x=184), and to
+    # y=96..316: below the logo's bounding box and above the bottom frame
+    # (y=328) and its chalk tray. A soft warm glow is allowed to bleed a
+    # LITTLE past x=184 -- it only ever darkens the board further there, so
+    # it cannot hurt the pale menu text's contrast.
+    mx0, mx1 = 12, 183
+    fx0, fx1 = 30, 158                          # the window frame itself
+    fy0, fy1 = 98, 206
+    rect(im, fx0 - 3, fy0 - 3, fx1 + 3, fy1 + 3, FRAME)
+    rect(im, fx0 - 3, fy0 - 3, fx1 + 3, fy0 - 1, FRAME_L)
+    rect(im, fx0 - 3, fy1 + 1, fx1 + 3, fy1 + 3, FRAME_D)
+    rect(im, fx1 + 1, fy0 - 3, fx1 + 3, fy1 + 3, FRAME_D)
+
+    gy_mid = fy0 + (fy1 - fy0) // 2
+    rect(im, fx0, fy0, fx1, gy_mid - 1, GLASS)          # cool dusk sky
+    rect(im, fx0, fy0, fx1, fy0 + 6, GLASS_L)
+    rect(im, fx0, gy_mid - 6, fx1, gy_mid - 1, SKY_MID)
+    rect(im, fx0, gy_mid, fx1, fy1, GLASS_D)            # warm low glow
+    rect(im, fx0, gy_mid, fx1, gy_mid + 5, SKY_MID)
+    rect(im, fx0, fy1 - 10, fx1, fy1, GLASS_D_L)
+    rect(im, fx0, gy_mid - 1, fx1, gy_mid, FRAME)       # glazing bar
+    rect(im, fx0, gy_mid, fx1, gy_mid, FRAME_D)
+    fx_mid = fx0 + (fx1 - fx0) // 2
+    rect(im, fx_mid - 1, fy0, fx_mid, fy1, FRAME)
+    rect(im, fx_mid, fy0, fx_mid, fy1, FRAME_D)
+    for i in range(7):                                  # one long reflection
+        px(im, fx0 + 14 + i, fy0 + 10 - i, GLASS_L)
+        px(im, fx0 + 15 + i, fy0 + 10 - i, GLASS_L)
+
+    # curtains, drawn back to both outer edges of the frame
+    rect(im, fx0, fy0, fx0 + 6, fy1, CURTAIN)
+    rect(im, fx0, fy0, fx0, fy1, CURTAIN_L)
+    rect(im, fx0 + 6, fy0, fx0 + 6, fy1, CURTAIN_D)
+    rect(im, fx1 - 6, fy0, fx1, fy1, CURTAIN)
+    rect(im, fx1 - 6, fy0, fx1 - 6, fy1, CURTAIN_L)
+    rect(im, fx1, fy0, fx1, fy1, CURTAIN_D)
+
+    # the sill, and the wall taking the window's warm light below it
+    rect(im, fx0 - 3, fy1 + 4, fx1 + 3, fy1 + 8, FRAME_D)
+    rect(im, fx0 - 3, fy1 + 4, fx1 + 3, fy1 + 5, FRAME_L)
+    rect(im, mx0, fy1 + 9, mx1, 250, WALL)
+    for x, y in ((22, 220), (150, 235), (60, 250), (110, 210), (40, 260)):
+        rect(im, x, y, x + 3, y + 2, WALL_L)
+
+    # a wood dado and skirting, matching the room's tile_wall_bottom, so
+    # the title screen's floor reads as the SAME classroom the game is set
+    # in rather than a generic backdrop
+    rect(im, mx0, 250, mx1, 296, DADO)
+    rect(im, mx0, 250, mx1, 251, RAIL)
+    rect(im, mx0, 296, mx1, 300, WALL_BASE)
+    rect(im, mx0, 296, mx1, 297, (98, 68, 42))
+
+    # the floor, warm underfoot in the last of the window light
+    for tx, x0 in enumerate(range(mx0, mx1, 24)):
+        x1 = min(mx1, x0 + 23)
+        shade = FLOOR_A if tx % 2 == 0 else FLOOR_B
+        rect(im, x0, 301, x1, 316, shade)
+    rect(im, mx0, 301, mx1, 301, FLOOR_GROUT)
+
+    # the game's own desks and chairs, in silhouette against the window --
+    # loaded from disk rather than redrawn, so this is never a second,
+    # drifting copy of what draw_chair()/draw_desk() (or their hand-edited
+    # sources) actually look like.
+    for name, y_feet in (("chair", 300), ("desk", 300)):
+        path = os.path.join(OUT, "%s.png" % name)
+        if not os.path.exists(path):
+            continue
+        sil = _silhouette(Image.open(path))
+        for i, cx in enumerate((58, 130) if name == "chair" else (94, 166)):
+            im.alpha_composite(sil, (cx - sil.width // 2, y_feet - sil.height))
+
     # wooden frame
-    rect(im, 0, 0, W - 1, 11, FRAME_W)
+    rect(im, 0, 0, W - 1, 11, TITLE_FRAME_W)
     rect(im, 0, 0, W - 1, 3, (156, 112, 70))
-    rect(im, 0, H - 24, W - 1, H - 1, FRAME_W)
+    rect(im, 0, H - 24, W - 1, H - 1, TITLE_FRAME_W)
     rect(im, 0, H - 24, W - 1, H - 22, (156, 112, 70))
-    rect(im, 0, H - 8, W - 1, H - 1, FRAME_D)
-    rect(im, 0, 0, 11, H - 1, FRAME_W)
-    rect(im, W - 12, 0, W - 1, H - 1, FRAME_W)
-    rect(im, 0, 0, 3, H - 1, FRAME_D)
-    rect(im, W - 4, 0, W - 1, H - 1, FRAME_D)
+    rect(im, 0, H - 8, W - 1, H - 1, TITLE_FRAME_D)
+    rect(im, 0, 0, 11, H - 1, TITLE_FRAME_W)
+    rect(im, W - 12, 0, W - 1, H - 1, TITLE_FRAME_W)
+    rect(im, 0, 0, 3, H - 1, TITLE_FRAME_D)
+    rect(im, W - 4, 0, W - 1, H - 1, TITLE_FRAME_D)
 
     # chalk tray: a stub of chalk and a board rubber
     rect(im, 48, H - 20, 80, H - 16, CHALK)
@@ -1213,6 +2188,16 @@ if __name__ == "__main__":
         size = make_character(name, pal)
         print("art/%-18s %3dx%-3d (%d facings x %d frames of %dx%d)"
               % (name + ".png", size[0], size[1], DIRS, FRAMES, CW, CH))
+    # A 96x96 bust per character, for a HUD bio/mascot panel that wants a
+    # face rather than a desk-distance sprite. Not "examiner" -- that
+    # character is owned by a parallel session working in the main repo;
+    # generating art for it here would be duplicated (or conflicting) work.
+    for name, pal in CHARACTERS.items():
+        if name == "examiner":
+            continue
+        size = make_portrait(name, pal)
+        print("art/%-18s %3dx%-3d (a HUD/bio bust)"
+              % ("portrait_" + name + ".png", size[0], size[1]))
     # FURNITURE/ITEM_ART are still drawn at the ORIGINAL small resolution
     # internally -- scale2x doubles them here, adding real diagonal-edge
     # detail rather than a blur. TITLE_ART is excluded: draw_title_bg() and
@@ -1222,6 +2207,13 @@ if __name__ == "__main__":
         img = scale2x(fn())
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
+    # Moved ahead of TITLE_ART (Sept 2026): draw_title_bg() pastes the
+    # game's own desk/chair art into its left-margin scene, reading them
+    # straight off disk -- and desk/chair are hand-edited, so the PNG a
+    # fresh checkout has is only ever written by make_grid_sprites(), not
+    # by the FURNITURE loop just above (which stands down for them). Title
+    # art drawn before this call would silently skip them on a clean run.
+    make_grid_sprites()
     for name, fn in TITLE_ART.items():
         img = fn()
         if save_png(img, name):
@@ -1240,7 +2232,6 @@ if __name__ == "__main__":
     # every purchasable item untouched.
     import make_items
     make_items.make_all(_HAND)
-    make_grid_sprites()
     sh = make_contact_shadow()
     print("art/%-18s %3dx%-3d (the runtime contact shadow)"
           % ("shadow.png", sh[0], sh[1]))
