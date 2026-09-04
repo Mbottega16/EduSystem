@@ -9,10 +9,17 @@ run/main_scene="res://scenes/ui/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[audio]
+
+; Master and Music. Effects stay on Master; music.gd puts its three
+; players on Music, and Settings.music_volume moves that bus alone.
+buses/default_bus_layout="res://default_bus_layout.tres"
+
 [autoload]
 
 Game="*res://scripts/autoload/game.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
+Music="*res://scripts/autoload/music.gd"
 Settings="*res://scripts/autoload/settings.gd"
 
 [display]
