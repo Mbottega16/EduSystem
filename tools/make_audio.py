@@ -13,8 +13,10 @@ plenty for short blips and keeps the files tiny.
 Two halves. The first is the eleven sound effects, one function each. The
 second (from "composition" down) is the music and ambience: a small
 composition layer -- notes, a step sequencer, an ADSR, a one-pole filter, a
-circular loop buffer -- and the five tracks written with it (the title
-theme, the classroom bed, the assessment track, the win and lose stings).
+circular loop buffer -- and the eight tracks written with it: the title
+theme, four ambience beds (the classroom under an ordinary lesson, the
+morning before it, the silent unit test, the afternoon after), the
+assessment track, and the win and lose stings.
 Every loop is an exact sample count with nothing faded at the seam, and the
 script measures and prints peak, RMS and seam continuity for each one.
 """
@@ -584,6 +586,17 @@ def _creak(rng):
     return [a + 0.4 * b for a, b in zip(gated, noise)]
 
 
+def noise_band(rng, n, lo, hi):
+    """A band of filtered noise `n` samples long: two lowpass passes (each
+    run round twice, for a seamless loop) then a highpass, so the band has
+    a floor and a ceiling with nothing outside them. Shared by every
+    ambience bed that wants a "room of children heard from the front"
+    texture rather than a melody."""
+    x = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    x = lowpass(lowpass(x, hi, True), hi, True)
+    return highpass(x, lo, True)
+
+
 def make_music_room():
     """The classroom bed under play: 30 s, exactly 661,500 samples, and no
     melody at all. Two bands of noise swelling slowly (a room of children
@@ -601,17 +614,12 @@ def make_music_room():
     rng = random.Random(3003)
     room = Loop(n)
 
-    def band(lo, hi):
-        x = [rng.uniform(-1.0, 1.0) for _ in range(n)]
-        x = lowpass(lowpass(x, hi, True), hi, True)
-        return highpass(x, lo, True)
-
-    murmur = band(110.0, 380.0)
+    murmur = noise_band(rng, n, 110.0, 380.0)
     breath = swell(n, [(3, 0.32, 0.4), (7, 0.18, 2.1), (11, 0.10, 1.0),
                        (117, 0.10, 0.0), (191, 0.06, 0.7)], floor=0.08)
     room.add([m * s for m, s in zip(murmur, breath)], 0, 0.6)
 
-    talk = band(500.0, 1400.0)
+    talk = noise_band(rng, n, 500.0, 1400.0)
     drift = swell(n, [(2, 0.40, 2.6), (5, 0.25, 0.3), (13, 0.12, 4.0),
                       (131, 0.15, 1.5)], floor=0.05)
     room.add([m * s for m, s in zip(talk, drift)], 0, 0.15)
@@ -639,6 +647,90 @@ def make_music_room():
         room.add(_creak(rng), room.at(t), 0.35)
 
     finish("music_room", lowpass(room.buf, 5500.0, loop=True), 0.18)
+
+
+def make_music_morning():
+    """Morning: the room before the lesson starts. 30 s, exactly 661,500
+    samples. AUDIO_BRIEF asks for this layer to stay sparse so the
+    player's first interaction is still the clearest thing in the room --
+    so unlike music_room there is no talk band (nobody is working yet)
+    and no clock (there is nothing to be on time for): one murmur band,
+    two distant corridor footsteps standing in for movement past the
+    door, one page turn, one chair creak."""
+    secs = 30.0
+    n = int(RATE * secs)
+    rng = random.Random(6006)
+    room = Loop(n)
+
+    murmur = noise_band(rng, n, 90.0, 320.0)
+    breath = swell(n, [(2, 0.30, 0.9), (5, 0.16, 2.4), (9, 0.10, 0.2)], floor=0.12)
+    room.add([m * s for m, s in zip(murmur, breath)], 0, 0.45)
+
+    for t in (8.4, 9.1, 20.6, 21.3):
+        room.add(kick(secs=0.16, f0=95.0, f1=42.0), room.at(t), 0.20)
+
+    room.add(_page_turn(rng), room.at(13.7), 0.4)
+    room.add(_creak(rng), room.at(24.8), 0.28)
+
+    finish("music_morning", lowpass(room.buf, 4200.0, loop=True), 0.15)
+
+
+def make_music_test():
+    """The silent unit test: the one stretch of play where every verb is
+    switched off and the room is asked to speak for itself. 30 s. No talk
+    band, no clock -- AUDIO_BRIEF's own words are "silence itself should
+    be part of the sound design" -- just a hushed low band, a pad so slow
+    it is barely a note, and a handful of pencil scratches and one page
+    turn, spaced far apart. The quietest bed in the game on purpose."""
+    secs = 30.0
+    n = int(RATE * secs)
+    rng = random.Random(7007)
+    room = Loop(n)
+
+    hush = noise_band(rng, n, 70.0, 220.0)
+    breath = swell(n, [(1, 0.20, 1.6), (3, 0.10, 0.5)], floor=0.35)
+    room.add([m * s for m, s in zip(hush, breath)], 0, 0.30)
+
+    # a pad so slow the attack and release are most of the whole track --
+    # near enough to a held breath rather than a played note.
+    pad_gate = n - int(RATE * 0.3)
+    pad = voice(note_hz("A2"), pad_gate, kind="tri",
+                env=(2.0, 4.0, 0.55, 0.3))
+    room.add(pad, 0, 0.10)
+
+    for t, tau in ((4.2, 0.020), (11.6, 0.018), (18.9, 0.022), (25.3, 0.020)):
+        room.add(hit(rng, 0.05, tau, lo=1800.0, hi=6500.0), room.at(t), 0.16)
+    room.add(_page_turn(rng), room.at(15.0), 0.26)
+
+    finish("music_test", lowpass(room.buf, 3800.0, loop=True), 0.10)
+
+
+def make_music_afternoon():
+    """Afternoon: the day winding down. 30 s. The same two-band shape as
+    music_room, both bands trimmed back, no clock (that belongs to
+    teaching, not the quiet after it), and three unhurried footsteps
+    standing in for AUDIO_BRIEF's "more corridor ambience" -- the room
+    feels like it is being heard through a door rather than sat in."""
+    secs = 30.0
+    n = int(RATE * secs)
+    rng = random.Random(8008)
+    room = Loop(n)
+
+    murmur = noise_band(rng, n, 100.0, 340.0)
+    breath = swell(n, [(3, 0.24, 1.1), (7, 0.12, 0.4), (13, 0.08, 2.0)], floor=0.10)
+    room.add([m * s for m, s in zip(murmur, breath)], 0, 0.42)
+
+    talk = noise_band(rng, n, 500.0, 1300.0)
+    drift = swell(n, [(2, 0.22, 0.8), (11, 0.10, 3.2)], floor=0.04)
+    room.add([m * s for m, s in zip(talk, drift)], 0, 0.07)
+
+    for t in (6.0, 6.8, 22.4):
+        room.add(kick(secs=0.20, f0=85.0, f1=34.0), room.at(t), 0.18)
+
+    room.add(_page_turn(rng), room.at(14.2), 0.4)
+    room.add(_creak(rng), room.at(27.5), 0.3)
+
+    finish("music_afternoon", lowpass(room.buf, 4800.0, loop=True), 0.15)
 
 
 def make_music_fight():
@@ -750,19 +842,27 @@ def make_music_lose():
     finish("music_lose", fade_out(lowpass(buf.buf, 5000.0), 0.05), 0.80, loop=False)
 
 
+## Every track that is an ambience bed (plays continuously, under whatever
+## the player is doing) rather than a foreground track like the title
+## theme or the assessment. bed_check() holds every one of these to the
+## same "well under the sound effects" rule music_room was built to.
+BEDS = ("music_room", "music_morning", "music_test", "music_afternoon")
+
+
 def bed_check():
     """The ambience must sit under every sound effect, by a margin. Compare
     RMS after normalisation -- the number the player's speaker actually
     gets -- against the quietest effect, not the loudest."""
     sfx = {k: v for k, v in STATS.items() if not k.startswith("music_")}
-    bed = STATS["music_room"]
     quietest = min(sfx, key=sfx.get)
-    print("bed check: music_room rms %.4f  vs sfx rms mean %.4f, quietest %s %.4f"
-          "  -> the bed is %.1fx under the quietest effect"
-          % (bed, sum(sfx.values()) / len(sfx), quietest, sfx[quietest],
-             sfx[quietest] / bed))
-    if bed * 2.0 > sfx[quietest]:
-        raise SystemExit("the ambience bed is not well under the sound effects")
+    for name in BEDS:
+        bed = STATS[name]
+        print("bed check: %s rms %.4f  vs sfx rms mean %.4f, quietest %s %.4f"
+              "  -> the bed is %.1fx under the quietest effect"
+              % (name, bed, sum(sfx.values()) / len(sfx), quietest, sfx[quietest],
+                 sfx[quietest] / bed))
+        if bed * 2.0 > sfx[quietest]:
+            raise SystemExit("%s is not well under the sound effects" % name)
 
 
 if __name__ == "__main__":
@@ -783,6 +883,9 @@ if __name__ == "__main__":
     print("music and ambience (every loop an exact sample count, seam measured)")
     make_music_title()
     make_music_room()
+    make_music_morning()
+    make_music_test()
+    make_music_afternoon()
     make_music_fight()
     make_music_win()
     make_music_lose()

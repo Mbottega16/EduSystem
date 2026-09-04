@@ -24,6 +24,14 @@ extends Node
 ## main scene each ask for their own bed in _ready(). The boss-fight track
 ## and the two stings are exposed for the fight code to call:
 ##   Music.play("music_fight")   Music.sting("music_win")   Music.sting("music_lose")
+##
+## The day's own shape is heard too: Game.phase_changed already announces
+## morning, the lesson and the afternoon, and Game.test_active is read at
+## the moment a lesson begins, so a silent unit test gets its own bed
+## without a lesson getting a new signal to fire it. The one thing this
+## does not touch is a live assessment -- fight_active() means the fight
+## code above already owns the bed, so the phase listener steps aside
+## rather than racing it for the same two players.
 
 const BUS := "Music"
 ## Not balance. A fade length or a trim is presentation, not a gameplay
@@ -35,6 +43,10 @@ const STING_DB := 0.0
 const SILENT := 0.0001
 ## The bed that plays under ordinary lessons.
 const ROOM := "music_room"
+## The rest of the day's shape -- see the phase-listener note above.
+const MORNING := "music_morning"
+const TEST := "music_test"
+const AFTERNOON := "music_afternoon"
 
 ## Off means silent and STAYS silent: play() still records `current`, so
 ## turning the volume back up in Settings resumes the right track.
@@ -77,6 +89,7 @@ func _ready() -> void:
 	# Listening, not wiring: the game does not need to know music exists.
 	Game.run_started.connect(func() -> void: play(ROOM))
 	Game.term_began.connect(func(_term: int) -> void: play(ROOM))
+	Game.phase_changed.connect(_on_phase_changed)
 
 
 ## Crossfade the bed to `track`. Playing the track already playing is a
@@ -120,6 +133,25 @@ func sting(name: String) -> void:
 	_sting.stream = stream
 	_sting.volume_db = STING_DB
 	_sting.play()
+
+
+## The day's shape, heard: morning while the class files in, the ordinary
+## lesson bed once it starts, a sparer bed for a silent unit test instead
+## of one, and an afternoon bed once the desks are done for the day. Steps
+## aside for a live assessment -- fight_active() means run_started/
+## term_began's own listener or the fight code (main.gd, on
+## fight_started/fight_ended) already owns the bed for as long as the
+## paper is live, and neither of those needs a second opinion from here.
+func _on_phase_changed(phase: int) -> void:
+	if Game.fight_active():
+		return
+	match phase:
+		Game.Phase.MORNING:
+			play(MORNING)
+		Game.Phase.LESSON:
+			play(TEST if Game.test_active else ROOM)
+		Game.Phase.AFTERNOON:
+			play(AFTERNOON)
 
 
 # ----------------------------------------------------------------- inside
