@@ -191,6 +191,7 @@ func _main() -> void:
 	test_meta()
 	test_graduate_record()
 	test_moments()
+	await test_day_beats()
 	await test_bio()
 	test_student_levels()
 	test_teacher_levels()
@@ -9110,6 +9111,92 @@ func test_moments() -> void:
 	Game.new_run(SEED)   # isolate from whatever follows
 
 
+## The day's beat: one line in the teacher's voice at the start of a day,
+## deterministic, prose, tightening through a boss term.
+func test_day_beats() -> void:
+	section("DAY BEATS")
+	var hud := _hud()
+
+	# --- DayBeats.line_for: pure, deterministic, prose ---
+	var boss := {"term": 3, "day": 1, "term_days": 20, "path_kind": "boss",
+		"path_id": "boss_ela", "boss_name": "Reading Paper"}
+	var d1 := DayBeats.line_for(boss)
+	chk("a boss term opens with its own line", d1.contains("Reading Paper"), d1)
+	chk("line_for is deterministic", DayBeats.line_for(boss) == d1)
+
+	boss["day"] = 9
+	var mid := DayBeats.line_for(boss)
+	chk("every middle day of a boss term gets a line", not mid.is_empty())
+	chk("the same day gives the same line", DayBeats.line_for(boss) == mid)
+
+	boss["day"] = 18
+	chk("two days out reads as a countdown",
+		DayBeats.line_for(boss).to_lower().contains("two"), DayBeats.line_for(boss))
+	boss["day"] = 20
+	chk("exam day names the boss and says today",
+		DayBeats.line_for(boss).contains("Reading Paper")
+		and DayBeats.line_for(boss).to_lower().contains("today"))
+
+	chk("term one day one is silent -- the cold open already is the beat",
+		DayBeats.line_for({"term": 1, "day": 1, "term_days": 20}) == "")
+	chk("an ordinary term opens on a line keyed to the path taken",
+		not DayBeats.line_for({"term": 2, "day": 1, "term_days": 20,
+			"path_id": "chaotic_term"}).is_empty())
+	chk("an ordinary mid-term day is usually quiet",
+		DayBeats.line_for({"term": 2, "day": 5, "term_days": 20}) == "")
+	chk("but the halfway mark gets one",
+		not DayBeats.line_for({"term": 2, "day": 10, "term_days": 20}).is_empty())
+
+	chk("no beat ever prints a raw number", (func() -> bool:
+		for dd in range(1, 21):
+			for c: Dictionary in [
+				{"term": 3, "day": dd, "term_days": 20, "path_kind": "boss",
+					"path_id": "boss_math", "boss_name": "Number Gauntlet"},
+				{"term": 2, "day": dd, "term_days": 20, "path_id": "busy_term"}]:
+				var s: String = DayBeats.line_for(c)
+				if s.contains("%") or s.contains("0."):
+					return false
+		return true).call())
+
+	# --- the presenter: the player's own portrait, text typing on ---
+	Game.new_run(SEED)
+	await step(2)
+	hud.close()
+	hud._queued_beat = ""
+	hud._beat_full = ""
+	hud._hint_until = 0.0
+	await step(2)
+	var line := "Reading Paper today. Doors open within the hour."
+	hud.show_day_beat(line)
+	chk("the beat wears the player's face, not the principal's", (func() -> bool:
+		var at := hud.mascot_portrait.texture as AtlasTexture
+		return hud.mascot_portrait.visible and at != null \
+			and at.atlas.resource_path.ends_with("player.png")).call())
+	await step(2)
+	chk("the line starts partial -- it is typing on",
+		hud.prompt.text.length() < line.length(), hud.prompt.text)
+	await step(120)
+	chk("and settles on the whole line", hud.prompt.text == line, hud.prompt.text)
+
+	# --- queued, then surfaced when the player is back in free roam ---
+	hud.close()
+	hud._queued_beat = ""
+	hud._beat_full = ""
+	hud._hint_until = 0.0
+	await step(2)
+	hud.queue_day_beat("Two mornings left. Drill what will not stick.")
+	await step(6)
+	chk("a queued beat surfaces once the screen is clear",
+		hud.mascot_portrait.visible and not hud.prompt.text.is_empty())
+
+	hud.close()
+	hud._queued_beat = ""
+	hud._beat_full = ""
+	hud._hint_until = 0.0
+	Game.new_run(SEED)
+	await step(2)
+
+
 # ==================================================== levels & graduation
 
 func test_student_levels() -> void:
@@ -9647,7 +9734,7 @@ func test_global_classes_registered() -> void:
 	section("GLOBAL CLASSES ARE REGISTERED")
 	for cls: String in ["Fx", "Floater", "Items", "Traits", "Curriculum",
 			"Balance", "Layout", "Grid", "Progress", "StudentData",
-			"Interactable", "Placement", "RoomBuilder", "DayEvent"]:
+			"Interactable", "Placement", "RoomBuilder", "DayEvent", "DayBeats"]:
 		chk("%s is a registered global class" % cls,
 			ClassDB.class_exists(cls) or _gdscript_class_exists(cls), cls)
 

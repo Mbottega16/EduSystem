@@ -80,6 +80,7 @@ var _reveal: Tween = null
 @onready var mascot_box: ColorRect = $MascotBox
 @onready var mascot_portrait: TextureRect = $MascotPortrait
 const PRINCIPAL_TEX := preload("res://art/principal.png")
+const PLAYER_TEX := preload("res://art/player.png")
 
 var mode: int = Mode.NONE
 var _player: Node = null
@@ -231,6 +232,21 @@ func _process(_delta: float) -> void:
 		var q: Array = _queued_hint
 		_queued_hint = []
 		principal_says(String(q[0]), String(q[1]))
+
+	# the day's beat, once the player is back in free roam
+	if mode == Mode.NONE and _queued_beat != "":
+		var b := _queued_beat
+		_queued_beat = ""
+		show_day_beat(b)
+	# type it on, a few characters a frame, while its window is open
+	if _beat_full != "":
+		if _hint_until <= Time.get_ticks_msec() / 1000.0:
+			_beat_full = ""
+			_beat_chars = 0
+		elif _beat_chars < _beat_full.length():
+			_beat_chars = mini(_beat_full.length(),
+				_beat_chars + maxi(1, int(ceil(_delta * 45.0))))
+			prompt.text = _beat_full.substr(0, _beat_chars)
 
 
 ## ALL input, on ONE clock.
@@ -675,6 +691,44 @@ func queue_hint(id: String, text: String) -> void:
 	if _shown_hints.has(id) or not Settings.show_hints:
 		return
 	_queued_hint = [id, text]
+
+
+## The day's beat -- the teacher's own line, over their portrait, at the
+## bottom of the screen: the run narrating itself. It shares the corner
+## popup's nodes with principal_says() but it is NOT a tutorial -- no
+## once-per-run dedup, no show_hints gate, and it repeats (a fresh line
+## most mornings of a boss term). DayBeats owns the words; this shows them.
+## The text types on rather than snapping in -- _process() drives the
+## reveal, and _update_prompt() already leaves the bar alone while
+## _hint_until is in the future.
+func show_day_beat(text: String) -> void:
+	if text.is_empty() or mode != Mode.NONE:
+		return
+	_beat_full = text
+	_beat_chars = 0
+	prompt.text = ""
+	prompt.visible = true
+	prompt_box.visible = true
+	var at := AtlasTexture.new()
+	at.atlas = PLAYER_TEX
+	at.region = Rect2(0, 0, 32, 48)
+	mascot_portrait.texture = at
+	mascot_portrait.visible = true
+	mascot_box.visible = true
+	# up long enough to read the whole line AFTER it finishes typing on
+	_hint_until = Time.get_ticks_msec() / 1000.0 + 2.5 + 0.035 * float(text.length())
+
+
+var _queued_beat: String = ""
+var _beat_full: String = ""
+var _beat_chars: int = 0
+
+## Park a beat until the player is back in free roam -- day_changed and
+## term_began both fire with a report still on screen, exactly like the
+## mentor nudge.
+func queue_day_beat(text: String) -> void:
+	if not text.is_empty():
+		_queued_beat = text
 
 
 var _hint_until: float = 0.0

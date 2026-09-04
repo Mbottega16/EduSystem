@@ -78,7 +78,16 @@ func _ready() -> void:
 	Game.day_changed.connect(func(_d: int) -> void:
 		if not Game.dash_taught:
 			hud.queue_hint("see_the_mentor",
-				"There is a mentor teacher down the hall now."))
+				"There is a mentor teacher down the hall now.")
+		hud.queue_day_beat(_day_beat_line()))
+
+	# The day's beat also needs the FIRST morning of a term, which
+	# day_changed never fires for -- term_began covers term 2 onward, and a
+	# brand new career comes in on run_started.
+	Game.term_began.connect(func(_t: int) -> void:
+		hud.queue_day_beat(_day_beat_line()))
+	Game.run_started.connect(func() -> void:
+		hud.queue_day_beat(_day_beat_line()))
 
 	# The storyline cutscene. hud.gd owns the WORDS and their paging; this is
 	# the wiring that turns "the slate was dismissed" into an actual teacher
@@ -383,6 +392,21 @@ func _return_home() -> void:
 		world.camera.reset_smoothing()
 	hallway.visible = false
 	world.visible = true
+
+
+## The morning's narration line, or "" for a day that gets none. Built
+## here, from live Game/Balance state, so DayBeats stays a pure text
+## function with a trivial test and no autoload dependency.
+func _day_beat_line() -> String:
+	var tp: Dictionary = Game.term_path
+	return DayBeats.line_for({
+		"term": Game.term,
+		"day": Game.day,
+		"term_days": Balance.term_days,
+		"path_kind": String(tp.get("kind", "")),
+		"path_id": String(tp.get("id", "")),
+		"boss_name": String(tp.get("name", "")),
+	})
 
 
 ## Into the mentor teacher's room, off the hallway. Reparents the SAME
