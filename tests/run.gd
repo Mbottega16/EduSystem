@@ -4677,6 +4677,39 @@ func test_boss_fight() -> void:
 		hud.status.text.contains("Q1/") and hud.status.text.contains("hold"),
 		hud.status.text)
 	chk("and never a decimal", not hud.status.text.contains("0."), hud.status.text)
+
+	# --- a round's own outcome flashes a cosmetic pose, held excepted ---
+	var rallied_s: StudentData = null
+	var dropped_s: StudentData = null
+	var held_s: StudentData = null
+	for s: StudentData in Game.roster:
+		if s == fz or s.seat_index < 0:
+			continue
+		if rallied_s == null:
+			rallied_s = s
+		elif dropped_s == null:
+			dropped_s = s
+		elif held_s == null:
+			held_s = s
+	chk("enough seated children on hand to try all three outcomes",
+		rallied_s != null and dropped_s != null and held_s != null)
+	var rallied_node: Actor = world.student_node(rallied_s.seat_index)
+	var dropped_node: Actor = world.student_node(dropped_s.seat_index)
+	var held_node: Actor = world.student_node(held_s.seat_index)
+	rallied_node.set_idle()
+	dropped_node.set_idle()
+	held_node.set_idle()
+	Game.fight._resolve(rallied_s, "rallied")
+	Game.fight._resolve(dropped_s, "dropped")
+	Game.fight._resolve(held_s, "held")
+	await step(1)
+	chk("rallied flashes the jump pose",
+		rallied_node.sprite.frame_coords.x == Actor.POSE_JUMP, rallied_node.sprite.frame_coords)
+	chk("dropped flashes the sad pose",
+		dropped_node.sprite.frame_coords.x == Actor.POSE_SAD, dropped_node.sprite.frame_coords)
+	chk("held is the neutral middle -- no pose",
+		held_node.sprite.frame_coords.x == 0, held_node.sprite.frame_coords)
+
 	guard = 0
 	while Game.fight_active() and guard < 100000:
 		Game.fight.tick(0.5, Game.rng, Layout.PODIUM)
@@ -8285,6 +8318,9 @@ func test_flares() -> void:
 	world._tick_flares(0.1, Game.rng)
 	chk("a flare left too long tips into an ordinary disruption",
 		s.disrupting and not s.flaring())
+	chk("and flashes the chat pose on the child who missed it",
+		world.student_node(s.seat_index).sprite.frame_coords.x == Actor.POSE_CHAT,
+		world.student_node(s.seat_index).sprite.frame_coords)
 
 	# --- the per-day cap ---
 	Game.new_run(SEED)
@@ -8397,10 +8433,15 @@ func test_desk_interruption() -> void:
 	Game.interruption["left"] = 0.05
 	world._tick_complications(0.1, Game.rng)
 	var any_disrupting := false
+	var phone_victim: StudentData = null
 	for s: StudentData in Game.roster:
 		if s.disrupting:
 			any_disrupting = true
+			phone_victim = s
 	chk("ignoring a phone call disrupts one child", any_disrupting)
+	chk("and flashes the chat pose on the child it picked",
+		phone_victim != null and world.student_node(phone_victim.seat_index)
+			.sprite.frame_coords.x == Actor.POSE_CHAT)
 	chk("and clears the interruption either way", Game.interruption.is_empty())
 
 	# --- letting a conference ring out: costs reputation instead ---
