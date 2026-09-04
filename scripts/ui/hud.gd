@@ -2035,13 +2035,13 @@ const TUTORIALS := [
 ## the desks" -- so the words and the action still match. Panel-fit
 ## verified the same way every other screen is: <= 11 lines at font 16.
 const INTRO_SLATE := [
-	"Sixteen years, and every September opens the",
-	"same way. A room that smells of floor polish.",
-	"A register of names you will know by Friday.",
-	"A grey cabinet holding all you own, folded flat.",
+	"Years of these, and a new one still lands the",
+	"same way. Fresh floor polish, sharpened pencils,",
+	"a register of names you will know by Friday.",
+	"A cabinet holding all you need, folded flat.",
 	"",
-	"Nobody chooses this room for you. Nobody makes",
-	"it work for you either. Yours to shape, or not.",
+	"Nobody else decides what this room becomes.",
+	"That part is yours, and that is the good part.",
 	"",
 	"The bell goes in twenty minutes.",
 	"Start with the desks.",
@@ -2056,17 +2056,17 @@ const INTRO_SLATE := [
 ## enough to the top wall that a taller bubble crowds the status bar.
 ## Found by screenshotting the worst-case page, not by counting characters.
 const INTRO_PAGES := [
-	["Desks first.", "The rest can wait."],
-	["Eight desks, eight kids", "to grow into them."],
-	["Some will be quick.", "Some will need you near."],
-	["You never know which", "till you stand here."],
-	["A room talks before", "a word is said."],
-	["Where the chairs face.", "How near the walls."],
-	["Crowd them and you", "fight it all term."],
-	["Give them room and", "it half runs itself."],
-	["Keep this up and the", "room stops being it."],
-	["A hallway. More rooms.", "Other people's kids."],
-	["Nobody warns you.", "Consider this it."],
+	["Desks first.", "Everything else follows."],
+	["Eight of them,", "eight desks to fill."],
+	["Some will race ahead.", "Some will want you close."],
+	["You will learn which", "soon enough."],
+	["A room speaks first,", "before anyone talks."],
+	["Which way the chairs face.", "How near the walls sit."],
+	["Give them room to breathe", "and the day goes easy."],
+	["Get this right and the", "room starts helping you."],
+	["Stay with it and the", "room fades into the day."],
+	["Down the hall: more rooms,", "more kids to meet."],
+	["No one tells you that.", "A nice surprise, really."],
 ]
 
 
