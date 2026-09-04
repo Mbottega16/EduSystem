@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP }
+	ADS, PATHS, MENTOR, HELP, CALLER }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -2481,6 +2481,102 @@ func _boss_term_due() -> bool:
 		and Game.term % Balance.boss_term_interval == 0
 
 
+## Someone at your desk, waiting on an answer.
+##
+## Deliberately the smallest screen in the game: a face, one sentence from
+## them, two or three ways to answer, and after you pick, one sentence back.
+## The lesson clock does NOT stop while this is open -- nothing else in this
+## HUD stops it either, and dithering costing you seconds is the point.
+##
+## Prose only, in both directions. A choice never prints its price; you feel
+## it at the purse afterwards. "Give what you can", never "-40 coins".
+var _caller_row: Dictionary = {}
+var _caller_who: StudentData = null
+var _caller_sel := 0
+var _caller_said := ""
+
+
+func show_caller(row: Dictionary, who: StudentData) -> void:
+	_caller_row = row
+	_caller_who = who
+	_caller_sel = 0
+	_caller_said = ""
+	_open(Mode.CALLER)
+	_render_caller()
+
+
+## Who is doing the asking, as a name the player already knows.
+func _caller_name() -> String:
+	if String(_caller_row.get("speaker", "")) == "student" and _caller_who != null:
+		return _caller_who.display_name
+	return "THE PRINCIPAL"
+
+
+func _render_caller() -> void:
+	overlay.visible = true
+	body.visible = true
+	rich.visible = false
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_constant_override("line_spacing", 2)
+	# The same busts every other screen showing a face already uses.
+	if String(_caller_row.get("speaker", "")) == "student" and _caller_who != null:
+		portrait.texture = load("res://art/portrait_%s.png" % _caller_who.art)
+	else:
+		portrait.texture = PRINCIPAL_PORTRAIT
+	portrait.visible = true
+	title.text = _caller_name()
+	var rows: Array[String] = []
+	if _caller_said != "":
+		# Answered. Their reply, and nothing to choose any more.
+		rows.append(_caller_said)
+		body.text = "
+".join(rows)
+		hint.text = "E - back to it"
+		return
+	rows.append("\"%s\"" % String(_caller_row.get("line", "")))
+	rows.append("")
+	var choices: Array = _caller_row.get("choices", [])
+	for i in choices.size():
+		var c: Dictionary = choices[i]
+		rows.append("%s %s" % [">" if i == _caller_sel else " ",
+			String(c.get("label", ""))])
+	body.text = "
+".join(rows)
+	hint.text = "W/S - choose    E - say it"
+
+
+## Selection then confirmation, the same idiom the student file uses for its
+## own actions -- no new key for a screen that is only ever open for a moment.
+func _handle_caller_input() -> void:
+	var choices: Array = _caller_row.get("choices", [])
+	if _caller_said != "":
+		if Game.claim_interact() or Input.is_action_just_pressed("cancel"):
+			close()
+		return
+	if Input.is_action_just_pressed("move_down"):
+		_caller_sel = (_caller_sel + 1) % maxi(1, choices.size())
+		Sfx.play("blip")
+		_render_caller()
+	elif Input.is_action_just_pressed("move_up"):
+		_caller_sel = (_caller_sel - 1 + choices.size()) % maxi(1, choices.size())
+		Sfx.play("blip")
+		_render_caller()
+	elif Game.claim_interact():
+		caller_answered.emit(_caller_row, _caller_sel, _caller_who)
+
+
+## The room owns the outcome, not this screen: hud says what was picked, the
+## classroom decides what it does, and hands back the line to show.
+signal caller_answered(row: Dictionary, index: int, who: StudentData)
+
+
+## Show what they said back, once the room has resolved it.
+func caller_replied(said: String) -> void:
+	_caller_said = said if said != "" else "They nod, and go back to their seat."
+	Sfx.play("confirm")
+	_render_caller()
+
+
 func _render_mentor() -> void:
 	overlay.visible = true
 	body.visible = true
@@ -3901,6 +3997,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.MENTOR:
 		_handle_mentor_input()
+		return
+
+	if mode == Mode.CALLER:
+		_handle_caller_input()
 		return
 
 	if mode == Mode.ADS:

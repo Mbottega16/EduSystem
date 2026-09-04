@@ -40,6 +40,10 @@ signal fight_banner(text: String)
 signal fight_ended(report: Dictionary)
 signal curriculum_requested()
 signal marking_requested()
+## Someone is at your desk and this one wants an answer, not a nod.
+## Relayed by main.gd to the HUD, exactly like quiz/marking -- the
+## room does not reach into a screen itself.
+signal caller_requested(row: Dictionary, student: StudentData)
 signal test_requested(lesson_id: String)
 signal room_rebuilt()
 
@@ -473,6 +477,7 @@ func _physics_process(delta: float) -> void:
 		# always reach every student and there was no triage to do.
 		lesson_left = maxf(0.0, lesson_left - delta)
 		Game.answer_all_cooldown = maxf(0.0, Game.answer_all_cooldown - delta)
+		Game.tick_boost(delta)
 		lesson_tick.emit(lesson_left)
 		_tick_weather(delta)
 		# Passing a null rng is what makes a test silent: tick_work() only
@@ -915,6 +920,10 @@ func _examiner_tile() -> Vector2i:
 ## sets tonight's homework.
 func end_lesson() -> Array:
 	lesson_left = 0.0
+	# The bell ends the quicker-feet stretch too. A boost that outlived the
+	# lesson it was won in would follow you into the next one, and nothing
+	# downstream is balanced for a teacher who is permanently faster.
+	Game.clear_boost()
 	# Judged on the lesson they actually watched, BEFORE grading resets
 	# anything -- who was still stuck or still playing up at the bell is
 	# half of what they came to see.
@@ -1132,6 +1141,19 @@ func _tick_complications(delta: float, rng: RandomNumberGenerator) -> void:
 		"desk":
 			Game.interruption = row.duplicate()
 			Game.interruption["left"] = float(row.get("ring_seconds", 8.0))
+			# A row whose speaker is a child needs to know WHICH child before
+			# the screen can show a face and a name. Picked here, off the
+			# seeded rng, so replaying a seed brings the same one up.
+			Game.interruption_student_id = -1
+			if String(row.get("speaker", "")) == "student":
+				var seated: Array[StudentData] = []
+				for st: StudentData in Game.roster:
+					if st.seat_index >= 0:
+						seated.append(st)
+				if seated.is_empty():
+					Game.interruption = {}     # nobody to do the asking
+					return
+				Game.interruption_student_id = 					seated[rng.randi() % seated.size()].id
 
 
 ## Answered before it rang out -- costs real lesson seconds, pays coins.
@@ -1142,6 +1164,18 @@ func _on_interruption_answered() -> void:
 		return
 	var row := Game.interruption
 	lesson_left = maxf(0.0, lesson_left - float(row.get("answer_cost_seconds", 5.0)))
+	# A row carrying `choices` is a person, not a phone: it opens a screen and
+	# pays nothing until the player has actually answered them. The clock above
+	# is already spent either way -- stopping to talk costs you the seconds
+	# whether or not you like what they say.
+	if not (row.get("choices", []) as Array).is_empty():
+		var who: StudentData = Game.student_by_id(Game.interruption_student_id)
+		Game.interruption = {}
+		Sfx.play("confirm")
+		caller_requested.emit(row, who)
+		if lesson_left <= 0.0:
+			lesson_timed_out.emit()
+		return
 	Game.add_coins(int(row.get("answer_reward_coins", 0)))
 	Game.interruption = {}
 	Sfx.play("confirm")
@@ -1150,6 +1184,52 @@ func _on_interruption_answered() -> void:
 			"handled!", Color(0.6, 0.85, 1.0))
 	if lesson_left <= 0.0:
 		lesson_timed_out.emit()
+
+
+## What one answer at your desk actually does. Every effect a choice can
+## carry funnels through here, matched on `kind` against Complication.EFFECTS
+## -- so a typo in the table is a caught test failure rather than a branch
+## that silently pays nothing.
+##
+## NOTHING HERE TOUCHES A CHILD'S RECORD. That is the whole reason this can
+## pay out freely without the balance contract moving: coins buy items, and
+## items are already clamped by room_cap; the boost is teacher pace, and both
+## contract rows already assume a perfect teacher or no teacher at all.
+## `disrupt_one` is the exception that proves it -- it is a COST, and it uses
+## the same path an ignored interruption already used.
+func resolve_caller_choice(row: Dictionary, index: int, who: StudentData) -> String:
+	var choices: Array = row.get("choices", [])
+	if index < 0 or index >= choices.size():
+		return ""
+	var choice: Dictionary = choices[index]
+	for eff: Dictionary in choice.get("effects", []):
+		match String(eff.get("kind", "")):
+			"coins":
+				Game.add_coins(int(eff.get("value", 0)))
+			"reputation":
+				Game.nudge_reputation(float(eff.get("value", 0.0)))
+			"disrupt_one":
+				# The child who was standing at your desk is the one it lands
+				# on, when there is one -- they are the one you just turned
+				# away. Otherwise it falls back to whoever is settled, exactly
+				# as an ignored interruption does.
+				var picked: StudentData = who
+				if picked == null or picked.seat_index < 0 or picked.disrupting:
+					picked = null
+					for st: StudentData in Game.roster:
+						if st.seat_index >= 0 and not st.disrupting:
+							picked = st
+							break
+				if picked != null:
+					picked.disrupting = true
+					_flash_pose(picked.id, Actor.POSE_CHAT)
+			"item":
+				var id := String(eff.get("id", ""))
+				if id != "" and not Items.get_def(id).is_empty():
+					Game.store_id(id)
+			"boost":
+				Game.start_boost()
+	return String(choice.get("says", ""))
 
 
 ## Let it ring out instead. Matched on the row's own ignored_effect so a

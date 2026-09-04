@@ -50,10 +50,16 @@ static func points_for_level(level: int) -> int:
 # Everything funnels through here so there is one place to look when a perk
 # does not seem to be doing anything.
 
-static func speed(ranks: Dictionary) -> float:
+## `boost` is the temporary quicker-feet stretch won at your desk
+## (Game.boost_speed_mult(), 1.0 when nothing is running). It multiplies the
+## finished figure rather than adding another rank, so a permanent perk and a
+## temporary boost can never be mistaken for one another -- and it comes
+## through here, like every other thing that changes a perk effect, so there
+## is still one place to look.
+static func speed(ranks: Dictionary, boost: float = 1.0) -> float:
 	Balance.ensure_loaded()
-	return Balance.teacher_speed \
-		+ Balance.perk_brisk_walk_speed * float(ranks.get("brisk_walk", 0))
+	return (Balance.teacher_speed \
+		+ Balance.perk_brisk_walk_speed * float(ranks.get("brisk_walk", 0))) * boost
 
 
 static func pick_radius(ranks: Dictionary) -> float:

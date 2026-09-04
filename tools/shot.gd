@@ -244,6 +244,15 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		"caller":
+			# Someone at your desk, mid-decision. The principal rather than a
+			# child, because her portrait is a fixed asset and a child's is
+			# whichever the roll picked -- a screenshot wants the stable one.
+			# Two options showing, marker on the first: the worst case for
+			# panel fit is the longest line plus every choice under it.
+			Game.intro_seen = true
+			hud.close()
+			hud.show_caller(Complication.by_id("trip_fund"), null)
 		"mentor":
 			# The mentor's room, dressed. Reparent the same body in, park it
 			# by the door looking in, pin the camera -- the layout is what

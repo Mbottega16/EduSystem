@@ -266,6 +266,8 @@ static var flare_max_per_day: int = 5
 ## term path's own density_mult (Game.complication_density_mult()).
 static var comp_onset_per_second: float = 0.006
 static var comp_max_per_lesson: int = 3
+static var comp_boost_seconds: float = 45.0
+static var comp_boost_speed_mult: float = 1.25
 
 # --- the end-of-session bell rush (built, but OFF until a later stage) ---
 ## Hand every child's marked work back before `seconds` runs out for a flat
@@ -607,6 +609,8 @@ static func apply(d: Dictionary) -> void:
 	var cp: Dictionary = d.get("complication", {})
 	comp_onset_per_second = float(cp.get("onset_per_second", comp_onset_per_second))
 	comp_max_per_lesson = int(cp.get("max_per_lesson", comp_max_per_lesson))
+	comp_boost_seconds = float(cp.get("boost_seconds", comp_boost_seconds))
+	comp_boost_speed_mult = float(cp.get("boost_speed_mult", comp_boost_speed_mult))
 
 	var br: Dictionary = d.get("bell_rush", {})
 	bell_rush_enabled = bool(br.get("enabled", bell_rush_enabled))

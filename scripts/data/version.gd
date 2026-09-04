@@ -13,11 +13,11 @@ extends RefCounted
 ##
 ## Bump BUILD whenever something lands that a player would notice.
 
-const BUILD := "b41"
+const BUILD := "b42"
 const DATED := "2026-09-04"
 
 ## The headline of what went in, short enough for one line on the title.
-const HEADLINE := "the mentor's room, and the day's own sound"
+const HEADLINE := "someone is at your desk, and wants an answer"
 
 
 static func stamp() -> String:

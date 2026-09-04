@@ -181,6 +181,7 @@ func _main() -> void:
 	await test_flares()
 	await test_mid_lesson_mess()
 	await test_desk_interruption()
+	await test_callers()
 	await test_cluster_penalty()
 	await test_dash_lanes()
 	await test_bell_rush()
@@ -8403,6 +8404,156 @@ func test_mid_lesson_mess() -> void:
 ## Mid-lesson complications: the phone/conference desk interruption, and
 ## the mess kind's own onset. Mirrors test_flares()'s shape -- catch it,
 ## let it run out, the per-lesson cap, and that it starts on its own.
+## Someone at your desk who wants an answer, not a nod.
+func test_callers() -> void:
+	section("SOMEONE AT YOUR DESK")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	# --- the table itself ---
+	var total := 0
+	for row: Dictionary in Complication.TABLE:
+		total += int(row.get("weight", 0))
+	chk("the complication weights still sum to exactly 100", total == 100, total)
+
+	var with_choices := 0
+	for row: Dictionary in Complication.TABLE:
+		var choices: Array = row.get("choices", [])
+		if choices.is_empty():
+			continue
+		with_choices += 1
+		chk("%s offers two or three ways to answer" % row["id"],
+			choices.size() >= 2 and choices.size() <= 3, choices.size())
+		chk("%s says who is doing the asking" % row["id"],
+			String(row.get("speaker", "")) in ["principal", "student"],
+			row.get("speaker", ""))
+		chk("%s has a line to say" % row["id"], String(row.get("line", "")) != "")
+		for c: Dictionary in choices:
+			chk("every choice of %s has a label and a reply" % row["id"],
+				String(c.get("label", "")) != "" and String(c.get("says", "")) != "")
+			for eff: Dictionary in c.get("effects", []):
+				chk("%s only uses effects the game knows" % row["id"],
+					String(eff.get("kind", "")) in Complication.EFFECTS,
+					eff.get("kind", ""))
+	chk("there are people to answer, not just phones", with_choices >= 6, with_choices)
+
+	# Prose, never numbers -- the cost is felt at the purse, not printed.
+	var digits := RegEx.new()
+	digits.compile("[0-9]")
+	for row: Dictionary in Complication.TABLE:
+		if (row.get("choices", []) as Array).is_empty():
+			continue
+		var strings: Array[String] = [String(row.get("line", ""))]
+		for c: Dictionary in row["choices"]:
+			strings.append(String(c.get("label", "")))
+			strings.append(String(c.get("says", "")))
+		for t: String in strings:
+			chk("nothing a caller says prints a number", digits.search(t) == null, t)
+
+	# --- a row WITHOUT choices is untouched: still an instant payoff ---
+	var call_row := Complication.by_id("phone_call")
+	chk("the phone still has no choices to make", 
+		(call_row.get("choices", []) as Array).is_empty())
+	Game.interruption = call_row.duplicate()
+	Game.interruption["left"] = 8.0
+	var coins_before: int = Game.coins
+	world._on_interruption_answered()
+	chk("answering the phone still pays on the spot",
+		Game.coins == coins_before + int(call_row.get("answer_reward_coins", 0)),
+		Game.coins)
+	chk("and leaves nothing pending", Game.interruption.is_empty())
+	chk("and opens no screen", hud.mode != hud.Mode.CALLER)
+
+	# --- a row WITH choices opens the screen and pays NOTHING yet ---
+	var trip := Complication.by_id("trip_fund")
+	Game.interruption = trip.duplicate()
+	Game.interruption["left"] = 10.0
+	Game.interruption_student_id = -1
+	coins_before = Game.coins
+	var lesson_before: float = world.lesson_left
+	world._on_interruption_answered()
+	await step(2)
+	chk("answering a person opens their screen", hud.mode == hud.Mode.CALLER)
+	chk("the lesson still paid for the interruption", world.lesson_left < lesson_before)
+	chk("but nothing is won until you actually answer them",
+		Game.coins == coins_before, Game.coins)
+	chk("and the desk is clear either way", Game.interruption.is_empty())
+	chk("the screen names who is asking", hud.title.text == "THE PRINCIPAL",
+		hud.title.text)
+	chk("and it fits the panel budget",
+		hud.body.text.split("
+").size() <= 11, hud.body.text.split("
+").size())
+
+	# choosing walks with the same keys every other list uses
+	chk("the first way to answer is selected", hud._caller_sel == 0)
+	hud._caller_sel = 1
+	hud._render_caller()
+	chk("moving the marker re-renders the other option",
+		hud.body.text.contains("> Tell her"), hud.body.text)
+
+	# --- what an answer actually does ---
+	var rep_before: float = Game.reputation
+	coins_before = Game.coins
+	var said: String = world.resolve_caller_choice(trip, 0, null)
+	chk("giving what you can costs coins", Game.coins == coins_before - 40, Game.coins)
+	chk("and she remembers it", Game.reputation > rep_before)
+	chk("and she says something back", said != "")
+	hud.caller_replied(said)
+	chk("the screen shows her reply", hud.body.text.contains(said), hud.body.text)
+	chk("with nothing left to choose", not hud.body.text.contains(">"))
+	hud.close()
+	chk("closing it puts the room back", hud.mode == hud.Mode.NONE)
+
+	# an item lands in the cabinet, where buying puts it -- not on the floor
+	var cab_before: int = Game.cabinet.size()
+	var placed_before: int = Game.room_items.size()
+	world.resolve_caller_choice(Complication.by_id("storeroom_key"), 0, null)
+	chk("taking the spare puts it in your cabinet",
+		Game.cabinet.size() == cab_before + 1, Game.cabinet.size())
+	chk("and places nothing for you", Game.room_items.size() == placed_before)
+
+	# --- the boost: teacher pace, and only that ---
+	Game.clear_boost()
+	chk("no boost is running to start with", Game.boost_speed_mult() == 1.0)
+	var plain: float = Progress.speed(Game.perk_ranks, 1.0)
+	world.resolve_caller_choice(Complication.by_id("child_question"), 0, null)
+	chk("sitting with a child wins a stretch of quicker feet", Game.boost_left > 0.0)
+	chk("which makes the teacher walk faster",
+		Progress.speed(Game.perk_ranks, Game.boost_speed_mult()) > plain)
+	var first: float = Game.boost_left
+	Game.tick_boost(1.0)
+	chk("it ticks down", Game.boost_left < first)
+	world.resolve_caller_choice(Complication.by_id("child_question"), 0, null)
+	chk("winning it twice refreshes rather than stacks",
+		is_equal_approx(Game.boost_left, Balance.comp_boost_seconds), Game.boost_left)
+	world.end_lesson()
+	await step(2)
+	chk("and the bell ends it", Game.boost_left == 0.0)
+	chk("so the teacher is back to their own pace",
+		is_equal_approx(Progress.speed(Game.perk_ranks, Game.boost_speed_mult()), plain))
+
+	# --- a child asking is a REAL child, picked off the seeded rng ---
+	Game.new_run(SEED)
+	await step(2)
+	var kid: StudentData = Game.roster[0]
+	hud.show_caller(Complication.by_id("child_errand"), kid)
+	chk("a child's own name is on their screen", hud.title.text == kid.display_name,
+		hud.title.text)
+	hud.close()
+
+	# --- the simulator must never reach any of this ---
+	var sim := FileAccess.open("res://tools/sim.gd", FileAccess.READ)
+	chk("the term simulator can still be opened to be checked", sim != null)
+	if sim != null:
+		var src := sim.get_as_text()
+		chk("and it never answers anyone at the desk, so the contract cannot drift",
+			not src.contains("resolve_caller_choice") and not src.contains("start_boost"),
+			"sim.gd reaches into the caller path")
+
+
 func test_desk_interruption() -> void:
 	section("DESK INTERRUPTIONS")
 	Balance.ensure_loaded()

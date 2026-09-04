@@ -474,7 +474,7 @@ func _teach_anim(delta: float) -> void:
 
 
 func speed_scale() -> float:
-	var base: float = Progress.speed(Game.perk_ranks) / SPEED
+	var base: float = Progress.speed(Game.perk_ranks, Game.boost_speed_mult()) / SPEED
 	if autopilot and auto_target_name != "":
 		base *= Balance.auto_speed
 	if _dash_burst > 0.0:

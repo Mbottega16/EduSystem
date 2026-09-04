@@ -82,6 +82,54 @@ out has its own cost (one student flipped disrupting, or a reputation
 nudge). Neither reveals a new screen — both resolve instantly in the
 world, the same way settling the room already does.
 
+## Someone at your desk — shipped (2026-09-04)
+
+The complication table's own promise ("a future complication is a new
+table row, not a new script") paid off: the people who now interrupt you
+are six new rows, one new screen, and no new key.
+
+A `"desk"` row may carry a `speaker`, a `line` and a list of `choices`.
+Answering it opens the smallest screen in the game — a face, one
+sentence from them, two or three ways to answer — and after you pick,
+one sentence back. A row *without* `choices` still resolves instantly,
+which is why the phone call and the parent conference are untouched.
+
+**The cast.** The principal (the trip fund, covering a lesson, a spare
+from the storeroom) and the children themselves (a child who is lost, a
+child who has finished, a child who has lost something). A child speaker
+resolves to a real seated child, picked off `Game.rng` when the row
+spawns, so a seed replays the same child asking the same thing — and the
+screen shows their own portrait and their own name.
+
+**It is a decision, not a menu.** Every branch that pays has a sibling
+that costs: coins out of your own purse, standing with the principal, or
+a child set off because you turned them away. Ignoring it is already a
+branch — it resolves through `ignored_effect` when the ring runs out.
+The lesson clock does *not* stop while the screen is open, so dithering
+is its own small price.
+
+**Why none of this moves the balance contract.** The effects vocabulary
+(`Complication.EFFECTS`) is deliberately narrow and **nothing in it
+touches a child's record**:
+
+- `coins` buy items, and items are already clamped by `room_cap` — the
+  contract's "full room" row is that ceiling already.
+- `item` drops a copy in the *cabinet*, exactly where buying puts it, so
+  placing it stays the player's call.
+- `boost` is a stretch of quicker feet — teacher pace and nothing else.
+  Both teaching rows of the contract assume either a perfect teacher or
+  no teacher at all, and a faster walk moves neither. It never stacks
+  (a second win refreshes the timer) and the bell ends it.
+- `reputation` and `disrupt_one` already existed as outcomes.
+
+A source-scan guard asserts `tools/sim.gd` never reaches
+`resolve_caller_choice()` or `start_boost()`, the same way the boss
+fight and the mass-help are guarded, so the measured rows cannot drift.
+
+**Prose, never numbers, in both directions.** A choice never prints its
+price — "Give what you can", not "-40 coins" — and you feel it at the
+purse afterwards. Asserted, not just intended.
+
 ## Term paths — shipped, the PokeRogue-style fork
 
 Modeled directly on the assignment-hand system (draw several pre-rolled

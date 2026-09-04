@@ -22,6 +22,8 @@ func _ready() -> void:
 	# Signals that belong to the WORLD itself survive a rebuild, so they are
 	# connected once.
 	world.quiz_requested.connect(_run_quiz)
+	world.caller_requested.connect(_show_caller)
+	hud.caller_answered.connect(_answer_caller)
 	world.answer_all_requested.connect(_run_answer_all)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.marking_requested.connect(hud.open_marking)
@@ -338,6 +340,17 @@ func _offer_hand() -> void:
 func _start_chosen_lesson(i: int) -> void:
 	Game.choose_assignment(i)
 	world.podium.lesson_started.emit(world.start_lesson())
+
+
+## Someone at your desk who wants an answer. The room raised it, the HUD
+## shows it, and the answer comes back through here -- the same round trip
+## quiz and marking already make, so neither half reaches into the other.
+func _show_caller(row: Dictionary, who: StudentData) -> void:
+	hud.show_caller(row, who)
+
+
+func _answer_caller(row: Dictionary, index: int, who: StudentData) -> void:
+	hud.caller_replied(world.resolve_caller_choice(row, index, who))
 
 
 func _run_quiz() -> void:

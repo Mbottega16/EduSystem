@@ -1237,7 +1237,10 @@
   "complication": {
     "_note": "One roll-attempt per second while a lesson is running, at onset_per_second times the active term path's own density_mult (see term_paths). Which complication actually fires is decided by scripts/data/complications.gd's own weighted table, the same mechanism DayEvent already uses. Capped per lesson so a bad-luck run cannot bury you -- same reasoning as flare.max_per_day.",
     "onset_per_second": 0.006,
-    "max_per_lesson": 3
+    "max_per_lesson": 3,
+    "boost_seconds": 45.0,
+    "boost_speed_mult": 1.25,
+    "_boost_note": "Answering someone at your desk well can win a stretch of quicker feet. It multiplies TEACHER PACE and nothing else -- never a grade, never a child's record -- because the balance contract measures a perfect teacher against an absent one, and a faster walk cannot move either row. It never stacks; a second win refreshes the timer. The bell ends it."
   },
   "term_paths": {
     "_note": "The fork at the start of each term, modeled on the assignment hand: a few pre-rolled paths, pick one, the rest are discarded -- but drawn WITHOUT replacement, unlike the daily hand, since repeating a termly choice would read as broken rather than lucky. lesson_mult layers onto Game.lesson_length() and coin_mult onto the day's coin payout, the same way a DayEvent's own multipliers already do -- never into lesson.lesson_seconds itself, so tools/sim.gd's contract rows never see it. density_mult scales complication.onset_per_second for the whole term. ordinary_term sits at 1.0 across every multiplier on purpose: a player who always picks it sees exactly today's numbers.",

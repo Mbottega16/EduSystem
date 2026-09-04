@@ -63,6 +63,18 @@ var _flares_today: int = 0
 ## per-lesson tally. Neither is saved -- lesson-scoped transient state,
 ## same as lesson_left.
 var interruption: Dictionary = {}
+## Which seated child is the one standing at your desk, for a complication
+## whose `speaker` is "student". Picked through `rng` when the row spawns,
+## so a seed replays the same child asking the same thing.
+var interruption_student_id: int = -1
+
+## A stretch of quicker feet, won by answering someone at your desk well.
+## Transient like `interruption` and `fight`: it is never saved, and the
+## bell ends it. Deliberately a TEACHER-PACE boost and nothing else -- a
+## reward that moved a child's grade would move the balance contract, and
+## the contract is the one thing in this game that must not drift.
+var boost_left: float = 0.0
+signal boost_changed(seconds_left: float)
 var _complications_today: int = 0
 
 ## The end-of-session bell rush -- OFF unless Balance.bell_rush_enabled (it
@@ -2350,6 +2362,41 @@ func set_phase(p: int) -> void:
 		return
 	phase = p
 	phase_changed.emit(phase)
+
+
+## Start (or top up) the quicker-feet boost. Never stacks past one stretch:
+## a second win refreshes it rather than doubling it, so no run of good luck
+## can compound into something the room was never balanced for.
+func start_boost(seconds: float = -1.0) -> void:
+	Balance.ensure_loaded()
+	var secs := seconds if seconds > 0.0 else Balance.comp_boost_seconds
+	boost_left = maxf(boost_left, secs)
+	boost_changed.emit(boost_left)
+
+
+## Tick it down. Called by the room, the same way it ticks the lesson.
+func tick_boost(delta: float) -> void:
+	if boost_left <= 0.0:
+		return
+	boost_left = maxf(0.0, boost_left - delta)
+	boost_changed.emit(boost_left)
+
+
+## The bell ends it, win or lose.
+func clear_boost() -> void:
+	if boost_left <= 0.0:
+		return
+	boost_left = 0.0
+	boost_changed.emit(0.0)
+
+
+## What the teacher's pace is multiplied by right now. 1.0 when nothing is
+## running, which is the overwhelming majority of the time.
+func boost_speed_mult() -> float:
+	if boost_left <= 0.0:
+		return 1.0
+	Balance.ensure_loaded()
+	return Balance.comp_boost_speed_mult
 
 
 func add_coins(amount: int) -> void:
