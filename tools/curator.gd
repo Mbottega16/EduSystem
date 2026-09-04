@@ -154,6 +154,11 @@ func _scan_references() -> void:
 			"tile_window_l1", "tile_window_r1", "tile_door_top",
 			"tile_door_bottom"]:
 		_note(n, "room_builder.gd (walls)")
+	# Same reasoning: show_student() loads "res://art/portrait_%s.png" %
+	# s.art, one call site covering all eight, which is invisible to the
+	# regex the same way the tiles above are.
+	for n: String in Names.ART:
+		_note("portrait_%s" % n, "hud.gd (show_student)")
 
 
 func _note(art_name: String, where: String) -> void:

@@ -82,8 +82,13 @@ var _reveal: Tween = null
 ## mid-room and about to do the thing the tip is about.
 @onready var mascot_box: ColorRect = $MascotBox
 @onready var mascot_portrait: TextureRect = $MascotPortrait
-const PRINCIPAL_TEX := preload("res://art/principal.png")
-const PLAYER_TEX := preload("res://art/player.png")
+## The dedicated 96x96 busts the Sept 2026 art pass drew (tools/make_art.py
+## make_portrait()) -- a face at corner/panel size, not a walk-cycle frame
+## stretched up to it. Preloaded like the sheets above rather than loaded
+## by string each call, since these two are used every time the mascot box
+## or the day's beat shows a face.
+const PRINCIPAL_PORTRAIT := preload("res://art/portrait_principal.png")
+const PLAYER_PORTRAIT := preload("res://art/portrait_player.png")
 
 var mode: int = Mode.NONE
 var _player: Node = null
@@ -787,10 +792,10 @@ func principal_says(id: String, text: String) -> void:
 	prompt.visible = true
 	prompt_box.visible = true
 	prompt.text = text
-	var at := AtlasTexture.new()
-	at.atlas = PRINCIPAL_TEX
-	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
-	mascot_portrait.texture = at
+	# The dedicated bust (Sept 2026 art pass), not a cropped sheet frame --
+	# a real face at the corner's own size instead of a desk-distance
+	# 32x48 walk frame stretched up to it.
+	mascot_portrait.texture = PRINCIPAL_PORTRAIT
 	mascot_portrait.visible = true
 	mascot_box.visible = true
 	_hint_until = Time.get_ticks_msec() / 1000.0 + 5.0
@@ -824,10 +829,7 @@ func show_day_beat(text: String) -> void:
 	prompt.text = ""
 	prompt.visible = true
 	prompt_box.visible = true
-	var at := AtlasTexture.new()
-	at.atlas = PLAYER_TEX
-	at.region = Rect2(0, 0, 32, 48)
-	mascot_portrait.texture = at
+	mascot_portrait.texture = PLAYER_PORTRAIT
 	mascot_portrait.visible = true
 	mascot_box.visible = true
 	# up long enough to read the whole line AFTER it finishes typing on
@@ -914,10 +916,7 @@ func _render_dashboard() -> void:
 	portrait_bg.visible = portrait.visible
 	portrait_bg.color = Color(Cosmetics.background_by_id(Game.background_id).get("colour", Color(0, 0, 0, 0)))
 	if _dash == Dash.WARDROBE:
-		var at := AtlasTexture.new()
-		at.atlas = load("res://art/player.png")
-		at.region = Rect2(0, 0, 32, 48)
-		portrait.texture = at
+		portrait.texture = load("res://art/portrait_player.png")
 
 	match _dash:
 		Dash.OVERVIEW:
@@ -940,10 +939,7 @@ func _render_dashboard() -> void:
 ## and explicitly NOT built yet, so the two lines are placeholders that
 ## read honestly as "not chosen" rather than as a broken feature.
 func _render_dash_overview() -> Array[String]:
-	var at := AtlasTexture.new()
-	at.atlas = load("res://art/player.png")
-	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
-	portrait.texture = at   # visibility is handled by _render_dashboard()
+	portrait.texture = load("res://art/portrait_player.png")   # visibility is handled by _render_dashboard()
 
 	# The panel does not scroll (scroll_active = false on Rich in
 	# hud.tscn) -- content past its 128px height clips SILENTLY, and that
@@ -1153,13 +1149,9 @@ func show_student(s: StudentData) -> void:
 	if title.text.length() > 22:
 		title.text = "%s %s." % [s.first_name(), s.surname().substr(0, 1)]
 
-	# One 16x24 frame of the 5x4 sheet: standing, facing the camera.
-	# TextureRect + AtlasTexture rather than a Sprite2D, which would centre
-	# itself inside a Control and ignore the layout entirely.
-	var at := AtlasTexture.new()
-	at.atlas = load("res://art/%s.png" % s.art)
-	at.region = Rect2(0, 0, 32, 48)   # doubled Aug 2026, was 16,24
-	portrait.texture = at
+	# The dedicated bust (Sept 2026 art pass) -- a face, not a walk-cycle
+	# frame stretched up to portrait size.
+	portrait.texture = load("res://art/portrait_%s.png" % s.art)
 	portrait.visible = true
 
 	if _bio_page == BIO_STORY:
@@ -2495,12 +2487,9 @@ func _render_mentor() -> void:
 	rich.visible = false
 	body.add_theme_font_size_override("font_size", 16)
 	body.add_theme_constant_override("line_spacing", 2)
-	# The mentor's own portrait -- a recolour of the one character model,
-	# same as show_student() does for a child.
-	var at := AtlasTexture.new()
-	at.atlas = load("res://art/mentor.png")
-	at.region = Rect2(0, 0, 32, 48)
-	portrait.texture = at
+	# The mentor's own bust -- a recolour of the one character model, same
+	# as show_student() does for a child.
+	portrait.texture = load("res://art/portrait_mentor.png")
 	portrait.visible = true
 	match _mentor_talk:
 		MentorTalk.TEACH:

@@ -260,6 +260,7 @@ func _main() -> void:
 	await test_progress_bar()
 	await test_music()
 	await test_fight_music()
+	test_portraits()
 
 	print("")
 	if failed == 0:
@@ -9122,13 +9123,10 @@ func test_bio() -> void:
 	chk("the file is headed with their FULL name, surname and all",
 		hud.title.text.contains(who.surname()), hud.title.text)
 	chk("the portrait is showing", hud.portrait.visible)
-	chk("it is their own sprite sheet", (func() -> bool:
-		var at := hud.portrait.texture as AtlasTexture
-		return at != null and at.atlas.resource_path.ends_with(who.art + ".png")).call(),
+	chk("it is their own dedicated bust, not their sheet",
+		hud.portrait.texture != null
+		and hud.portrait.texture.resource_path.ends_with("portrait_" + who.art + ".png"),
 		hud.portrait.texture)
-	chk("and it is one standing frame, not the whole sheet", (func() -> bool:
-		var at := hud.portrait.texture as AtlasTexture
-		return at != null and at.region == Rect2(0, 0, 32, 48)).call())
 	chk("the file says which seat and when they joined",
 		hud.body.text.contains("Seat %d" % (who.seat_index + 1))
 		and hud.body.text.contains("day %d" % who.joined_day), hud.body.text)
@@ -9645,10 +9643,9 @@ func test_day_beats() -> void:
 	await step(2)
 	var line := "Reading Paper today. Doors open within the hour."
 	hud.show_day_beat(line)
-	chk("the beat wears the player's face, not the principal's", (func() -> bool:
-		var at := hud.mascot_portrait.texture as AtlasTexture
-		return hud.mascot_portrait.visible and at != null \
-			and at.atlas.resource_path.ends_with("player.png")).call())
+	chk("the beat wears the player's face, not the principal's",
+		hud.mascot_portrait.visible and hud.mascot_portrait.texture != null
+		and hud.mascot_portrait.texture.resource_path.ends_with("portrait_player.png"))
 	await step(2)
 	chk("the line starts partial -- it is typing on",
 		hud.prompt.text.length() < line.length(), hud.prompt.text)
@@ -10276,12 +10273,21 @@ func test_curator() -> void:
 	# is worth nothing.
 	chk("and about the room tiles, which no regex could find",
 		c._referenced.has("tile_floor_a0") and c._referenced.has("tile_wall_side"))
-	# Nothing on disk should be unexplained. The two exceptions are sample
-	# art for the text-grid sprite pipeline (tools/sprites/*.txt), which
-	# exists to demonstrate that pipeline rather than to be used -- they are
-	# named here so that a THIRD orphan appearing is a failure rather than
-	# something that blends into an accepted list.
-	const ART_SAMPLES := ["table", "poster_abc"]
+	# Nothing on disk should be unexplained. Four exceptions, each named
+	# here so a FIFTH orphan is a real failure rather than something that
+	# blends into an accepted list:
+	#   table, poster_abc     sample art for the text-grid sprite pipeline,
+	#                         which exists to demonstrate it, not to be used
+	#   principal             the principal's walk-cycle sheet -- kept as
+	#                         the palette source make_portrait() draws
+	#                         portrait_principal from (Sept 2026 art pass),
+	#                         but nothing puts the principal IN the room
+	#                         the way the inspector's own sheet is
+	#   portrait_inspector    drawn for every CHARACTERS entry as a matter
+	#                         of consistency, but the inspector has no bio
+	#                         screen to show a bust on -- only the room
+	#                         sprite (inspector.png) is ever displayed
+	const ART_SAMPLES := ["table", "poster_abc", "principal", "portrait_inspector"]
 	chk("nothing on disk is left unexplained", (func() -> bool:
 		for f: String in c._files:
 			if not c._referenced.has(f) and not ART_SAMPLES.has(f):
@@ -10556,3 +10562,30 @@ func test_fight_music() -> void:
 	Game.new_run(SEED)
 	await step(2)
 	Music.stop(0.0)
+
+
+## The art overhaul (Sept 2026) added make_portrait() to tools/make_art.py:
+## a 96x96 bust per CHARACTERS entry, for a future HUD/bio panel that wants
+## a face rather than a desk-distance 32x48 sheet frame. Not wired into any
+## scene yet -- that is a UI change, and out of scope for the art pass that
+## drew the busts -- so nothing else in this suite would catch a broken or
+## missing one before a screen goes looking for it. "examiner" is excluded
+## on purpose: that character (and its art) belongs to a parallel session
+## working in the main repo, not this pass.
+func test_portraits() -> void:
+	section("PORTRAITS")
+	var names := ["player", "inspector", "principal", "mentor",
+		"student_a", "student_b", "student_c", "student_d",
+		"student_e", "student_f", "student_g", "student_h"]
+	var missing: Array[String] = []
+	var wrong_size: Array[String] = []
+	for n: String in names:
+		var path := "res://art/portrait_%s.png" % n
+		if not ResourceLoader.exists(path):
+			missing.append(n)
+			continue
+		var tex: Texture2D = load(path)
+		if tex == null or tex.get_width() != 96 or tex.get_height() != 96:
+			wrong_size.append(n)
+	chk("every character has a portrait bust", missing.is_empty(), missing)
+	chk("and each one is a 96x96 image", wrong_size.is_empty(), wrong_size)

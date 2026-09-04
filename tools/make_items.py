@@ -14,8 +14,8 @@ import os
 
 from PIL import Image
 
-from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, px, rect, shadow,
-                      hand_edited, scale2x)
+from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, finish, px, rect,
+                      shadow, hand_edited, scale2x)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -50,7 +50,7 @@ def draw_stool():
     rect(im, 4, 9, 5, 16, WOOD_D)
     rect(im, 10, 9, 11, 16, WOOD_D)
     rect(im, 5, 12, 10, 13, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_beanbag():
@@ -59,7 +59,7 @@ def draw_beanbag():
     rect(im, 3, 4, 14, 7, CLOTH_L)
     rect(im, 5, 3, 12, 4, CLOTH_L)
     rect(im, 2, 13, 15, 14, (150, 70, 80))
-    return outline(im)
+    return finish(im)
 
 
 def draw_bench():
@@ -69,7 +69,7 @@ def draw_bench():
     rect(im, 3, 9, 4, 14, WOOD_D)
     rect(im, 27, 9, 28, 14, WOOD_D)
     rect(im, 5, 10, 26, 11, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_floor_cushion():
@@ -77,7 +77,7 @@ def draw_floor_cushion():
     rect(im, 2, 5, 13, 10, BLUE)
     rect(im, 3, 4, 12, 6, BLUE_L)
     px(im, 8, 7, BLUE_L)
-    return outline(im)
+    return finish(im)
 
 
 # --- surfaces --------------------------------------------------------
@@ -88,7 +88,7 @@ def draw_side_table():
     rect(im, 1, 4, 14, 5, WOOD_L)
     rect(im, 3, 8, 4, 16, WOOD_D)
     rect(im, 11, 8, 12, 16, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_cabinet():
@@ -101,7 +101,7 @@ def draw_cabinet():
     px(im, 12, 14, GOLD)
     rect(im, 2, 20, 4, 21, WOOD_D)
     rect(im, 11, 20, 13, 21, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_crate():
@@ -110,7 +110,7 @@ def draw_crate():
     rect(im, 2, 3, 13, 4, WOOD_L)
     rect(im, 2, 7, 13, 7, WOOD_D)
     rect(im, 7, 5, 8, 11, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_supply_shelf():
@@ -121,7 +121,7 @@ def draw_supply_shelf():
     for x in range(4, 28, 5):
         rect(im, x, 4, x + 2, 8, BLUE if (x // 5) % 2 else CLOTH)
         rect(im, x, 12, x + 2, 15, GREEN if (x // 5) % 2 else GOLD)
-    return outline(im)
+    return finish(im)
 
 
 # --- learning --------------------------------------------------------
@@ -134,7 +134,7 @@ def draw_globe():
     rect(im, 4, 3, 11, 3, BLUE_L)
     rect(im, 7, 12, 8, 15, STEEL_D)
     rect(im, 4, 16, 11, 18, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_abacus():
@@ -147,7 +147,7 @@ def draw_abacus():
             c = (CLOTH, BLUE, GREEN)[(i + j) % 3]
             px(im, 3 + j * 3, y - 1, c)
             px(im, 4 + j * 3, y - 1, c)
-    return outline(im)
+    return finish(im)
 
 
 def draw_microscope():
@@ -158,7 +158,7 @@ def draw_microscope():
     rect(im, 6, 12, 9, 15, STEEL)
     rect(im, 3, 16, 12, 18, STEEL_D)
     px(im, 9, 4, BLUE_L)
-    return outline(im)
+    return finish(im)
 
 
 def draw_whiteboard():
@@ -171,7 +171,7 @@ def draw_whiteboard():
     rect(im, 1, 16, 30, 17, STEEL_D)
     rect(im, 5, 18, 8, 19, STEEL_D)
     rect(im, 23, 18, 26, 19, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_reading_nook():
@@ -181,7 +181,7 @@ def draw_reading_nook():
     rect(im, 3, 2, 11, 6, BLUE)
     rect(im, 20, 2, 28, 6, GREEN)
     rect(im, 1, 16, 30, 17, (150, 70, 80))
-    return outline(im)
+    return finish(im)
 
 
 def draw_maths_tiles():
@@ -190,7 +190,7 @@ def draw_maths_tiles():
     for i, (x, c) in enumerate(((2, CLOTH), (6, BLUE), (10, GREEN))):
         rect(im, x, 5, x + 3, 8, c)
         rect(im, x, 9, x + 3, 11, GOLD if i == 1 else STEEL)
-    return outline(im)
+    return finish(im)
 
 
 def draw_music_corner():
@@ -202,7 +202,7 @@ def draw_music_corner():
         rect(im, x, 10, x, 14, PAPER)
     rect(im, 6, 3, 7, 7, DARK)
     rect(im, 6, 2, 9, 3, DARK)
-    return outline(im)
+    return finish(im)
 
 
 # --- comfort ---------------------------------------------------------
@@ -213,7 +213,7 @@ def draw_lamp():
     rect(im, 3, 2, 12, 3, (250, 214, 120))
     rect(im, 7, 9, 8, 17, STEEL_D)
     rect(im, 4, 18, 11, 20, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_water_cooler():
@@ -223,7 +223,7 @@ def draw_water_cooler():
     rect(im, 3, 9, 12, 19, PAPER)
     rect(im, 3, 9, 12, 10, (220, 220, 214))
     rect(im, 6, 13, 9, 14, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_radiator():
@@ -232,7 +232,7 @@ def draw_radiator():
     for x in range(3, 30, 3):
         rect(im, x, 4, x + 1, 12, STEEL_L)
     rect(im, 1, 13, 30, 14, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_coat_hooks():
@@ -243,7 +243,7 @@ def draw_coat_hooks():
         rect(im, x, 6, x + 1, 8, STEEL_D)
         if i % 2 == 0:
             rect(im, x - 2, 7, x + 3, 15, CLOTH if i == 0 else GREEN)
-    return outline(im)
+    return finish(im)
 
 
 # --- decor -----------------------------------------------------------
@@ -254,7 +254,7 @@ def draw_wall_clock():
     rect(im, 2, 2, 11, 11, (230, 228, 220))
     rect(im, 6, 3, 6, 6, DARK)
     rect(im, 6, 6, 9, 6, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_alphabet_frieze():
@@ -263,7 +263,7 @@ def draw_alphabet_frieze():
     for i, x in enumerate(range(3, 30, 4)):
         c = (CLOTH, BLUE, GREEN, GOLD)[i % 4]
         rect(im, x, 3, x + 2, 8, c)
-    return outline(im)
+    return finish(im)
 
 
 def draw_fish_tank():
@@ -276,7 +276,7 @@ def draw_fish_tank():
     rect(im, 12, 9, 13, 13, GREEN)
     rect(im, 24, 8, 25, 13, GREEN_L)
     rect(im, 1, 1, 30, 2, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_class_banner():
@@ -287,7 +287,7 @@ def draw_class_banner():
     rect(im, 4, 9, 15, 10, PAPER)
     for x in range(2, 22, 4):
         rect(im, x, 13, x + 1, 14, CLOTH)
-    return outline(im)
+    return finish(im)
 
 
 def draw_pot_of_pens():
@@ -297,7 +297,7 @@ def draw_pot_of_pens():
     for i, x in enumerate((5, 7, 9)):
         c = (CLOTH, BLUE, GREEN)[i]
         rect(im, x, 3 + i, x, 7, c)
-    return outline(im)
+    return finish(im)
 
 
 # --- consumables -------------------------------------------------------
@@ -319,7 +319,7 @@ def draw_coffee():
     px(im, 8, 2, (210, 208, 204))
     px(im, 5, 5, (228, 226, 222))
     px(im, 8, 4, (228, 226, 222))
-    return outline(im)
+    return finish(im)
 
 
 def draw_sticker_chart():
@@ -329,7 +329,7 @@ def draw_sticker_chart():
     for i, (x, y) in enumerate(((4, 6), (8, 6), (4, 10), (8, 10))):
         c = (CLOTH, BLUE, GREEN, GOLD)[i]
         rect(im, x, y, x + 1, y + 1, c)
-    return outline(im)
+    return finish(im)
 
 
 def draw_bake_sale():
@@ -340,15 +340,21 @@ def draw_bake_sale():
     px(im, 6, 10, GOLD)
     px(im, 8, 11, GOLD)
     px(im, 7, 12, GOLD)
-    return outline(im)
+    return finish(im)
 
 
 def draw_photocopies():
-    im = _blank(14, 16)
-    for i in range(4):
-        y = 12 - i * 2
-        rect(im, 3, y, 11, y + 2, PAPER if i % 2 == 0 else (232, 230, 222))
-    return outline(im)
+    """A short stack of freshly run copies. Three sheets, each offset a
+    little from the last, so it reads as loose paper fanned out rather
+    than one solid block -- the flaw the old single-block version had."""
+    im = _blank(16, 16)
+    rect(im, 4, 2, 13, 12, (222, 218, 208))     # back sheet, peeking out
+    rect(im, 3, 3, 12, 13, (232, 230, 222))     # middle sheet
+    rect(im, 2, 4, 11, 14, PAPER)               # front sheet
+    for y in (6, 8, 10):                        # printed lines on top
+        rect(im, 3, y, 9, y, (150, 152, 160))
+    rect(im, 3, 12, 6, 12, (150, 152, 160))
+    return finish(im)
 
 
 # --- daily room mess ---------------------------------------------------
@@ -368,7 +374,7 @@ def draw_mess_trash():
     rect(im, 10, 7, 11, 9, (228, 224, 214))
     rect(im, 13, 4, 17, 7, CLOTH_L)
     rect(im, 14, 5, 16, 6, CLOTH)
-    return outline(im)
+    return finish(im)
 
 
 def draw_mess_spill():
@@ -397,14 +403,14 @@ def draw_rocking_chair():
     rect(im, 4, 9, 5, 16, WOOD_D)
     rect(im, 11, 9, 12, 16, WOOD_D)
     rect(im, 2, 17, 14, 18, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_pouf():
     im = _blank(16, 12)
     rect(im, 3, 5, 12, 10, CLOTH)
     rect(im, 4, 4, 11, 6, CLOTH_L)
-    return outline(im)
+    return finish(im)
 
 
 def draw_window_seat():
@@ -413,7 +419,7 @@ def draw_window_seat():
     rect(im, 1, 5, 30, 6, BLUE_L)
     rect(im, 3, 11, 4, 14, WOOD_D)
     rect(im, 27, 11, 28, 14, WOOD_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_low_shelf():
@@ -423,7 +429,7 @@ def draw_low_shelf():
     rect(im, 1, 8, 14, 8, WOOD_D)
     rect(im, 3, 5, 5, 7, CLOTH)
     rect(im, 7, 9, 9, 11, BLUE)
-    return outline(im)
+    return finish(im)
 
 
 def draw_display_rack():
@@ -434,7 +440,7 @@ def draw_display_rack():
     rect(im, 4, 4, 8, 7, GREEN)
     rect(im, 12, 4, 16, 7, BLUE)
     rect(im, 20, 4, 23, 7, CLOTH)
-    return outline(im)
+    return finish(im)
 
 
 def draw_filing_cart():
@@ -445,7 +451,7 @@ def draw_filing_cart():
     rect(im, 2, 13, 13, 14, STEEL_D)
     px(im, 3, 16, DARK)
     px(im, 12, 16, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_sand_timer():
@@ -454,7 +460,7 @@ def draw_sand_timer():
     rect(im, 3, 12, 8, 13, WOOD)
     rect(im, 4, 4, 7, 10, (222, 216, 200))
     rect(im, 5, 6, 6, 8, GOLD)
-    return outline(im)
+    return finish(im)
 
 
 def draw_vocab_board():
@@ -464,7 +470,7 @@ def draw_vocab_board():
     rect(im, 3, 5, 11, 6, DARK)
     rect(im, 3, 8, 15, 9, DARK)
     rect(im, 3, 11, 9, 12, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_shape_sorter():
@@ -473,7 +479,7 @@ def draw_shape_sorter():
     rect(im, 3, 3, 6, 6, BLUE)
     rect(im, 8, 3, 11, 6, GREEN)
     px(im, 9, 8, GOLD)
-    return outline(im)
+    return finish(im)
 
 
 def draw_terrarium():
@@ -482,7 +488,7 @@ def draw_terrarium():
     rect(im, 2, 12, 11, 16, WOOD_D)
     rect(im, 4, 8, 6, 12, GREEN)
     rect(im, 7, 6, 8, 12, GREEN_L)
-    return outline(im)
+    return finish(im)
 
 
 def draw_web_of_life():
@@ -495,7 +501,7 @@ def draw_web_of_life():
     px(im, 17, 5, DARK)
     px(im, 9, 9, DARK)
     px(im, 17, 9, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_sound_cards():
@@ -503,7 +509,7 @@ def draw_sound_cards():
     rect(im, 2, 3, 9, 10, PAPER)
     rect(im, 4, 4, 11, 11, PAPER)
     rect(im, 6, 6, 9, 9, CLOTH)
-    return outline(im)
+    return finish(im)
 
 
 def draw_hammock_chair():
@@ -513,14 +519,14 @@ def draw_hammock_chair():
     rect(im, 5, 7, 12, 9, CLOTH_L)
     px(im, 4, 3, STEEL_D)
     px(im, 13, 3, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_ottoman():
     im = _blank(14, 10)
     rect(im, 2, 3, 11, 8, GOLD)
     rect(im, 2, 3, 11, 4, (240, 206, 110))
-    return outline(im)
+    return finish(im)
 
 
 def draw_desk_fan():
@@ -529,7 +535,7 @@ def draw_desk_fan():
     rect(im, 3, 3, 10, 10, STEEL_L)
     px(im, 6, 6, STEEL_D)
     px(im, 7, 6, STEEL_D)
-    return outline(im)
+    return finish(im)
 
 
 def draw_paper_mobile():
@@ -540,7 +546,7 @@ def draw_paper_mobile():
     rect(im, 2, 7, 6, 11, CLOTH)
     rect(im, 9, 7, 13, 12, BLUE)
     rect(im, 6, 12, 9, 16, GREEN)
-    return outline(im)
+    return finish(im)
 
 
 def draw_chalk_border():
@@ -550,7 +556,7 @@ def draw_chalk_border():
     rect(im, 1, 9, 28, 9, WOOD)
     px(im, 5, 5, PAPER)
     px(im, 13, 5, PAPER)
-    return outline(im)
+    return finish(im)
 
 
 def draw_state_flag():
@@ -558,7 +564,7 @@ def draw_state_flag():
     rect(im, 6, 2, 7, 18, WOOD)
     rect(im, 7, 3, 13, 9, BLUE)
     rect(im, 8, 5, 9, 6, GOLD)
-    return outline(im)
+    return finish(im)
 
 
 def draw_vote_box():
@@ -566,7 +572,7 @@ def draw_vote_box():
     rect(im, 2, 5, 13, 12, WOOD)
     rect(im, 2, 5, 13, 6, WOOD_L)
     rect(im, 6, 4, 9, 5, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_season_wheel():
@@ -576,7 +582,7 @@ def draw_season_wheel():
     rect(im, 8, 3, 12, 7, GOLD)
     rect(im, 3, 8, 7, 12, (200, 220, 236))
     rect(im, 8, 8, 12, 12, (200, 130, 70))
-    return outline(im)
+    return finish(im)
 
 
 def draw_duty_roster():
@@ -586,7 +592,7 @@ def draw_duty_roster():
     rect(im, 4, 5, 11, 6, DARK)
     rect(im, 4, 8, 11, 9, DARK)
     rect(im, 4, 11, 11, 12, DARK)
-    return outline(im)
+    return finish(im)
 
 
 # --- subject shelf: each helps one strand -----------------------------
@@ -601,7 +607,7 @@ def draw_number_line():
     rect(im, 5, 1, 7, 3, BLUE)
     rect(im, 13, 1, 15, 3, GREEN)
     rect(im, 21, 1, 23, 3, GOLD)
-    return outline(im)
+    return finish(im)
 
 
 def draw_bug_viewer():
@@ -611,7 +617,7 @@ def draw_bug_viewer():
     rect(im, 3, 13, 10, 14, WOOD_D)
     rect(im, 5, 7, 8, 10, GREEN)
     px(im, 6, 8, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_rhyme_chart():
@@ -621,7 +627,7 @@ def draw_rhyme_chart():
     rect(im, 9, 5, 11, 13, CLOTH)
     for y in range(5, 13, 3):
         rect(im, 4, y, 8, y + 1, DARK)
-    return outline(im)
+    return finish(im)
 
 
 def draw_map_corner():
@@ -632,7 +638,7 @@ def draw_map_corner():
     rect(im, 15, 4, 24, 9, GREEN_L)
     rect(im, 17, 11, 22, 13, GOLD)
     px(im, 20, 6, CLOTH)
-    return outline(im)
+    return finish(im)
 
 
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}

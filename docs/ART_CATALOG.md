@@ -28,6 +28,36 @@ handed back to idle/seated. Rows: facing down, left, right, up.
 grid; `Make a Sprite.bat` generates a brand new character (new palette)
 through `make_art.py` instead of hand-drawing one.
 
+A palette (`CHARACTERS` in `tools/make_art.py`) still has just the
+original required keys (`hair`/`hair_d`, `shirt`/`shirt_d`, `legs`,
+`shoe`, `long_hair`, `skirt`), but *(Sept 2026, the art overhaul)* can
+say a lot more, each with a safe default so an old entry keeps drawing
+unchanged: `hair_style` (one of `HAIR_STYLES` -- short/long/curly/spiky/
+bob/bun/buzz/ponytail), `skin` (a name from `SKINS` or a raw `(r,g,b)`),
+`glasses` (bool), `pattern` (one of `PATTERNS` -- plain/stripes/
+dungarees/collar/tie/cardigan/lanyard; `tie`/`cardigan`/`lanyard` are the
+adults' cues, the rest are the kids'), and `sleeves` ("long" or "short").
+Every frame also gets `rim_light()` -- lit upper-left, shaded
+lower-right -- the same shading rule `finish()` gives furniture (see
+below), so a character and the desk they are standing next to agree
+about where the window is.
+
+## Portraits (`tools/make_art.py::make_portrait`)
+
+One 96&times;96 transparent bust per `CHARACTERS` entry --
+`portrait_player.png`, `portrait_student_a.png`, and so on -- for a
+future HUD bio/mascot panel that wants an actual face rather than a
+32&times;48 sheet frame at desk distance. *(Sept 2026, the art
+overhaul.)* Not wired into any scene yet: drawing the busts was the art
+pass's job, wiring one into a panel is a UI change and stayed out of
+scope. `tests/run.gd::test_portraits()` is the only thing currently
+checking they exist and are 96&times;96, since nothing on-screen loads
+them yet either.
+
+Excluded: `portrait_examiner.png`. The `examiner` character itself is
+owned by a parallel session working in the main repo -- this pass did
+not generate any art for it, portrait included.
+
 ## Cosmetics (`tools/make_art.py::HAT_ART`)
 
 Worn on the head, at runtime, by whoever `Game.hat_id` names (currently
@@ -62,6 +92,16 @@ texture repeated.
 | `tile_door_top`, `tile_door_bottom` | the doorway |
 | `tile_window_l0`, `tile_window_l1`, `tile_window_r0`, `tile_window_r1` | window quarters |
 
+*(Sept 2026, the art overhaul.)* The walls are warm painted plaster, not
+red brick -- one of the launch complaints was "heavy flat-red-brick
+walls". `tile_wall_bottom` (the near wall) is the one exception: it is a
+painted wood dado with a chair rail and a skirting board instead, since
+that tile is the wall's whole visible height rather than a strip at the
+foot of a taller plastered one. Windows carry a dusk sky gradient (cool
+blue-violet up top, warm and glowing at the sill) and a curtain drawn
+back to each outer edge. The door has a raised panel mould and a proper
+round handle.
+
 ## Furniture & shop items (`tools/make_art.py`, `tools/make_items.py`)
 
 Placed by the player via the shop/placement system
@@ -79,6 +119,19 @@ data. Everything from `bookshelf.png` down is this category:
 
 `tools/check_items.py` validates a new furniture entry against this data
 before it's wired in.
+
+*(Sept 2026, the art overhaul.)* Every generator-drawn piece above ends
+in `finish(im)` rather than a bare `outline(im)` -- the furniture
+equivalent of characters' `rim_light()`: the same lit-upper-left,
+shaded-lower-right pass, at a gentler amount since flat furniture fills
+band more visibly than a 32x48 character sprite. A hand-edited
+`tools/sprites/<name>.txt` source (see its own `README.md`) still wins
+over the generator when one exists; `bell`, `whiteboard`, `table`,
+`side_table`, `lab_bench`, `art_easel`, `microscope`, `rug`, `radiator`,
+`lamp`, `alphabet_frieze`, `reading_nook`, `class_banner`, and
+`photocopies` had theirs deleted this pass once the generator's own
+version, with `finish()` applied, read better than the hand source it
+was standing down for.
 
 ## Daily room mess (`tools/make_items.py::MESS_ITEMS`)
 
@@ -101,8 +154,8 @@ so it touches nothing the balance contract measures.
 
 | file | role |
 |---|---|
-| `logo.png` | title screen wordmark |
-| `title_bg.png` | title screen backdrop |
+| `logo.png` | title screen wordmark: filled chalk letters, an outline, a drop shadow, and a small chalk-apple motif *(Sept 2026)* |
+| `title_bg.png` | title screen backdrop: the chalkboard the menu sits on (unchanged, for text contrast) plus a dusk classroom scene down the left margin the menu text never reaches -- a curtained window, a wood dado and floor, and the game's own `desk.png`/`chair.png` pasted in as dusk silhouettes *(Sept 2026)* |
 | `bubble_q.png` | the "stuck" speech bubble over a student's head |
 | `paper.png` | the carried-work icon |
 | `poster_abc.png` | one hand-drawn one-off (`tools/sprites/poster_abc.txt`) — the exception to "everything is generated"; edited by hand in `Draw a Sprite.bat` / `Browse Art.bat`, not `make_art.py` |
