@@ -600,6 +600,9 @@ func _refresh_bubbles() -> void:
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
+		# The same words the file's third page would print for this child,
+		# above their own desk -- see StudentRead for why it's one builder.
+		st.show_need(StudentRead.urgent_line(s))
 
 
 ## Somebody sat down. If the lesson has already started they have missed

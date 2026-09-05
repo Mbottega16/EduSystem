@@ -39,6 +39,7 @@ const CURRICULUM_SCRIPT := preload("res://scripts/interact/curriculum_board.gd")
 const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 const MESS_SCRIPT := preload("res://scripts/interact/mess.gd")
+const SPEECH_BUBBLE_SCENE := preload("res://scenes/actors/speech_bubble.tscn")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -246,6 +247,15 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		station.paper = paper
 		body.add_child(station)
 		stations.append(station)
+
+		# The in-room read: the same sentence the file's third page would
+		# print for this child, above their own desk, so you never have to
+		# open a screen to learn it. Above the paper (-36) so a finished
+		# sheet and a spoken need never overlap.
+		var need: SpeechBubble = SPEECH_BUBBLE_SCENE.instantiate()
+		need.position = Vector2(0, -52)
+		body.add_child(need)
+		station.need_bubble = need
 
 		# The same desk, on the other button: F picks the whole thing up.
 		var mover := Interactable.new()

@@ -20,6 +20,7 @@ enum Action { NONE, HAND_OUT, DEFUSE, SETTLE, HELP, COLLECT_WORK, GO_OVER, COLLE
 
 var seat_index: int = -1
 var paper: Sprite2D = null      ## the finished sheet sitting on the desk
+var need_bubble: SpeechBubble = null   ## the in-room read, see StudentRead
 
 
 func student() -> StudentData:
@@ -150,3 +151,11 @@ func _pop(text: String, colour: Color) -> void:
 func show_paper(on: bool) -> void:
 	if paper != null:
 		paper.visible = on
+
+
+## The single top reason this desk needs you, spoken above it -- or "" to
+## go quiet. `text` already comes ranked and worst-first out of
+## StudentRead; this just says it or stops saying it.
+func show_need(text: String) -> void:
+	if need_bubble != null:
+		need_bubble.say(text)

@@ -231,6 +231,7 @@ func _main() -> void:
 	test_traits()
 	test_save_isolation()
 	await test_bubbles()
+	await test_desk_speaks_up()
 	await test_screens_explain_themselves()
 	await test_no_raw_colour_codes()
 	await test_difficulty()
@@ -3689,6 +3690,93 @@ func test_bubbles() -> void:
 	world._refresh_bubbles()
 	chk("a quiet child gives you nothing to scan for, at first",
 		not n0.bubble.visible)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## Step 1 of ten-commits.md: the room says what the file page would say,
+## above the desk, without you opening a screen. One builder,
+## StudentRead.acting_on() -- called from hud.gd's third page and from
+## here -- so the two can never disagree about a child.
+func test_desk_speaks_up() -> void:
+	section("THE DESK SPEAKS UP")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	var guard := 0
+	while not world.everyone_seated() and guard < 900:
+		await step(1)
+		guard += 1
+	chk("the class is seated", world.everyone_seated(), guard)
+
+	var s0: StudentData = Game.roster[0]
+	var st0: Interactable = world.stations[s0.seat_index]
+	chk("every seat got its own in-room read",
+		st0.need_bubble != null, s0.seat_index)
+
+	# calm baseline
+	s0.trait_id = ""
+	s0.confusion = 0.0
+	s0.disrupting = false
+	s0.quiz_flagged = false
+	s0.copied = false
+	world._refresh_bubbles()
+	chk("a settled desk says nothing", st0.need_bubble.current_text() == "",
+		st0.need_bubble.current_text())
+
+	s0.disrupting = true
+	world._refresh_bubbles()
+	chk("playing up is spoken, the same words the file page uses",
+		st0.need_bubble.current_text() == StudentRead.PLAYING_UP,
+		st0.need_bubble.current_text())
+	s0.disrupting = false
+
+	s0.trait_id = "steady"       # no hiding, so is_visibly_struggling() is prompt
+	s0.confusion = 1.0
+	s0._hidden_for = 999.0
+	world._refresh_bubbles()
+	chk("a stuck child announces itself",
+		st0.need_bubble.current_text() == StudentRead.STUCK,
+		st0.need_bubble.current_text())
+	s0.confusion = 0.0
+	s0._hidden_for = 0.0
+	s0.trait_id = ""
+
+	s0.quiz_flagged = true
+	world._refresh_bubbles()
+	chk("the quiz catching them is spoken too",
+		st0.need_bubble.current_text() == StudentRead.QUIZ_CAUGHT,
+		st0.need_bubble.current_text())
+	s0.quiz_flagged = false
+
+	# --- materials day outranks everything else, including a flare-up ---
+	s0.has_supply = false
+	s0.disrupting = true
+	world._refresh_bubbles()
+	chk("nothing to work with outranks even playing up",
+		st0.need_bubble.current_text() == StudentRead.NOTHING_TO_WORK_WITH,
+		st0.need_bubble.current_text())
+	s0.has_supply = true
+	s0.disrupting = false
+	world._refresh_bubbles()
+
+	# --- and it can never say something the file page would not ---
+	var digits := RegEx.new()
+	digits.compile("[0-9]")
+	s0.disrupting = true
+	world._refresh_bubbles()
+	chk("the spoken line is prose too, never a number",
+		digits.search(st0.need_bubble.current_text()) == null,
+		st0.need_bubble.current_text())
+	var hud := _hud()
+	hud.show_student(s0)           # binds _bio, so the page switch below sticks
+	hud._bio_page = hud.BIO_ACTING
+	hud.show_student(s0)
+	chk("...and it is one of the reasons the file page itself would print",
+		hud.body.text.contains(st0.need_bubble.current_text()), hud.body.text)
+	hud.close()
+	s0.disrupting = false
+	world._refresh_bubbles()
 
 	Game.new_run(SEED)
 	await step(2)

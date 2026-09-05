@@ -1302,59 +1302,12 @@ func show_student(s: StudentData) -> void:
 ## wrong. Capped to the panel budget, so a child with everything going on
 ## still fits.
 func _render_student_acting(s: StudentData) -> void:
-	var against: Array[String] = []
-	var helping: Array[String] = []
-
-	# --- what they brought with them ---
-	if s.trait_id != "":
-		against.append("%s. %s" % [Traits.name_of(s.trait_id), Traits.blurb(s.trait_id)])
-
-	# --- the day itself ---
-	var ev := String(Game.event.get("id", "none"))
-	if ev != "none":
-		against.append(String(Game.event.get("blurb", "")))
-
-	# --- the room they are sitting in ---
-	var strand := Game.lesson_strand()
-	var suited := ""
-	for placed: Dictionary in Game.room_items:
-		var def := Items.get_def(String(placed.get("id", "")))
-		if String(def.get("strand", "")) == strand and strand != "":
-			suited = String(def.get("name", ""))
-			break
-	if suited != "":
-		helping.append("The %s is out, and it suits today's subject." % suited)
-	elif strand != "":
-		against.append("Nothing in the room is set out for today's subject.")
-	if not s.has_supply:
-		against.append("They have nothing in front of them to work with.")
-	if Game.cluster_rate_mult(s) < 1.0:
-		against.append("Their desk is hemmed in by the others, so they work slower.")
-
-	# --- where YOU are, right now ---
-	if s.seat_index >= 0:
-		if Game.calm_multiplier_at(s.seat_index) < 1.0:
-			helping.append("You are near enough to keep them settled.")
-		else:
-			against.append("You are too far away to steady them from here.")
-
-	# --- what they are doing this minute ---
-	if s.flaring():
-		against.append("They are going off right now, and it will spread.")
-	elif s.disrupting:
-		against.append("They have stopped working and are playing up.")
-	if s.is_struggling():
-		against.append("They are stuck, and their work is not moving at all.")
-	if s.copied:
-		against.append("They have copied their way past it, so the gap is hidden.")
-	if s.quiz_flagged:
-		against.append("The quiz caught them out on this.")
-	if s.hw_state == StudentData.HW.ASSIGNED:
-		against.append("Last night's homework is still not handed in.")
-
-	# --- what you have already spent on them ---
-	if s.coached > 0:
-		helping.append("You have paid for extra help for them before.")
+	# The builder itself lives in StudentRead.acting_on() now -- shared with
+	# the in-room read above a desk, so the two can never disagree about a
+	# child. See scripts/data/student_read.gd for why it moved.
+	var read := StudentRead.acting_on(s)
+	var against: Array[String] = read.get("against", [])
+	var helping: Array[String] = read.get("helping", [])
 
 	var lines: Array[String] = []
 	if against.is_empty() and helping.is_empty():

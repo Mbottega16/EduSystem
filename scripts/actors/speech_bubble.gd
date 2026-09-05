@@ -27,3 +27,11 @@ func say(text: String) -> void:
 
 func hide_bubble() -> void:
 	visible = false
+
+
+## What it is currently saying, or "" while hidden. For a caller that only
+## wants to know, not to draw -- tests, mainly.
+func current_text() -> String:
+	if not visible or _label == null:
+		return ""
+	return _label.text
