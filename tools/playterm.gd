@@ -66,11 +66,27 @@ func frames(n: int) -> void:
 		await get_tree().physics_frame
 
 
+## Walk to a tile by pressing directions, the way a player does.
+##
+## Arrival is "standing ON the tile", not "within 5px of its exact centre".
+## That distinction is the whole bug this used to have: walking to the bell
+## put the player inside tile (18, 3) but a few pixels off its centre,
+## pressed against the bell's own collider. The old 5px test then never
+## fired, the press-toward-centre never moved anything, and after 900
+## frames it reported "could not reach the bell" -- while the prompt
+## "Ring the bell — end day 18" was on screen and one keypress away. The
+## room was fine, the game was fine, and the walkthrough called it a
+## failure for four days of real confusion.
+##
+## The centre test is kept as the fast path; the tile test is what makes it
+## honest. Tile equality is strictly more permissive, so this can only turn
+## former false failures into successes -- it cannot make walk_to claim an
+## arrival it did not make.
 func walk_to(tile: Vector2i, limit: int = 900) -> bool:
 	var target := Grid.tile_to_world(tile)
 	for i in limit:
 		var d: Vector2 = target - player.global_position
-		if d.length() < 5.0:
+		if d.length() < 5.0 or Grid.world_to_tile(player.global_position) == tile:
 			_release()
 			await frames(3)
 			return true
@@ -205,8 +221,30 @@ func _play() -> void:
 					Grid.world_to_tile(player.global_position)])
 			break
 
-		if not await walk_to(Layout.BELL + Vector2i(0, 1)):
+		var bell_tile: Vector2i = Layout.BELL + Vector2i(0, 1)
+		if not await walk_to(bell_tile):
+			# "could not reach the bell" on its own cannot tell you whether
+			# the ROOM is broken or the WALKER is. walk_to() has no
+			# pathfinding -- it presses a direction and gives up after 900
+			# frames -- so it fails on geometry a real player walks around.
+			# Grid knows the difference, so ask it.
+			# tile_to_world / world_to_tile are static; is_free / reachable /
+			# path are NOT -- they answer for one built room, so they need
+			# the classroom's own Grid instance, not the class.
+			var here: Vector2i = Grid.world_to_tile(player.global_position)
+			var g = world.grid
 			print("!! day %d: could not reach the bell" % day)
+			print("     at %s, wanted %s | target free: %s | reachable: %s | path len: %d"
+				% [here, bell_tile, g.is_free(bell_tile),
+					g.reachable(here, bell_tile),
+					g.path(here, bell_tile).size()])
+			# If the tile is free and reachable, the room is fine and the
+			# walker is not -- so the next question is whether the player
+			# could move at all. input_locked and an open screen both pin
+			# it in place while walk_to burns all 900 frames pressing a
+			# direction that does nothing.
+			print("     locked: %s | hud mode: %d | phase: %d | F=[%s]"
+				% [player.input_locked, hud.mode, Game.phase, _offer("manage")])
 			break
 		await hold("manage", 0.9)
 
