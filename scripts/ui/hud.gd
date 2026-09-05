@@ -410,6 +410,10 @@ func _update_status() -> void:
 	var place := get_tree().get_first_node_in_group("placement")
 	if place != null and place.active:
 		bits.append("helps %d" % place.reach_count())
+		# ten-commits.md step 4: the overlay already draws the orange
+		# outline; the strip is where you'd already look for a count.
+		if place.crowd_count() > 0:
+			bits.append("%d crowded" % place.crowd_count())
 
 	# Loudest first: messing about is the one that gets worse while you are
 	# somewhere else.

@@ -48,6 +48,10 @@ var browsing: bool = false
 const REACH_FILL := Color(0.45, 0.95, 0.55, 0.55)
 const REACH_EDGE := Color(0.70, 1.0, 0.75, 1.0)
 const EMPTY_SEAT := Color(0.85, 0.85, 0.9, 0.35)
+## A hemmed-in desk (ten-commits.md step 4). Warm, not green or grey, so it
+## reads as a DIFFERENT kind of fact from range -- a seat can be both
+## reached and crowded at once, and the two must not look like one thing.
+const CROWD_EDGE := Color(1.0, 0.55, 0.3, 0.9)
 
 var _grid: Grid = null
 var _ghost: Sprite2D = null
@@ -61,6 +65,20 @@ func reach_count() -> int:
 	var n := 0
 	for i: int in _reached:
 		if Game.student_in_seat(i) != null:
+			n += 1
+	return n
+
+
+## How many seated children are CURRENTLY hemmed in by a neighbour
+## (ten-commits.md step 4) -- independent of what is being placed, since
+## crowding is about seat adjacency, not item range. Same formula the game
+## charges them, Game.cluster_rate_mult(), still binary on purpose; this
+## only shows the state that already exists.
+func crowd_count() -> int:
+	var n := 0
+	for i in Layout.seat_count():
+		var s := Game.student_in_seat(i)
+		if s != null and Game.cluster_rate_mult(s) < 1.0:
 			n += 1
 	return n
 
@@ -287,17 +305,34 @@ func _draw() -> void:
 		var on_something: bool = not Game.item_at(tile).is_empty()
 		draw_rect(r, REACH_FILL if on_something else Color(1, 1, 1, 0.12))
 		draw_rect(r, REACH_EDGE if on_something else Color(1, 1, 1, 0.5), false, 2.0)   # doubled line width
-		return
+	else:
+		for i in Layout.seat_count():
+			var occupied := Game.student_in_seat(i) != null
+			var r := Rect2(
+				Vector2(Layout.seat(i)) * Grid.TILE + Vector2(2, 2),
+				Vector2(Grid.TILE - 4, Grid.TILE - 4))   # doubled inset, was 1/2
+			if i in _reached:
+				draw_rect(r, REACH_FILL if occupied else EMPTY_SEAT)
+				draw_rect(r, REACH_EDGE, false, 2.0)   # doubled line width
+			elif occupied:
+				draw_rect(r, Color(0, 0, 0, 0.12))
+	_draw_crowding()
+
+
+## Which desks are hemmed in, drawn as a border ON TOP of everything else
+## above -- an outline rather than a fill, so it accents a reached or
+## occupied seat's own colour instead of replacing it. Runs whether you are
+## holding something or just browsing (ten-commits.md step 4): crowding is
+## a fact about the room, not about what is in your hands.
+func _draw_crowding() -> void:
 	for i in Layout.seat_count():
-		var occupied := Game.student_in_seat(i) != null
+		var s := Game.student_in_seat(i)
+		if s == null or Game.cluster_rate_mult(s) >= 1.0:
+			continue
 		var r := Rect2(
 			Vector2(Layout.seat(i)) * Grid.TILE + Vector2(2, 2),
-			Vector2(Grid.TILE - 4, Grid.TILE - 4))   # doubled inset, was 1/2
-		if i in _reached:
-			draw_rect(r, REACH_FILL if occupied else EMPTY_SEAT)
-			draw_rect(r, REACH_EDGE, false, 2.0)   # doubled line width
-		elif occupied:
-			draw_rect(r, Color(0, 0, 0, 0.12))
+			Vector2(Grid.TILE - 4, Grid.TILE - 4))
+		draw_rect(r, CROWD_EDGE, false, 2.0)
 
 
 func move_by(d: Vector2i) -> void:

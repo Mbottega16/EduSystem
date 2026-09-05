@@ -1677,6 +1677,30 @@ func test_placement() -> void:
 		_same_within(Game.to_dict(), on_disk, 1e-6), Game.to_dict())
 	Game.delete_save()
 
+	# --- ten-commits.md step 4: the crowding overlay, and its readout ---
+	# crowd_count() reads Game state directly (seats, roster,
+	# cluster_rate_mult()) rather than anything Placement itself is
+	# holding, so a bare instance is enough -- no begin()/begin_browse()
+	# needed to exercise the logic. _draw()'s own CROWD_EDGE pass is the
+	# same data painted; confirmed by screenshot, not here.
+	var crowd := Placement.new()
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)     # every seat one tile from the next
+	await step(2)
+	chk("a row of touching desks hems in the whole class",
+		crowd.crowd_count() == Game.roster.size(), crowd.crowd_count())
+	chk("...the exact formula the game itself charges them",
+		Game.cluster_rate_mult(Game.roster[0]) < 1.0)
+
+	Layout.reset_seats()     # the opening layout: no two seats within one tile
+	await step(2)
+	chk("the opening layout has nobody hemmed in",
+		crowd.crowd_count() == 0, crowd.crowd_count())
+	crowd.queue_free()
+
+	Game.new_run(SEED)
+	await step(2)
+
 
 ## Deep compare allowing float drift, for anything that has been through JSON.
 func _same_within(a: Variant, b: Variant, tol: float) -> bool:
