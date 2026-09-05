@@ -132,7 +132,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1917 assertions — must pass, count must not drop
+Run Tests.bat            1920 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -140,8 +140,10 @@ Audit the Room.bat       what both buttons offer at every landmark, every phase
 Simulate the School.bat  delegated rooms: does hiring matter, does the board move
 ```
 
-Or **`Verify.bat`** — the suite, the docs and the contract in one command,
-replacing three of the five double-clicks above.
+Or **`Verify.bat`** — the suite, the docs, the contract and a whole term
+in one command, replacing four of the five double-clicks above. Since the
+git hooks were disarmed (see Working rhythm), this is the only thing that
+runs the slow checks, so run it before a push.
 
 **Only two of those tools have a machine-readable answer: the suite, and
 `Play a Whole Term.bat`.** The walkthrough prints a `WALKTHROUGH PASSED` /
@@ -196,26 +198,49 @@ what prints.
 6. `git push` — the remote is `EduSystems-Code/EduSystem` (private; the old
    `PixelRoom` URL still redirects).
 
-**Step 2 is also enforced at the git level.** `git config core.hooksPath
-.githooks` (one-time, per clone — run it if commits aren't being checked)
-points git at the tracked `.githooks/pre-commit` hook, which runs the
-suite before any commit and blocks on a failure, a parse error, or a
-hang (240s fail-safe — this machine has shown Godot hang rather than
-exit when spawned as a git-hook child, so the hook kills it and blocks
-rather than trusting a clean exit). `git commit --no-verify` skips it for
-a deliberate WIP commit.
+### Steps 2 and 3 are yours to run. The hooks are OFF by default.
 
-**Step 6 is enforced too, by `.githooks/pre-push`:** `check_docs.py`, then
-a whole term through the real buttons. It does not repeat the suite —
-pre-commit already ran it. The walkthrough is here because three minutes
-is too slow for every edit and too cheap to skip before a push; it is the
-only thing in this repo that has ever caught a day that cannot be
-finished. `git push --no-verify` skips it.
+**Read this before you assume anything is checking your work: nothing is.**
+Both git hooks exist, both still work, and both exit immediately unless you
+ask for them. Disarmed 2026-09-05, deliberately, on the owner's call —
+occasional breakage is acceptable, waiting two minutes on every commit and
+three and a half on every push is not.
 
-There was an untracked `.git/hooks/pre-push` doing this before. It had
-stopped running altogether — `core.hooksPath` sends git to `.githooks`, so
-anything left in `.git/hooks` is dead, and a hook nobody can see is a hook
-nobody notices has died. Both hooks are tracked now.
+```
+Verify.bat                     the suite, the docs, the contract, and a
+                               whole term through the real buttons. THE
+                               one command that runs everything. Slow
+                               (~6 min) and on demand, which is the point.
+
+EDUSYSTEM_GATE=1 git commit    re-arm the pre-commit suite for one command
+EDUSYSTEM_GATE=1 git push      re-arm the pre-push docs + walkthrough
+$env:EDUSYSTEM_GATE=1          the same, from PowerShell
+```
+
+Each hook prints one line saying it is off, every time it fires. That is
+on purpose — see below for why a quiet gate is the dangerous kind.
+
+The hook bodies are untouched and worth keeping: `.githooks/pre-commit`
+blocks on a failure, a parse error, or a hang (240s fail-safe — this
+machine has shown Godot hang rather than exit when spawned as a git-hook
+child, so the hook kills it and blocks rather than trusting a clean exit).
+`.githooks/pre-push` runs `check_docs.py` and then a whole term through
+the real buttons — the only thing in this repo that has ever caught a day
+that cannot be finished. To turn either back on permanently, delete the
+four-line `EDUSYSTEM_GATE` block at the top of it. `--no-verify` still
+skips them if you re-arm.
+
+`git config core.hooksPath .githooks` is still required, one-time per
+clone, or the hooks are not found at all.
+
+**Why the disarm is written down in four places** (both hook headers, this
+file, and three assertions in `tests/run.gd`): there was an untracked
+`.git/hooks/pre-push` doing this job before, and it had stopped running
+altogether — `core.hooksPath` sends git to `.githooks`, so anything left
+in `.git/hooks` is dead. A hook nobody can see is a hook nobody notices
+has died, and this repo lost weeks to exactly that. A gate that is off
+because someone decided it should be is fine. A gate that is off and
+still looks armed is how the last one got missed.
 
 ---
 
@@ -231,7 +256,7 @@ nobody notices has died. Both hooks are tracked now.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1917 assertions, 107 sections |
+| `tests/run.gd` | The suite — 1920 assertions, 107 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -243,7 +268,7 @@ nobody notices has died. Both hooks are tracked now.
 | `Dev Console.bat` | One menu for every other `.bat` launcher at the project root -- play, verify, simulate, trace/audit, and the art tools, so there is one icon to remember instead of a dozen. Each individual `.bat` still exists and still works stand-alone; this just calls them. |
 | `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
 | `tools/playdrive.gd` | The ONE walk/keypress/boot base both walkthroughs extend. `walk_to()` used to live in each of them, byte-identical; a real fix landed in one copy only. Add a shared helper here, never a second copy there |
-| `.githooks/pre-commit`, `.githooks/pre-push` | The suite before a commit; `check_docs.py` + a whole term through the real buttons before a push. `core.hooksPath` must point at `.githooks` |
+| `.githooks/pre-commit`, `.githooks/pre-push` | The suite before a commit; `check_docs.py` + a whole term before a push. **Both DISARMED by default** — `EDUSYSTEM_GATE=1` re-arms one for a single command, `Verify.bat` runs the lot. `core.hooksPath` must point at `.githooks` |
 | `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 
 ---

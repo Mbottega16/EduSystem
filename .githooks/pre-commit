@@ -12,6 +12,29 @@
 # how it is escaped. Replicating Run Tests.bat's own hard-won detection
 # logic here in POSIX shell sidesteps the whole problem.
 
+# --- DISARMED BY DEFAULT (2026-09-05, ten-commits.md step 0) ----------
+# This gate does not run unless you ask for it. The body below is
+# untouched and still works; only the trigger changed.
+#
+#   Run it for one command:   EDUSYSTEM_GATE=1 git commit -m "..."
+#   ...from PowerShell:       $env:EDUSYSTEM_GATE=1; git commit -m "..."
+#   Run everything on demand: Verify.bat
+#   Re-arm permanently:       delete the four lines below.
+#
+# WHY: the suite is ~2 min and this ran on every single commit. Waiting
+# minutes per commit was slowing the work down more than the breakage it
+# caught -- the owner's call, on the record: occasional breakage is
+# acceptable, waiting is not. Verify.bat now runs all of it, on demand.
+#
+# The one line this prints is deliberate. The last time a gate in this
+# repo stopped running, nothing said so for weeks. A silent disarm
+# rebuilds that exact trap; one line makes it visible at every commit.
+# ---------------------------------------------------------------------
+if [ "$EDUSYSTEM_GATE" != "1" ]; then
+	echo "pre-commit: gate off (EDUSYSTEM_GATE=1 to run the suite)"
+	exit 0
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 1
 

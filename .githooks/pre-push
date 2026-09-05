@@ -23,6 +23,28 @@
 # One-time, per clone: git config core.hooksPath .githooks
 # Escape hatch for a deliberate WIP push: git push --no-verify
 
+# --- DISARMED BY DEFAULT (2026-09-05, ten-commits.md step 0) ----------
+# This gate does not run unless you ask for it. The body below is
+# untouched and still works; only the trigger changed.
+#
+#   Run it for one command:   EDUSYSTEM_GATE=1 git push
+#   ...from PowerShell:       $env:EDUSYSTEM_GATE=1; git push
+#   Run everything on demand: Verify.bat
+#   Re-arm permanently:       delete the four lines below.
+#
+# WHY: ~3.5 min on every push -- seconds of check_docs.py and three
+# minutes of walkthrough. Both checks still exist and still matter; they
+# moved into Verify.bat, which is now the one "check everything" command
+# and runs the same check_docs.py and the same playterm.tscn.
+#
+# The one line this prints is deliberate, for the reason spelled out at
+# the top of pre-commit: a silent disarm is how a gate dies unnoticed.
+# ---------------------------------------------------------------------
+if [ "$EDUSYSTEM_GATE" != "1" ]; then
+	echo "pre-push: gate off (EDUSYSTEM_GATE=1 for the docs check + walkthrough)"
+	exit 0
+fi
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 1
 

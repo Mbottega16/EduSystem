@@ -11140,6 +11140,24 @@ func test_walkthrough() -> void:
 	chk("...and guards the same parse-error trap",
 		hook.to_lower().contains("parse error"))
 
+	# --- the gates are DISARMED on purpose; say it out loud ---
+	# Step 0 of the ten-commit queue turned both hooks off by default: two
+	# minutes on every commit and three and a half on every push was
+	# costing more than the breakage it caught. The bodies are intact and
+	# EDUSYSTEM_GATE=1 brings either one back for a single command.
+	#
+	# This is asserted rather than left to the files, because the last time
+	# a gate in this repo stopped running, nothing said so for weeks. Two
+	# of these pin the disarm as a DELIBERATE, documented state; the third
+	# stops Verify.bat quietly losing the walkthrough it inherited from the
+	# pre-push hook, which would leave nothing running it at all.
+	var commit_hook := FileAccess.get_file_as_string("res://.githooks/pre-commit")
+	chk("the pre-commit gate is opt-in via EDUSYSTEM_GATE, not automatic",
+		commit_hook.contains("EDUSYSTEM_GATE"))
+	chk("...and so is pre-push", hook.contains("EDUSYSTEM_GATE"))
+	chk("...and Verify.bat runs the walkthrough the hook no longer does",
+		FileAccess.get_file_as_string("res://Verify.bat").contains("Play a Whole Term.bat"))
+
 	# --- a dev tool must never write the player's save (CLAUDE.md) ---
 	chk("both walkthroughs redirect the save away from the player's",
 		drive.contains('Game.save_path = "user://edusystem_WALKTHROUGH_save.json"'))

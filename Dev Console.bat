@@ -18,8 +18,9 @@ echo    1) Play EDUSystem
 echo    2) Open in Godot Editor
 echo.
 echo   VERIFY  (read the assertion COUNT, not just PASSED)
+echo           (git hooks are OFF by default -- 4 is the real gate now)
 echo    3) Run Tests               (the whole suite -- read the COUNT)
-echo    4) Verify                  (suite + docs + balance contract, one shot)
+echo    4) Verify                  (suite + docs + contract + a whole term)
 echo    5) Simulate a Term         (the three contract rows)
 echo    6) Simulate the School     (delegated rooms, hiring, the board)
 echo.
