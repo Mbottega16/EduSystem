@@ -22,6 +22,12 @@ var _colour := Color.WHITE
 var _label: Label = null
 
 
+## What this floater is saying. For a caller that only wants to know,
+## not to draw -- tests, mainly.
+func current_text() -> String:
+	return _text
+
+
 func _go() -> void:
 	_label = Label.new()
 	_label.text = _text

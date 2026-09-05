@@ -103,7 +103,12 @@ func interact(by: Node) -> void:
 			if s.defuse():
 				Game.add_coins(Balance.flare_reward)
 				Sfx.play("help")
-				_pop("phew!", Color(1.0, 0.8, 0.4))
+				# Coins are the one number this game will print about a
+				# child's desk (CLAUDE.md's own sanctioned exception -- a
+				# price, not a claim about them), and this was the one
+				# earn moment in the whole game that never showed the
+				# money landing.
+				_pop("phew! +%d coins" % Balance.flare_reward, Color(1.0, 0.8, 0.4))
 				used.emit(by)
 		Action.SETTLE:
 			if s.settle():

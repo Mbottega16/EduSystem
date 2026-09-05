@@ -111,6 +111,10 @@ func _physics_process(delta: float) -> void:
 			queue_redraw()
 		elif _was_working and data.work_state == StudentData.Work.DONE:
 			play_pose(POSE_JUMP)      # finished the work -- a little cheer
+			# Fx.flash() had zero callsites in the whole game before this --
+			# the moment a sheet actually finishes is exactly the "something
+			# landed" beat it exists for.
+			Fx.flash(sprite)
 		_was_working = working
 	if _path.is_empty():
 		return

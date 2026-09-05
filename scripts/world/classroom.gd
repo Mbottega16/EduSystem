@@ -525,7 +525,21 @@ func _physics_process(delta: float) -> void:
 		if player != null and is_instance_valid(player) and not Game.test_active:
 			at_front = Game.can_teach_from(
 				Grid.world_to_tile(player.global_position))
+		var attn_before := Game.attention
 		Game.tick_attention(delta, at_front)
+		# The teach beat: the mirror of Game.class_drifted()'s own downward
+		# crossing, fired the other way. Attention only rises while
+		# `teaching` is true, so this can only ever land while you are
+		# actually stood at the front doing the thing it is praising.
+		if at_front and Game.phase == Game.Phase.LESSON \
+				and attn_before < Balance.teach_drift_hint_below \
+				and Game.attention >= Balance.teach_drift_hint_below \
+				and player != null and is_instance_valid(player):
+			Sfx.play("confirm")
+			Fx.puff(self, player.global_position + Vector2(0, -10),
+				Color(1.0, 0.95, 0.7))
+			Floater.pop(self, player.global_position + Vector2(0, -36),
+				"with you", Color(1.0, 0.95, 0.7))
 		Game.tick_uncollected(delta)
 		if lesson_left <= 0.0:
 			# THE CLOCK HAS TO ACTUALLY END THE LESSON.
@@ -744,10 +758,27 @@ func end_test() -> Array:
 func raise_voice() -> int:
 	if player == null:
 		return -1
+	# Snapshotted before the call, not asked for one -- Game.raise_voice()
+	# only ever hands back HOW MANY it settled, never which desks, and its
+	# int contract is not this file's to change. Diffing disrupting before
+	# and after finds exactly the same set some other way: whoever it is
+	# true for now who it was not true for a moment ago.
+	var was_disrupting: Dictionary = {}
+	for s: StudentData in Game.roster:
+		was_disrupting[s.id] = s.disrupting
 	var n := Game.raise_voice(Grid.world_to_tile(player.global_position))
 	if n >= 0:
 		Sfx.play("deny")            # a sterner noise than anything else here
 		_refresh_bubbles()
+		# One floater per desk that actually quieted down -- the same
+		# text and colour desk_station.gd's own SETTLE already uses, so
+		# settling one child by hand and settling a roomful with your
+		# voice read as the same event.
+		for s: StudentData in Game.roster:
+			if was_disrupting.get(s.id, false) and not s.disrupting and s.seat_index >= 0:
+				Floater.pop(self, Grid.tile_to_world(
+					Layout.seat(s.seat_index)) + Vector2(0, -36),
+					"sorry!", Color(1, 0.7, 0.5))
 	else:
 		Sfx.play("blip")
 	voice_raised.emit(n)
@@ -936,6 +967,18 @@ func end_lesson() -> Array:
 	# half of what they came to see.
 	var report := Game.inspect() if Game.being_inspected() else {}
 	var results := Game.grade_class()
+	# XP has been earned here every single lesson since the game existed
+	# and never once shown landing. One floater per desk, worded rather
+	# than counted -- XP is the child's own growth, the same category the
+	# "prose, never numbers" rule already keeps off their file page.
+	for r: Dictionary in results:
+		var s: StudentData = r.get("student")
+		if s == null or s.seat_index < 0:
+			continue
+		var levelled: bool = int(r.get("levels", 0)) > 0
+		Floater.pop(self, Grid.tile_to_world(Layout.seat(s.seat_index)) + Vector2(0, -36),
+			"level up!" if levelled else "+xp",
+			Color(1.0, 0.85, 0.3) if levelled else Color(0.65, 0.9, 1.0))
 	Game.assign_homework()
 	Game.set_phase(Game.Phase.AFTERNOON)
 	# The bell settles them. Confusion was already cleared here; disruption

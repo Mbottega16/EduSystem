@@ -253,6 +253,7 @@ func _main() -> void:
 	await test_teaching()
 	await test_weather()
 	await test_voice()
+	await test_juice_lands()
 	await test_quiz_buff_and_calm()
 	await test_stale_interactable_after_rebuild()
 	await test_inspection()
@@ -3900,6 +3901,119 @@ func test_voice() -> void:
 	world.end_test()
 
 	Layout.reset_seats()
+	Game.new_run(SEED)
+	await step(2)
+
+
+## Step 2 of ten-commits.md: the reward side finally shows up. Fx.flash()
+## and Fx.count_to() had zero callsites before this, and coins/xp landed
+## in total silence. A Floater is a plain child node with no id of its
+## own, so "did one appear" is get_child_count() before and after -- the
+## same proof test_weather() already uses for its own decorative spawn.
+func test_juice_lands() -> void:
+	section("THE GOOD BEATS LAND")
+	Balance.ensure_loaded()
+
+	# --- coins pop where they are earned: catching a flare-up ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.LESSON)
+	var flarer: StudentData = Game.roster[0]
+	flarer.flare_left = 1.0
+	var st0: Interactable = world.stations[flarer.seat_index]
+	chk("the desk is offering to catch it", st0.action() == st0.Action.DEFUSE,
+		st0.action())
+	var coins_before := Game.coins
+	var children_before := world.get_children()
+	st0.interact(world.player)
+	chk("catching it still pays the coin reward",
+		Game.coins == coins_before + Balance.flare_reward, Game.coins)
+	var said_coins := false
+	for c: Node in world.get_children():
+		if c is Floater and not children_before.has(c) \
+				and (c as Floater).current_text().contains("coins"):
+			said_coins = true
+	chk("and the money landing actually says so, not just the SFX",
+		said_coins)
+
+	# --- a child finishing their work gets Fx.flash(), not just the pose ---
+	var n0: Actor = world.student_node(Game.roster[1].seat_index)
+	n0._was_working = true
+	Game.roster[1].work_state = StudentData.Work.DONE
+	var flash_before := n0.sprite.modulate
+	n0._physics_process(1.0 / 60.0)
+	chk("finishing work flashes the sprite, not just the jump pose",
+		n0.sprite.modulate != flash_before, n0.sprite.modulate)
+
+	# --- settling the room by voice pops one floater per desk it reaches ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	await step(2)
+	Game.set_phase(Game.Phase.LESSON)
+	var near: StudentData = Game.roster[0]
+	near.disrupting = true
+	world.player.global_position = Grid.tile_to_world(Vector2i(3, 5))
+	var before2 := world.get_children()
+	world.raise_voice()
+	chk("settling somebody by voice still settles them",
+		not near.disrupting)
+	var said_sorry := false
+	for c: Node in world.get_children():
+		if c is Floater and not before2.has(c) \
+				and (c as Floater).current_text() == "sorry!":
+			said_sorry = true
+	chk("...and pops the same words the desk's own SETTLE does",
+		said_sorry)
+
+	# --- the teach beat: attention crossing up while you are at the front ---
+	Game.new_run(SEED)
+	await step(2)
+	# A real lesson, not just the phase -- this block lets several physics
+	# frames actually run, and a lesson_left never set by start_lesson()
+	# stays at whatever it last was, which can end the lesson on frame one.
+	world.start_lesson()
+	Game.attention = 0.0
+	world.player.global_position = Grid.tile_to_world(
+		Layout.PODIUM + Vector2i(0, 1))
+	var before3 := world.get_children()
+	var guard3 := 0
+	while Game.attention < Balance.teach_drift_hint_below and guard3 < 300:
+		await step(1)
+		guard3 += 1
+	chk("attention actually crossed the line",
+		Game.attention >= Balance.teach_drift_hint_below, Game.attention)
+	var said_it := false
+	for c: Node in world.get_children():
+		if c is Floater and not before3.has(c) \
+				and (c as Floater).current_text() == "with you":
+			said_it = true
+	chk("...and said so the moment it did, in the strip's own word",
+		said_it, guard3)
+
+	# --- xp lands at the bell, one line per desk, never as a raw number ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.set_phase(Game.Phase.LESSON)
+	# A DIFF against what was already there, not just a count -- earlier
+	# floaters in this same test are still mid-tween (0.8s) and would
+	# otherwise leak into the digit check below.
+	var before_children := world.get_children()
+	world.end_lesson()
+	var new_floaters: Array[Floater] = []
+	for c: Node in world.get_children():
+		if c is Floater and not before_children.has(c):
+			new_floaters.append(c)
+	chk("the bell pops one line per graded desk",
+		new_floaters.size() >= Game.roster.size(), new_floaters.size())
+	# XP is the child's own growth -- the same category "prose, never
+	# numbers" already keeps off their file page -- so it is worded, never
+	# counted, even here where nothing scans hud.body for it.
+	var digits := RegEx.new()
+	digits.compile("[0-9]")
+	for f: Floater in new_floaters:
+		chk("...worded rather than counted",
+			digits.search(f.current_text()) == null, f.current_text())
+
 	Game.new_run(SEED)
 	await step(2)
 
