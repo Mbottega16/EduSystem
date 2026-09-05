@@ -57,6 +57,12 @@ var event: Dictionary = {}      ## what makes today different from yesterday
 ## day boundaries are Game's though, so the tally sits here.
 var _flares_today: int = 0
 
+## Consecutive "none" days rolled so far, for DayEvent.roll()'s spread
+## guarantee (ten-commits.md step 5). Not saved, same as the other
+## day-scoped tallies here -- a reload losing count of a running streak
+## is not worth persisting a field for.
+var _none_streak: int = 0
+
 ## A pending desk interruption (phone call / parent conference) -- empty
 ## when nothing is waiting. Counted and ticked the same way flares are:
 ## classroom.gd owns the countdown (a thing in the room), Game owns the
@@ -720,6 +726,7 @@ func new_run(seed_value: int = 0) -> void:
 	homework_out = false
 	subject = pick_subject()
 	event = DayEvent.by_id("none")
+	_none_streak = 0
 	_flares_today = 0
 	interruption = {}
 	_complications_today = 0
@@ -1360,6 +1367,7 @@ func next_term() -> Dictionary:
 	voice = 1.0
 	last_inspection = {}
 	event = DayEvent.by_id("none")
+	_none_streak = 0
 	_flares_today = 0
 	interruption = {}
 	_complications_today = 0
@@ -2600,15 +2608,21 @@ func advance_day() -> Dictionary:
 	# not on tomorrow's (which is what "event" a few lines down already is).
 	var used_today := consumables_used_today.duplicate()
 	_reset_consumables()
-	event = DayEvent.roll(rng)
+	# The streak counts TODAY'S event, which is about to become yesterday's --
+	# read before the roll, or the guarantee is one day stale (same trap
+	# pacing_report() avoids for the same reason).
+	if String(event.get("id", "none")) == "none":
+		_none_streak += 1
+	else:
+		_none_streak = 0
+	event = DayEvent.roll(rng, _none_streak)
 	_flares_today = 0
 	fight_done = false
 	interruption = {}
 	_complications_today = 0
 	bell_rush_left = 0.0
 	_bell_rush_done.clear()
-	if event.has("bonus_coins"):
-		add_coins(int(event["bonus_coins"]))
+	_apply_announced_event(event)
 	# A materials day starts with every seated child empty-handed. The
 	# end-of-day report that announces tomorrow's event is what warns you --
 	# it already prints the blurb, so no new announcement was needed.
@@ -2629,6 +2643,19 @@ func advance_day() -> Dictionary:
 			"days_left": maxi(0, Balance.term_days - day + 1),
 			"split": split, "split_before": before,
 			"pacing": pacing}
+
+
+## Whatever a freshly rolled event pays out the moment it is ANNOUNCED --
+## today's report already says "Tomorrow: The book fair", so this runs
+## against tomorrow's event, not the day it actually plays out. Split out
+## of advance_day() so it can be tested against a chosen event directly,
+## without needing DayEvent.roll() to land on it by chance.
+func _apply_announced_event(ev: Dictionary) -> void:
+	if ev.has("bonus_coins"):
+		add_coins(int(ev["bonus_coins"]))
+	# Ten-commits.md step 5: the book fair.
+	if ev.has("grant_item"):
+		store_id(String(ev["grant_item"]))
 
 
 ## Set tonight's homework. Only meaningful once per day.

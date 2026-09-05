@@ -820,6 +820,10 @@
     "bonus_xp": 6,
     "escalate_days_left": 5
   },
+  "events": {
+    "_note": "Ten-commits.md step 5: the ordinary-day spread guarantee. `none` is still the single biggest slice of the table by weight, but two of it in a row is the ceiling -- the third day after a streak that long rerolls with `none` excluded entirely, so a term can never serve twenty ordinary days back to back the way the raw weights alone would allow.",
+    "none_streak_cap": 2
+  },
   "room": {
     "_note": "Buying floor space, and how it is used. Floor is priced per TILE of new floor and rising with each expansion, so a bigger room is a real investment rather than a thing you tick off on day two. The room only grows right and down: the door is a fixed point on the left wall and everything already placed must keep its coordinates. cluster_penalty is the counter to the discovered meta of cramming every desk into the middle: a child with another occupied desk orthogonally adjacent works this fraction slower. The opening layout has no two seats within one tile of each other, so it costs nothing until a player moves desks together. Layout-only -- never touches a grade formula, and the contract sim (tools/sim.gd _one_lesson()) never sees it: it sets every seat to 0 and calls tick_work() directly rather than through the room.",
     "expand_cost_per_tile": 26,

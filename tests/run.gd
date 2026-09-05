@@ -8234,6 +8234,67 @@ func test_events() -> void:
 	chk("and more if you waved their homework through",
 		s.stall_chance() > normal_day)
 
+	# --- ten-commits.md step 5: four new events ---
+	var pe := DayEvent.by_id("parents_evening")
+	chk("parents' evening shortens the lesson and still pays coins",
+		is_equal_approx(float(pe.get("lesson_mult", 1.0)), 0.8)
+		and int(pe.get("bonus_coins", 0)) > 0, pe)
+	chk("someone's birthday makes stalls more likely",
+		float(DayEvent.by_id("birthday").get("stall_mult", 1.0)) > 1.0)
+	var fair := DayEvent.by_id("book_fair")
+	chk("the book fair grants a real, existing item",
+		not Items.get_def(String(fair.get("grant_item", ""))).is_empty(), fair)
+	chk("a new face unsettles the room a little",
+		float(DayEvent.by_id("new_face").get("stall_mult", 1.0)) > 1.0)
+
+	# --- the grant lands the moment the event is announced, same as coins,
+	# not left to chance whether DayEvent.roll() actually lands on it ---
+	Game.new_run(SEED)
+	var cabinet_before := Game.cabinet.size()
+	Game._apply_announced_event(fair)
+	chk("the book fair actually puts the item in the cabinet",
+		Game.cabinet.size() == cabinet_before + 1
+		and Game.cabinet[Game.cabinet.size() - 1] == String(fair["grant_item"]),
+		Game.cabinet)
+	var coins_before3 := Game.coins
+	Game._apply_announced_event(pe)
+	chk("...and an ordinary bonus_coins event still just pays",
+		Game.coins == coins_before3 + int(pe["bonus_coins"]), Game.coins)
+
+	# --- the spread guarantee: the streak cap actually excludes "none" ---
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = 7
+	var saw_none_forced := false
+	for i in 300:
+		if String(DayEvent.roll(rng2, Balance.event_none_streak_cap)["id"]) == "none":
+			saw_none_forced = true
+	chk("once the streak is at the cap, none is excluded entirely",
+		not saw_none_forced)
+	var saw_none_free := false
+	for i in 300:
+		if String(DayEvent.roll(rng2, 0)["id"]) == "none":
+			saw_none_free = true
+	chk("...but it can still come up before the streak gets there",
+		saw_none_free)
+
+	# --- Game's own bookkeeping: read the day that just ended, not tomorrow ---
+	Game.new_run(SEED)
+	chk("a brand new run starts the streak at zero",
+		Game._none_streak == 0, Game._none_streak)
+	Game.event = DayEvent.by_id("none")
+	Game._none_streak = Balance.event_none_streak_cap - 1
+	Game.day = 1
+	Game.advance_day()
+	chk("an ordinary day walking in adds to the streak",
+		Game._none_streak == Balance.event_none_streak_cap, Game._none_streak)
+	Game.event = DayEvent.by_id("restless")
+	Game.day = 1
+	Game.advance_day()
+	chk("...and anything else resets it to zero",
+		Game._none_streak == 0, Game._none_streak)
+
+	Game.new_run(SEED)
+
 
 func test_economy() -> void:
 	section("ECONOMY")

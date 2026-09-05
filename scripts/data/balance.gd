@@ -81,6 +81,10 @@ static var pace_bonus_xp: int = 6
 ## warning -- the same number of days a term-1 class needs to be
 ## genuinely running out of road.
 static var pace_escalate_days_left: int = 5
+## The spread guarantee (ten-commits.md step 5): this many consecutive
+## "none" days is the ceiling before DayEvent.roll() excludes "none"
+## outright.
+static var event_none_streak_cap: int = 2
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
 static var teacher_speed: float = 120.0   ## doubled Aug 2026
@@ -456,6 +460,9 @@ static func apply(d: Dictionary) -> void:
 	pace_bonus_coins = int(pc.get("bonus_coins", pace_bonus_coins))
 	pace_bonus_xp = int(pc.get("bonus_xp", pace_bonus_xp))
 	pace_escalate_days_left = int(pc.get("escalate_days_left", pace_escalate_days_left))
+
+	var ev: Dictionary = d.get("events", {})
+	event_none_streak_cap = int(ev.get("none_streak_cap", event_none_streak_cap))
 
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))

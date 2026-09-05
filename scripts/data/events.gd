@@ -10,7 +10,7 @@ extends RefCounted
 
 const TABLE := [
 	{
-		"id": "none", "weight": 24, "name": "An ordinary day",
+		"id": "none", "weight": 8, "name": "An ordinary day",
 		"blurb": "Nothing out of the usual.",
 	},
 	{
@@ -114,15 +114,48 @@ const TABLE := [
 		"blurb": "They are tired, cheerful, and ready for home.",
 		"stall_mult": 1.2, "coin_mult": 1.15,
 	},
+	{
+		"id": "parents_evening", "weight": 4, "name": "Parents' evening",
+		"blurb": "Evening meetings loom, but a few pockets opened up.",
+		"lesson_mult": 0.8, "bonus_coins": 90,
+	},
+	{
+		"id": "birthday", "weight": 4, "name": "Someone's birthday",
+		"blurb": "A birthday has the room a little too excited to focus.",
+		"stall_mult": 1.25,
+	},
+	{
+		"id": "book_fair", "weight": 4, "name": "The book fair",
+		"blurb": "The book fair is on, and something came home in a bag.",
+		"grant_item": "bookshelf",
+	},
+	{
+		"id": "new_face", "weight": 4, "name": "A new face",
+		"blurb": "A new face is still finding their feet in the room.",
+		"stall_mult": 1.15,
+	},
 ]
 
 
-static func roll(rng: RandomNumberGenerator) -> Dictionary:
+## `none_streak` is how many days in a row the PREVIOUS rolls have already
+## come up "none" -- the caller's job to count, since this function does
+## not remember anything between calls. At or past
+## Balance.event_none_streak_cap, "none" is excluded from the draw
+## entirely (ten-commits.md step 5's spread guarantee) rather than merely
+## down-weighted, so a term can never serve twenty ordinary days running
+## the way the raw weights alone would allow.
+static func roll(rng: RandomNumberGenerator, none_streak: int = 0) -> Dictionary:
+	Balance.ensure_loaded()
+	var skip_none := none_streak >= Balance.event_none_streak_cap
 	var total := 0
 	for e: Dictionary in TABLE:
+		if skip_none and String(e["id"]) == "none":
+			continue
 		total += int(e["weight"])
 	var pick := rng.randi_range(1, total)
 	for e: Dictionary in TABLE:
+		if skip_none and String(e["id"]) == "none":
+			continue
 		pick -= int(e["weight"])
 		if pick <= 0:
 			return e

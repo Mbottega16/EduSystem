@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-05**, against build `b44`, with **1963 assertions
+> **Measured on 2026-09-05**, against build `b44`, with **1974 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -287,13 +287,13 @@ lesson clock, bubbles, the day, ambient weather keyed to today's day event —
 see below) · `room_builder.gd` · `placement.gd` (ghost cursor, build mode,
 aisle-safety check).
 
-**Ambient weather** *(Aug 2026)* — five of the twenty day events
+**Ambient weather** *(Aug 2026)* — five of the twenty-five day events
 (`wet_play`, `heatwave`, `sports_day`, `cold_snap`, `cleaning`) now spawn
 drifting motes in the room itself while their lesson is live, using
 `Fx.weather_mote()`. Purely cosmetic — it changes nothing `DayEvent`'s own
 hooks do not already change — but it turns "today is different" from a
 line on last night's report into something visible while you are standing
-in the room. The other fifteen events spawn nothing, on purpose: most days
+in the room. The other twenty events spawn nothing, on purpose: most days
 should still look like the plain room they have always been.
 
 ### Actors, interactables, UI
@@ -355,7 +355,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1963 assertions** across **107 sections** |
+| Tests | **1974 assertions** across **107 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
