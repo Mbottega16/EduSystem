@@ -151,22 +151,52 @@ func _desk_needing_me() -> int:
 	return best
 
 
+## Per-lesson accounting, so "the class always gets an F" is answerable
+## rather than arguable. Work advances while you TEACH, so the question is
+## whether this bot teaches or just commutes: how much of the lesson does
+## it stand at the front, versus walking to desks and back?
+var _lesson_trips := 0
+var _lesson_helped := 0
+var _lesson_front_frames := 0
+var _lesson_walk_frames := 0
+
+
+func _reset_lesson_tally() -> void:
+	_lesson_trips = 0
+	_lesson_helped = 0
+	_lesson_front_frames = 0
+	_lesson_walk_frames = 0
+
+
+func _lesson_tally() -> String:
+	var total: int = _lesson_front_frames + _lesson_walk_frames
+	var pct: int = 0 if total == 0 else int(round(100.0 * _lesson_front_frames / total))
+	return "front %d%%  trips %d  helped %d" % [pct, _lesson_trips, _lesson_helped]
+
+
 ## One lesson, played: at the front until somebody needs me, then to that
 ## desk and back. The clock ends the lesson.
 func _play_lesson() -> void:
 	var guard := 0
+	_reset_lesson_tally()
 	while Game.phase == Game.Phase.LESSON and guard < 4000:
 		guard += 1
 		var seat := _desk_needing_me()
 		if seat < 0:
+			_lesson_front_frames += secs(0.5)
 			await frames(secs(0.5))
 			continue
 		var stand: Vector2i = Layout.seat(seat) + Layout.DESK_OFFSET + Vector2i(0, 1)
+		_lesson_trips += 1
+		var before: int = Engine.get_physics_frames()
 		if not await walk_to(stand, 240):
+			_lesson_walk_frames += Engine.get_physics_frames() - before
 			await frames(4)
 			continue
 		await tap("interact")
+		_lesson_helped += 1
 		await walk_to(Layout.PODIUM + Vector2i(0, 1), 300)
+		_lesson_walk_frames += Engine.get_physics_frames() - before
 	if Game.phase == Game.Phase.LESSON:
 		await hold("teach", 0.8)                # the clock did not end it; we do
 
@@ -255,9 +285,9 @@ func _play() -> void:
 		if Game.day != last_day:
 			last_day = Game.day
 			if Game.day % 5 == 0 or Game.term_over:
-				print("   day %-3d coins %-5d class %d  avg %s" % [
+				print("   day %-3d coins %-5d class %d  avg %s   | %s" % [
 					day, Game.coins, Game.roster.size(),
-					Game.grade_letter(Game.class_average())])
+					Game.grade_letter(Game.class_average()), _lesson_tally()])
 		await clear_screens()
 		await frames(secs(0.5))                 # the class files back in
 
