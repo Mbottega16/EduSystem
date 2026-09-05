@@ -1449,6 +1449,21 @@
         "lesson_mult": 1.0,
         "coin_mult": 1.0,
         "density_mult": 1.0
+      },
+      {
+        "id": "boss_inspection",
+        "name": "Mock Inspection",
+        "kind": "boss",
+        "strand": "inspection",
+        "target": 0.72,
+        "trophy_id": "boss_inspection",
+        "moves": ["noise", "noise", "freeze", "noise", "present", "noise"],
+        "tactic": "The visitor watches the whole room, not just the front row. Keep the noise from spreading before it reaches every desk.",
+        "weight": 15,
+        "blurb": "The visit nobody can quite prepare for. Every desk, at once.",
+        "lesson_mult": 1.0,
+        "coin_mult": 1.0,
+        "density_mult": 1.0
       }
     ]
   }

@@ -26,6 +26,8 @@ const TABLE := [
 		"blurb": "They argued both sides of it and counted the votes themselves."},
 	{"id": "boss_gauntlet", "name": "Open Evening",
 		"blurb": "Parents, inspectors, the lot, and the room held up under all of it."},
+	{"id": "boss_inspection", "name": "Mock Inspection",
+		"blurb": "The visitor came, watched the whole room, and found nothing to write down."},
 ]
 
 

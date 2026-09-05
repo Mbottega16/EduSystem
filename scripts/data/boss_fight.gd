@@ -59,6 +59,10 @@ const QUESTIONS := {
 			"What happens if you take the sun away.", "Predict, then explain."],
 		"social": ["Where the river runs.", "Who decides, and why them.",
 			"What a fair rule looks like.", "Then and now, side by side."],
+		"inspection": ["The visitor at the back, writing something down.",
+			"A question aimed at whoever looks least sure.",
+			"The display board, read closely for the first time in months.",
+			"A folder open on the desk, and nowhere to hide it."],
 		"any": ["The question nobody revised.", "The one that looks easy and is not.",
 			"A blank page, and a clock.", "The last question, worth the most."],
 	},
@@ -67,6 +71,7 @@ const QUESTIONS := {
 		"math": ["Nobody may freeze. Times tables, round the room."],
 		"science": ["The food chain -- each link names the next."],
 		"social": ["Every capital, in order, desk by desk."],
+		"inspection": ["Desk by desk, the visitor asks what they are learning, and why."],
 		"any": ["Round the room, one after another, no gaps."],
 	},
 	"noise": {
@@ -74,6 +79,7 @@ const QUESTIONS := {
 		"math": ["Two answers, and both of them sure."],
 		"science": ["Is a tomato a fruit? Argue it."],
 		"social": ["Both sides argued, out loud, at once."],
+		"inspection": ["The visitor asks a question, and three answers come back at once."],
 		"any": ["The room takes sides."],
 	},
 	"present": {
@@ -81,6 +87,7 @@ const QUESTIONS := {
 		"math": ["One child at the board, showing the method."],
 		"science": ["Present the experiment to strangers."],
 		"social": ["Make the case, in front of everyone."],
+		"inspection": ["One child explains the work on the wall, to the visitor's face."],
 		"any": ["Up front, alone, everybody watching."],
 	},
 }

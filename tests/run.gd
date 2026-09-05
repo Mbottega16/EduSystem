@@ -4660,8 +4660,8 @@ func test_boss() -> void:
 	Game.new_run(SEED)
 
 	# --- the boss table ---
-	chk("balance.json carries one boss per strand plus the gauntlet",
-		Balance.bosses.size() == 5, Balance.bosses.size())
+	chk("balance.json carries one boss per strand, the gauntlet, and the inspection",
+		Balance.bosses.size() == 6, Balance.bosses.size())
 	chk("the cadence is a real, read tunable",
 		Balance.boss_term_interval >= 2, Balance.boss_term_interval)
 	chk("every boss card is tagged, barred and has a real trophy behind it",
@@ -5164,6 +5164,28 @@ func test_boss_fight() -> void:
 		bf_code.count("randf(") == bf_code.count("rng.randf(")
 		and bf_code.count("randi_range(") == bf_code.count("rng.randi_range(")
 		and bf_code.count("randi(") == 0)
+
+	# --- the Mock Inspection: a sixth card, not one of the four strands or
+	# the gauntlet -- its own pseudo-strand, with its own flavour text so it
+	# does not silently fall back to "any" like an unlisted strand would ---
+	var inspection: Dictionary = {}
+	for c: Dictionary in Balance.bosses:
+		if String(c.get("id", "")) == "boss_inspection":
+			inspection = c.duplicate()
+	chk("the Mock Inspection card is in the table", not inspection.is_empty())
+	chk("its target sits above an ordinary subject boss's, below the gauntlet's",
+		float(inspection.get("target", 0.0)) > 0.7
+		and float(inspection.get("target", 0.0)) < 0.74)
+	chk("its moves are noise-heavy, as briefed",
+		(inspection.get("moves", []) as Array).count("noise") \
+			> (inspection.get("moves", []) as Array).size() / 2.0)
+	chk("beating it awards its own trophy, not a borrowed one",
+		not Trophies.by_id(String(inspection.get("trophy_id", ""))).is_empty())
+	var insp_fight := BossFight.new()
+	insp_fight.start(inspection, Game.roster, Game.rng)
+	chk("its own strand resolves to its own question pool, not the \"any\" fallback",
+		insp_fight.strand == "inspection"
+		and BossFight.QUESTIONS["freeze"].has("inspection"))
 
 	Game.new_run(SEED)
 	await step(2)
@@ -6832,7 +6854,7 @@ func test_trophies() -> void:
 	# table, the save slot and the screen are here so that work has
 	# somewhere to go.
 	chk("there are trophies defined", Trophies.count() > 0, Trophies.count())
-	chk("one per subject boss, plus the gauntlet", Trophies.count() == 5)
+	chk("one per subject boss, the gauntlet, and the inspection", Trophies.count() == 6)
 	chk("every one has a name and a line", (func() -> bool:
 		for t: Dictionary in Trophies.all():
 			if String(t.get("name", "")) == "" or String(t.get("blurb", "")) == "":
@@ -6904,15 +6926,15 @@ func test_trophies() -> void:
 	chk("the career list names a won trophy",
 		hud.rich.text.contains(String(Trophies.by_id("boss_ela")["name"])),
 		hud.rich.text)
-	chk("the title counts trophies", hud.title.text.contains("trophies 1/5"),
+	chk("the title counts trophies", hud.title.text.contains("trophies 1/6"),
 		hud.title.text)
 	chk("the list still fits the panel",
 		hud.rich.text.split("\n").size() <= 11, hud.rich.text.split("\n").size())
-	# the cursor can reach the very last entry, which is the gauntlet trophy
+	# the cursor can reach the very last entry, which is the inspection trophy
 	hud._sel = hud._career_rows().size() - 1
 	hud.show_career()
 	chk("the cursor can reach the last trophy",
-		hud._career_rows()[hud._sel].get("id", "") == "boss_gauntlet",
+		hud._career_rows()[hud._sel].get("id", "") == "boss_inspection",
 		hud._career_rows()[hud._sel])
 	hud.close()
 
