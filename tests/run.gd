@@ -9161,6 +9161,45 @@ func test_callers() -> void:
 		Game.cabinet.size() == cab_before + 1, Game.cabinet.size())
 	chk("and places nothing for you", Game.room_items.size() == placed_before)
 
+	# --- ten-commits.md step 7: three new desk decisions ---
+	# found_item -- the same item-effect path storeroom_key already proved
+	var cab_before2: int = Game.cabinet.size()
+	world.resolve_caller_choice(Complication.by_id("found_item"), 0, null)
+	chk("keeping what a child found puts it in the cabinet too",
+		Game.cabinet.size() == cab_before2 + 1, Game.cabinet)
+
+	# seat_swap -- letting them move disrupts one seated child
+	Game.new_run(SEED)
+	await step(2)
+	for st: StudentData in Game.roster:
+		st.disrupting = false
+	var settled_count := 0
+	for st: StudentData in Game.roster:
+		if not st.disrupting:
+			settled_count += 1
+	world.resolve_caller_choice(Complication.by_id("seat_swap"), 0, null)
+	var disrupting_count := 0
+	for st: StudentData in Game.roster:
+		if st.disrupting:
+			disrupting_count += 1
+	chk("letting a child swap seats unsettles exactly one desk",
+		disrupting_count == 1 and settled_count == Game.roster.size(),
+		disrupting_count)
+
+	# borrow_desk -- lending it over pays reputation but still disrupts one
+	Game.new_run(SEED)
+	await step(2)
+	var rep_before2: float = Game.reputation
+	world.resolve_caller_choice(Complication.by_id("borrow_desk"), 0, null)
+	chk("lending a desk over costs the room something",
+		Game.reputation > rep_before2)
+	chk("...and still unsettles a desk, the same as any other favour",
+		(func() -> bool:
+			for st: StudentData in Game.roster:
+				if st.disrupting:
+					return true
+			return false).call())
+
 	# --- the boost: teacher pace, and only that ---
 	Game.clear_boost()
 	chk("no boost is running to start with", Game.boost_speed_mult() == 1.0)
