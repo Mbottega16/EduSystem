@@ -1,4 +1,4 @@
-extends Node
+extends "res://tools/playdrive.gd"
 
 ## Walk a real day, the way a player does, and print what happens.
 ##
@@ -13,33 +13,23 @@ extends Node
 ## suite says another.
 ##
 ##   godot --path . res://tools/playtrace.tscn
+##
+## DELIBERATELY NOT A GATE. This is a narrator: a human reads its steps and
+## decides what they mean. playterm.gd is the one with a pass bar and an
+## exit code, and it is the one wired into .githooks/pre-push. Do not put
+## this behind an automated check without giving it a verdict line first --
+## an exit code nobody sets is the exact bug that hid a regression here for
+## four days.
+##
+## The walking, the keypresses and the boot live in playdrive.gd, shared
+## with playterm.gd. They used to be copied into both files, which is how
+## a fix to walk_to() landed in one copy and not the other.
 
-const MAIN := preload("res://scenes/main.tscn")
-
-var main: Node = null
-var world: Node = null
-var hud: Node = null
-var player: Node = null
 var _step := 0
 
 
 func _ready() -> void:
-	Balance.ensure_loaded()
-	Game.new_run(12345)
-	# This tool traces the EVERYDAY loop, not the once-per-career storyline
-	# cutscene -- and it drives input by simulating key presses, never a real
-	# frame of "press E to advance the slate", so a fresh new_run() above
-	# would otherwise leave main.gd's cutscene locking player input forever
-	# with nothing here that knows to clear it. Found by running this tool
-	# and reading the output: every line after boot showed locked=true and
-	# every action after that was silently a no-op.
-	Game.intro_seen = true
-	main = MAIN.instantiate()
-	add_child(main)
-	await get_tree().process_frame
-	world = main.get_node("World")
-	hud = main.get_node("UI/HUD")
-	player = world.player
+	await boot(12345)
 	await _trace()
 	get_tree().quit()
 
@@ -68,50 +58,6 @@ func _prompt_of(action: String) -> String:
 	return (t as Interactable).prompt_text()
 
 
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().physics_frame
-
-
-## Walk to a tile the way a keyboard does, and report if we never arrive.
-func walk_to(tile: Vector2i, limit: int = 900) -> bool:
-	var target := Grid.tile_to_world(tile)
-	for i in limit:
-		var here: Vector2 = player.global_position
-		var d: Vector2 = target - here
-		if d.length() < 5.0:
-			_release_all()
-			await frames(4)
-			return true
-		_release_all()
-		if absf(d.x) > 3.0:
-			Input.action_press("move_right" if d.x > 0.0 else "move_left")
-		if absf(d.y) > 3.0:
-			Input.action_press("move_down" if d.y > 0.0 else "move_up")
-		await get_tree().physics_frame
-	_release_all()
-	return false
-
-
-func _release_all() -> void:
-	for a in ["move_left", "move_right", "move_up", "move_down"]:
-		Input.action_release(a)
-
-
-func tap(action: String) -> void:
-	Input.action_press(action)
-	await frames(3)
-	Input.action_release(action)
-	await frames(3)
-
-
-func hold(action: String, seconds: float) -> void:
-	Input.action_press(action)
-	await frames(int(seconds * 60.0) + 6)
-	Input.action_release(action)
-	await frames(4)
-
-
 func _trace() -> void:
 	print("\n==================== A REAL DAY ====================")
 	await frames(6)          # the very first moment of the day
@@ -138,7 +84,7 @@ func _trace() -> void:
 	# "teach" (L), not "manage" (F): the podium's start verb moved to its
 	# own key in the Aug 2026 remap, and this trace kept pressing the old
 	# one -- so it stalled on day one and was read as "the term never
-	# resolves" for a week. playterm.gd had the same fix; this did not.
+	# resolves" for a week.
 	await tap("teach")
 	# The podium draws a hand of papers now; the lesson starts when you
 	# take one. Two presses, not one.

@@ -1,4 +1,4 @@
-extends Node
+extends "res://tools/playdrive.gd"
 
 ## Play a WHOLE TERM through the real buttons, and see if the game ends.
 ##
@@ -11,9 +11,43 @@ extends Node
 ## the lesson, teach for a bit, end it, close the report, walk to the bell,
 ## ring it. Nothing calls end_day() behind the game's back.
 ##
-##   godot --path . res://tools/playterm.tscn
+##   godot --headless --path . res://tools/playterm.tscn
+##
+## WHAT IT GATES ON. Three different questions live in here, and they do not
+## share a pass bar:
+##
+##   liveness    every day reaches the bell and the exam fires    GATED
+##   carry-on    a second term begins                             reported
+##   competence  the class meets the term's target                reported
+##
+## Only liveness decides the exit code today. This bot never marks homework,
+## so it cannot pass a term on merit; gating on a bar it is not equipped to
+## clear would leave the gate permanently red, and a gate that is always red
+## is not a gate. Both other answers are printed on every run, and
+## GATE_COMPETENCE below is the one-line switch that folds them into the
+## exit code once there is a marking policy to hold it to.
+##
+## THE EXIT CODE IS THE POINT. It used to quit() with no argument, so a
+## failed day, a clean run, and a script that never compiled all exited 0,
+## and nothing downstream could tell them apart -- which is how a
+## walkthrough regression sat unnoticed for four days behind a green suite.
+## Now: 0 only when liveness passed, 1 otherwise, with the day and the
+## reason named on the WALKTHROUGH FAILED line. The launcher and the
+## pre-push hook both read that LINE rather than trusting the code alone,
+## because a GDScript parse error still exits 0 having never run at all.
 
-const MAIN := preload("res://scenes/main.tscn")
+## The one-line switch. Flip it when a marking policy exists; until then,
+## the class failing its target is REPORTED, never a failed exit.
+const GATE_COMPETENCE := false
+
+## The verdict line. Grepped for by "Play a Whole Term.bat" and by
+## .githooks/pre-push -- keep all three in step if this ever changes.
+const VERDICT_PASS := "WALKTHROUGH PASSED"
+const VERDICT_FAIL := "WALKTHROUGH FAILED"
+
+## Wall clock, not game time: a whole term takes about three minutes.
+const WATCHDOG_SECONDS := 600.0
+
 ## There used to be a bare TEACH_SECONDS here (1.2, then 14), after which
 ## the harness ended the lesson early with nothing collected. Fourteen
 ## seconds finishes no assignment (work_seconds is 20) and uncollected
@@ -23,100 +57,32 @@ const MAIN := preload("res://scenes/main.tscn")
 ## designed. A walkthrough has to PLAY well enough to reach the thing it
 ## is checking, so it now plays the lesson out; see _play_lesson().
 
-## Run the whole thing faster than real time.
-##
-## Engine.time_scale makes each physics frame worth more SIMULATED seconds,
-## so a properly-taught twenty-day term fits in a couple of minutes instead
-## of running past any sensible timeout. Every duration below is therefore
-## divided by it -- the game still thinks in seconds, this file thinks in
-## frames, and the two only agree if the conversion is done in one place.
+## Run the whole thing faster than real time -- see playdrive.gd's speed.
 const SPEED := 6.0
 
+## The FIRST liveness failure and the day it happened on. First, not last:
+## everything after a broken day is downstream noise.
+var _fail_day := 0
+var _fail_why := ""
 
-func secs(seconds: float) -> int:
-	return maxi(1, int(seconds * 60.0 / SPEED))
-
-var main: Node = null
-var world: Node = null
-var hud: Node = null
-var player: Node = null
+## Competence, kept apart from liveness on purpose -- see the header.
+var _missed_target := false
+var _missed_by := 0
 
 
 func _ready() -> void:
-	Balance.ensure_loaded()
-	Engine.time_scale = SPEED
-	Game.new_run(777)
-	# Same reasoning as playtrace.gd: this drives twenty real days through
-	# the real buttons, not the once-per-career storyline cutscene, and
-	# nothing here presses E to advance it -- a fresh new_run() would
-	# otherwise leave the player permanently input_locked on day 1.
-	Game.intro_seen = true
-	main = MAIN.instantiate()
-	add_child(main)
-	await get_tree().process_frame
-	world = main.get_node("World")
-	hud = main.get_node("UI/HUD")
-	player = world.player
+	watchdog(WATCHDOG_SECONDS, VERDICT_FAIL)
+	await boot(777, SPEED)
 	await _play()
-	get_tree().quit()
+	get_tree().quit(0 if _verdict() else 1)
 
 
-func frames(n: int) -> void:
-	for i in n:
-		await get_tree().physics_frame
-
-
-## Walk to a tile by pressing directions, the way a player does.
-##
-## Arrival is "standing ON the tile", not "within 5px of its exact centre".
-## That distinction is the whole bug this used to have: walking to the bell
-## put the player inside tile (18, 3) but a few pixels off its centre,
-## pressed against the bell's own collider. The old 5px test then never
-## fired, the press-toward-centre never moved anything, and after 900
-## frames it reported "could not reach the bell" -- while the prompt
-## "Ring the bell — end day 18" was on screen and one keypress away. The
-## room was fine, the game was fine, and the walkthrough called it a
-## failure for four days of real confusion.
-##
-## The centre test is kept as the fast path; the tile test is what makes it
-## honest. Tile equality is strictly more permissive, so this can only turn
-## former false failures into successes -- it cannot make walk_to claim an
-## arrival it did not make.
-func walk_to(tile: Vector2i, limit: int = 900) -> bool:
-	var target := Grid.tile_to_world(tile)
-	for i in limit:
-		var d: Vector2 = target - player.global_position
-		if d.length() < 5.0 or Grid.world_to_tile(player.global_position) == tile:
-			_release()
-			await frames(3)
-			return true
-		_release()
-		if absf(d.x) > 3.0:
-			Input.action_press("move_right" if d.x > 0.0 else "move_left")
-		if absf(d.y) > 3.0:
-			Input.action_press("move_down" if d.y > 0.0 else "move_up")
-		await get_tree().physics_frame
-	_release()
-	return false
-
-
-func _release() -> void:
-	for a in ["move_left", "move_right", "move_up", "move_down"]:
-		Input.action_release(a)
-
-
-func tap(action: String) -> void:
-	Input.action_press(action)
-	await frames(3)
-	Input.action_release(action)
-	await frames(3)
-
-
-func hold(action: String, seconds: float) -> void:
-	Input.action_press(action)
-	await frames(secs(seconds) + 8)
-	Input.action_release(action)
-	await frames(4)
+## Record a liveness failure, and say which day broke.
+func _fail(day: int, why: String) -> void:
+	if _fail_why == "":
+		_fail_day = day
+		_fail_why = why
+	print("!! day %d: %s" % [day, why])
 
 
 ## Close whatever is on screen, however many screens deep it goes.
@@ -216,14 +182,20 @@ func _play() -> void:
 		# Missing a target ends the run and the next press starts a fresh
 		# one. Without noticing that, the loop quietly replays term one over
 		# and over and the report reads as if nothing ever resolved.
+		#
+		# This is COMPETENCE, not liveness. The exam fired and judged the
+		# class, which is everything the gate asks of the GAME; what failed
+		# is this bot's teaching. It stops the run and it is reported
+		# plainly, but it does not fail the tool. See GATE_COMPETENCE.
 		if Game.run_over:
-			print("!! the run ended: a term missed its target of %d"
-				% Game.term_target())
+			_missed_target = true
+			_missed_by = Game.term_target()
+			print("   the run ended: a term missed its target of %d" % _missed_by)
 			break
 		var day: int = Game.day
 
 		if not await walk_to(Layout.PODIUM + Vector2i(0, 1)):
-			print("!! day %d: could not reach the podium" % day)
+			_fail(day, "could not reach the podium")
 			break
 		if Game.phase == Game.Phase.MORNING:
 			# Teaching split off onto its own key (L) in the Aug 2026 remap --
@@ -234,8 +206,8 @@ func _play() -> void:
 				await tap("interact")
 				await frames(4)
 		if Game.phase != Game.Phase.LESSON:
-			print("!! day %d: the lesson would not start (phase %d, L=[%s])"
-				% [day, Game.phase, _offer("teach")])
+			_fail(day, "the lesson would not start (phase %d, L=[%s])"
+				% [Game.phase, _offer("teach")])
 			break
 
 		# Play the lesson the way a competent player does: teach from the
@@ -245,8 +217,8 @@ func _play() -> void:
 		await clear_screens()
 
 		if Game.phase != Game.Phase.AFTERNOON:
-			print("!! day %d: the lesson would not end (phase %d, hud %d, locked %s, E=[%s] F=[%s], at %s)"
-				% [day, Game.phase, hud.mode, player.input_locked,
+			_fail(day, "the lesson would not end (phase %d, hud %d, locked %s, E=[%s] F=[%s], at %s)"
+				% [Game.phase, hud.mode, player.input_locked,
 					_offer("interact"), _offer("manage"),
 					Grid.world_to_tile(player.global_position)])
 			break
@@ -263,7 +235,7 @@ func _play() -> void:
 			# the classroom's own Grid instance, not the class.
 			var here: Vector2i = Grid.world_to_tile(player.global_position)
 			var g = world.grid
-			print("!! day %d: could not reach the bell" % day)
+			_fail(day, "could not reach the bell")
 			print("     at %s, wanted %s | target free: %s | reachable: %s | path len: %d"
 				% [here, bell_tile, g.is_free(bell_tile),
 					g.reachable(here, bell_tile),
@@ -279,8 +251,7 @@ func _play() -> void:
 		await hold("manage", 0.9)
 
 		if Game.day == day and not Game.term_over and Game.term == 1:
-			print("!! day %d: the bell did not ring (F=[%s])"
-				% [day, _offer("manage")])
+			_fail(day, "the bell did not ring (F=[%s])" % _offer("manage"))
 			break
 		if Game.day != last_day:
 			last_day = Game.day
@@ -308,7 +279,50 @@ func _play() -> void:
 	print("   concepts    : %d of %d" % [
 		Game.concepts.size(), Curriculum.concept_count()])
 	print("   graduated   : %d" % Game.graduated.size())
-	print("==========================================\n")
+
+
+## The three answers, said one at a time, and the one that decides the code.
+func _verdict() -> bool:
+	# A run that never reached an exam is a liveness failure even when no
+	# single day reported one: the loop can simply run out of attempts.
+	if _fail_why == "" and Game.exam_result.is_empty():
+		_fail_day = Game.day
+		_fail_why = "the term never resolved: no exam ever fired"
+	var live := _fail_why == ""
+	var carried := Game.term >= 2 or Game.term_history.size() >= 2
+
+	print("")
+	if live:
+		print("   liveness    : ok - the bell every day, and the exam fired")
+	else:
+		print("   liveness    : FAILED")
+	if carried:
+		print("   carry-on    : ok - term %d began" % Game.term)
+	else:
+		print("   carry-on    : no second term began")
+	if _missed_target:
+		print("   competence  : the class missed its target of %d" % _missed_by)
+		print("                 (this bot never marks homework - reported, not gated)")
+	elif live:
+		print("   competence  : ok - no term missed its target")
+	else:
+		print("   competence  : unknown - the run broke before it could say")
+	print("==========================================")
+	print("")
+
+	var ok := live
+	if GATE_COMPETENCE:
+		ok = live and carried and not _missed_target
+	if ok:
+		print("%s - %d term(s) played, every day reached the bell."
+			% [VERDICT_PASS, Game.term_history.size()])
+		return true
+	if not live:
+		print("%s - day %d: %s" % [VERDICT_FAIL, _fail_day, _fail_why])
+	else:
+		print("%s - term %d missed its target of %d"
+			% [VERDICT_FAIL, Game.term, _missed_by])
+	return false
 
 
 func _offer(action: String) -> String:

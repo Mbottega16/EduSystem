@@ -18,13 +18,13 @@ echo    1) Play EDUSystem
 echo    2) Open in Godot Editor
 echo.
 echo   VERIFY  (read the assertion COUNT, not just PASSED)
-echo    3) Run Tests               (the 1150-assertion suite)
+echo    3) Run Tests               (the whole suite -- read the COUNT)
 echo    4) Verify                  (suite + docs + balance contract, one shot)
 echo    5) Simulate a Term         (the three contract rows)
 echo    6) Simulate the School     (delegated rooms, hiring, the board)
 echo.
 echo   LOOK AT THE RUNNING GAME  (headless never proves this)
-echo    7) Play a Whole Term       (20 real days, real buttons)
+echo    7) Play a Whole Term       (20 real days, real buttons, pass/fail)
 echo    8) Trace a Day             (one real day, real buttons)
 echo    9) Audit the Room          (what both buttons offer, everywhere)
 echo   10) Take a Screenshot       (real scene -^> PNG in shots\)

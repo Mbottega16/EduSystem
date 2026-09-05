@@ -437,7 +437,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            1893 assertions
+Run Tests.bat            1917 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
@@ -531,7 +531,8 @@ scripts/
   data/      balance, items, questions, events, names, curriculum,
              progress, traits, student_data
   ui/        hud, floater, debug_panel
-tools/       make_art.py, make_items.py, make_audio.py, sim.gd, playterm.gd,
+tools/       make_art.py, make_items.py, make_audio.py, sim.gd,
+             playdrive.gd (walk/keypress base), playterm.gd, playtrace.gd,
              curator.gd, shot.gd, check_docs.py, check_balance.py,
              check_items.py, check_traits.py, godot_path.txt, sprites/
 tests/run.gd

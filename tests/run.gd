@@ -265,6 +265,7 @@ func _main() -> void:
 	await test_music()
 	await test_fight_music()
 	test_portraits()
+	test_walkthrough()
 
 	print("")
 	if failed == 0:
@@ -11070,3 +11071,75 @@ func test_portraits() -> void:
 			wrong_size.append(n)
 	chk("every character has a portrait bust", missing.is_empty(), missing)
 	chk("and each one is a 96x96 image", wrong_size.is_empty(), wrong_size)
+
+
+## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
+##
+## Not a test of the game -- a test of the thing that tests the game, and
+## the two failures it pins down are both ones this repo actually had.
+##
+## walk_to() lived in playterm.gd and playtrace.gd, byte-identical. A real
+## fix landed in one copy; the other kept a comment saying so and stayed
+## broken. And playterm.gd exited 0 whatever happened, so a failed day 18,
+## a clean run, and a script that never compiled were indistinguishable
+## from the outside -- which is how a regression sat for four days while
+## the suite below it stayed green. A green suite cannot say anything
+## about a tool that never reports failure, so it says it here instead.
+func test_walkthrough() -> void:
+	section("WALKTHROUGH")
+	var drive := FileAccess.get_file_as_string("res://tools/playdrive.gd")
+	var term := FileAccess.get_file_as_string("res://tools/playterm.gd")
+	var trace := FileAccess.get_file_as_string("res://tools/playtrace.gd")
+	chk("all three walkthrough scripts are there to scan",
+		drive != "" and term != "" and trace != "")
+
+	# --- one copy of the keyboard, not two ---
+	chk("walk_to() lives in playdrive.gd", drive.count("func walk_to(") == 1)
+	chk("...and playterm.gd does not redefine it",
+		term.count("func walk_to(") == 0)
+	chk("...and neither does playtrace.gd -- the copy that missed the fix",
+		trace.count("func walk_to(") == 0)
+	chk("both tools inherit the shared base rather than copying it",
+		term.contains('extends "res://tools/playdrive.gd"')
+		and trace.contains('extends "res://tools/playdrive.gd"'))
+	chk("the one walk_to() still arrives by TILE, not only by 5px centre",
+		drive.contains("Grid.world_to_tile(player.global_position) == tile"))
+	for fn: String in ["func tap(", "func hold(", "func frames(", "func _release("]:
+		chk("%s() is shared too, not copied back into a tool" % fn.substr(5).rstrip("("),
+			drive.count(fn) == 1 and term.count(fn) == 0 and trace.count(fn) == 0)
+
+	# --- a walkthrough that fails has to SAY so, in the exit code ---
+	chk("playterm.gd quits with a real code",
+		term.contains("get_tree().quit(0 if _verdict() else 1)"))
+	chk("...and never with the bare quit() that made every run look fine",
+		not term.contains("get_tree().quit()"))
+	chk("it prints a verdict line either way",
+		term.contains('VERDICT_PASS := "WALKTHROUGH PASSED"')
+		and term.contains('VERDICT_FAIL := "WALKTHROUGH FAILED"'))
+	chk("a failure names the day it broke on",
+		term.contains('[VERDICT_FAIL, _fail_day, _fail_why]'))
+	chk("competence stays reported, not gated, until a marking policy exists",
+		term.contains("const GATE_COMPETENCE := false"))
+	chk("and it cannot hang whatever is waiting on it",
+		term.contains("watchdog(WATCHDOG_SECONDS"))
+
+	# --- and whatever RUNS it must read that line, not the exit code alone ---
+	var bat := FileAccess.get_file_as_string("res://Play a Whole Term.bat")
+	var hook := FileAccess.get_file_as_string("res://.githooks/pre-push")
+	chk("the launcher is there to scan", bat != "")
+	chk("the pre-push hook is TRACKED, not hidden in .git/hooks where it died",
+		hook != "")
+	chk("the launcher checks the verdict line", bat.contains("WALKTHROUGH PASSED"))
+	# Case-insensitively: Godot prints "Parse Error:" on one line and
+	# "with error \"Parse error\"" on the next, and this check quietly
+	# passed on the second one until both guards were made /I and -i.
+	chk("...and the parse-error trap", bat.to_lower().contains("parse error"))
+	chk("the hook actually runs the walkthrough", hook.contains("playterm.tscn"))
+	chk("...and blocks on its verdict",
+		hook.contains("WALKTHROUGH PASSED") and hook.contains("WALKTHROUGH FAILED"))
+	chk("...and guards the same parse-error trap",
+		hook.to_lower().contains("parse error"))
+
+	# --- a dev tool must never write the player's save (CLAUDE.md) ---
+	chk("both walkthroughs redirect the save away from the player's",
+		drive.contains('Game.save_path = "user://edusystem_WALKTHROUGH_save.json"'))

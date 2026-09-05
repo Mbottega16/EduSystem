@@ -132,7 +132,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            1893 assertions — must pass, count must not drop
+Run Tests.bat            1917 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -142,6 +142,20 @@ Simulate the School.bat  delegated rooms: does hiring matter, does the board mov
 
 Or **`Verify.bat`** — the suite, the docs and the contract in one command,
 replacing three of the five double-clicks above.
+
+**Only two of those tools have a machine-readable answer: the suite, and
+`Play a Whole Term.bat`.** The walkthrough prints a `WALKTHROUGH PASSED` /
+`WALKTHROUGH FAILED - day N: <reason>` line and exits accordingly. It used
+to `quit()` with no argument, so a broken day 18, a clean run, and a
+script that never compiled all exited 0 and read the same from outside —
+which is how a walkthrough regression sat for four days behind a green
+suite. **It gates on liveness only** (every day reaches the bell, the exam
+fires). The bot never marks homework, so it cannot pass a term on merit;
+whether the class met its target is printed on every run and deliberately
+does not fail it. `GATE_COMPETENCE` in `tools/playterm.gd` is the switch,
+for when there is a marking policy to hold it to.
+
+The other four still speak only prose at a human. Read their output.
 
 Then **look at it**: `Take a Screenshot.bat [screen]` runs the real scene
 and saves a PNG into `shots/` (gitignored). Pass no argument for the HUD's
@@ -191,6 +205,18 @@ exit when spawned as a git-hook child, so the hook kills it and blocks
 rather than trusting a clean exit). `git commit --no-verify` skips it for
 a deliberate WIP commit.
 
+**Step 6 is enforced too, by `.githooks/pre-push`:** `check_docs.py`, then
+a whole term through the real buttons. It does not repeat the suite —
+pre-commit already ran it. The walkthrough is here because three minutes
+is too slow for every edit and too cheap to skip before a push; it is the
+only thing in this repo that has ever caught a day that cannot be
+finished. `git push --no-verify` skips it.
+
+There was an untracked `.git/hooks/pre-push` doing this before. It had
+stopped running altogether — `core.hooksPath` sends git to `.githooks`, so
+anything left in `.git/hooks` is dead, and a hook nobody can see is a hook
+nobody notices has died. Both hooks are tracked now.
+
 ---
 
 ## File map
@@ -205,7 +231,7 @@ a deliberate WIP commit.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 1893 assertions, 106 sections |
+| `tests/run.gd` | The suite — 1917 assertions, 107 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -216,6 +242,8 @@ a deliberate WIP commit.
 | `tools/check_balance.py`, `check_items.py`, `check_traits.py` | Catch a misspelled tunable before it silently reverts to a built-in default; validate a task-2/task-3 submission before it touches `balance.json` |
 | `Dev Console.bat` | One menu for every other `.bat` launcher at the project root -- play, verify, simulate, trace/audit, and the art tools, so there is one icon to remember instead of a dozen. Each individual `.bat` still exists and still works stand-alone; this just calls them. |
 | `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
+| `tools/playdrive.gd` | The ONE walk/keypress/boot base both walkthroughs extend. `walk_to()` used to live in each of them, byte-identical; a real fix landed in one copy only. Add a shared helper here, never a second copy there |
+| `.githooks/pre-commit`, `.githooks/pre-push` | The suite before a commit; `check_docs.py` + a whole term through the real buttons before a push. `core.hooksPath` must point at `.githooks` |
 | `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 
 ---

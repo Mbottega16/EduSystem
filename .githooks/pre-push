@@ -1,0 +1,91 @@
+#!/bin/sh
+# Pre-push gate: the two slow checks that must not run on every commit.
+#
+# .githooks/pre-commit already runs the whole suite on every commit, so
+# this deliberately does NOT repeat it. What it adds is the pair of checks
+# nothing was running automatically at all:
+#
+#   tools/check_docs.py      every doc claim against real data  (seconds)
+#   tools/playterm.tscn      a whole term through the real buttons (~3 min)
+#
+# WHY THE WALKTHROUGH IS HERE AND NOT IN THE SUITE. It plays twenty real
+# days in real physics frames, at the real speed the game runs them. Three
+# minutes is far too slow to sit behind every edit, and far too cheap to
+# skip before a push -- it is the only thing in this repo that has ever
+# caught a day that cannot be finished. The suite had 1893 green
+# assertions while the walkthrough could not get past day 18.
+#
+# THERE WAS ALREADY AN UNTRACKED .git/hooks/pre-push doing the docs check
+# and the suite. It had stopped running entirely: core.hooksPath points
+# git at .githooks, so anything left in .git/hooks is dead. A hook nobody
+# can see is a hook nobody notices has died -- so this one is tracked.
+#
+# One-time, per clone: git config core.hooksPath .githooks
+# Escape hatch for a deliberate WIP push: git push --no-verify
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+echo ""
+echo "pre-push: the documents (git push --no-verify to skip)"
+python tools/check_docs.py || exit 1
+
+GODOT="$(cat tools/godot_path.txt 2>/dev/null | tr -d '\r\n')"
+if [ -z "$GODOT" ] || [ ! -f "$GODOT" ]; then
+	echo "pre-push: could not find Godot at tools/godot_path.txt -- skipping the walkthrough."
+	echo "pre-push: fix tools/godot_path.txt, or this check silently does nothing."
+	exit 0
+fi
+
+echo ""
+echo "pre-push: playing a whole term through the real buttons (~3 min)"
+echo ""
+
+LOG="$(mktemp)"
+# < /dev/null and a hard internal timeout, for the same reason pre-commit
+# has them: a git-invoked hook runs with a different console/stdio context
+# than a direct shell, and on this machine that difference was enough to
+# make Godot hang rather than exit. A gate that can hang forever is worse
+# than no gate. playterm.gd carries its own 600s wall-clock watchdog too;
+# this is the belt to that pair of braces.
+timeout 660 "$GODOT" --headless --path "$REPO_ROOT" res://tools/playterm.tscn \
+	< /dev/null > "$LOG" 2>&1
+CODE=$?
+cat "$LOG"
+echo ""
+
+if [ "$CODE" -eq 124 ]; then
+	echo "pre-push: BLOCKED -- the walkthrough did not finish in 660s and was killed."
+	rm -f "$LOG"
+	exit 1
+fi
+
+# DO NOT TRUST THE EXIT CODE ALONE. A GDScript parse error is worse here
+# than a nonzero exit: the scene's script never loads, _ready() never runs,
+# nothing ever calls quit(), and headless Godot sits there until the
+# timeout above kills it. Measured on a deliberately broken playterm.gd,
+# not guessed. The verdict LINE is the only proof a term was played.
+if grep -qi "parse error" "$LOG"; then
+	echo "pre-push: BLOCKED -- a script did not compile, so no term was played."
+	rm -f "$LOG"
+	exit 1
+fi
+if grep -q "WALKTHROUGH FAILED" "$LOG"; then
+	echo "pre-push: BLOCKED -- see the WALKTHROUGH FAILED line for the day and the reason."
+	rm -f "$LOG"
+	exit 1
+fi
+if ! grep -q "WALKTHROUGH PASSED" "$LOG"; then
+	echo "pre-push: BLOCKED -- no verdict line. The walkthrough never reached the end."
+	rm -f "$LOG"
+	exit 1
+fi
+if [ "$CODE" -ne 0 ]; then
+	echo "pre-push: BLOCKED -- it said PASSED and exited $CODE."
+	rm -f "$LOG"
+	exit 1
+fi
+
+rm -f "$LOG"
+echo "pre-push: docs clean, and a whole term played through the real buttons."
+exit 0
