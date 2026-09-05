@@ -544,7 +544,7 @@
     },
     "rhyme_chart": {
       "name": "Rhyme Chart",
-      "cat": "learning",
+      "cat": "subjects",
       "cost": 115,
       "art": "rhyme_chart",
       "w": 1,
@@ -554,9 +554,21 @@
       "strand_bonus": 0.05,
       "blurb": "Words that end the same, kept in a column."
     },
+    "word_wall": {
+      "name": "Word Wall",
+      "cat": "subjects",
+      "cost": 120,
+      "art": "word_wall",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.05,
+      "strand": "ela",
+      "strand_bonus": 0.05,
+      "blurb": "New words posted where every eye lands eventually."
+    },
     "number_line": {
       "name": "Number Line",
-      "cat": "learning",
+      "cat": "subjects",
       "cost": 120,
       "art": "number_line",
       "w": 2,
@@ -566,9 +578,21 @@
       "strand_bonus": 0.05,
       "blurb": "Every count has a place to stand on."
     },
+    "ten_frame": {
+      "name": "Ten Frame",
+      "cat": "subjects",
+      "cost": 115,
+      "art": "ten_frame",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.05,
+      "strand": "math",
+      "strand_bonus": 0.05,
+      "blurb": "Ten empty boxes, and a reason to fill every one."
+    },
     "bug_viewer": {
       "name": "Bug Viewer",
-      "cat": "learning",
+      "cat": "subjects",
       "cost": 125,
       "art": "bug_viewer",
       "w": 1,
@@ -578,9 +602,21 @@
       "strand_bonus": 0.05,
       "blurb": "Hold still and the small things get big."
     },
+    "rock_tray": {
+      "name": "Rock Tray",
+      "cat": "subjects",
+      "cost": 130,
+      "art": "rock_tray",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.06,
+      "strand": "science",
+      "strand_bonus": 0.05,
+      "blurb": "A tray of stones, each one worth a proper look."
+    },
     "map_corner": {
       "name": "Map Corner",
-      "cat": "learning",
+      "cat": "subjects",
       "cost": 130,
       "art": "map_corner",
       "w": 2,
@@ -589,6 +625,18 @@
       "strand": "social",
       "strand_bonus": 0.05,
       "blurb": "The wider world, pinned where they can reach it."
+    },
+    "timeline_wall": {
+      "name": "Timeline",
+      "cat": "subjects",
+      "cost": 125,
+      "art": "timeline_wall",
+      "w": 2,
+      "range": 3,
+      "bonus": 0.06,
+      "strand": "social",
+      "strand_bonus": 0.05,
+      "blurb": "Events laid out in the order they actually happened."
     },
     "hammock_chair": {
       "name": "Hammock",
@@ -716,10 +764,6 @@
     "sound_cards",
     "shape_sorter",
     "maths_tiles",
-    "rhyme_chart",
-    "number_line",
-    "bug_viewer",
-    "map_corner",
     "abacus",
     "vocab_board",
     "bookshelf",
@@ -732,6 +776,14 @@
     "microscope",
     "whiteboard",
     "lab_bench",
+    "rhyme_chart",
+    "ten_frame",
+    "word_wall",
+    "number_line",
+    "bug_viewer",
+    "timeline_wall",
+    "rock_tray",
+    "map_corner",
     "ottoman",
     "lamp",
     "coat_hooks",
@@ -961,12 +1013,13 @@
     "seating",
     "surfaces",
     "learning",
+    "subjects",
     "comfort",
     "decor",
     "consumable"
   ],
   "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn.",
-  "_subject_shelf_note": "number_line/bug_viewer/rhyme_chart/map_corner are the first subject-specific items. Unlike the rest, each carries a 'strand' (ela/math/science/social) and a 'strand_bonus': it pays its small ordinary 'bonus' on any day, plus strand_bonus on top only when today's lesson matches. Specialising the room makes it do more on its subject and less off it -- never strictly better. It cannot move the 0.63/0.71/0.97 contract: Game.room_score() clamps to room_cap and tools/sim.gd fills the contract room to that cap regardless of which items it uses. See Items.strand()/strand_bonus().",
+  "_subject_shelf_note": "Ten-commits.md step 8: the subject-specific items got their own 'subjects' shop tab, split out of 'learning' where the distinction used to be invisible -- item_order is tested cost-ascending WITHIN a category, so reordering learning itself could never have grouped them; a category of their own does. Two per strand now (ela/math/science/social), each carrying a 'strand' and a 'strand_bonus': it pays its small ordinary 'bonus' on any day, plus strand_bonus on top only when today's lesson matches. Specialising the room makes it do more on its subject and less off it -- never strictly better. It cannot move the 0.63/0.71/0.97 contract: Game.room_score() clamps to room_cap and tools/sim.gd fills the contract room to that cap regardless of which items it uses. See Items.strand()/strand_bonus().",
   "traits": {
     "_note": "One per child, rolled at enrolment and never changed. Every trait has a real mechanical hook -- a trait that only shows up as a line of text on the class list is decoration, and decoration is what makes a player stop reading the list. 'blurb' is what the file says about them; the player is never told the numbers.",
     "quiet": {

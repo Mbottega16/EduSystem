@@ -675,6 +675,50 @@ def draw_map_corner():
     return finish(im)
 
 
+# --- subject shelf, second wave (ten-commits.md step 8: one more per
+# strand, so specialising a room is a real choice rather than one fixed
+# shelf) -- a deliberately DIFFERENT silhouette from each strand's first
+# item, so the two never read as the same prop recoloured.
+
+def draw_word_wall():
+    im = _blank(16, 18)
+    rect(im, 2, 2, 13, 15, PAPER)
+    rect(im, 2, 2, 13, 3, WOOD)
+    for y in range(5, 14, 3):
+        rect(im, 4, y, 11, y + 1, DARK)
+    return finish(im)
+
+
+def draw_ten_frame():
+    im = _blank(30, 14)
+    rect(im, 1, 2, 28, 11, WOOD_D)
+    for row in range(2):
+        for col in range(5):
+            x0 = 2 + col * 5
+            y0 = 3 + row * 5
+            rect(im, x0, y0, x0 + 4, y0 + 4, PAPER)
+            if (row + col) % 2 == 0:
+                rect(im, x0 + 1, y0 + 1, x0 + 3, y0 + 3, GOLD)
+    return finish(im)
+
+
+def draw_rock_tray():
+    im = _blank(16, 12)
+    rect(im, 1, 5, 14, 10, WOOD_D)
+    rect(im, 1, 5, 14, 6, WOOD)
+    for x, c in ((4, STEEL), (8, (150, 120, 90)), (11, STEEL_D)):
+        rect(im, x, 6, x + 2, 8, c)
+    return finish(im)
+
+
+def draw_timeline_wall():
+    im = _blank(30, 10)
+    rect(im, 1, 4, 28, 5, DARK)
+    for x in range(4, 28, 6):
+        rect(im, x, 2, x + 1, 7, GOLD)
+    return finish(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -719,6 +763,9 @@ ITEMS = {
     # subject shelf -- one strand each
     "number_line": draw_number_line, "bug_viewer": draw_bug_viewer,
     "rhyme_chart": draw_rhyme_chart, "map_corner": draw_map_corner,
+    # subject shelf, second wave -- a second item per strand
+    "word_wall": draw_word_wall, "ten_frame": draw_ten_frame,
+    "rock_tray": draw_rock_tray, "timeline_wall": draw_timeline_wall,
 }
 
 

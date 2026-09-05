@@ -1268,6 +1268,50 @@ func test_subject_items() -> void:
 				return false
 		return true).call())
 
+	# --- ten-commits.md step 8: a second item per strand, in its own tab ---
+	chk("two per strand shipped now", (func() -> bool:
+		var count := {}
+		for id: String in Items.order():
+			var st := Items.strand(id)
+			if st != "":
+				count[st] = int(count.get(st, 0)) + 1
+		for want: String in ["ela", "math", "science", "social"]:
+			if int(count.get(want, 0)) < 2:
+				return false
+		return true).call())
+	chk("subjects is a real shop category now",
+		Items.categories().has("subjects"), Items.categories())
+	chk("every strand item lives there, split out of learning",
+		(func() -> bool:
+			for id: String in ["rhyme_chart", "word_wall", "number_line",
+					"ten_frame", "bug_viewer", "rock_tray", "map_corner",
+					"timeline_wall"]:
+				if Items.category_of(id) != "subjects":
+					return false
+			return true).call())
+	chk("...and it is never split up in the order the shop actually lists",
+		(func() -> bool:
+			var seen: Array[String] = []
+			var cat := ""
+			for id: String in Items.order():
+				var this_cat := Items.category_of(id)
+				if this_cat == cat:
+					continue
+				if seen.has(this_cat):
+					return false
+				seen.append(this_cat)
+				cat = this_cat
+			return true).call())
+	var subj_digits := RegEx.new()
+	subj_digits.compile("[0-9]")
+	for id: String in ["word_wall", "ten_frame", "rock_tray", "timeline_wall"]:
+		chk("%s carries a real strand and bonus" % id,
+			Items.strand(id) != "" and Items.strand_bonus(id) > 0.0, id)
+		chk("%s's name fits the shop column" % id,
+			String(Items.get_def(id).get("name", "")).length() <= 13, id)
+		chk("%s's blurb has no digits" % id,
+			subj_digits.search(String(Items.get_def(id).get("blurb", ""))) == null, id)
+
 	# Put a number line in range of seat 0 and measure the room on a maths
 	# day vs an English day.
 	var seat0: Vector2i = Layout.seat(0)

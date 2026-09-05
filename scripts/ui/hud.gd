@@ -3373,6 +3373,9 @@ const CAT_COLOUR := {
 	"seating": "8ab4f8",     # blue
 	"surfaces": "c9a87c",    # wood
 	"learning": "9fd89f",    # green
+	"subjects": "e8a34a",    # amber -- ten-commits.md step 8, split out of
+	                        # learning so specialising a room reads as its
+	                        # own section, not a colour shared with the rest
 	"comfort": "f2a0b5",     # rose
 	"decor": "d0a3e8",       # violet
 	"consumable": "f2c66b", # coin gold -- spent, not placed
