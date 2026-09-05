@@ -64,6 +64,11 @@ signal intro_finished()
 ## A Label is one colour by definition, and the curriculum is a list of four
 ## different subjects -- which is exactly the thing colour is for.
 @onready var rich: RichTextLabel = $Overlay/Rich
+## The book the curriculum and the lesson plans are read out of, and the
+## page that turns across it. See tools/make_ui.py for the art.
+@onready var book: TextureRect = $Overlay/Book
+@onready var rich_left: RichTextLabel = $Overlay/RichLeft
+@onready var flip: TextureRect = $Overlay/Flip
 ## The homework sheet, drawn as an actual page -- see homework_sheet.gd.
 @onready var sheet: HomeworkSheet = $Overlay/Sheet
 ## The reveal running on the rich body, kept so a screen opened twice in
@@ -549,7 +554,93 @@ func _update_prompt() -> void:
 
 # ---------------------------------------------------------------- overlays
 
+## Where the text sits on each page of the open book. The right page is
+## where the content goes and the left page sets the scene, so `rich` (which
+## both book screens already render into) moves to the RIGHT and `rich_left`
+## picks up the heading.
+const BOOK_RIGHT := Rect2(340, 64, 248, 228)
+const BOOK_RICH_HOME := Rect2(32, 48, 576, 256)
+## Preloaded, not load()ed by name: the art audit scans the source for
+## literal paths, and a frame built by string interpolation is invisible to
+## it -- which is exactly the sort of orphan that scan exists to catch.
+const FLIP_TEXTURES := [
+	preload("res://art/book_flip0.png"),
+	preload("res://art/book_flip1.png"),
+	preload("res://art/book_flip2.png"),
+	preload("res://art/book_flip3.png"),
+]
+const FLIP_FRAMES := 4
+const FLIP_STEP := 0.045
+## Which page the book is currently showing, so a TURN can be told from an
+## OPEN. Every way of turning -- the wheel, a click, the keys, on either
+## screen -- goes through the same render, so watching _sel here catches
+## them all rather than hooking six call sites.
+var _book_page_shown: int = -1
+
+
+## Put the book under the screen, or take it away again.
+##
+## The dark Overlay stays: the room should still be dimmed behind, so the
+## book reads as something held up in the classroom rather than a picture
+## pasted over it. Only the text moves -- onto the right-hand page, with the
+## heading on the left, which is why neither screen had to be rewritten,
+## only re-laid-out.
+func _book(on: bool) -> void:
+	book.visible = on
+	rich_left.visible = on
+	if on and book.texture == null:
+		book.texture = load("res://art/book_open.png")
+	if on:
+		rich.offset_left = BOOK_RIGHT.position.x
+		rich.offset_top = BOOK_RIGHT.position.y
+		rich.offset_right = BOOK_RIGHT.position.x + BOOK_RIGHT.size.x
+		rich.offset_bottom = BOOK_RIGHT.position.y + BOOK_RIGHT.size.y
+		# Ink on paper, not paper on ink. Every other screen in this game is
+		# light text on a dark panel; this is the one that is the other way
+		# round, and the colour has to follow or it is unreadable.
+		rich.add_theme_color_override("default_color", Color(0.24, 0.2, 0.16))
+	else:
+		rich.offset_left = BOOK_RICH_HOME.position.x
+		rich.offset_top = BOOK_RICH_HOME.position.y
+		rich.offset_right = BOOK_RICH_HOME.position.x + BOOK_RICH_HOME.size.x
+		rich.offset_bottom = BOOK_RICH_HOME.position.y + BOOK_RICH_HOME.size.y
+		rich.remove_theme_color_override("default_color")
+
+
+## A page sweeping across the spine. Four drawn frames stepped by a tween,
+## the same trick the lesson-plan shuffle already uses -- long enough to
+## read as a turn, short enough that paging through plans is not a chore.
+func _play_page_flip() -> void:
+	if not book.visible:
+		return
+	flip.visible = true
+	var t := create_tween()
+	for i in FLIP_FRAMES:
+		t.tween_callback(_flip_frame.bind(i))
+		t.tween_interval(FLIP_STEP)
+	t.tween_callback(func() -> void: flip.visible = false)
+
+
+## Called by a book screen once it knows which page it is drawing. Flips
+## only when the page actually changed -- opening the book is not a turn.
+func _book_turned(page: int) -> void:
+	if _book_page_shown != -1 and _book_page_shown != page:
+		_play_page_flip()
+	_book_page_shown = page
+
+
+func _flip_frame(i: int) -> void:
+	flip.texture = FLIP_TEXTURES[i]
+	Sfx.play_varied("paper")
+
+
 func _open(m: int) -> void:
+	# Which page the book is showing survives a re-open of the SAME screen,
+	# because that is what a page turn is: show_curriculum()/show_hand() are
+	# called again to draw the next page. Only moving to a different screen
+	# forgets where you were.
+	if mode != m:
+		_book_page_shown = -1
 	mode = m
 	body.add_theme_font_size_override("font_size", 20)
 	body.add_theme_constant_override("line_spacing", 8)
@@ -557,6 +648,9 @@ func _open(m: int) -> void:
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
 	portrait_bg.visible = false
+	# ...and the book, for the same reason.
+	_book(false)
+	flip.visible = false
 	# the same single line that stops one screen leaking into the next
 	rich.visible = false
 	sheet.visible = false
@@ -578,6 +672,13 @@ func _open(m: int) -> void:
 func close() -> void:
 	mode = Mode.NONE
 	overlay.visible = false
+	# The book has to be put away here as well as in _open(). close() can be
+	# reached without another screen ever opening -- show_hand() closes
+	# itself when there is nothing to deal -- and a book left standing would
+	# then be sitting under whatever opened next.
+	_book(false)
+	flip.visible = false
+	_book_page_shown = -1
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = false
 
@@ -1894,6 +1995,7 @@ func show_hand(fresh: bool = false) -> void:
 	_open(Mode.HAND)
 	body.visible = false
 	rich.visible = true
+	_book(true)
 	rich.add_theme_constant_override("line_separation", 4)
 	rich.add_theme_font_size_override("normal_font_size", 16)
 
@@ -1950,26 +2052,35 @@ func _render_hand() -> void:
 	_sel = clampi(_sel, 0, n - 1)
 	var card: Dictionary = Game.hand[_sel]
 	var rid := String(card.get("rarity", "common"))
-	var hue := Assignments.rarity_colour(rid)
+	var hue := _on_paper(Assignments.rarity_colour(rid))
 	var lesson := Curriculum.by_id(String(card.get("lesson", "")))
 
 	title.text = "LESSON PLANS  -  %d of %d" % [_sel + 1, n]
 
-	var lines: Array[String] = []
-	# the page's own heading, in the rarity's colour
-	lines.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
-	lines.append("[color=#%s]%s[/color]   [color=#%s]%s[/color]" % [
-		hue, Assignments.rarity_name(rid), DIM,
+	# The LEFT page says what this plan IS; the right page says what it asks
+	# of you. Nothing crosses the spine.
+	var left: Array[String] = []
+	# Not manually wrapped: the label autowraps to the page, and a hand-broken
+	# title stops being the string anything can match on.
+	left.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
+	left.append("")
+	left.append("[color=#%s]%s[/color]" % [hue, Assignments.rarity_name(rid)])
+	left.append("[color=#%s]%s[/color]" % [INK_DIM,
 		String(lesson.get("standard", "")) if String(lesson.get("standard", "")) != ""
 			else "no citation"])
-	lines.append("")
+	rich_left.text = "
+".join(left)
+
+	var lines: Array[String] = []
 	# what it actually asks of them
 	lines.append("[color=#%s]Length[/color]  %s   [color=#%s]pays x%.2f[/color]" % [
-		DIM, _difficulty_bar(int(card.get("difficulty", 1))),
+		INK_DIM, _difficulty_bar(int(card.get("difficulty", 1))),
 		C_COIN, Assignments.pay(rid)])
 	var obj := String(lesson.get("objective", ""))
 	if obj != "":
-		lines.append("[color=#%s]%s[/color]" % [DIM, _wrap(obj, 52, 2)])
+		# Autowrapped by the label to the page, not hand-broken to a count:
+		# a manual wrap clipped the objective mid-word on a narrower page.
+		lines.append("[color=#%s]%s[/color]" % [INK_DIM, obj])
 	lines.append("")
 	# the page edge, so it is obvious there ARE more
 	var edge := ""
@@ -1977,11 +2088,12 @@ func _render_hand() -> void:
 		edge += "[color=#%s]%s[/color]" % [
 			Assignments.rarity_colour(String(Game.hand[i].get("rarity", "common"))),
 			BAR_FULL if i == _sel else BAR_EMPTY]
-	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, DIM])
+	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, INK_DIM])
 
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.22)
 	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
+	_book_turned(_sel)
 
 
 ## THE FORK AT THE START OF A TERM -- PokeRogue-style: a few pre-rolled
@@ -2952,6 +3064,24 @@ const STRAND_COLOUR := {
 	"social": "d0a3e8",    # violet
 }
 const DIM := "6a6a72"
+## The book pages are cream, and every other screen in this game is dark --
+## so the greys that read as "quiet" on a black panel read as "missing" on
+## paper. These are the same roles, re-mixed for ink.
+const INK_DIM := "6b5f4a"       # DIM, on paper
+
+
+## A UI colour, re-mixed to read as ink on the book's cream pages.
+##
+## The whole palette was built for a dark panel, where "quiet" is pale --
+## and a pale grey on cream paper is not quiet, it is gone. A common
+## lesson plan's own title was invisible until this existed. Hue is kept,
+## so a rarity still reads as itself; only the lightness is pulled down far
+## enough to sit on paper.
+func _on_paper(hex: String) -> String:
+	var c := Color.from_string("#" + hex, Color(0.2, 0.18, 0.14))
+	while c.get_luminance() > 0.34:
+		c = c.darkened(0.15)
+	return c.to_html(false)
 
 
 static func strand_colour(strand: String) -> String:
@@ -2979,26 +3109,30 @@ func show_curriculum() -> void:
 	_open(Mode.CURRICULUM)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	_book(true)
+	rich.add_theme_constant_override("line_separation", 3)
+	rich.add_theme_font_size_override("normal_font_size", 12)
 
 	var lessons := Curriculum.lessons
 	if lessons.is_empty():
 		return
 	_sel = clampi(_sel, 0, lessons.size() - 1)
+	_book_turned(_sel)
 	title.text = "WHAT YOU CAN TEACH"
 
+	var left: Array[String] = []
 	var lines: Array[String] = []
 	# What you are teaching next, and what you trained in -- the two things
 	# this screen is now FOR.
 	var next_id := Game.chosen_lesson if Game.chosen_lesson != "" 		else String(Game.lesson.get("id", ""))
-	lines.append("[color=#%s]You teach %s[/color]   [color=#%s]%s[/color]" % [
+	left.append("[color=#%s]You teach %s[/color]
+[color=#%s]%s[/color]" % [
 		C_LESSON, Curriculum.short_name(Curriculum.by_id(next_id)),
-		DIM, "trained in %s" % Curriculum.strand_label(Game.specialism)
+		INK_DIM, "trained in %s" % Curriculum.strand_label(Game.specialism)
 			if Game.specialism != "" else "no speciality"])
 	var known: int = Game.concepts.size()
 	if known == 0:
-		lines.append("[color=#%s]Teach a subject and you get better at teaching it.[/color]"
+		left.append("[color=#%s]Teach a subject and you get better at teaching it.[/color]"
 			% C_LESSON)
 	else:
 		# Prose, never numbers. This printed "+12% to every grade", which
@@ -3015,7 +3149,7 @@ func show_curriculum() -> void:
 			worth = "lifts every grade you give"
 		elif ratio >= 0.33:
 			worth = "is worth real marks now"
-		lines.append("[color=#%s]Knowing your subjects %s.[/color]" % [
+		left.append("[color=#%s]Knowing your subjects %s.[/color]" % [
 			C_LESSON, worth])
 
 	var lo := _window_start(lessons.size(), CURRIC_ROWS)
@@ -3030,14 +3164,29 @@ func show_curriculum() -> void:
 		var hue := strand_colour(String(l.get("strand", "")))
 		var taught: bool = Game.times_taught(lid) > 0
 		var mine: bool = Game.specialism != "" 			and String(l.get("strand", "")) == Game.specialism
-		lines.append("%s%s [color=#%s]%s[/color] %s %s [color=#%s]%s[/color]" % [
+		lines.append("%s%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
 			"*" if mine else " ",
 			">" if i == _sel else " ",
-			hue if taught else DIM,
-			Curriculum.short_name(l).rpad(11),
+			hue if taught else INK_DIM,
+			Curriculum.short_name(l).rpad(9),
 			_difficulty_bar(Curriculum.difficulty(l)),
-			_mastery_bar(got, total, hue),
-			DIM, _mastery_words(l, got, total)])
+			INK_DIM, _mastery_words(l, got, total)])
+
+	# The left page doubles as a detail panel for whatever the marker is on.
+	# That is a better home for the difficulty bar than a column was: it is
+	# about the one subject you are actually deciding on.
+	var pick: Dictionary = lessons[_sel]
+	left.append("")
+	left.append("[color=#%s]%s[/color]" % [
+		strand_colour(String(pick.get("strand", ""))),
+		Curriculum.short_name(pick)])
+	left.append("[color=#%s]Length[/color]  %s" % [
+		INK_DIM, _difficulty_bar(Curriculum.difficulty(pick))])
+	left.append("[color=#%s]%s[/color]" % [INK_DIM, _wrap(_mastery_words(pick,
+		_known_of(pick),
+		Curriculum.concepts_of(String(pick.get("id", ""))).size()), 22, 1)])
+	rich_left.text = "
+".join(left)
 
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.3)
@@ -3048,6 +3197,15 @@ func show_curriculum() -> void:
 	var std := String(lessons[_sel].get("standard", ""))
 	hint.text = _clip("%s%s   E - teach this next" % [
 		std, "" if std == "" else "  "])
+
+
+## How many of a subject's concepts you already have.
+func _known_of(l: Dictionary) -> int:
+	var got := 0
+	for c: Dictionary in Curriculum.concepts_of(String(l.get("id", ""))):
+		if Game.knows_concept(String(c.get("id", ""))):
+			got += 1
+	return got
 
 
 ## What one more lesson in this subject unlocks, by name.

@@ -2243,6 +2243,11 @@ if __name__ == "__main__":
     # every purchasable item untouched.
     import make_items
     make_items.make_all(_HAND)
+    # Screen furniture -- the book the curriculum and the lesson plans are
+    # read out of. Same reason make_items is its own file: it is neither a
+    # character, a tile, nor something you can buy.
+    import make_ui
+    make_ui.make_all()
     sh = make_contact_shadow()
     print("art/%-18s %3dx%-3d (the runtime contact shadow)"
           % ("shadow.png", sh[0], sh[1]))

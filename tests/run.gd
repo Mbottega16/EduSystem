@@ -184,6 +184,7 @@ func _main() -> void:
 	await test_callers()
 	await test_acting_on_them()
 	await test_materials_day()
+	await test_book_pages()
 	await test_cluster_penalty()
 	await test_dash_lanes()
 	await test_bell_rush()
@@ -4924,9 +4925,11 @@ func test_screens_explain_themselves() -> void:
 	hud.show_curriculum()
 	chk("a subject you have never taught says so plainly",
 		hud.rich.text.contains("never taught it"), hud.rich.text)
+	# Since the book layout (Sept 2026) this sits on the LEFT page, which is
+	# what rich_left renders -- the line did not go away, it changed pages.
 	chk("and the screen says what the whole thing is FOR",
-		hud.rich.text.contains("better at teaching it")
-		or hud.rich.text.contains("worth +"), hud.rich.text)
+		hud.rich_left.text.contains("better at teaching it")
+		or hud.rich_left.text.contains("worth +"), hud.rich_left.text)
 	chk("the citation is not shouting over the rows", (func() -> bool:
 		for l: Dictionary in Curriculum.lessons:
 			if hud.rich.text.contains(String(l.get("standard", ""))):
@@ -5439,10 +5442,11 @@ func test_specialism_and_choice() -> void:
 	var hud := _hud()
 	Game.specialism = "math"
 	hud.show_curriculum()
+	# The book layout (Sept 2026) puts the heading on the LEFT page.
 	chk("the curriculum names what you teach next",
-		hud.rich.text.contains("You teach"), hud.rich.text)
+		hud.rich_left.text.contains("You teach"), hud.rich_left.text)
 	chk("and what you trained in",
-		hud.rich.text.contains("trained in"), hud.rich.text)
+		hud.rich_left.text.contains("trained in"), hud.rich_left.text)
 	hud.close()
 
 	Game.specialism = ""
@@ -5732,10 +5736,15 @@ func test_assignment_cards() -> void:
 			hud._sel = i
 			hud.show_hand()
 			var c3: Dictionary = Game.hand[i]
-			if not hud.rich.text.contains(Assignments.title(c3)):
+			# A plan's own name is the LEFT page of the book; the right page
+			# is what it asks of you.
+			if not hud.rich_left.text.contains(Assignments.title(c3)):
 				return false
-			if not hud.rich.text.contains(Assignments.rarity_colour(
-					String(c3["rarity"]))):
+			# On the book's cream pages the rarity keeps its hue but is pulled
+			# dark enough to read -- see hud._on_paper(). Still colour-coded,
+			# just not the same literal hex the dark panel used.
+			if not hud.rich_left.text.contains(hud._on_paper(
+					Assignments.rarity_colour(String(c3["rarity"])))):
 				return false
 		return true).call())
 	hud._sel = 0
@@ -6075,9 +6084,9 @@ func test_lesson_plan_folder() -> void:
 	chk("it shows one plan, not all of them", (func() -> bool:
 		var shown := 0
 		for c: Dictionary in Game.hand:
-			if hud.rich.text.contains(Assignments.title(c)):
+			if hud.rich_left.text.contains(Assignments.title(c)):
 				shown += 1
-		return shown == 1).call(), hud.rich.text)
+		return shown == 1).call(), hud.rich_left.text)
 	chk("and says which page you are on",
 		hud.title.text.contains("1 of %d" % Game.hand.size()), hud.title.text)
 	chk("the plan carries the objective it comes from", (func() -> bool:
@@ -6104,7 +6113,8 @@ func test_lesson_plan_folder() -> void:
 	chk("and settles into the real folder afterward",
 		hud.title.text.contains("1 of %d" % Game.hand.size()), hud.title.text)
 	chk("showing a real card, not the shuffle pattern",
-		hud.rich.text.contains(Assignments.title(Game.hand[0])), hud.rich.text)
+		hud.rich_left.text.contains(Assignments.title(Game.hand[0])),
+		hud.rich_left.text)
 
 	var first: String = hud.rich.text
 	hud._sel = 1
@@ -8406,6 +8416,58 @@ func test_mid_lesson_mess() -> void:
 ## Mid-lesson complications: the phone/conference desk interruption, and
 ## the mess kind's own onset. Mirrors test_flares()'s shape -- catch it,
 ## let it run out, the per-lesson cap, and that it starts on its own.
+## The curriculum and the lesson plans are read out of an open book.
+func test_book_pages() -> void:
+	section("THE BOOK")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	# --- it is a book, and only on the two screens that are one ---
+	hud.show_curriculum()
+	chk("the curriculum opens as a book", hud.book.visible)
+	chk("with something written on the left page", hud.rich_left.text != "")
+	chk("and the room still dimmed behind it", hud.overlay.visible)
+	chk("the text is on the right-hand page, clear of the spine",
+		hud.rich.offset_left >= 320.0, hud.rich.offset_left)
+
+	# A hand has to exist before the plans can be a book -- show_hand()
+	# closes itself when there is nothing dealt, which is exactly how the
+	# close()-must-put-the-book-away bug showed up.
+	Game.draw_hand()
+	hud._sel = 0
+	hud.show_hand()
+	chk("the lesson plans open as a book too", hud.book.visible)
+	chk("with the plan's own name on the left page",
+		hud.rich_left.text.contains(Assignments.title(Game.hand[hud._sel])),
+		hud.rich_left.text)
+
+	# A screen that is NOT a book must not inherit one. This is the same
+	# leak the portrait had to be guarded against.
+	hud.show_student(Game.roster[0])
+	chk("a screen that is not a book does not get one", not hud.book.visible)
+	chk("and its text goes back to the full panel width",
+		hud.rich.offset_left < 320.0, hud.rich.offset_left)
+
+	# --- a page TURN flips; opening the book does not ---
+	hud.show_curriculum()
+	chk("opening the book is not a page turn", not hud.flip.visible)
+	hud._sel += 1
+	hud.show_curriculum()
+	chk("turning to the next subject flips a page", hud.flip.visible)
+	await step(20)
+	chk("and the page settles again afterwards", not hud.flip.visible)
+
+	# --- ink, not paper-on-ink ---
+	chk("a common plan's own title is dark enough to read on paper", (func() -> bool:
+		var ink := Color.from_string("#" + hud._on_paper(
+			Assignments.rarity_colour("common")), Color.WHITE)
+		return ink.get_luminance() <= 0.34).call())
+	hud.close()
+	chk("closing it puts the book away", not hud.book.visible)
+
+
 ## A materials day: the class starts empty-handed and it is your job to fix
 ## that before the bell.
 func test_materials_day() -> void:
@@ -9571,7 +9633,9 @@ func test_bio() -> void:
 	chk("the curriculum screen states no percentage",
 		not hud.rich.text.contains("%"), hud.rich.text)
 	chk("it says what knowing your subjects is worth, in words",
-		hud.rich.text.contains("Knowing your subjects"), hud.rich.text)
+		hud.rich_left.text.contains("Knowing your subjects"), hud.rich_left.text)
+	chk("and the left page states no percentage either",
+		not hud.rich_left.text.contains("%"), hud.rich_left.text)
 	hud.close()
 
 	chk("no item blurb states a number", (func() -> bool:

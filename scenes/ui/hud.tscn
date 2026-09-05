@@ -93,6 +93,15 @@ theme_override_colors/font_color = Color(1, 0.85, 0.36, 1)
 theme_override_font_sizes/font_size = 24
 horizontal_alignment = 1
 
+[node name="Book" type="TextureRect" parent="Overlay"]
+visible = false
+offset_left = 32.0
+offset_top = 40.0
+offset_right = 608.0
+offset_bottom = 306.0
+mouse_filter = 2
+stretch_mode = 5
+
 [node name="PortraitBg" type="ColorRect" parent="Overlay"]
 visible = false
 offset_left = 496.0
@@ -142,6 +151,28 @@ scroll_active = false
 theme_override_colors/default_color = Color(0.95, 0.91, 0.77, 1)
 theme_override_font_sizes/normal_font_size = 20
 theme_override_constants/line_separation = 8
+
+[node name="RichLeft" type="RichTextLabel" parent="Overlay"]
+visible = false
+offset_left = 60.0
+offset_top = 64.0
+offset_right = 300.0
+offset_bottom = 292.0
+mouse_filter = 2
+bbcode_enabled = true
+scroll_active = false
+theme_override_colors/default_color = Color(0.24, 0.2, 0.16, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_constants/line_separation = 4
+
+[node name="Flip" type="TextureRect" parent="Overlay"]
+visible = false
+offset_left = 32.0
+offset_top = 40.0
+offset_right = 608.0
+offset_bottom = 306.0
+mouse_filter = 2
+stretch_mode = 5
 
 [node name="Hint" type="Label" parent="Overlay"]
 offset_top = 312.0

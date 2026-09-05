@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-04**, against build `b43`, with **1879 assertions
+> **Measured on 2026-09-04**, against build `b44`, with **1893 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -355,7 +355,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **1879 assertions** across **106 sections** |
+| Tests | **1893 assertions** across **106 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -683,6 +683,30 @@ classroom · year-group visual identity.
 > name about anything it just wrote that has no `.import`.
 
 ---
+
+## 12b. The book
+
+The curriculum and the lesson plans are read out of an **open book**,
+not off the dark panel every other screen uses. Same procedural rule as
+the rest of the art: `tools/make_ui.py` draws the spread and four
+page-turn frames in standard-library Python plus PIL, at half size and
+scale2x'd, so the book has the same pixel density as the room behind it.
+
+- **The left page sets the scene, the right page holds the content**, so
+  nothing crosses the spine. On the curriculum the left page is a detail
+  panel for whichever subject the marker is on; on the plans it is the
+  plan's own name, rarity and citation.
+- **Turning a page flips one**, four frames stepped by a tween with a
+  paper rustle on each -- the same trick the lesson-plan shuffle already
+  used. Opening the book is not a turn: `_book_page_shown` survives a
+  re-open of the same screen and is forgotten only on a change of screen.
+- **The room stays dimmed behind it**, so the book reads as something
+  held up in the classroom rather than a picture pasted over it.
+- **The palette had to be re-mixed for paper.** Every colour in this UI
+  was chosen for a dark panel, where "quiet" means pale -- and a pale
+  grey on cream is not quiet, it is invisible. `hud._on_paper()` keeps a
+  colour's hue and pulls its lightness down until it reads as ink; a
+  common plan's own title was unreadable until it existed.
 
 ## 13. Audio
 
