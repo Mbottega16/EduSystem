@@ -339,6 +339,9 @@ static var grad_teacher_xp: int = 45
 # --- notable moments (the per-student highlight reel) ------------------
 static var moments_cap: int = 12
 static var moments_grade_min_history: int = 2
+## Ten-commits.md step 6: lessons running in a child's own best subject
+## before it earns them a moment about it.
+static var moments_favourite_streak: int = 3
 static var coach_tuition_cost: int = 90
 static var coach_tuition_step: float = 0.07
 static var coach_parents_cost: int = 70
@@ -680,6 +683,7 @@ static func apply(d: Dictionary) -> void:
 	var mo: Dictionary = d.get("moments", {})
 	moments_cap = int(mo.get("cap", moments_cap))
 	moments_grade_min_history = int(mo.get("grade_min_history", moments_grade_min_history))
+	moments_favourite_streak = int(mo.get("favourite_streak", moments_favourite_streak))
 
 	var co: Dictionary = d.get("coaching", {})
 	coach_tuition_cost = int(co.get("tuition_cost", coach_tuition_cost))

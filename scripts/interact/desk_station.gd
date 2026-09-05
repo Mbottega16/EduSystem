@@ -109,6 +109,8 @@ func interact(by: Node) -> void:
 				# earn moment in the whole game that never showed the
 				# money landing.
 				_pop("phew! +%d coins" % Balance.flare_reward, Color(1.0, 0.8, 0.4))
+				# ten-commits.md step 6: reached before it went off.
+				s.note_moment("caught_flare", Game.day)
 				used.emit(by)
 		Action.SETTLE:
 			if s.settle():

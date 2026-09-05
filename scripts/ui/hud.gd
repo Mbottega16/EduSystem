@@ -1407,6 +1407,20 @@ func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
 			return "Froze on the paper more than once, and carried that morning for a while."
 		"graduated":
 			return "Left your class ready for what came next."
+		"caught_flare":
+			if n > 1:
+				return "Reached them before it went off more than once -- you know their tells now."
+			return "Caught it before it went off %s, calm again before it spread." % when
+		"never_stuck":
+			return "Went a whole term without ever once getting stuck."
+		"favourite_streak":
+			if n > 1:
+				return "Strung together lessons in their best subject more than once."
+			return "Strung together several lessons in their best subject, one after another."
+		"helped_neighbour":
+			return "Helped the child beside them for the first time, without being asked."
+		"fire_drill":
+			return "Filed out for a fire drill %s, and filed straight back in." % when
 	return ""
 
 

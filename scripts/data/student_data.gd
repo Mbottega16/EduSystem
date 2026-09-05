@@ -120,6 +120,11 @@ var transcript: Array = []
 ## page renders it (and "prose never numbers" stays a display concern).
 ## Append-only via note_moment(); capped at Balance.moments_cap.
 var moments: Array = []
+## Consecutive LESSONS graded in their own best subject (ten-commits.md
+## step 6) -- reset the moment a lesson in a different strand is taught,
+## so it is a streak and not a lifetime total. Only ever read by
+## Game.grade_class(), which is also the only place that resets it.
+var _favourite_streak: int = 0
 ## How they held up on the day of the boss assessment: the fight's per-child
 ## nudge on the exam, set by BossFight.finish() and read by
 ## Game.exam_score_for(). Zero on any ordinary term. Clamped to
@@ -642,6 +647,7 @@ func to_dict() -> Dictionary:
 		"grades": grades, "last_grade": last_grade,
 		"transcript": transcript,
 		"moments": moments,
+		"favourite_streak": _favourite_streak,
 		"boss_delta": boss_delta,
 	}
 
@@ -674,5 +680,6 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.grades.assign(d.get("grades", []))
 	s.transcript = d.get("transcript", []).duplicate()
 	s.moments = d.get("moments", []).duplicate()
+	s._favourite_streak = int(d.get("favourite_streak", 0))
 	s.boss_delta = float(d.get("boss_delta", 0.0))
 	return s

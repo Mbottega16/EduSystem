@@ -860,9 +860,10 @@
     "teacher_xp": 45
   },
   "moments": {
-    "_note": "The notable-moments log per student: a short highlight reel of what happened to THIS child, stored as kind ids and rendered to prose at display time so 'prose never numbers' stays easy. cap keeps the first entry plus the most recent ones when it overflows. grade_min_history is how many past grades a child needs before a jump or drop between letter bands counts as a moment.",
+    "_note": "The notable-moments log per student: a short highlight reel of what happened to THIS child, stored as kind ids and rendered to prose at display time so 'prose never numbers' stays easy. cap keeps the first entry plus the most recent ones when it overflows. grade_min_history is how many past grades a child needs before a jump or drop between letter bands counts as a moment. favourite_streak (ten-commits.md step 6) is how many lessons running in their own best subject earns them a moment about it.",
     "cap": 12,
-    "grade_min_history": 2
+    "grade_min_history": 2,
+    "favourite_streak": 3
   },
   "coaching": {
     "_note": "Bought from a student's own file. Cost multiplies per purchase FOR THAT CHILD, so the decision is who to invest in rather than levelling everyone flat.",

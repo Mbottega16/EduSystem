@@ -1061,6 +1061,10 @@ func tick_class(delta: float, rng: RandomNumberGenerator) -> void:
 				var lift := Traits.value(m.trait_id, "helps_neighbour", 0.0)
 				if lift > 0.0 and m.work_fraction() >= 0.999 						and rng.randf() < lift * delta:
 					s.help()
+					# ten-commits.md step 6: the helper's own moment, not
+					# the one who got unstuck -- once, the first time.
+					if not m.has_moment("helped_neighbour"):
+						m.note_moment("helped_neighbour", day)
 					break
 				if Traits.has_flag(s.trait_id, "copy_from_neighbour") 						and rng.randf() < 0.6 * delta:
 					if s.copy_from(m):
@@ -1313,6 +1317,13 @@ func next_term() -> Dictionary:
 	var stayed: Array[StudentData] = []
 	for row: Dictionary in result.get("rows", []):
 		var s: StudentData = row["student"]
+		# ten-commits.md step 6: reached the bell having never once been
+		# stuck. Lifetime, not "just this term" -- moments carry no term
+		# marker of their own, and has_moment() already keeps this from
+		# firing again once it is true, so a kept-back child who got
+		# stuck in an EARLIER term correctly never claims it here either.
+		if not s.has_moment("got_stuck") and not s.has_moment("never_stuck"):
+			s.note_moment("never_stuck", day)
 		if bool(row.get("passed", false)) and Balance.term_pass_moves_up:
 			s.note_moment("graduated", day)
 			moved_up.append(s.display_name)
@@ -2783,11 +2794,28 @@ func grade_class() -> Array:
 	# happen before the grades that concept knowledge feeds into? No -- AFTER.
 	# Today's lesson is graded on what you knew while you were teaching it;
 	# the concept it just unlocked pays from tomorrow.
+	var strand := lesson_strand()
+	# ten-commits.md step 6: a fire drill touches the whole roster once,
+	# the first time -- not per-student streak state, so it lives outside
+	# the loop below rather than inside it.
+	var drill := String(event.get("id", "")) == "fire_drill"
 	for s: StudentData in roster:
 		var g := grade_for(s)
 		s.last_grade = g
 		s.grades.append(g)
 		s.record_result(lesson, g, day)
+		# ten-commits.md step 6: lessons running in their own best subject.
+		# Reset the moment a DIFFERENT strand is taught, so it is a streak,
+		# not a lifetime tally.
+		if s.favourite != "" and s.favourite == strand:
+			s._favourite_streak += 1
+			if s._favourite_streak >= Balance.moments_favourite_streak:
+				s.note_moment("favourite_streak", day)
+				s._favourite_streak = 0
+		else:
+			s._favourite_streak = 0
+		if drill and not s.has_moment("fire_drill"):
+			s.note_moment("fire_drill", day)
 		# they get better simply by being taught -- attending is worth
 		# something, finishing the work is worth more
 		var earned := Balance.stu_xp_per_lesson

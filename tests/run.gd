@@ -194,7 +194,7 @@ func _main() -> void:
 	test_lifetime_counters()
 	test_meta()
 	test_graduate_record()
-	test_moments()
+	await test_moments()
 	await test_day_beats()
 	await test_bio()
 	test_student_levels()
@@ -3015,7 +3015,8 @@ func test_panels_fit() -> void:
 
 	# the STORY page, with a full reel -- the other half of the file
 	for k: String in ["got_stuck", "quiz_caught", "grade_jump", "grade_drop",
-			"kept_back", "graduated"]:
+			"kept_back", "graduated", "caught_flare", "never_stuck",
+			"favourite_streak", "helped_neighbour", "fire_drill"]:
 		s.note_moment(k, s.joined_day + 5)
 		s.note_moment(k, s.joined_day + 9)
 	hud.show_student(s)                 # ensure _bio == s, then turn the page
@@ -10439,6 +10440,99 @@ func test_moments() -> void:
 			if st.has_moment("kept_back"):
 				return true
 		return false).call())
+
+	# --- ten-commits.md step 6: five more remembered moments ---
+
+	# reached before it went off
+	Game.new_run(SEED)
+	await step(2)
+	var flarer: StudentData = Game.roster[0]
+	flarer.flare_left = 1.0
+	var st0: Interactable = world.stations[flarer.seat_index]
+	st0.interact(world.player)
+	chk("catching a flare-up before it goes off is remembered",
+		flarer.has_moment("caught_flare"))
+
+	# reached the end of a term without ever getting stuck. Captured as
+	# object references BEFORE next_term() -- everyone here passes, so
+	# next_term() clears roster and refills it, and only the reference
+	# itself (not looking them up again in Game.roster afterward) survives
+	# that regardless of which side of moved-up/stayed they land on.
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	var stuck_one: StudentData = Game.roster[0]
+	var clean_one: StudentData = Game.roster[1]
+	stuck_one.note_moment("got_stuck", 3)
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)     # everyone passes -- moved up or not is not the point
+	Game.sit_exam()
+	Game.next_term()
+	chk("never getting stuck all term is remembered",
+		clean_one.has_moment("never_stuck"))
+	chk("...but not for the one who did get stuck",
+		not stuck_one.has_moment("never_stuck"))
+
+	# lessons running in their own best subject
+	Game.new_run(SEED)
+	var keen: StudentData = Game.roster[0]
+	keen.favourite = "math"
+	Game.lesson = Curriculum.by_id("basic_arithmetic")
+	for i in Balance.moments_favourite_streak - 1:
+		Game.grade_class()
+	chk("not yet -- one short of the streak",
+		not keen.has_moment("favourite_streak"), keen._favourite_streak)
+	Game.grade_class()
+	chk("a run of lessons in their best subject is remembered",
+		keen.has_moment("favourite_streak"))
+	chk("...and the streak resets once it has paid out",
+		keen._favourite_streak == 0, keen._favourite_streak)
+	Game.lesson = Curriculum.by_id("reading_fluency")
+	Game.grade_class()
+	chk("a lesson outside their best subject breaks the streak",
+		keen._favourite_streak == 0, keen._favourite_streak)
+
+	# helping a neighbour, the first time
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	var helper: StudentData = Game.roster[0]
+	var struggler: StudentData = Game.roster[1]
+	helper.trait_id = "anchor"      # the strongest helps_neighbour value
+	helper.work_state = StudentData.Work.DONE
+	struggler.trait_id = "steady"   # no hiding, so is_struggling() is prompt
+	struggler.confusion = 1.0
+	var guard6 := 0
+	while not helper.has_moment("helped_neighbour") and guard6 < 200:
+		# Reasserted every pass: tick_class() also rolls disruption, and
+		# once it is struggling-but-not-disrupting is no longer true, the
+		# very thing being waited for can never fire again.
+		struggler.disrupting = false
+		struggler.confusion = 1.0
+		helper.disrupting = false
+		helper.work_state = StudentData.Work.DONE
+		Game.tick_class(1.0, Game.rng)     # a fat delta -- deterministic seed, not luck
+		guard6 += 1
+	chk("helping a neighbour is remembered, on the HELPER's own reel",
+		helper.has_moment("helped_neighbour"), guard6)
+	chk("...not on the one who got helped",
+		not struggler.has_moment("helped_neighbour"))
+
+	# sat out a fire drill
+	Game.new_run(SEED)
+	Game.event = DayEvent.by_id("fire_drill")
+	Game.grade_class()
+	chk("a fire drill day is remembered by the whole class", (func() -> bool:
+		for st: StudentData in Game.roster:
+			if not st.has_moment("fire_drill"):
+				return false
+		return true).call())
+	chk("...only once, not once per lesson", (func() -> bool:
+		Game.grade_class()
+		var n := 0
+		for m: Dictionary in Game.roster[0].moments:
+			if String(m.get("kind", "")) == "fire_drill":
+				n += 1
+		return n == 1).call())
 
 	Game.new_run(SEED)   # isolate from whatever follows
 
