@@ -70,6 +70,17 @@ static var term_pass_moves_up: bool = true
 static var term_target_base: int = 2
 static var term_target_growth: int = 1
 static var upkeep_per_item: int = 3
+# --- pacing (ten-commits.md step 3) --------------------------------------
+## Expected new concepts per day, on the term's OWN new ground -- not the
+## whole curriculum's total, which is a many-term tally. Coins and XP
+## only; this never feeds a grade, so it needs no new contract guard.
+static var pace_concepts_per_day: float = 0.2
+static var pace_bonus_coins: int = 15
+static var pace_bonus_xp: int = 6
+## Days left at or below which "behind" escalates from a nudge to a
+## warning -- the same number of days a term-1 class needs to be
+## genuinely running out of road.
+static var pace_escalate_days_left: int = 5
 static var affinity_bonus: float = 0.25
 # --- teacher ------------------------------------------------------------
 static var teacher_speed: float = 120.0   ## doubled Aug 2026
@@ -439,6 +450,12 @@ static func apply(d: Dictionary) -> void:
 	term_pass_moves_up = bool(tm.get("pass_moves_them_up", term_pass_moves_up))
 	term_target_base = int(tm.get("target_base", term_target_base))
 	term_target_growth = int(tm.get("target_growth", term_target_growth))
+
+	var pc: Dictionary = d.get("pacing", {})
+	pace_concepts_per_day = float(pc.get("concepts_per_day", pace_concepts_per_day))
+	pace_bonus_coins = int(pc.get("bonus_coins", pace_bonus_coins))
+	pace_bonus_xp = int(pc.get("bonus_xp", pace_bonus_xp))
+	pace_escalate_days_left = int(pc.get("escalate_days_left", pace_escalate_days_left))
 
 	var up: Dictionary = d.get("upkeep", {})
 	upkeep_per_item = int(up.get("per_item_per_day", upkeep_per_item))

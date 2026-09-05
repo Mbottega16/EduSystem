@@ -38,6 +38,17 @@ func interact(by: Node) -> void:
 	Sfx.play("bell")
 	var last := Game.day >= Balance.term_days
 	var report: Dictionary = room.end_day()
+	# Ten-commits.md step 3: coins and XP already land above every desk in
+	# step 2 -- the pacing bonus is one flat, whole-class event rather than
+	# any child's own growth, so it gets ONE floater here rather than a
+	# swarm of identical ones over eight desks.
+	if bool((report.get("pacing", {}) as Dictionary).get("on_pace", false)) \
+			and room is Node2D:
+		var room2d := room as Node2D
+		Sfx.play("confirm")
+		Fx.puff(room2d, global_position + Vector2(0, -10), Color(0.7, 1.0, 0.8))
+		Floater.pop(room2d, global_position + Vector2(0, -36),
+			"on pace +%d" % Balance.pace_bonus_coins, Color(0.7, 1.0, 0.8))
 	if last:
 		term_ended.emit(Game.sit_exam())
 	else:

@@ -213,6 +213,7 @@ func _main() -> void:
 	await test_quiz()
 	await test_answer_all()
 	test_concepts()
+	await test_pacing()
 	test_exam_maths()
 	test_next_term()
 	test_term_paths()
@@ -2241,6 +2242,139 @@ func test_concepts() -> void:
 		Game.concepts.size() == known and Game.times_taught(lid) == 1,
 		"%d concepts, taught %d" % [Game.concepts.size(), Game.times_taught(lid)])
 	Game.delete_save()
+
+
+## Step 3 of ten-commits.md: on schedule, or told about it. Coins and XP
+## only -- pacing never feeds a grade, so the three-row contract cannot
+## move and needs no new guard, only the same source-scan every other
+## coins/XP-only system in this file already gets.
+func test_pacing() -> void:
+	section("ON SCHEDULE, OR TOLD ABOUT IT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+
+	chk("a brand new run starts owing this term nothing yet",
+		Game.term_start_concepts == 0, Game.term_start_concepts)
+
+	# --- the report itself: earned vs expected, on the day that just ended ---
+	var lid := String(Curriculum.lessons[0].get("id", ""))
+	Game.record_taught(lid)     # one lesson taught -> its first concept unlocks
+	var day1 := Game.pacing_report(1)
+	chk("teaching once is enough to be on pace on day one",
+		bool(day1["on_pace"]), day1)
+	chk("...and says exactly what it found",
+		int(day1["earned"]) == 1 and int(day1["expected"]) == 1, day1)
+
+	# Day 10, not day 5: at the default 0.2/day rate, day 5 needs
+	# ceil(5*0.2) = ceil(1.0), which floating point can round either side
+	# of exactly 1 -- day 10 needs ceil(2.0), comfortably past the one
+	# concept taught above, with no boundary to land on by accident.
+	var day10 := Game.pacing_report(10)
+	chk("the same one concept is NOT enough ten days in",
+		not bool(day10["on_pace"]), day10)
+	chk("...and days_left counts down from the term length",
+		int(day10["days_left"]) == Balance.term_days - 10, day10)
+
+	# --- knowledge carries across terms; the SNAPSHOT is what resets ---
+	# next_term() missing its target ends the run before reaching the
+	# snapshot line at all, so a passing exam is faked here the same shape
+	# sit_exam() itself builds -- everyone through, by name, real students.
+	var known_before: int = Game.concepts.size()
+	var fake_rows: Array = []
+	for s: StudentData in Game.roster:
+		fake_rows.append({"student": s, "score": 1.0, "letter": "A", "passed": true})
+	Game.exam_result = {"rows": fake_rows, "average": 1.0, "letter": "A",
+		"passed": Game.roster.size(), "total": Game.roster.size()}
+	Game.term_start_concepts = -1     # a value next_term() could not produce by accident
+	Game.day = Balance.term_days
+	Game.next_term()
+	chk("a new term snapshots what you already knew, not zero",
+		Game.term_start_concepts == known_before, Game.term_start_concepts)
+	chk("...and what you knew is untouched by starting a new term",
+		Game.concepts.size() == known_before, Game.concepts.size())
+
+	# --- on pace pays coins and XP; isolated against the day's own ordinary
+	# payout and upkeep, both of which move regardless of pacing ---
+	Game.new_run(SEED)
+	await step(2)
+	Game.record_taught(lid)
+	var coins_before := Game.coins
+	var xp_before: int = Game.roster[0].xp
+	Game.day = 1
+	var report := Game.advance_day()
+	chk("the report carries its own pacing verdict",
+		bool((report["pacing"] as Dictionary)["on_pace"]), report["pacing"])
+	var ordinary := maxi(0, coins_before + int(report["coins"]) - int(report["upkeep"]))
+	chk("on pace pays the flat coin bonus on top of the ordinary payout",
+		Game.coins == ordinary + Balance.pace_bonus_coins,
+		"%d vs ordinary %d + bonus %d" % [Game.coins, ordinary, Balance.pace_bonus_coins])
+	chk("...and every seated child gets the xp",
+		Game.roster[0].xp == xp_before + Balance.pace_bonus_xp, Game.roster[0].xp)
+
+	# --- behind pays neither, and the report says so, escalating near the end ---
+	Game.new_run(SEED)
+	await step(2)
+	var coins_before2 := Game.coins
+	var xp_before2: int = Game.roster[0].xp
+	Game.day = 5
+	var behind_report := Game.advance_day()
+	var ordinary2 := maxi(0, coins_before2 + int(behind_report["coins"]) - int(behind_report["upkeep"]))
+	chk("behind pays no bonus coins, only the ordinary payout",
+		Game.coins == ordinary2, "%d vs ordinary %d" % [Game.coins, ordinary2])
+	chk("...nor xp", Game.roster[0].xp == xp_before2, Game.roster[0].xp)
+
+	var hud := _hud()
+	hud.show_day_report(behind_report)
+	chk("the report names the problem and gives the action",
+		hud.rich.text.contains("Behind on new material"), hud.rich.text)
+	hud.close()
+
+	# --- escalation: still behind, days_left at or under the threshold ---
+	var late_pacing: Dictionary = Game.pacing_report(
+		Balance.term_days - Balance.pace_escalate_days_left)
+	var late_report := behind_report.duplicate()
+	late_report["pacing"] = late_pacing
+	hud.show_day_report(late_report)
+	chk("close to the end it stops being a nudge and starts being a warning",
+		hud.rich.text.contains("Badly behind"), hud.rich.text)
+	chk("...and it still says HOW MANY days, the sanctioned day-counter exception",
+		hud.rich.text.contains("day"), hud.rich.text)
+	hud.close()
+
+	# --- popped visibly at the bell, one flat event, not one per desk ---
+	Game.new_run(SEED)
+	_seat_in_a_row(2, 4)
+	await step(2)
+	Game.record_taught(lid)
+	Game.day = 1
+	# Through the real bell, not world.end_day() directly -- the floater
+	# lives in bell.gd's own interact(), the one place a player actually
+	# triggers this.
+	var before_children := world.get_children()
+	world.bell.interact(world.player)
+	var said_on_pace := false
+	for c: Node in world.get_children():
+		if c is Floater and not before_children.has(c) \
+				and (c as Floater).current_text().begins_with("on pace"):
+			said_on_pace = true
+	chk("the bell says so out loud when it pays out", said_on_pace)
+
+	# --- guards: coins and XP only, never a grade term, never in sim.gd ---
+	chk("pacing never touches the grade formula", (func() -> bool:
+		var src := FileAccess.get_file_as_string("res://scripts/autoload/game.gd")
+		var i := src.find("func grade_for(")
+		if i < 0:
+			return false
+		var body := src.substr(i, src.find("\nfunc ", i + 1) - i)
+		return not body.contains("pacing") and not body.contains("term_start_concepts")
+		).call())
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never reaches the pacing path",
+		not sim_src.contains("pacing_report") and not sim_src.contains("term_start_concepts"),
+		"sim.gd reaches into the pacing path")
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_exam_maths() -> void:

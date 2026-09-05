@@ -768,6 +768,7 @@ func new_run(seed_value: int = 0) -> void:
 	lesson_crafts.clear()
 	pending_craft.clear()
 	concepts.clear()
+	term_start_concepts = 0
 	quiz_done = false
 	# and the focus a quiz leaves behind. Without this the buff leaked
 	# ACROSS runs: the term simulator quizzes in one policy and then
@@ -1344,6 +1345,7 @@ func next_term() -> Dictionary:
 		s.misjudged = false
 		roster.append(s)
 
+	term_start_concepts = concepts.size()
 	term += 1
 	day = 1
 	term_over = false
@@ -1515,8 +1517,32 @@ func graduate(s: StudentData) -> Dictionary:
 var taught: Dictionary = {}
 ## Concept ids you have unlocked, in the order you got them.
 var concepts: Array = []
+## concepts.size() the moment THIS term began -- knowledge carries across
+## terms (see next_term()'s own comment), so "how many did this term add"
+## has to be measured from a snapshot, not from zero.
+var term_start_concepts: int = 0
 
 signal concepts_learned(ids: Array)
+
+
+## Is the term on schedule to actually finish its curriculum, or told about
+## it if not (ten-commits.md step 3). Measured against concepts unlocked
+## SINCE THIS TERM BEGAN -- concepts carry over term to term, so the whole
+## curriculum's own total would never once say "on pace" for a single term.
+##
+## `day_ended` is the day that just finished, BEFORE the caller's own
+## `day += 1` -- advance_day() calls this early for exactly that reason.
+## record_taught() already ran earlier today, inside grade_class(), so
+## `concepts` is fresh rather than one day stale by the time this runs.
+func pacing_report(day_ended: int) -> Dictionary:
+	Balance.ensure_loaded()
+	var earned := concepts.size() - term_start_concepts
+	var expected := int(ceil(float(day_ended) * Balance.pace_concepts_per_day))
+	return {
+		"on_pace": earned >= expected, "earned": earned, "expected": expected,
+		"days_left": maxi(0, Balance.term_days - day_ended),
+	}
+
 
 # --- lesson crafting --------------------------------------------------
 ## lesson id -> {craft_level: int, invested_coins: int, invested_days: int}
@@ -2543,6 +2569,14 @@ func advance_day() -> Dictionary:
 					else StudentData.HW.NOT_DONE)
 		s.reset_lesson()
 
+	# Read BEFORE day advances -- pacing_report() judges the day that just
+	# ended, and `day` is about to become tomorrow's number.
+	var pacing := pacing_report(day)
+	if bool(pacing["on_pace"]):
+		add_coins(Balance.pace_bonus_coins)
+		for s: StudentData in roster:
+			s.add_xp(Balance.pace_bonus_xp)
+
 	homework_out = false
 	day += 1
 	_tick_pending_craft()
@@ -2593,7 +2627,8 @@ func advance_day() -> Dictionary:
 		"cheated": cheated,
 		"graduated": graduated,
 			"days_left": maxi(0, Balance.term_days - day + 1),
-			"split": split, "split_before": before}
+			"split": split, "split_before": before,
+			"pacing": pacing}
 
 
 ## Set tonight's homework. Only meaningful once per day.
@@ -2993,6 +3028,7 @@ func to_dict() -> Dictionary:
 		"reputation": reputation,
 		"taught": taught,
 		"concepts": concepts,
+		"term_start_concepts": term_start_concepts,
 		"seats": Layout.seats().map(func(t: Vector2i) -> Dictionary:
 			return {"tx": t.x, "ty": t.y}),
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
@@ -3069,6 +3105,7 @@ func from_dict(d: Dictionary) -> void:
 	lesson_crafts = d.get("lesson_crafts", {}).duplicate()
 	pending_craft = d.get("pending_craft", {}).duplicate()
 	concepts = d.get("concepts", []).duplicate()
+	term_start_concepts = int(d.get("term_start_concepts", 0))
 	# where the desks were left. An older save has no "seats" key, so it
 	# simply keeps the opening arrangement.
 	var saved_seats: Array[Vector2i] = []

@@ -3469,6 +3469,22 @@ func _diagnosis(split: Dictionary) -> String:
 	return "[color=#%s]Weakest: %s.[/color] %s" % [C_BAD, worst, advice]
 
 
+## Ten-commits.md step 3: is the curriculum moving fast enough to finish
+## the term, or told about it if not. Same shape as _diagnosis() -- name
+## the problem, give the action -- and it escalates rather than repeating
+## itself verbatim as the days run out, which is the whole point of
+## printing it every day instead of only at the very end.
+func _pacing_line(pacing: Dictionary) -> String:
+	if bool(pacing.get("on_pace", true)):
+		return "[color=#%s]On pace with the curriculum.[/color] Bonus paid." % C_GOOD
+	var left := int(pacing.get("days_left", 0))
+	if left <= Balance.pace_escalate_days_left:
+		return "[color=#%s]Badly behind, and only %d day%s left.[/color] Teach something new tomorrow, or the term ends short of it." \
+			% [C_BAD, left, "" if left == 1 else "s"]
+	return "[color=#%s]Behind on new material.[/color] Teach a different lesson to unlock more of it." \
+		% C_BAD
+
+
 func show_day_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	_open(Mode.REPORT)
@@ -3496,6 +3512,8 @@ func show_day_report(report: Dictionary) -> void:
 	lines.append("[color=#%s]+%d coins[/color] [color=#%s]-%d upkeep[/color]   homework [color=#%s]%d of %d[/color]" % [
 		C_COIN, earned, C_BAD, upkeep,
 		C_GOOD if done * 2 >= of else C_BAD, done, of])
+	if report.has("pacing"):
+		lines.append(_pacing_line(report["pacing"]))
 
 	var bought: Array = report.get("consumables", [])
 	if not bought.is_empty():
