@@ -16,8 +16,14 @@ extends Control
 ## in place; N starts a new one. Saving writes a tools/sprites/<name>.txt
 ## source (so the edit survives the next `python tools/make_art.py`, which
 ## now stands down for anything with a hand-edited source -- see
-## save_png() there), the PNG itself, and imports it, because a PNG on disk
-## is not yet a texture Godot can load.
+## save_png() there) and the PNG itself.
+##
+## Saving does NOT re-import: this tool runs as a child of Godot, and a
+## `--headless --import` spawned from here has hung outright on this
+## machine, freezing the editor on save (see _save_editor). The import is a
+## separate, reliable step instead -- `Browse Art.bat` runs one before it
+## launches this tool, and `Reimport Art.bat` makes the game pick up an
+## edit. A brand-new sprite will not load until one of those runs.
 ##
 ## The two lists at the bottom are still the point of the browsing half:
 ##   UNREFERENCED - art on disk that no script or data file mentions
@@ -242,8 +248,29 @@ func _build() -> void:
 	report.text = "\n".join(lines)
 
 
+## A texture read straight off the PNG on disk, NOT through load() and the
+## import cache. This tool's editor writes art/*.png without re-importing
+## (see _save_editor -- a --import child of the running Godot has hung it),
+## so load() would keep showing the pre-edit pixels until the next import.
+## The gallery has to mirror what is actually on disk.
+func _raw_texture(art_name: String) -> Texture2D:
+	var img := _load_raw_image("%s/%s.png" % [ART_DIR, art_name])
+	return ImageTexture.create_from_image(img) if img != null else null
+
+
+## Decode a PNG straight from its bytes. Image.load() on a res:// path logs
+## a "will not work on export" warning on every call, and this tool reads
+## dozens at once; load_png_from_buffer() is silent and does the same job.
+func _load_raw_image(path: String) -> Image:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	if bytes.is_empty():
+		return null
+	var img := Image.new()
+	return img if img.load_png_from_buffer(bytes) == OK else null
+
+
 func _card(art_name: String, index: int) -> Control:
-	var tex: Texture2D = load("%s/%s.png" % [ART_DIR, art_name])
+	var tex: Texture2D = _raw_texture(art_name)
 	var w: int = tex.get_width() if tex != null else 16
 	var h: int = tex.get_height() if tex != null else 16
 
@@ -458,8 +485,11 @@ func _is_valid_name(name: String) -> bool:
 # =====================================================================
 
 func _open_editor(art_name: String, is_new: bool) -> void:
-	var tex: Texture2D = load("%s/%s.png" % [ART_DIR, art_name])
-	var img: Image = tex.get_image() if tex != null else Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	# Straight off disk, not through the import cache -- so editing a sprite
+	# you just saved picks up the real current pixels, not a stale import.
+	var img := _load_raw_image("%s/%s.png" % [ART_DIR, art_name])
+	if img == null:
+		img = Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
 	_open_editor_with_image(art_name, img, is_new)
@@ -664,31 +694,44 @@ func _redo_action() -> void:
 func _save_editor() -> void:
 	if _edit_img == null:
 		return
-	_write_grid_source(_edit_name, _edit_img)
+	var saved_name := _edit_name
+	var had_import := FileAccess.file_exists("res://art/%s.png.import" % saved_name)
+
+	_write_grid_source(saved_name, _edit_img)
 	# The PNG is written directly from the edited Image, so the result does
 	# not depend on the .txt -> PNG round trip through make_art.py being
 	# correct at the moment you hit save.
-	var err := _edit_img.save_png("res://art/%s.png" % _edit_name)
+	var err := _edit_img.save_png("res://art/%s.png" % saved_name)
 	if err != OK:
-		push_error("could not write art/%s.png (%d)" % [_edit_name, err])
+		push_error("could not write art/%s.png (%d)" % [saved_name, err])
 		return
 
-	# A PNG on disk is NOT yet a texture Godot can load -- this is the one
-	# thing standing between a new PNG and art/inspector.png's fate, which
-	# shipped invisible because nothing had imported it.
-	var out: Array = []
-	var root := ProjectSettings.globalize_path("res://")
-	var code := OS.execute(OS.get_executable_path(),
-		["--headless", "--path", root, "--import"], out, true)
-
+	# DO NOT shell out to `godot --headless --import` and wait on it here.
+	# A Godot import spawned as a child of a running Godot has hung outright
+	# on this machine instead of exiting -- the same fault .githooks and
+	# AGENTS.md call out -- and _save_editor() blocking on it froze this
+	# whole editor on save, with no way out but killing it.
+	#
+	# Writing the two files is the reliable half. Making Godot SEE the new
+	# pixels is a separate, guaranteed step and never this tool's job to
+	# wait on:
+	#   - `Browse Art.bat` runs `--import` before it launches this tool, so
+	#     the gallery is up to date every time you open it;
+	#   - `Reimport Art.bat` is the one click that makes the GAME pick up
+	#     what you just changed.
 	_close_editor()
 	_scan_references()
 	_scan_files()
-	_sel = _files.find(_edit_name)
+	_sel = _files.find(saved_name)
 	_build()
 
-	if code != 0:
-		push_warning("import failed (%d): %s" % [code, "\n".join(out)])
+	var note := "[color=#a5d6a7]Saved art/%s.png + tools/sprites/%s.txt.[/color]  " % [
+		saved_name, saved_name]
+	if had_import:
+		note += "Run [b]Reimport Art.bat[/b] (or relaunch the game) to see it in play."
+	else:
+		note += "[color=#ffd08a]NEW asset -- run [b]Reimport Art.bat[/b] before anything loads it.[/color]"
+	report.text = note + "\n" + report.text
 
 
 ## The inverse of make_art.py's parse_grid_sprite() -- writes exactly the

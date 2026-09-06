@@ -34,6 +34,7 @@ echo   ART
 echo   11) Browse Art              (every sprite; edit any in place)
 echo   12) Draw a Sprite           (hand-drawing editor, HTML, offline)
 echo   13) Make a Sprite           (new character: palette -^> sheet -^> import)
+echo   14) Reimport Art            (make the game see a Browse Art edit)
 echo.
 echo    0) Exit
 echo.
@@ -53,6 +54,7 @@ if "%CH%"=="10" goto screenshot
 if "%CH%"=="11" (call "%HERE%\Browse Art.bat" & goto menu)
 if "%CH%"=="12" (call "%HERE%\Draw a Sprite.bat" & goto menu)
 if "%CH%"=="13" (call "%HERE%\Make a Sprite.bat" & goto menu)
+if "%CH%"=="14" (call "%HERE%\Reimport Art.bat" & goto menu)
 if "%CH%"=="0"  exit /b 0
 
 echo.

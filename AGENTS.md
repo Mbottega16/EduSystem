@@ -304,9 +304,10 @@ free, rather than each character needing its own redraw.
 |---|---|
 | `Make a Sprite.bat` | New character: writes the palette, draws it, imports it, registers the name |
 | `Draw a Sprite.bat` | Hand-drawing editor (HTML): brush, fill, soften, flatten, retint, onion skin |
-| `Browse Art.bat` | Every sprite at once; flags unreferenced and missing art; select one and press Enter to EDIT it in place -- brush, eraser, fill, eyedrop, undo/redo. Saving writes a `tools/sprites/<name>.txt` source, the PNG, and imports it |
+| `Browse Art.bat` | Every sprite at once; flags unreferenced and missing art; select one and press Enter to EDIT it in place -- brush, eraser, fill, eyedrop, undo/redo. Runs `--import` before it opens, so the gallery is current. Saving writes a `tools/sprites/<name>.txt` source and the PNG -- it does NOT re-import (a `--import` child of the running Godot has hung and frozen the tool). |
+| `Reimport Art.bat` | Runs `--import` from a console. Use it to make the GAME pick up a `Browse Art` edit -- Save no longer does. |
 
-**The seam that bites:** `make_art.py` writes PNGs but cannot import them,
-and Godot cannot load an unimported texture. After adding art run
-`godot --headless --path . --import`. The suite now *loads* every PNG rather
-than checking it exists.
+**The seam that bites:** `make_art.py` and `Browse Art` write PNGs but do
+not import them, and Godot cannot load an unimported texture. After adding
+or editing art run `godot --headless --path . --import` (or `Reimport
+Art.bat`). The suite now *loads* every PNG rather than checking it exists.
