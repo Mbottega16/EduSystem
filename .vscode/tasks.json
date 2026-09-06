@@ -1,0 +1,64 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Generate Art (Characters, Furniture, Room)",
+            "type": "shell",
+            "command": "python tools/make_art.py",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Shop Items & Mess",
+            "type": "shell",
+            "command": "python tools/make_items.py",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Audio (SFX & Music)",
+            "type": "shell",
+            "command": "python tools/make_audio.py",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate UI (Books)",
+            "type": "shell",
+            "command": "python tools/make_ui.py",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate ALL Assets",
+            "dependsOn": [
+                "Generate Art (Characters, Furniture, Room)",
+                "Generate Shop Items & Mess",
+                "Generate Audio (SFX & Music)",
+                "Generate UI (Books)"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
+
