@@ -73,6 +73,9 @@ var _a: AudioStreamPlayer
 var _b: AudioStreamPlayer
 var _live: AudioStreamPlayer      ## whichever of _a / _b carries `current`
 var _sting: AudioStreamPlayer
+var _noise: AudioStreamPlayer     ## The continuous noise bed layer
+var _noise_level: float = 0.0
+
 var _beds: Dictionary = {}        ## name -> looping AudioStreamWAV, or null
 var _oneshots: Dictionary = {}    ## name -> non-looping stream, or null
 var _fades: Dictionary = {}       ## player -> Tween, so a new fade kills the old
@@ -85,11 +88,47 @@ func _ready() -> void:
 	_a = _make_player()
 	_b = _make_player()
 	_sting = _make_player()
+	_noise = _make_player()
 	_live = _a
 	# Listening, not wiring: the game does not need to know music exists.
 	Game.run_started.connect(func() -> void: play(ROOM))
 	Game.term_began.connect(func(_term: int) -> void: play(ROOM))
 	Game.phase_changed.connect(_on_phase_changed)
+
+
+func _process(delta: float) -> void:
+	if not enabled or _noise == null or Game.fight_active() or Game.test_active or Game.phase != Game.Phase.LESSON:
+		_fade_noise(0.0, delta)
+		return
+	
+	var disruptors := 0
+	var seated := 0
+	for s: StudentData in Game.roster:
+		if s.seat_index >= 0:
+			seated += 1
+			if s.disrupting:
+				disruptors += 1
+	
+	var target := 0.0
+	if seated > 0:
+		target = float(disruptors) / float(mini(3, seated)) # Maxes out at 3 disruptors
+	target = clampf(target, 0.0, 1.0)
+	
+	_fade_noise(target, delta)
+
+
+func _fade_noise(target: float, delta: float) -> void:
+	if _noise.stream == null:
+		_noise.stream = _bed("music_noise")
+	
+	_noise_level = move_toward(_noise_level, target, delta * 0.5)
+	if _noise_level > 0.0:
+		if not _noise.playing:
+			_noise.play()
+		_set_level(maxf(SILENT, _noise_level), _noise)
+	else:
+		if _noise.playing:
+			_noise.stop()
 
 
 ## Crossfade the bed to `track`. Playing the track already playing is a

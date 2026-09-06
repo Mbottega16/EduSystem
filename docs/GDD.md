@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-09-05**, against build `b44`, with **2062 assertions
+> **Measured on 2026-09-05**, against build `b44`, with **2063 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -355,7 +355,7 @@ milestone and having taught it, not a number going up.
 | Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
 | Screens | 17 modes |
 | Input actions | 20 (19 rebindable) |
-| Tests | **2062 assertions** across **115 sections** |
+| Tests | **2063 assertions** across **115 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -718,7 +718,7 @@ on the same principle — a number gets retuned, nothing gets sourced.
 
 | now | before this pass |
 |---|---|
-| 8 procedural tracks: a 30s title theme, four 30s beds (morning, lesson, silent test, afternoon), a 23s assessment track, two 2.5s stings (win/lose) | 11 short SFX and nothing else |
+| 9 procedural tracks: a 30s title theme, five 30s beds (morning, lesson, silent test, afternoon, noisy-room), a 23s assessment track, two 2.5s stings (win/lose) | 11 short SFX and nothing else |
 | A composition layer in `make_audio.py` — wavetables, ADSR envelopes, a step sequencer, a circular loop buffer, filters, echo, a slow swell — real melody, harmony and rhythm | one tone plus one envelope per sound |
 | Two buses (Master, Sfx stays put; Music is new) | one bus, one volume |
 | `Music` autoload: crossfading `play()`, `stop()`, a one-shot `sting()` that doesn't touch the bed, its own `music_volume` fader | no music system |
@@ -751,13 +751,15 @@ listened to end-to-end by a person yet. That is the real one, and no
 amount of further building answers it.
 
 The per-state ambience `docs/AUDIO_BRIEF.md` imagined is now built for
-the day's own phases, but **not for the room's mood** — the brief also
-wanted a noisy room to sound different from a settled one, and nothing
-here listens to attention or disruption. It was left alone deliberately:
-a bed that switches on a value ticking up and down mid-lesson would
-chatter between two tracks, and the honest fix is a continuous mix rather
-than another crossfade target. Additive on top of what exists, when it
-comes.
+the day's own phases **and for the room's mood**. The brief wanted a
+noisy room to sound different from a settled one; `music_noise` is that
+bed. It is not a crossfade target — a fourth `_noise` player runs on its
+own, and `music.gd::_process()` raises and lowers its level every frame
+from the ratio of disrupting students to seated ones (capped at three
+disruptors), so it swells in as the room turns and fades back out as you
+settle it, with no chatter between tracks. It is silent outside a lesson,
+during a boss paper, and in tests. Its RMS sits well under the quietest
+sound effect, same rule as every other bed.
 
 ---
 

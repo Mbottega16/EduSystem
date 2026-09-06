@@ -11578,9 +11578,9 @@ func test_music() -> void:
 			f = da.get_next()
 		da.list_dir_end()
 	tracks.sort()
-	chk("there are eight music tracks",
+	chk("there are nine music tracks",
 		tracks == ["music_afternoon", "music_fight", "music_lose", "music_morning",
-			"music_room", "music_test", "music_title", "music_win"],
+			"music_noise", "music_room", "music_test", "music_title", "music_win"],
 		tracks)
 	chk("and every one of them loads", broken.is_empty(), broken)
 	for t: String in tracks:

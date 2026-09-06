@@ -798,6 +798,40 @@ def make_music_fight():
     finish("music_fight", mixed, 0.85, bpm=bpm)
 
 
+def make_music_noise():
+    """A noisy classroom: disruption. 30 s. The room bed plus a lot more talk,
+    scooting chairs, banging, paper crumples, and murmurs. Fits seamlessly
+    over music_room since the noise level is layered."""
+    secs = 30.0
+    n = int(RATE * secs)
+    rng = random.Random(9009)
+    room = Loop(n)
+
+    # louder, thicker talk band
+    talk = noise_band(rng, n, 400.0, 2000.0)
+    drift = swell(n, [(3, 0.40, 1.1), (11, 0.25, 0.3), (23, 0.15, 3.0)], floor=0.3)
+    room.add([m * s for m, s in zip(talk, drift)], 0, 0.55)
+
+    # restless movements (creaks, thumps)
+    for start in (2.1, 8.4, 15.6, 22.1, 28.3):
+        t = start
+        for _ in range(rng.randint(2, 4)):
+            room.add(_creak(rng), room.at(t), rng.uniform(0.3, 0.6))
+            t += rng.uniform(0.3, 1.2)
+
+    for start in (4.5, 11.2, 18.7, 26.4):
+        t = start
+        for _ in range(rng.randint(3, 7)):
+            room.add(_page_turn(rng), room.at(t), rng.uniform(0.4, 0.7))
+            t += rng.uniform(0.2, 0.6)
+
+    # occasional thump/kick
+    for t in (3.5, 9.8, 14.2, 21.7, 27.1):
+        room.add(kick(secs=0.15, f0=110.0, f1=50.0), room.at(t), 0.35)
+
+    finish("music_noise", lowpass(room.buf, 5000.0, loop=True), 0.11)
+
+
 def make_music_win():
     """The trophy fanfare, 2.5 s, one-shot. C major: G4-C5-E5 quick, G5
     held, E5, then G5 held long with vibrato, over a triangle C-E-G pad, a
@@ -846,7 +880,7 @@ def make_music_lose():
 ## the player is doing) rather than a foreground track like the title
 ## theme or the assessment. bed_check() holds every one of these to the
 ## same "well under the sound effects" rule music_room was built to.
-BEDS = ("music_room", "music_morning", "music_test", "music_afternoon")
+BEDS = ("music_room", "music_morning", "music_test", "music_afternoon", "music_noise")
 
 
 def bed_check():
@@ -886,6 +920,7 @@ if __name__ == "__main__":
     make_music_morning()
     make_music_test()
     make_music_afternoon()
+    make_music_noise()
     make_music_fight()
     make_music_win()
     make_music_lose()
