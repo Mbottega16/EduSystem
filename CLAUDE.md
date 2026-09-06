@@ -306,8 +306,10 @@ free, rather than each character needing its own redraw.
 | `Draw a Sprite.bat` | Hand-drawing editor (HTML): brush, fill, soften, flatten, retint, onion skin |
 | `Browse Art.bat` | Every sprite at once; flags unreferenced and missing art; select one and press Enter to EDIT it in place -- brush, eraser, fill, eyedrop, undo/redo. Runs `--import` before it opens, so the gallery is current. Saving writes a `tools/sprites/<name>.txt` source and the PNG -- it does NOT re-import (a `--import` child of the running Godot has hung and frozen the tool). |
 | `Reimport Art.bat` | Runs `--import` from a console. Use it to make the GAME pick up a `Browse Art` edit -- Save no longer does. |
+| `tools/forge_art.py` | **CLI art forge** -- regenerate ONE sprite into `art/` with tweaks, no GUI. `python tools/forge_art.py list` \| `... <name> key=value`. Characters take palette keys (`hair=#hex hair_style=curly glasses=1 skin=tan pattern=stripes`) and rewrite the sheet + portrait. Furniture/items take shared palette-colour keys plus `tint=#hex strength=0..1` and `swap=#from:#to`. `tiles floor_a=#hex …` rewrites the tile set. A sprite with a `tools/sprites/*.txt` hand source is refused (edit it in Browse Art) unless `--force`. Sibling of `tools/forge_audio.py`. |
 
-**The seam that bites:** `make_art.py` and `Browse Art` write PNGs but do
-not import them, and Godot cannot load an unimported texture. After adding
-or editing art run `godot --headless --path . --import` (or `Reimport
-Art.bat`). The suite now *loads* every PNG rather than checking it exists.
+**The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
+write PNGs but do not import them, and Godot cannot load an unimported
+texture. After adding or editing art run `godot --headless --path .
+--import` (or `Reimport Art.bat`). The suite now *loads* every PNG rather
+than checking it exists.
