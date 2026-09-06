@@ -362,6 +362,21 @@ func _open_screen(main: Node, screen: String) -> void:
 					break
 				Game.milestones.append(String(m["id"]))
 			hud.show_career()
+		"alumni":
+			# a few leavers with real records, then open the wall on them
+			for i in mini(3, Game.roster.size()):
+				var g: StudentData = Game.roster[i]
+				g.transcript.append({"lesson": "counting", "name": "Counting",
+					"standard": "K.CC.1", "day": 2, "grade": 0.8, "test": false})
+				g.transcript.append({"lesson": "adding", "name": "Adding",
+					"standard": "1.OA.1", "day": 5, "grade": 0.6, "test": false})
+				g.note_moment("grade_jump" if i == 0 else "never_stuck", g.joined_day + 5)
+				var rec := Game.graduate_record(g)
+				rec["term"] = i + 1
+				(Game.meta["alumni"] as Array).append(rec)
+			hud._career_page = hud.CAREER_ALUMNI
+			hud._alum_open = -1
+			hud.show_career()
 		"curriculum":
 			for l: Dictionary in Curriculum.lessons:
 				for i in 4:

@@ -173,6 +173,17 @@ const BIO_STORY := 1
 ## Page three: everything pulling on this child RIGHT NOW.
 const BIO_ACTING := 2
 var _bio_page: int = BIO_FILE
+
+## The career screen has two pages, cycled by the same "menu" key: the
+## MILESTONES/trophies list it always was, and THE ONES WHO LEFT -- the
+## alumni wall, every child ever sent up, read from meta.alumni so it
+## survives new_run(). Which is the whole point: a career you can look
+## back on.
+const CAREER_MILESTONES := 0
+const CAREER_ALUMNI := 1
+var _career_page: int = CAREER_MILESTONES
+## Which alum's story is open on the alumni page. -1 is the list itself.
+var _alum_open: int = -1
 ## The exam is the one screen whose closing DOES something, so it has to be
 ## told apart from every other report.
 var _showing_exam: bool = false
@@ -787,6 +798,8 @@ func _pause_input() -> void:
 			return
 		elif _pause_sel == 2:
 			_sel = 0
+			_career_page = CAREER_MILESTONES
+			_alum_open = -1
 			show_career()
 			return
 		elif _pause_sel == 3:
@@ -2425,11 +2438,15 @@ func show_career() -> void:
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", 16)
 
-	var rows := _career_rows()
 	title.text = "YOUR CAREER  %d/%d   trophies %d/%d" % [
 		Game.milestones.size(), Milestones.count(),
 		Game.trophies.size(), Trophies.count()]
 
+	if _career_page == CAREER_ALUMNI:
+		_render_alumni()
+		return
+
+	var rows := _career_rows()
 	# a window, because there are more entries than the panel holds
 	_sel = clampi(_sel, 0, maxi(0, rows.size() - 1))
 	var lo := _window_start(rows.size(), 9)
@@ -2444,8 +2461,89 @@ func show_career() -> void:
 	_reveal_rich(0.25)
 
 	var sel: Dictionary = rows[_sel] if _sel < rows.size() else {}
-	hint.text = _clip("Esc - close.   %s%s" % [
+	hint.text = _clip("Esc - close.   Tab - the ones who left.   %s%s" % [
 		"" if bool(sel.get("won", false)) else "Not yet: ", String(sel.get("blurb", ""))])
+
+
+## The alumni wall -- every child ever sent up, newest first, read from
+## meta.alumni so it outlives a run. The list, or one alum's story if
+## _alum_open points at one. Their story is rendered from the SAME
+## helpers as a living child's file page two (transcript arc + moments
+## reel), fed a throwaway StudentData rebuilt from the graduation
+## snapshot -- so the wall can never drift from the file it mirrors.
+func _render_alumni() -> void:
+	var al: Array = Game.meta.get("alumni", [])
+	if al.is_empty():
+		rich.text = "[color=#%s]No one has left yet.[/color]\n\nWhen you send a child up -- or one passes the exam -- they are remembered here, for the rest of your career." % DIM
+		_reveal_rich(0.2)
+		hint.text = "Tab - back to milestones    Esc - close"
+		return
+
+	# newest first
+	var recs: Array = al.duplicate()
+	recs.reverse()
+
+	if _alum_open >= 0 and _alum_open < recs.size():
+		var rec: Dictionary = recs[_alum_open]
+		var s := _alum_student(rec)
+		var lines: Array[String] = []
+		lines.append("[color=#%s]%s[/color]" % [C_COIN, String(rec.get("name", ""))])
+		lines.append("[color=#%s]%s[/color]" % [DIM, _alum_left_line(rec)])
+		lines.append("")
+		lines.append(_transcript_line(s))
+		lines.append("")
+		var story := _moments_prose(s)
+		if story.is_empty():
+			lines.append("Nothing much stood out in their time with you -- a quiet run through.")
+		else:
+			lines.append_array(story)
+		rich.text = "\n".join(lines)
+		_reveal_rich(0.2)
+		hint.text = "Esc - back to the list"
+		return
+
+	_sel = clampi(_sel, 0, recs.size() - 1)
+	var lo := _window_start(recs.size(), 9)
+	var out: Array[String] = []
+	for i in range(lo, mini(recs.size(), lo + 9)):
+		var r: Dictionary = recs[i]
+		out.append("%s [color=#%s]%-16s[/color] [color=#%s]Class of Term %d[/color]" % [
+			">" if i == _sel else " ", C_COIN, String(r.get("name", "")),
+			DIM, int(r.get("term", 1))])
+	rich.text = "\n".join(out)
+	_reveal_rich(0.2)
+	hint.text = "Up/Down choose   E open their story   Tab back   Esc close"
+
+
+## A throwaway StudentData carrying only what the story helpers read --
+## name, trait, what they were taught, and their moments reel. Not enrolled,
+## never ticked; it exists for one render and is dropped.
+func _alum_student(rec: Dictionary) -> StudentData:
+	var s := StudentData.new()
+	s.display_name = String(rec.get("name", ""))
+	s.art = String(rec.get("art", "student_a"))
+	s.trait_id = String(rec.get("trait_id", ""))
+	s.aptitude = float(rec.get("aptitude", 0.5))
+	s.favourite = String(rec.get("favourite", ""))
+	s.joined_day = int(rec.get("joined_day", 1))
+	s.helps_total = int(rec.get("helps_total", 0))
+	s.level = int(rec.get("level", 1))
+	s.transcript = (rec.get("transcript", []) as Array).duplicate(true)
+	s.moments = (rec.get("moments", []) as Array).duplicate(true)
+	return s
+
+
+## How prepared they were the day they left, in words. The snapshot keeps
+## the number; this page, like every page about a child, does not.
+func _alum_left_line(rec: Dictionary) -> String:
+	var r := float(rec.get("readiness", 0.5))
+	var joined := int(rec.get("joined_day", 1))
+	var how := "ready for what came next"
+	if r >= 0.8:
+		how = "more than ready -- you took them further than you had to"
+	elif r < 0.45:
+		how = "a little green, sent up before they had fully found their feet"
+	return "Joined on day %d, left %s." % [joined, how]
 
 
 ## The short, terse version of every principal_says() nudge the game can
@@ -2950,6 +3048,9 @@ func _handle_office_input() -> void:
 		show_office()
 	elif Game.claim_interact():
 		Sfx.play("blip")
+		_career_page = CAREER_MILESTONES     # always open on the list
+		_alum_open = -1
+		_sel = 0
 		show_career()
 
 
@@ -4271,6 +4372,43 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.CAREER:
+		# Tab flips between the milestones list and the alumni wall, the
+		# same key the shop and the student file use for their pages.
+		if Input.is_action_just_pressed("menu"):
+			_career_page = CAREER_ALUMNI if _career_page == CAREER_MILESTONES else CAREER_MILESTONES
+			_alum_open = -1
+			_sel = 0
+			Sfx.play("blip")
+			show_career()
+			return
+
+		if _career_page == CAREER_ALUMNI:
+			var recs: int = (Game.meta.get("alumni", []) as Array).size()
+			if Input.is_action_just_pressed("cancel"):
+				Sfx.play("blip")
+				if _alum_open >= 0:
+					_alum_open = -1
+					show_career()
+				else:
+					close()
+			elif _alum_open >= 0:
+				pass       # a story page is read-only: only Esc is live
+			elif recs == 0:
+				pass
+			elif Game.claim_interact():
+				Sfx.play("blip")
+				_alum_open = _sel
+				show_career()
+			elif Input.is_action_just_pressed("move_down"):
+				_sel = (_sel + 1) % recs
+				Sfx.play("blip")
+				show_career()
+			elif Input.is_action_just_pressed("move_up"):
+				_sel = (_sel - 1 + recs) % recs
+				Sfx.play("blip")
+				show_career()
+			return
+
 		var n: int = _career_rows().size()
 		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
 			Sfx.play("blip")

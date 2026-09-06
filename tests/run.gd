@@ -194,6 +194,7 @@ func _main() -> void:
 	test_lifetime_counters()
 	test_meta()
 	test_graduate_record()
+	await test_alumni_wall()
 	await test_moments()
 	await test_day_beats()
 	await test_bio()
@@ -6828,6 +6829,7 @@ func test_milestones() -> void:
 	await step(2)
 	var hud := _hud()
 	Game.milestones.append("first_up")
+	hud._career_page = hud.CAREER_MILESTONES
 	hud.show_career()
 	chk("the career page opens", hud.mode == hud.Mode.CAREER)
 	chk("it names what you HAVE done",
@@ -6923,6 +6925,7 @@ func test_trophies() -> void:
 			ela_row = i
 			break
 	hud._sel = ela_row
+	hud._career_page = hud.CAREER_MILESTONES
 	hud.show_career()
 	chk("the career list names a won trophy",
 		hud.rich.text.contains(String(Trophies.by_id("boss_ela")["name"])),
@@ -10525,6 +10528,86 @@ func test_graduate_record() -> void:
 	Game.delete_save()
 
 	Game.new_run(SEED)   # isolate from whatever follows
+
+
+## The alumni wall -- the second page of the career screen. Reads
+## meta.alumni, newest first, and tells each leaver's story from the same
+## helpers a living child's file uses.
+func test_alumni_wall() -> void:
+	section("THE ONES WHO LEFT")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	# --- nothing there yet ---
+	(Game.meta["alumni"] as Array).clear()
+	hud._career_page = hud.CAREER_ALUMNI
+	hud._alum_open = -1
+	hud._sel = 0
+	hud.show_career()
+	chk("the wall opens on the career screen", hud.mode == hud.Mode.CAREER)
+	chk("with nobody on it, it says so plainly",
+		hud.rich.text.to_lower().contains("no one has left yet"), hud.rich.text)
+	chk("Tab is offered to get back to the milestones",
+		hud.hint.text.contains("Tab"), hud.hint.text)
+
+	# --- two real leavers, snapshotted the way graduation does it ---
+	var a: StudentData = Game.roster[0]
+	a.transcript.append({"lesson": "counting", "name": "Counting",
+		"standard": "K.CC.1", "day": 2, "grade": 0.8, "test": false})
+	a.note_moment("grade_jump", a.joined_day + 6)
+	var rec_a := Game.graduate_record(a)
+	rec_a["name"] = "Ada"
+	rec_a["term"] = 1
+	var b: StudentData = Game.roster[1]
+	var rec_b := Game.graduate_record(b)
+	rec_b["name"] = "Grace"
+	rec_b["term"] = 2
+	(Game.meta["alumni"] as Array).append(rec_a)
+	(Game.meta["alumni"] as Array).append(rec_b)
+
+	hud._alum_open = -1
+	hud._sel = 0
+	hud.show_career()
+	chk("both leavers are on the wall",
+		hud.rich.text.contains("Ada") and hud.rich.text.contains("Grace"),
+		hud.rich.text)
+	chk("it says which class each left with",
+		hud.rich.text.contains("Class of Term"), hud.rich.text)
+	chk("the newest leaver is at the top",
+		hud.rich.text.strip_edges().begins_with(">")
+		and hud.rich.text.split("\n")[0].contains("Grace"),
+		hud.rich.text.split("\n")[0])
+	chk("the wall fits the panel",
+		hud.rich.text.split("\n").size() <= 11, hud.rich.text.split("\n").size())
+
+	# --- open the one with a story ---
+	hud._sel = 1                      # Ada, the second row
+	hud._alum_open = 1
+	hud.show_career()
+	chk("her story names what she was taught",
+		hud.rich.text.to_lower().contains("record")
+		or hud.rich.text.to_lower().contains("lesson"), hud.rich.text)
+	chk("her remembered beat is prose, not a kind id",
+		not hud.rich.text.contains("grade_jump")
+		and hud.rich.text.to_lower().contains("grade"), hud.rich.text)
+	chk("her story states no decimal and no percentage",
+		not hud.rich.text.contains("0.") and not hud.rich.text.contains("%"),
+		hud.rich.text)
+	chk("the way back to the list is the only live key",
+		hud.hint.text.to_lower().contains("back to the list"), hud.hint.text)
+
+	# --- Tab flips back to the milestones, and forgets the open story ---
+	hud._career_page = hud.CAREER_MILESTONES
+	hud._alum_open = -1
+	hud.show_career()
+	chk("Tab returns to the milestones list",
+		hud.title.text.contains("YOUR CAREER"), hud.title.text)
+	hud.close()
+
+	Game.delete_save()
+	Game.new_run(SEED)
 
 
 ## The per-student highlight reel -- kind ids, never prose, capped, and it
