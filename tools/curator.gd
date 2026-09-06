@@ -71,6 +71,7 @@ var _edit_img: Image = null
 var _undo: Array[Image] = []
 var _redo: Array[Image] = []
 var _last_pixel := Vector2i(-1, -1)
+var _hover_px := Vector2i(-1, -1)
 var _tool := "brush"
 var _cur_colour := Color(0.1, 0.1, 0.1, 1.0)
 var _palette: Array[Color] = []
@@ -102,6 +103,8 @@ func _ready() -> void:
 	canvas.pixel_down.connect(_on_pixel_down)
 	canvas.pixel_drag.connect(_on_pixel_drag)
 	canvas.pixel_up.connect(_on_pixel_up)
+	canvas.pixel_hover.connect(_on_pixel_hover)
+	canvas.zoom_changed.connect(func(_z: int) -> void: _update_status())
 
 	_btn_brush.pressed.connect(func() -> void: _set_tool("brush"))
 	_btn_eraser.pressed.connect(func() -> void: _set_tool("eraser"))
@@ -417,6 +420,12 @@ func _editor_input(k: Key, ctrl: bool) -> void:
 		_set_tool("fill")
 	elif k == KEY_4:
 		_set_tool("eyedrop")
+	elif k == KEY_EQUAL or k == KEY_PLUS or k == KEY_KP_ADD:
+		canvas.set_zoom(canvas.zoom + 1)
+		_update_status()
+	elif k == KEY_MINUS or k == KEY_KP_SUBTRACT:
+		canvas.set_zoom(canvas.zoom - 1)
+		_update_status()
 
 
 # =====================================================================
@@ -545,11 +554,17 @@ func _set_tool(t: String) -> void:
 
 
 func _update_status() -> void:
-	if _status == null:
+	if _status == null or _edit_img == null:
 		return
 	var news := " (new)" if _edit_is_new else ""
-	_status.text = "%s%s   %dx%d   tool: %s [1 brush 2 eraser 3 fill 4 eyedrop]   Ctrl+Z/Y undo/redo   Ctrl+S save   Esc cancel" % [
-		_edit_name, news, _edit_img.get_width(), _edit_img.get_height(), _tool]
+	var at := "  -,-"
+	if _hover_px.x >= 0 and _hover_px.x < _edit_img.get_width() \
+			and _hover_px.y >= 0 and _hover_px.y < _edit_img.get_height():
+		at = "  %d,%d" % [_hover_px.x, _hover_px.y]
+	_status.text = "%s%s   %dx%d  x%d   #%s%s   tool: %s [1 brush 2 eraser 3 fill 4 eyedrop  +/- zoom  MMB pan]   Ctrl+Z/Y undo  Ctrl+S save  Esc cancel" % [
+		_edit_name, news, _edit_img.get_width(), _edit_img.get_height(),
+		canvas.zoom if canvas != null else 0,
+		_cur_colour.to_html(false), at, _tool]
 
 
 func _extract_palette(img: Image) -> Array[Color]:
@@ -649,6 +664,12 @@ func _line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 func _on_pixel_up() -> void:
 	_last_pixel = Vector2i(-1, -1)
+
+
+func _on_pixel_hover(p: Vector2i) -> void:
+	if p != _hover_px:
+		_hover_px = p
+		_update_status()
 
 
 func _in_bounds(p: Vector2i) -> bool:
