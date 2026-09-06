@@ -658,8 +658,12 @@ into the school layer rather than built separately.
 **Staying procedural pixel.** The decision is made and the pipeline exists.
 
 - **32×48** character cells (doubled Aug 2026, was 16×24 -- chibi
-  proportions redrawn at the same time), **5×4** sheets (4 facings × 5
-  frames, the last being seated), one 160×192 PNG per character.
+  proportions redrawn at the same time), **9×4** sheets (4 facings × 9
+  frames: 4 walk, 1 seated, 4 one-shot poses), one 288×192 PNG per
+  character. Since the Sept 2026 pixel-grid pass each frame is built at
+  32×48 then quantised to 16×24 and Scale2x'd back, so the cast shares the
+  furniture's texel size -- see `docs/PIXEL_STYLE.md` and
+  `docs/ART_CATALOG.md`.
 - Characters **are palettes** — `make_art.py` draws one model and recolours
   it. A new character is a data-table edit.
 - Furniture is drawn in code (`make_items.py`), floors and walls are
@@ -670,8 +674,10 @@ into the school layer rather than built separately.
 | | |
 |---|---|
 | `Make a Sprite.bat` | New character: writes the palette, draws the sheet, imports it, registers the name |
-| `Draw a Sprite.bat` | Hand-drawing editor (HTML, same style as the EduSystems curator) — brush, fill, soften, flatten, **retint**, onion skin, mirror, 80×96 export. **Not yet updated for the Aug 2026 resolution doubling** — still exports at the old 80×96/16×24 size, so the five hand-edited furniture items (bookshelf, lab_bench, art_easel, rug, plant) are the one part of the shop still at the old scale until this tool is updated too. |
-| `Browse Art.bat` | Every sprite at once; flags unreferenced art and missing art |
+| `Draw a Sprite.bat` | Hand-drawing editor (HTML): brush, fill, soften, flatten, **retint**, onion skin, mirror. Character sheets only (9×4 of 32×48 → 288×192), standalone browser, manual copy in/out. Being folded into `Browse Art` — see `AGENTS.md` "## Art". |
+| `Browse Art.bat` | The art forge: every sprite at once, flags unreferenced + missing art, and edits any sprite in place (brush/shapes/fill/eyedrop, palette, Save writes a `tools/sprites/<name>.txt` grid source). |
+| `Reimport Art.bat` | Runs `--import` from a console so the game sees a Browse Art edit. |
+| `tools/forge_art.py` | CLI art forge — regenerate one sprite into `art/` with palette/tint/swap tweaks. Sibling of `tools/forge_audio.py`. |
 
 ### What the school layer needs ***(to build)***
 Staff portraits · room thumbnails · a school-level view that is not a

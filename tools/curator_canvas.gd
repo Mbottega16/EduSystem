@@ -15,8 +15,8 @@ signal pixel_up()
 
 var image: Image = null
 var zoom := 12
-## Nonzero draws character-sheet cell boundaries (16x24 frames on an
-## 80x96 sheet) so the grid reads as 20 frames rather than one slab.
+## Nonzero draws character-sheet cell boundaries (32x48 frames on a
+## 288x192 sheet, 9x4) so the grid reads as 36 frames rather than one slab.
 var cell_w := 0
 var cell_h := 0
 
