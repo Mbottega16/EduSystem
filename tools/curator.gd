@@ -436,7 +436,7 @@ func _prompt_new_sprite() -> void:
 	box.add_child(name_edit)
 
 	var size_label := Label.new()
-	size_label.text = "size, e.g. 16x22 (80x96 for a character sheet)"
+	size_label.text = "size, e.g. 16x22 (288x192 for a character sheet)"
 	box.add_child(size_label)
 	var size_edit := LineEdit.new()
 	size_edit.text = "16x16"
@@ -605,11 +605,46 @@ func _on_pixel_down(p: Vector2i) -> void:
 func _on_pixel_drag(p: Vector2i) -> void:
 	if _tool != "brush" and _tool != "eraser":
 		return
-	if not _in_bounds(p) or p == _last_pixel:
+	if p == _last_pixel:
 		return
-	_apply_tool(p)
+	# Paint every pixel BETWEEN the last sample and this one. A mouse-move
+	# is sampled every few pixels at speed, so applying the tool only at
+	# the samples left a dotted trail on a fast drag; walk the line so the
+	# stroke is solid.
+	if _last_pixel.x >= 0:
+		for step: Vector2i in _line_points(_last_pixel, p):
+			if _in_bounds(step):
+				_apply_tool(step)
+	elif _in_bounds(p):
+		_apply_tool(p)
 	_last_pixel = p
 	canvas.queue_redraw()
+
+
+## Integer points along the line a -> b, inclusive of b, EXCLUSIVE of a
+## (a was painted on the previous sample or on pixel_down). Bresenham.
+func _line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var pts: Array[Vector2i] = []
+	var dx := absi(b.x - a.x)
+	var dy := -absi(b.y - a.y)
+	var sx := 1 if a.x < b.x else -1
+	var sy := 1 if a.y < b.y else -1
+	var err := dx + dy
+	var x := a.x
+	var y := a.y
+	while true:
+		if not (x == a.x and y == a.y):
+			pts.append(Vector2i(x, y))
+		if x == b.x and y == b.y:
+			break
+		var e2 := 2 * err
+		if e2 >= dy:
+			err += dy
+			x += sx
+		if e2 <= dx:
+			err += dx
+			y += sy
+	return pts
 
 
 func _on_pixel_up() -> void:
