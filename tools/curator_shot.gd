@@ -38,6 +38,22 @@ func _ready() -> void:
 		c._shape_filled = false
 		c._on_pixel_down(Vector2i(6, 34))
 		c._on_pixel_drag(Vector2i(24, 40))
+	elif demo == "mirror":
+		c._cycle_mirror()  # X
+		c._set_tool("brush")
+		c._set_brush_size(2)
+		c._cur_colour = Color(0.95, 0.4, 0.2, 1.0)
+		c._on_pixel_down(Vector2i(6, 4))
+		c._on_pixel_drag(Vector2i(14, 18))
+		c._on_pixel_up()
+		c._cycle_mirror()  # Y
+		c._cycle_mirror()  # XY -> back through Y; ensure XY
+		c._set_tool("ellipse")
+		c._shape_filled = false
+		c._cur_colour = Color(0.3, 0.8, 0.9, 1.0)
+		c._on_pixel_down(Vector2i(3, 3))
+		c._on_pixel_drag(Vector2i(11, 11))
+		c._on_pixel_up()
 	else:
 		c._set_tool("brush")
 		c._set_brush_size(3)

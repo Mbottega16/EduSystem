@@ -93,6 +93,10 @@ text = "+"
 tooltip_text = "Round brush nib instead of square"
 text = "Round"
 
+[node name="Mirror" type="Button" parent="V/Editor/Toolbar"]
+tooltip_text = "Mirror strokes across the sprite (or the character cell) — M cycles off / X / Y / XY"
+text = "Mirror: off"
+
 [node name="Sep2" type="VSeparator" parent="V/Editor/Toolbar"]
 
 [node name="Fill" type="Button" parent="V/Editor/Toolbar"]

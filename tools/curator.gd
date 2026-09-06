@@ -75,6 +75,7 @@ var _hover_px := Vector2i(-1, -1)
 var _tool := "brush"
 var _brush_size := 1
 var _brush_round := false
+var _mirror := 0                        ## 0 off, 1 X, 2 Y, 3 both
 var _shape_filled := false
 var _shape_anchor := Vector2i(-1, -1)   ## line/rect/ellipse anchor; -1 = none
 var _shape_last := Vector2i(-1, -1)
@@ -129,6 +130,7 @@ func _ready() -> void:
 		func(on: bool) -> void: _brush_round = on)
 	($V/Editor/Toolbar/Filled as CheckButton).toggled.connect(
 		func(on: bool) -> void: _shape_filled = on)
+	$V/Editor/Toolbar/Mirror.pressed.connect(_cycle_mirror)
 	$V/Editor/Toolbar/Undo.pressed.connect(_undo_action)
 	$V/Editor/Toolbar/Redo.pressed.connect(_redo_action)
 	$V/Editor/Toolbar/Save.pressed.connect(_save_editor)
@@ -449,6 +451,8 @@ func _editor_input(k: Key, ctrl: bool) -> void:
 		_set_brush_size(_brush_size - 1)
 	elif k == KEY_BRACKETRIGHT:
 		_set_brush_size(_brush_size + 1)
+	elif k == KEY_M:
+		_cycle_mirror()
 	elif k == KEY_EQUAL or k == KEY_PLUS or k == KEY_KP_ADD:
 		canvas.set_zoom(canvas.zoom + 1)
 		_update_status()
@@ -541,6 +545,7 @@ func _open_editor_with_image(art_name: String, img: Image, is_new: bool) -> void
 	_redo.clear()
 	_last_pixel = Vector2i(-1, -1)
 	_shape_anchor = Vector2i(-1, -1)
+	($V/Editor/Toolbar/Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
 	if canvas != null:
 		canvas.clear_preview()
 
@@ -594,6 +599,36 @@ func _is_shape_tool() -> bool:
 	return _tool == "line" or _tool == "rect" or _tool == "ellipse"
 
 
+const MIRROR_NAMES: Array[String] = ["off", "X", "Y", "XY"]
+
+
+func _cycle_mirror() -> void:
+	_mirror = (_mirror + 1) % 4
+	($V/Editor/Toolbar/Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
+	_update_status()
+
+
+## `p` plus its reflection(s) for the current mirror mode. Mirrors within
+## the character cell on a sheet, across the whole sprite otherwise.
+func _mirror_points(p: Vector2i) -> Array[Vector2i]:
+	if _mirror == 0 or _edit_img == null:
+		return [p]
+	var cw: int = canvas.cell_w if canvas.cell_w > 0 else _edit_img.get_width()
+	var ch: int = canvas.cell_h if canvas.cell_h > 0 else _edit_img.get_height()
+	var cx0 := (p.x / cw) * cw
+	var cy0 := (p.y / ch) * ch
+	var mx := cx0 + cw - 1 - (p.x - cx0)
+	var my := cy0 + ch - 1 - (p.y - cy0)
+	var pts: Array[Vector2i] = [p]
+	if _mirror == 1 or _mirror == 3:
+		pts.append(Vector2i(mx, p.y))
+	if _mirror == 2 or _mirror == 3:
+		pts.append(Vector2i(p.x, my))
+	if _mirror == 3:
+		pts.append(Vector2i(mx, my))
+	return pts
+
+
 ## Pixel offsets for the current brush nib, centred on the anchor.
 func _brush_mask() -> Array[Vector2i]:
 	if _brush_size <= 1:
@@ -611,10 +646,23 @@ func _brush_mask() -> Array[Vector2i]:
 
 
 func _stamp(p: Vector2i, col: Color) -> void:
-	for off: Vector2i in _brush_mask():
-		var q := p + off
-		if _in_bounds(q):
-			_edit_img.set_pixelv(q, col)
+	for base: Vector2i in _mirror_points(p):
+		for off: Vector2i in _brush_mask():
+			var q := base + off
+			if _in_bounds(q):
+				_edit_img.set_pixelv(q, col)
+
+
+## The shape's pixels plus their mirror reflections -- for the on-canvas
+## preview. The real commit mirrors through _stamp() instead.
+func _preview_pixels(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var raw := _shape_pixels(a, b)
+	if _mirror == 0:
+		return raw
+	var out: Array[Vector2i] = []
+	for q: Vector2i in raw:
+		out.append_array(_mirror_points(q))
+	return out
 
 
 func _shape_pixels(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
@@ -676,10 +724,11 @@ func _update_status() -> void:
 			and _hover_px.y >= 0 and _hover_px.y < _edit_img.get_height():
 		at = "  %d,%d" % [_hover_px.x, _hover_px.y]
 	var nib := "%s%d" % ["round " if _brush_round else "", _brush_size]
-	_status.text = "%s%s   %dx%d  x%d   #%s%s   %s  nib %s   [1-7 tools  [ ] size  +/- zoom  MMB pan  Ctrl+Z/Y undo  Ctrl+S save  Esc]" % [
+	var mir := "" if _mirror == 0 else "  mirror " + MIRROR_NAMES[_mirror]
+	_status.text = "%s%s   %dx%d  x%d   #%s%s   %s  nib %s%s   [1-7 tools  [ ] size  M mirror  +/- zoom  MMB pan  Ctrl+Z/Y  Ctrl+S  Esc]" % [
 		_edit_name, news, _edit_img.get_width(), _edit_img.get_height(),
 		canvas.zoom if canvas != null else 0,
-		_cur_colour.to_html(false), at, _tool, nib]
+		_cur_colour.to_html(false), at, _tool, nib, mir]
 
 
 func _extract_palette(img: Image) -> Array[Color]:
@@ -730,7 +779,7 @@ func _on_pixel_down(p: Vector2i) -> void:
 		# line / rect / ellipse: anchor now, preview on drag, commit on up.
 		_shape_anchor = p
 		_shape_last = p
-		canvas.set_preview(_shape_pixels(p, p))
+		canvas.set_preview(_preview_pixels(p, p))
 		return
 	_push_undo()
 	_apply_tool(p)
@@ -742,7 +791,7 @@ func _on_pixel_drag(p: Vector2i) -> void:
 	if _is_shape_tool():
 		if _shape_anchor.x >= 0:
 			_shape_last = _shape_constrain(_shape_anchor, p)
-			canvas.set_preview(_shape_pixels(_shape_anchor, _shape_last))
+			canvas.set_preview(_preview_pixels(_shape_anchor, _shape_last))
 		return
 	if _tool != "brush" and _tool != "eraser":
 		return
