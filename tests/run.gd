@@ -262,6 +262,7 @@ func _main() -> void:
 	await test_overlays()
 	await test_marking()
 	await test_shop()
+	await test_lesson_crafting()
 	await test_cabinet()
 	await test_ad_poster()
 	await test_progress_bar()
@@ -7427,6 +7428,7 @@ func test_mentor() -> void:
 	# --- the day-end nudge fires once, while the mentor is unmet ---
 	hud._shown_hints.erase("see_the_mentor")
 	hud._queued_hint = []
+	hud._next_queued_hint_at = 0.0
 	hud.close()
 	Game.day_changed.emit(Game.day)
 	await step(3)
@@ -8037,6 +8039,127 @@ func test_shop() -> void:
 					return not (c as Interactable).can_interact()
 		return false).call())
 	Game.set_phase(Game.Phase.AFTERNOON)
+
+
+## Ten-commits.md step 10: the mechanic was fully built and effectively
+## undiscoverable. This tests the four things that changed -- a door to
+## Shop.CRAFT from the book itself, a real countdown instead of a dead
+## screen, the once-per-run nudge on the day it unlocks, and a craft's
+## result (win OR lose) actually landing on the day-end report instead of
+## silently vanishing.
+func test_lesson_crafting() -> void:
+	section("LESSON CRAFTING, DISCOVERABLE")
+	var hud := _hud()
+	Game.new_run(SEED)
+	Game.add_coins(2000)
+	await step(2)
+
+	# --- locked: a real countdown, not a vague dead screen ---
+	# balance.json currently unlocks crafting on day 1 (never actually
+	# locked in real play), so day 0 is the only day that exercises this
+	# branch -- synthetic, but the branch is real, tunable-driven code
+	# and worth guarding in case unlock_day is ever raised again.
+	Game.day = 0
+	chk("crafting is locked before its own unlock day",
+		not Game.lesson_crafting_unlocked())
+	var locked_lines: Array = hud._render_craft([])
+	chk("the locked screen says how many days are actually left",
+		"\n".join(locked_lines).contains("%d day" % (Balance.craft_unlock_day - Game.day)),
+		"\n".join(locked_lines))
+
+	# --- the book itself does not offer the door while it is locked ---
+	hud.show_curriculum()
+	chk("the curriculum hint says nothing about crafting while it is locked",
+		not hud.hint.text.contains("craft"), hud.hint.text)
+	await tap("menu")
+	chk("Tab does nothing on the book while crafting is locked",
+		hud.mode == hud.Mode.CURRICULUM)
+
+	# --- unlocked: the book opens straight into Shop.CRAFT ---
+	Game.day = Balance.craft_unlock_day
+	hud.show_curriculum()
+	chk("the curriculum hint now offers the door",
+		hud.hint.text.contains("craft"), hud.hint.text)
+	await tap("menu")
+	chk("Tab from the book lands directly on the craft tab",
+		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.CRAFT)
+	hud.close()
+
+	# --- the once-per-run nudge, the same shape as the mentor's ---
+	# balance.json unlocks crafting on day 1 itself, and day_changed never
+	# fires for day 1 (same gap main.gd's day-beat wiring already names),
+	# so run_started is the path a real run actually takes.
+	hud._shown_hints.erase("craft_unlocked")
+	hud._queued_hint = []
+	hud._next_queued_hint_at = 0.0
+	hud.close()
+	Game.run_started.emit()
+	await step(3)
+	chk("a fresh run nudges toward crafting when it starts already unlocked",
+		hud._shown_hints.has("craft_unlocked"))
+
+	# --- day_changed also carries it, for whenever unlock_day is tuned
+	# past day 1 and the run_started path no longer covers it ---
+	hud._shown_hints.erase("craft_unlocked")
+	hud._queued_hint = []
+	hud._next_queued_hint_at = 0.0
+	hud.close()
+	Game.day_changed.emit(Game.day)
+	await step(3)
+	chk("the day crafting unlocks nudges toward it, if that day is not day 1",
+		hud._shown_hints.has("craft_unlocked"))
+
+	# --- committing a craft, and the "still in the oven" report line ---
+	Game.new_run(SEED)
+	Game.add_coins(2000)
+	Game.day = Balance.craft_unlock_day
+	await step(2)
+	var lesson_id := String(Curriculum.lessons[0].get("id", ""))
+	chk("a craft can actually be committed once unlocked",
+		Game.commit_lesson_craft(lesson_id))
+	chk("it spent real coins, not a free action",
+		int(Game.lesson_crafts.get(lesson_id, {}).get("invested_coins", 0)) > 0)
+	var report := Game.advance_day()
+	hud.show_day_report(report)
+	if Balance.craft_days_per_attempt > 1:
+		chk("a craft still cooking shows on the very report it was bought on",
+			hud.rich.text.contains("in the oven"), hud.rich.text)
+		chk("...and says how many days are actually left",
+			hud.rich.text.contains("%d day" % (Balance.craft_days_per_attempt - 1)),
+			hud.rich.text)
+
+	# --- the result landing on its own day, win or lose -- the real
+	# report duplicated and given a forced result, so neither branch
+	# depends on how the rng happens to roll here (same trick as the
+	# pacing escalation test above, on the same screen) ---
+	var win_report := report.duplicate()
+	win_report["craft_result"] = {"lesson_id": lesson_id, "success": true}
+	hud.show_day_report(win_report)
+	chk("a craft that came out right says so, in words a player reads as good news",
+		hud.rich.text.contains("came out of the oven"), hud.rich.text)
+	var lose_report := report.duplicate()
+	lose_report["craft_result"] = {"lesson_id": lesson_id, "success": false}
+	hud.show_day_report(lose_report)
+	chk("a craft that failed says so too -- it never just vanishes",
+		hud.rich.text.contains("didn't take"), hud.rich.text)
+	# The result sentence itself is prose -- unlike the day counters
+	# elsewhere on this same screen, which are the sanctioned exception.
+	chk("...and the result sentence itself carries no digit", (func() -> bool:
+		# Strip the [color=#hex] tags first -- a hex colour like C_BAD's
+		# own "d08a86" carries real digits, and scanning the raw BBCode
+		# line would flag the tag rather than the prose.
+		var tag_re := RegEx.new()
+		tag_re.compile("\\[/?color[^\\]]*\\]")
+		var digit_re := RegEx.new()
+		digit_re.compile("[0-9]")
+		for line: String in hud.rich.text.split("\n"):
+			if line.contains("didn't take") \
+					and digit_re.search(tag_re.sub(line, "", true)) != null:
+				return false
+		return true).call())
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_cabinet() -> void:

@@ -85,6 +85,13 @@ func _ready() -> void:
 		if not Game.dash_taught:
 			hud.queue_hint("see_the_mentor",
 				"There is a mentor teacher down the hall now.")
+		# Lesson crafting unlocks silently on this exact day (step 10 of the
+		# ten-commit queue) -- queue_hint, not principal_says(), since this
+		# fires while the day report is still on screen and principal_says()
+		# would just no-op there, same reasoning as the mentor nudge above.
+		if _d == Balance.craft_unlock_day:
+			hud.queue_hint("craft_unlocked",
+				"You can craft a lesson now, from the lesson-plan book.")
 		hud.queue_day_beat(_day_beat_line()))
 
 	# The day's beat also needs the FIRST morning of a term, which
@@ -93,6 +100,13 @@ func _ready() -> void:
 	Game.term_began.connect(func(_t: int) -> void:
 		hud.queue_day_beat(_day_beat_line()))
 	Game.run_started.connect(func() -> void:
+		# balance.json currently unlocks crafting on day 1 itself, which
+		# day_changed never fires for -- same gap the day-beat comment
+		# above already names. Without this, the nudge above would only
+		# ever fire in a future tuning where unlock_day is raised past 1.
+		if Game.lesson_crafting_unlocked():
+			hud.queue_hint("craft_unlocked",
+				"You can craft a lesson now, from the lesson-plan book.")
 		hud.queue_day_beat(_day_beat_line()))
 
 	# The storyline cutscene. hud.gd owns the WORDS and their paging; this is

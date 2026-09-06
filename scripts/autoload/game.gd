@@ -1606,9 +1606,16 @@ func commit_lesson_craft(lesson_id: String) -> bool:
 ## Called once per real advance_day() while a craft is in flight. Resolves
 ## through Game.rng at 0 days left -- the same seeded stream every other
 ## daily roll uses, so a fixed seed reproduces the same outcome.
-func _tick_pending_craft() -> void:
+##
+## Returns {} on an ordinary day. On the day a craft resolves, returns
+## {"lesson_id": .., "success": bool} so the caller can put the result on
+## that day's own report -- a failed attempt already spent real coins and
+## days (Balance.craft_success_chance), and it used to just vanish with no
+## announcement either way. Surfacing the feature without saying so when
+## it fails would read as a silent loss rather than a fair roll.
+func _tick_pending_craft() -> Dictionary:
 	if pending_craft.is_empty():
-		return
+		return {}
 	var lesson_id: String = String(pending_craft["lesson_id"])
 	var entry: Dictionary = lesson_crafts.get(lesson_id, {"craft_level": 0, "invested_coins": 0, "invested_days": 0}).duplicate()
 	entry["invested_days"] = int(entry.get("invested_days", 0)) + 1
@@ -1616,13 +1623,15 @@ func _tick_pending_craft() -> void:
 
 	pending_craft["days_left"] = int(pending_craft["days_left"]) - 1
 	if int(pending_craft["days_left"]) > 0:
-		return
+		return {}
 
-	if rng.randf() < Balance.craft_success_chance:
+	var success := rng.randf() < Balance.craft_success_chance
+	if success:
 		entry = lesson_crafts[lesson_id].duplicate()
 		entry["craft_level"] = int(entry.get("craft_level", 0)) + 1
 		lesson_crafts[lesson_id] = entry
 	pending_craft = {}
+	return {"lesson_id": lesson_id, "success": success}
 
 
 ## [work_length_mult, stall_mult] adjustment from this lesson's craft
@@ -2598,7 +2607,7 @@ func advance_day() -> Dictionary:
 
 	homework_out = false
 	day += 1
-	_tick_pending_craft()
+	var craft_result := _tick_pending_craft()
 
 	# Word gets round. A new student arrives only if you're actually doing
 	# the job — otherwise the class stops growing, which is feedback in
@@ -2653,7 +2662,7 @@ func advance_day() -> Dictionary:
 		"graduated": graduated,
 			"days_left": maxi(0, Balance.term_days - day + 1),
 			"split": split, "split_before": before,
-			"pacing": pacing}
+			"pacing": pacing, "craft_result": craft_result}
 
 
 ## Whatever a freshly rolled event pays out the moment it is ANNOUNCED --

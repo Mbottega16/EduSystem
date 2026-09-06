@@ -243,10 +243,16 @@ func _process(_delta: float) -> void:
 	# A hint that was parked because a screen was up when it fired -- the
 	# mentor nudge does this, since a day ends WITH the day report on
 	# screen. Shown the moment the player is back in free roam.
-	if mode == Mode.NONE and not _queued_hint.is_empty():
-		var q: Array = _queued_hint
-		_queued_hint = []
+	if mode == Mode.NONE and not _queued_hint.is_empty() \
+			and _next_queued_hint_at <= Time.get_ticks_msec() / 1000.0:
+		# Gated on the queue's OWN timer, not the shared _hint_until --
+		# principal_says() does not change `mode`, so without some gate a
+		# second entry would pop and overwrite the first's popup the very
+		# next frame, before it was ever seen. See _next_queued_hint_at's
+		# own comment for why it isn't just _hint_until.
+		var q: Array = _queued_hint.pop_front()
 		principal_says(String(q[0]), String(q[1]))
+		_next_queued_hint_at = Time.get_ticks_msec() / 1000.0 + 5.0
 
 	# the day's beat, once the player is back in free roam
 	if mode == Mode.NONE and _queued_beat != "":
@@ -908,16 +914,37 @@ func principal_says(id: String, text: String) -> void:
 	_hint_until = Time.get_ticks_msec() / 1000.0 + 5.0
 
 
-## A hint parked until the player is next in free roam (mode NONE). The
+## Hints parked until the player is next in free roam (mode NONE). The
 ## mentor nudge needs this: it fires from Game.day_changed, which lands
 ## while the day report is still on screen, so principal_says() would just
-## no-op. _process() drains this the first frame nothing else is up.
+## no-op. _process() drains one entry per frame nothing else is up.
+##
+## A real FIFO, not a single slot -- step 10 of the ten-commit queue added
+## a second same-day nudge (crafting unlocking) that fires from the exact
+## same day_changed signal as the mentor one. A single overwritten slot
+## meant the second call silently ate the first's nudge whenever both
+## landed on the same day; queueing lets both still get shown, one after
+## the other.
 var _queued_hint: Array = []
+## Gates when the NEXT queued entry may drain -- deliberately separate from
+## `_hint_until`, which principal_says()/hint_once()/show_day_beat() all
+## also write. Gating on that shared field meant a stray value left over
+## from an unrelated, much earlier popup (still in its own display window)
+## could block a brand new queued hint from ever showing at all. 0.0 so
+## the very first drain is never blocked by anything.
+var _next_queued_hint_at: float = 0.0
 
 func queue_hint(id: String, text: String) -> void:
 	if _shown_hints.has(id) or not Settings.show_hints:
 		return
-	_queued_hint = [id, text]
+	# Don't pile up a second copy of the same id while one is still
+	# pending -- a signal that fires often (Game.new_run()'s run_started,
+	# say) would otherwise queue a duplicate every single time until the
+	# first one finally drains.
+	for q: Array in _queued_hint:
+		if String(q[0]) == id:
+			return
+	_queued_hint.append([id, text])
 
 
 ## The day's beat -- the teacher's own line, over their portrait, at the
@@ -3166,8 +3193,9 @@ func show_curriculum() -> void:
 	# the next concept is worth more than restating the objective: it is the
 	# thing the player is deciding about.
 	var std := String(lessons[_sel].get("standard", ""))
-	hint.text = _clip("%s%s   E - teach this next" % [
-		std, "" if std == "" else "  "])
+	hint.text = _clip("%s%s   E - teach this next%s" % [
+		std, "" if std == "" else "  ",
+		"   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else ""])
 
 
 ## How many of a subject's concepts you already have.
@@ -3536,6 +3564,29 @@ func show_day_report(report: Dictionary) -> void:
 	if report.has("pacing"):
 		lines.append(_pacing_line(report["pacing"]))
 
+	# A craft that resolved TODAY -- coins and days already spent either way,
+	# so a fail needs saying just as plainly as a win, or it just vanishes
+	# with nothing to show for it (see Game._tick_pending_craft()'s note).
+	var cres: Dictionary = report.get("craft_result", {})
+	if not cres.is_empty():
+		var cname := String(Curriculum.by_id(String(cres.get("lesson_id", ""))).get(
+			"name", cres.get("lesson_id", "")))
+		if bool(cres.get("success", false)):
+			lines.append("[color=#%s]%s came out of the oven -- it teaches easier now.[/color]" % [
+				C_GOOD, cname])
+		else:
+			lines.append("[color=#%s]%s didn't take. The coins and the days are spent either way.[/color]" % [
+				C_BAD, cname])
+	# A craft still in the oven -- it belongs on the same screen as
+	# everything else those bought, not buried a tab away in a catalogue
+	# nobody has a reason to reopen mid-attempt.
+	elif not Game.pending_craft.is_empty():
+		var pl := String(Game.pending_craft.get("lesson_id", ""))
+		var pdays := int(Game.pending_craft.get("days_left", 0))
+		lines.append("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
+			C_KNOW, String(Curriculum.by_id(pl).get("name", pl)),
+			pdays, "" if pdays == 1 else "s"])
+
 	var bought: Array = report.get("consumables", [])
 	if not bought.is_empty():
 		lines.append("[color=#%s]Today: %s[/color]" % [
@@ -3812,8 +3863,10 @@ func _render_craft(rows: Array) -> Array[String]:
 	Balance.ensure_loaded()
 	var lines: Array[String] = []
 	if not Game.lesson_crafting_unlocked():
-		lines.append("[color=#%s]Not yet. Get a few days of real teaching[/color]" % DIM)
-		lines.append("[color=#%s]behind you first.[/color]" % DIM)
+		var left := maxi(0, Balance.craft_unlock_day - Game.day)
+		lines.append("[color=#%s]Not yet.[/color]" % DIM)
+		lines.append("[color=#%s]%d day%s of real teaching left before you can.[/color]" % [
+			DIM, left, "" if left == 1 else "s"])
 		return lines
 
 	if not Game.pending_craft.is_empty():
@@ -4301,6 +4354,13 @@ func _handle_input() -> void:
 		if Input.is_action_just_pressed("cancel"):
 			Sfx.play("blip")
 			close()
+		elif Game.lesson_crafting_unlocked() and Input.is_action_just_pressed("menu"):
+			# The catalogue's craft tab, straight from the book the player
+			# already reads lesson material out of -- the noticeboard/cabinet
+			# route was the only door in, and nobody stumbles onto Tab
+			# four times on a screen that never asked them to press it once.
+			Sfx.play("blip")
+			open_catalogue(Shop.CRAFT)
 		elif Game.claim_interact():
 			# The screen DOES something now. It was a list you could only
 			# read, which is most of why it felt inert.
