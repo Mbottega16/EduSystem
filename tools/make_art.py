@@ -1042,14 +1042,21 @@ def draw_char(direction, frame, pal):
     person meets the floor -- which is the rule the whole game positions
     and depth-sorts by.
 
-    *(Sept 2026, the art overhaul.)* Drawn at the real 32x48 now rather
-    than as a doubled 16x24, which is what makes room for a face: eyes
-    with a highlight, brows, a mouth that changes with the pose, cheeks, a
-    nose on the profile. Hair is a real silhouette per style, clothes carry
-    a pattern, and one shading rule (rim_light: lit upper-left, shaded
-    lower-right) is applied to every frame after it is drawn so all four
-    facings agree about where the window is. Still one routine, many
-    palettes -- the only thing a character owns is its table entry.
+    *(Sept 2026, the art overhaul.)* Built at the full 32x48 -- eyes with
+    a highlight, brows, a mouth that changes with the pose, cheeks, a nose
+    on the profile, a real hair silhouette per style, a pattern on the
+    clothes -- with one shading rule (rim_light: lit upper-left, shaded
+    lower-right) applied to every frame so all four facings agree about
+    where the window is. Still one routine, many palettes.
+
+    *(Sept 2026, the pixel-grid pass.)* The frame is BUILT at 32x48 for
+    that detail, then quantised back onto the room's own grid before it is
+    returned: the whole set -- every tile, desk and shelf -- is authored
+    at 16 px per tile and Scale2x'd to 32, so a character drawn straight
+    at 32x48 had pixels half the size of the desk beside it. Each frame is
+    now resized to 16x24 and Scale2x'd the same way the furniture is. The
+    face that the 32x48 build buys survives only in the 96x96 portrait
+    bust, which is UI and off this grid.
     """
     p = resolve_palette(pal)
     im = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
@@ -1078,7 +1085,11 @@ def draw_char(direction, frame, pal):
     # jumper's shadow stays on the floor while the figure rises above it,
     # which is most of what sells "in the air" at this scale.
     shadow(im, CW // 2, CH - 4, 12 if pose != POSE_JUMP else 8, 4)
-    return im
+    # Quantise onto the room's 16-px-per-tile grid: resize to half and
+    # Scale2x back, exactly the pipeline every tile and every item uses.
+    # Frame stays 32x48, so the sheet, the scene and the on-screen size
+    # are all unchanged -- only the pixels get bigger, to match the set.
+    return scale2x(im.resize((CW // 2, CH // 2), Image.NEAREST))
 
 
 def make_character(name, pal):
@@ -2229,12 +2240,13 @@ if __name__ == "__main__":
         img = fn()
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
-    # Hats, like TITLE_ART and unlike furniture/ITEM_ART, are drawn
-    # directly at final scale rather than small-then-scale2x'd -- they
-    # are worn on the ALREADY-doubled character sheet, not placed in the
-    # room, so the character-drawing convention is the one that matches.
+    # Hats are worn on a character, so they follow the character grid --
+    # which, since the pixel-grid pass, is the same 16-per-tile / Scale2x
+    # grid as the rest of the room. Built at their full size for the shape,
+    # then quantised and Scale2x'd back, same as draw_char does per frame.
     for name, fn in HAT_ART.items():
-        img = fn()
+        raw = fn()
+        img = scale2x(raw.resize((raw.width // 2, raw.height // 2), Image.NEAREST))
         if save_png(img, name):
             print("art/%-18s %3dx%-3d" % (name + ".png", img.width, img.height))
     # The furniture lives in its own file because the catalogue outgrew this

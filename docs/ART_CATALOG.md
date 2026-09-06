@@ -13,6 +13,15 @@ One 288&times;192 PNG per character: 9 columns &times; 4 rows of
 everyone because a character is a palette through one shared
 `draw_char()`, not separate artwork.
 
+*(Sept 2026, the pixel-grid pass.)* Each frame is BUILT at 32&times;48
+for the facial detail, then quantised to 16&times;24 and `scale2x`'d back
+before it is stored — the exact pipeline every tile and every furniture
+item uses (16 art-px per tile, Scale2x to 32). The cast used to be the
+one thing drawn straight at 32&times;48, so a teacher's pixels were half
+the size of the desk beside them. The frame, the sheet and the on-screen
+size are all unchanged; only the texel size is, and it now matches the
+set. The fine face survives only in the portrait bust below.
+
 | file | who |
 |---|---|
 | `player.png` | the teacher (you) |
@@ -62,13 +71,12 @@ not generate any art for it, portrait included.
 
 Worn on the head, at runtime, by whoever `Game.hat_id` names (currently
 only the player) — see `scripts/data/cosmetics.gd` and
-`Player.refresh_hat()`. Drawn directly at final scale, the same
-convention as the character sheets rather than the
-small-then-`scale2x`'d one furniture uses (§Furniture below): a hat is
-composited onto an already-doubled character, not placed in the room.
-One flat icon per hat, not a 9x4 sheet — chibi heads are round enough
-from every facing that a single sprite reads convincingly regardless of
-which way the wearer is walking.
+`Player.refresh_hat()`. Built at their full size for the shape, then
+quantised and `scale2x`'d back — the same pixel-grid pass `draw_char()`
+does per frame, so a hat sits on the same texel grid as the head under
+it and the room around it. One flat icon per hat, not a 9x4 sheet —
+chibi heads are round enough from every facing that a single sprite
+reads convincingly regardless of which way the wearer is walking.
 
 | file | hat | id |
 |---|---|---|
