@@ -34,6 +34,11 @@ var cell_h := 0
 var _dragging := false
 var _panning := false
 
+## An in-progress shape (line / rect / ellipse) the editor asks us to
+## outline over the image without committing it. Array[Vector2i].
+var preview: Array = []
+var preview_colour := Color(1, 1, 1, 0.9)
+
 
 func set_image(img: Image) -> void:
 	image = img
@@ -50,6 +55,17 @@ func set_zoom(z: int) -> void:
 func _resize() -> void:
 	if image != null:
 		custom_minimum_size = Vector2(image.get_width() * zoom, image.get_height() * zoom)
+
+
+func set_preview(pts: Array) -> void:
+	preview = pts
+	queue_redraw()
+
+
+func clear_preview() -> void:
+	if not preview.is_empty():
+		preview = []
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -82,6 +98,13 @@ func _draw() -> void:
 		for y in range(0, h + 1, cell_h):
 			draw_line(Vector2(0, y * zoom), Vector2(w * zoom, y * zoom),
 				Color(1, 0.8, 0.3, 0.8), 2.0)
+	for pv in preview:
+		var q: Vector2i = pv
+		if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h:
+			continue
+		var rr := Rect2(q.x * zoom, q.y * zoom, zoom, zoom)
+		draw_rect(rr, Color(preview_colour.r, preview_colour.g, preview_colour.b, 0.28))
+		draw_rect(rr, preview_colour, false, maxf(1.0, zoom * 0.15))
 
 
 func _gui_input(e: InputEvent) -> void:

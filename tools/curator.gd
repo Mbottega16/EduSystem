@@ -73,10 +73,17 @@ var _redo: Array[Image] = []
 var _last_pixel := Vector2i(-1, -1)
 var _hover_px := Vector2i(-1, -1)
 var _tool := "brush"
+var _brush_size := 1
+var _brush_round := false
+var _shape_filled := false
+var _shape_anchor := Vector2i(-1, -1)   ## line/rect/ellipse anchor; -1 = none
+var _shape_last := Vector2i(-1, -1)
 var _cur_colour := Color(0.1, 0.1, 0.1, 1.0)
 var _palette: Array[Color] = []
 var _swatch_row: HBoxContainer
 var _status: Label
+var _size_label: Label
+var _tool_btns := {}                     ## tool name -> toggle Button
 
 @onready var grid: GridContainer = $V/Scroll/Grid
 @onready var header: Label = $V/Header
@@ -106,10 +113,22 @@ func _ready() -> void:
 	canvas.pixel_hover.connect(_on_pixel_hover)
 	canvas.zoom_changed.connect(func(_z: int) -> void: _update_status())
 
-	_btn_brush.pressed.connect(func() -> void: _set_tool("brush"))
-	_btn_eraser.pressed.connect(func() -> void: _set_tool("eraser"))
-	_btn_fill.pressed.connect(func() -> void: _set_tool("fill"))
-	_btn_eyedrop.pressed.connect(func() -> void: _set_tool("eyedrop"))
+	_tool_btns = {
+		"brush": _btn_brush, "eraser": _btn_eraser, "fill": _btn_fill,
+		"eyedrop": _btn_eyedrop,
+		"line": $V/Editor/Toolbar/Line, "rect": $V/Editor/Toolbar/Rect,
+		"ellipse": $V/Editor/Toolbar/Ellipse,
+	}
+	for tname: String in _tool_btns:
+		var b: Button = _tool_btns[tname]
+		b.pressed.connect(_set_tool.bind(tname))
+	_size_label = $V/Editor/Toolbar/SizeLabel
+	$V/Editor/Toolbar/SizeMinus.pressed.connect(func() -> void: _set_brush_size(_brush_size - 1))
+	$V/Editor/Toolbar/SizePlus.pressed.connect(func() -> void: _set_brush_size(_brush_size + 1))
+	($V/Editor/Toolbar/Round as CheckButton).toggled.connect(
+		func(on: bool) -> void: _brush_round = on)
+	($V/Editor/Toolbar/Filled as CheckButton).toggled.connect(
+		func(on: bool) -> void: _shape_filled = on)
 	$V/Editor/Toolbar/Undo.pressed.connect(_undo_action)
 	$V/Editor/Toolbar/Redo.pressed.connect(_redo_action)
 	$V/Editor/Toolbar/Save.pressed.connect(_save_editor)
@@ -420,6 +439,16 @@ func _editor_input(k: Key, ctrl: bool) -> void:
 		_set_tool("fill")
 	elif k == KEY_4:
 		_set_tool("eyedrop")
+	elif k == KEY_5:
+		_set_tool("line")
+	elif k == KEY_6:
+		_set_tool("rect")
+	elif k == KEY_7:
+		_set_tool("ellipse")
+	elif k == KEY_BRACKETLEFT:
+		_set_brush_size(_brush_size - 1)
+	elif k == KEY_BRACKETRIGHT:
+		_set_brush_size(_brush_size + 1)
 	elif k == KEY_EQUAL or k == KEY_PLUS or k == KEY_KP_ADD:
 		canvas.set_zoom(canvas.zoom + 1)
 		_update_status()
@@ -511,6 +540,9 @@ func _open_editor_with_image(art_name: String, img: Image, is_new: bool) -> void
 	_undo.clear()
 	_redo.clear()
 	_last_pixel = Vector2i(-1, -1)
+	_shape_anchor = Vector2i(-1, -1)
+	if canvas != null:
+		canvas.clear_preview()
 
 	_palette = _extract_palette(_edit_img)
 	if _palette.is_empty():
@@ -546,11 +578,93 @@ func _close_editor() -> void:
 
 func _set_tool(t: String) -> void:
 	_tool = t
-	_btn_brush.button_pressed = (t == "brush")
-	_btn_eraser.button_pressed = (t == "eraser")
-	_btn_fill.button_pressed = (t == "fill")
-	_btn_eyedrop.button_pressed = (t == "eyedrop")
+	for tname: String in _tool_btns:
+		(_tool_btns[tname] as Button).button_pressed = (tname == t)
 	_update_status()
+
+
+func _set_brush_size(n: int) -> void:
+	_brush_size = clampi(n, 1, 16)
+	if _size_label != null:
+		_size_label.text = " brush %d " % _brush_size
+	_update_status()
+
+
+func _is_shape_tool() -> bool:
+	return _tool == "line" or _tool == "rect" or _tool == "ellipse"
+
+
+## Pixel offsets for the current brush nib, centred on the anchor.
+func _brush_mask() -> Array[Vector2i]:
+	if _brush_size <= 1:
+		return [Vector2i.ZERO]
+	var lo := -(_brush_size - 1) / 2
+	var hi := _brush_size / 2
+	var rad := _brush_size / 2.0
+	var out: Array[Vector2i] = []
+	for dy in range(lo, hi + 1):
+		for dx in range(lo, hi + 1):
+			if _brush_round and Vector2(dx, dy).length() > rad:
+				continue
+			out.append(Vector2i(dx, dy))
+	return out
+
+
+func _stamp(p: Vector2i, col: Color) -> void:
+	for off: Vector2i in _brush_mask():
+		var q := p + off
+		if _in_bounds(q):
+			_edit_img.set_pixelv(q, col)
+
+
+func _shape_pixels(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	match _tool:
+		"line":
+			var out: Array[Vector2i] = [a]
+			out.append_array(_line_points(a, b))
+			return out
+		"rect":
+			return _rect_pixels(a, b, _shape_filled)
+		"ellipse":
+			return _ellipse_pixels(a, b, _shape_filled)
+	return []
+
+
+func _rect_pixels(a: Vector2i, b: Vector2i, filled: bool) -> Array[Vector2i]:
+	var x0 := mini(a.x, b.x)
+	var x1 := maxi(a.x, b.x)
+	var y0 := mini(a.y, b.y)
+	var y1 := maxi(a.y, b.y)
+	var out: Array[Vector2i] = []
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			if filled or x == x0 or x == x1 or y == y0 or y == y1:
+				out.append(Vector2i(x, y))
+	return out
+
+
+func _ellipse_pixels(a: Vector2i, b: Vector2i, filled: bool) -> Array[Vector2i]:
+	var x0 := mini(a.x, b.x)
+	var x1 := maxi(a.x, b.x)
+	var y0 := mini(a.y, b.y)
+	var y1 := maxi(a.y, b.y)
+	var cx := (x0 + x1) / 2.0
+	var cy := (y0 + y1) / 2.0
+	var rx := maxf(0.5, (x1 - x0) / 2.0)
+	var ry := maxf(0.5, (y1 - y0) / 2.0)
+	var inside := func(x: int, y: int) -> bool:
+		var nx := (x - cx) / rx
+		var ny := (y - cy) / ry
+		return nx * nx + ny * ny <= 1.0
+	var out: Array[Vector2i] = []
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			if not inside.call(x, y):
+				continue
+			if filled or not (inside.call(x - 1, y) and inside.call(x + 1, y) \
+					and inside.call(x, y - 1) and inside.call(x, y + 1)):
+				out.append(Vector2i(x, y))
+	return out
 
 
 func _update_status() -> void:
@@ -561,10 +675,11 @@ func _update_status() -> void:
 	if _hover_px.x >= 0 and _hover_px.x < _edit_img.get_width() \
 			and _hover_px.y >= 0 and _hover_px.y < _edit_img.get_height():
 		at = "  %d,%d" % [_hover_px.x, _hover_px.y]
-	_status.text = "%s%s   %dx%d  x%d   #%s%s   tool: %s [1 brush 2 eraser 3 fill 4 eyedrop  +/- zoom  MMB pan]   Ctrl+Z/Y undo  Ctrl+S save  Esc cancel" % [
+	var nib := "%s%d" % ["round " if _brush_round else "", _brush_size]
+	_status.text = "%s%s   %dx%d  x%d   #%s%s   %s  nib %s   [1-7 tools  [ ] size  +/- zoom  MMB pan  Ctrl+Z/Y undo  Ctrl+S save  Esc]" % [
 		_edit_name, news, _edit_img.get_width(), _edit_img.get_height(),
 		canvas.zoom if canvas != null else 0,
-		_cur_colour.to_html(false), at, _tool]
+		_cur_colour.to_html(false), at, _tool, nib]
 
 
 func _extract_palette(img: Image) -> Array[Color]:
@@ -611,6 +726,12 @@ func _rebuild_palette_row() -> void:
 func _on_pixel_down(p: Vector2i) -> void:
 	if not _in_bounds(p):
 		return
+	if _is_shape_tool():
+		# line / rect / ellipse: anchor now, preview on drag, commit on up.
+		_shape_anchor = p
+		_shape_last = p
+		canvas.set_preview(_shape_pixels(p, p))
+		return
 	_push_undo()
 	_apply_tool(p)
 	_last_pixel = p
@@ -618,6 +739,11 @@ func _on_pixel_down(p: Vector2i) -> void:
 
 
 func _on_pixel_drag(p: Vector2i) -> void:
+	if _is_shape_tool():
+		if _shape_anchor.x >= 0:
+			_shape_last = _shape_constrain(_shape_anchor, p)
+			canvas.set_preview(_shape_pixels(_shape_anchor, _shape_last))
+		return
 	if _tool != "brush" and _tool != "eraser":
 		return
 	if p == _last_pixel:
@@ -628,12 +754,25 @@ func _on_pixel_drag(p: Vector2i) -> void:
 	# stroke is solid.
 	if _last_pixel.x >= 0:
 		for step: Vector2i in _line_points(_last_pixel, p):
-			if _in_bounds(step):
-				_apply_tool(step)
-	elif _in_bounds(p):
+			_apply_tool(step)
+	else:
 		_apply_tool(p)
 	_last_pixel = p
 	canvas.queue_redraw()
+
+
+## Hold Shift while dragging a LINE to snap it to horizontal, vertical or
+## 45 degrees.
+func _shape_constrain(a: Vector2i, b: Vector2i) -> Vector2i:
+	if _tool != "line" or not Input.is_key_pressed(KEY_SHIFT):
+		return b
+	var d := b - a
+	if absi(d.x) > absi(d.y) * 2:
+		return Vector2i(b.x, a.y)
+	if absi(d.y) > absi(d.x) * 2:
+		return Vector2i(a.x, b.y)
+	var m := maxi(absi(d.x), absi(d.y))
+	return a + Vector2i(signi(d.x) * m, signi(d.y) * m)
 
 
 ## Integer points along the line a -> b, inclusive of b, EXCLUSIVE of a
@@ -663,6 +802,13 @@ func _line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 
 func _on_pixel_up() -> void:
+	if _is_shape_tool() and _shape_anchor.x >= 0:
+		_push_undo()
+		for q: Vector2i in _shape_pixels(_shape_anchor, _shape_last):
+			_stamp(q, _cur_colour)
+		_shape_anchor = Vector2i(-1, -1)
+		canvas.clear_preview()
+		canvas.queue_redraw()
 	_last_pixel = Vector2i(-1, -1)
 
 
@@ -680,9 +826,9 @@ func _in_bounds(p: Vector2i) -> bool:
 func _apply_tool(p: Vector2i) -> void:
 	match _tool:
 		"brush":
-			_edit_img.set_pixelv(p, _cur_colour)
+			_stamp(p, _cur_colour)
 		"eraser":
-			_edit_img.set_pixelv(p, Color(0, 0, 0, 0))
+			_stamp(p, Color(0, 0, 0, 0))
 		"eyedrop":
 			var c := _edit_img.get_pixelv(p)
 			if c.a > 0.01:
