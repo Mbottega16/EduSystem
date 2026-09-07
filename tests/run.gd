@@ -2875,15 +2875,31 @@ func test_growing_the_room() -> void:
 		Grid.W == Grid.BASE_W and Grid.H == Grid.BASE_H,
 		"%dx%d" % [Grid.W, Grid.H])
 
-	# THE THING THAT MUST NOT CHANGE. At the opening size the room is exactly
-	# the viewport, so the camera limits pin it dead still -- which is what
-	# keeps the whole-room-at-a-glance reading that the "?" bubble, the audio
-	# design and the Practised Eye perk were all argued from.
+	# THE THING THAT MUST NOT CHANGE. At the opening size the camera cannot
+	# drift: the room sits whole inside the limits and dead centre in them,
+	# so the whole-room-at-a-glance reading that the "?" bubble, the audio
+	# design and the Practised Eye perk were all argued from still holds.
+	#
+	# This used to assert the limits EQUALLED the room (640x352), which only
+	# ever held on a viewport of exactly 20:11. Since the stretch aspect
+	# became "expand" the viewport is whatever shape the window is, and on
+	# anything taller _refresh_camera_limits() deliberately CENTRES the room
+	# in the view rather than pinning it to an edge (see its docstring) --
+	# the same no-drift guarantee, expressed for a view bigger than the room.
+	# The old form failed on every other window shape while the game was
+	# right, so it was a stale assertion, not a regression it had caught.
 	chk("there is a camera", world.camera != null)
-	chk("and at the opening size it is pinned to the room exactly",
-		world.camera.limit_right == Grid.BASE_W * Grid.TILE
-		and world.camera.limit_bottom == Grid.BASE_H * Grid.TILE,
-		"%d x %d" % [world.camera.limit_right, world.camera.limit_bottom])
+	var room_px := Vector2(Grid.BASE_W, Grid.BASE_H) * Grid.TILE
+	var lim_w := float(world.camera.limit_right - world.camera.limit_left)
+	var lim_h := float(world.camera.limit_bottom - world.camera.limit_top)
+	var lim_cx := float(world.camera.limit_left + world.camera.limit_right) * 0.5
+	var lim_cy := float(world.camera.limit_top + world.camera.limit_bottom) * 0.5
+	chk("and at the opening size the room sits whole and centred in the limits",
+		lim_w >= room_px.x and lim_h >= room_px.y
+		and absf(lim_cx - room_px.x * 0.5) <= 1.0
+		and absf(lim_cy - room_px.y * 0.5) <= 1.0,
+		"limits %.0fx%.0f centred (%.0f, %.0f), room %.0fx%.0f" % [
+			lim_w, lim_h, lim_cx, lim_cy, room_px.x, room_px.y])
 
 	# --- buying space ---
 	chk("you cannot expand on an empty purse", (func() -> bool:
