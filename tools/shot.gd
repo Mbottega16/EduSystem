@@ -377,6 +377,12 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._career_page = hud.CAREER_ALUMNI
 			hud._alum_open = -1
 			hud.show_career()
+		"skip":
+			hud.show_skip()
+		"skip_report":
+			# Three real days, run through the real model, so the report is
+			# of something that actually happened rather than a mock-up.
+			hud.show_skip_report(main.world.run_skipped_days(3))
 		"curriculum":
 			for l: Dictionary in Curriculum.lessons:
 				for i in 4:

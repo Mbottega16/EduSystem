@@ -1748,6 +1748,48 @@ def make_contact_shadow():
     return doubled.size
 
 
+def backdrop_tile():
+    """What lies BEYOND the classroom: the school itself, out of focus.
+
+    The room used to be exactly the size of the viewport, so nothing was
+    ever visible around it and there was nothing to draw. Since the window
+    can be any shape (display/window/stretch/aspect is "expand" now, so a
+    16:10 or ultrawide monitor shows real space above and below the room)
+    something has to be there, and black bars are not something.
+
+    Deliberately LOW CONTRAST and dark. This tile is out of play -- it is
+    never walked on, never interacted with, and must never pull the eye off
+    the room. It is the far corridor wall: dark panelling, a chair rail,
+    and a lamp-lit floor course, in the same palette as the room's own
+    dado so the two read as one building.
+    """
+    t = Image.new("RGBA", (TILE, TILE))
+    # a dark, desaturated cousin of the room's plaster
+    far = tuple(int(c * 0.34) for c in WALL)
+    far_l = tuple(int(c * 0.42) for c in WALL)
+    far_d = tuple(int(c * 0.26) for c in WALL)
+    rect(t, 0, 0, TILE - 1, TILE - 1, far)
+
+    # panel joints: a vertical groove every quarter tile, one lit edge each,
+    # so the surface has a direction without having a pattern you can count
+    for x in range(0, TILE, TILE // 4):
+        rect(t, x, 0, x, TILE - 1, far_d)
+        rect(t, x + 1, 0, x + 1, TILE - 1, far_l)
+
+    # a course line across the top of the tile -- the corridor's chair rail,
+    # which is what stops a big empty area reading as a flat fill
+    rect(t, 0, 0, TILE - 1, 0, far_d)
+    rect(t, 0, 1, TILE - 1, 1, far_l)
+
+    # the same seeded fleck the room's own plaster takes, so the two
+    # surfaces are the same material at different distances
+    rnd = random.Random(4711)
+    for _ in range(9):
+        x, y = rnd.randrange(TILE), rnd.randrange(TILE)
+        px(t, x, y, far_l if rnd.random() < 0.5 else far_d)
+    return t
+
+
 def make_room_tiles():
     """The room, in pieces, so it can be rebuilt at ANY size at runtime.
 
@@ -1777,6 +1819,10 @@ def make_room_tiles():
 
     save(door_tile(True), "tile_door_top")
     save(door_tile(False), "tile_door_bottom")
+
+    # Not part of the room: what shows AROUND it. RoomBuilder.build_backdrop()
+    # tiles this behind everything.
+    save(backdrop_tile(), "tile_backdrop")
     return out
 
 

@@ -1,0 +1,109 @@
+{
+  "_modules": {
+    "keyline": "make_art",
+    "skin": "make_art",
+    "wood": "make_art",
+    "metal": "make_art",
+    "wall & floor": "make_art",
+    "board & chalk": "make_art",
+    "glass & light": "make_art",
+    "cloth & trim": "make_art",
+    "frame": "make_art",
+    "items": "make_items",
+    "book & UI": "make_ui"
+  },
+  "keyline": {
+    "LINE": "#241a12"
+  },
+  "skin": {
+    "SKIN": "#f0c8a0",
+    "SKIN_D": "#cea27a",
+    "BLUSH": "#f0968c",
+    "MOUTH": "#763a3e",
+    "MOUTH_OPEN": "#461e24",
+    "TONGUE": "#d66870",
+    "TEETH": "#faf8f4",
+    "EYE": "#1c1820",
+    "TEAR": "#78b8f4"
+  },
+  "wood": {
+    "WOOD_L": "#ba8c5c",
+    "WOOD": "#9c6e42",
+    "WOOD_D": "#704c2c",
+    "DADO_L": "#b08052",
+    "DADO": "#92643e",
+    "DADO_D": "#68462a",
+    "RAIL": "#d0b88e",
+    "HANDLE": "#deba6c",
+    "HANDLE_D": "#a48242"
+  },
+  "metal": {
+    "METAL": "#80848e",
+    "METAL_D": "#585c66"
+  },
+  "wall & floor": {
+    "WALL_TOP": "#f6ead2",
+    "WALL_L": "#f2e2c6",
+    "WALL": "#e6d2b2",
+    "WALL_D": "#ccb696",
+    "WALL_BASE": "#48301e",
+    "FLOOR_A": "#e0d6c2",
+    "FLOOR_B": "#d6cbb6",
+    "FLOOR_FLECK": "#cabea8",
+    "FLOOR_GROUT": "#ccbca0"
+  },
+  "board & chalk": {
+    "BOARD_L": "#384c40",
+    "BOARD": "#2c3e34",
+    "CHALK": "#eef0e8",
+    "CHALK_D": "#bcc4be"
+  },
+  "glass & light": {
+    "GLASS_L": "#b0a2cc",
+    "GLASS": "#968ab4",
+    "GLASS_D_L": "#faca90",
+    "GLASS_D": "#eeb06e",
+    "GLASS_FRAME": "#302c36",
+    "LENS": "#c8e6ff",
+    "SKY_MID": "#ce9280"
+  },
+  "cloth & trim": {
+    "CURTAIN_L": "#c86c5a",
+    "CURTAIN": "#ac4e42",
+    "CURTAIN_D": "#80362e",
+    "DOOR_PAINT_L": "#569aa8",
+    "DOOR_PAINT": "#3a7684",
+    "DOOR_PAINT_D": "#24505c",
+    "LANYARD": "#ce4044",
+    "HAIR_BAND": "#e2c460",
+    "BADGE": "#f6f4ec",
+    "BADGE_STRIPE": "#6096ce"
+  },
+  "frame": {
+    "FRAME_L": "#faf8f2",
+    "FRAME": "#eeeae0",
+    "FRAME_D": "#b0aa9e",
+    "TITLE_FRAME_W": "#805834",
+    "TITLE_FRAME_D": "#5c3c22"
+  },
+  "items": {
+    "STEEL_L": "#aab0ba",
+    "STEEL": "#848a94",
+    "STEEL_D": "#5c606a",
+    "CLOTH_L": "#d88086",
+    "CLOTH": "#bc6068",
+    "GREEN_L": "#6cb470",
+    "GREEN": "#54985a",
+    "BLUE_L": "#8cbae2",
+    "GOLD": "#e8ba4a",
+    "DARK": "#2e2a36"
+  },
+  "book & UI": {
+    "PAGE": "#ece2c8",
+    "PAGE_SHADE": "#d6caad",
+    "PAGE_EDGE": "#c4b698",
+    "GUTTER": "#96886e",
+    "COVER_L": "#8c5246",
+    "COVER": "#6c3c34"
+  }
+}

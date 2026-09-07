@@ -288,10 +288,20 @@ def main(argv):
     if argv[0] == "list":
         do_list(argv[1] if len(argv) > 1 else None)
         return 0
+    if argv[0] == "names":
+        # `list` is written for a human: headings, the palette keys, prose.
+        # This is the same catalogue with nothing but the names, one per
+        # line, for the Master Forge's dropdown -- which was parsing `list`
+        # and offering the reader "&" and "(make_art)" as sprites.
+        for n in sorted(_catalogue()):
+            print(n)
+        print("tiles")
+        return 0
 
     name = argv[0]
     force = "--force" in argv[1:]
-    rest = [a for a in argv[1:] if a != "--force"]
+    is_random = "--random" in argv[1:]
+    rest = [a for a in argv[1:] if a not in ("--force", "--random")]
 
     kv = {}
     swaps = []
@@ -307,6 +317,8 @@ def main(argv):
             kv[k] = parse_value(v)
     if swaps:
         kv["_swaps"] = swaps
+    if is_random:
+        kv["_random"] = True
 
     if name == "tiles":
         kv.pop("_swaps", None)
