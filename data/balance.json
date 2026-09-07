@@ -845,7 +845,17 @@
     "dash_cancel_reach": 24.0,
     "_dash_lane_note": "Furniture lanes. An item tagged \"lane\" in the items table (the Reading Rug) makes the walkable tiles beside it a clean runway -- dashing there lets the burst carry, up to dash_lane_extend extra seconds spread across one dash. An item tagged \"clutter\" (the Storage Crate, the Beanbag) makes the tiles beside it tight: a dash through them dies on the spot and dash_clutter_penalty seconds are added to the cooldown. It is all layout -- a well-arranged room has clear runs, a cluttered one makes you weave -- and it touches nothing a room is graded on.",
     "dash_lane_extend": 0.25,
-    "dash_clutter_penalty": 0.35
+    "dash_clutter_penalty": 0.35,
+    "_dash_smoke_note": "The dash's smoke. Decoration only -- spawned off the engine's own randf() and never Game.rng, the rule every Fx effect follows, so a replay of the same seed still matches. Here rather than as consts in fx.gd because the light_feet perk scales all of it: a levelled dash kicks up more smoke, wider, in bigger motes, and that is most of how the upgrade reads on screen.",
+    "dash_smoke_count": 8,
+    "dash_smoke_spread": 16.0,
+    "dash_smoke_scale": 2.2,
+    "dash_smoke_seconds": 0.5
+  },
+  "skip": {
+    "_note": "Teaching on your own -- the teacher hands the room over and lets the days run. Each skipped day is resolved by RoomSim under the Steady policy, the SAME model a delegated room runs and the same one Game.auto_teach already uses for a single lesson; nothing here is a formula that awards a grade. What makes it a real decision rather than a free fast-forward: no homework is set on a day you were not there to set it, so the marking that lifts a class never happens, and RoomSim Steady is a competent stand-in rather than you at your best. max_days is the cap as shipped. item_bonus_cap is how much furniture may add on top of it later -- an item def with a \"skip_days\" key contributes, the way \"teaches\" already grants a concept; no item carries one yet, which is why the hook is capped rather than open.",
+    "max_days": 5,
+    "item_bonus_cap": 5
   },
   "student": {
     "_note": "Students improve just by being taught. A level nudges aptitude and diligence a little; ready_level is when they can be sent up. XP STOPS at ready_level+hold_grace: a child kept long past readiness has learned what you can teach them, which is a soft cost for holding them back rather than a punishment.",
@@ -993,10 +1003,15 @@
       "name": "Iron Will",
       "ranks": 2,
       "blurb": "Trouble spreads to fewer desks nearby."
+    },
+    "light_feet": {
+      "name": "Light Feet",
+      "ranks": 3,
+      "blurb": "Dash further, and again sooner."
     }
   },
   "perk_effects": {
-    "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile. quick_sweep subtracts from room_upkeep.clean_presses (floor of 1), carrying_voice adds tiles to voice.range_tiles, quick_study adds a percentage to Game.lesson_length()'s multiplier chain, lucky_break biases Assignments' rarity roll toward rarer tiers, thrifty is a fraction off a shop item's BUY price only (never its sell value), iron_will multiplies (compounding per rank) only the dis_spread term in Game.tick_class() -- trouble still starts from boredom/frustration exactly as often, it just travels less.",
+    "_note": "Per RANK. brisk_walk adds to teacher.speed, long_reach to pick_radius, calm_presence multiplies the stall chance of students within its radius, practised_marker removes that many sheets from the nightly pile. quick_sweep subtracts from room_upkeep.clean_presses (floor of 1), carrying_voice adds tiles to voice.range_tiles, quick_study adds a percentage to Game.lesson_length()'s multiplier chain, lucky_break biases Assignments' rarity roll toward rarer tiers, thrifty is a fraction off a shop item's BUY price only (never its sell value), iron_will multiplies (compounding per rank) only the dis_spread term in Game.tick_class() -- trouble still starts from boredom/frustration exactly as often, it just travels less. light_feet is the dash's own upgrade: each rank adds light_feet_duration seconds to the BURST, so the dash covers more ground at the same speed -- speed is brisk_walk's job and doubling up would make the two indistinguishable -- and takes light_feet_cooldown off the wait, floored in Progress so the HUD's cooldown meter never recharges instantly and stops meaning anything. The two smoke terms are pure juice: more and bigger motes per rank, so a levelled dash LOOKS levelled.",
     "brisk_walk_speed": 30.0,
     "long_reach_radius": 16.0,
     "calm_presence_radius": 80.0,
@@ -1007,7 +1022,11 @@
     "quick_study_pct": 0.05,
     "lucky_break_bias": 0.12,
     "thrifty_pct": 0.06,
-    "iron_will_mult": 0.75
+    "iron_will_mult": 0.75,
+    "light_feet_duration": 0.05,
+    "light_feet_cooldown": 0.25,
+    "light_feet_smoke": 4,
+    "light_feet_smoke_scale": 0.45
   },
   "item_categories": [
     "seating",

@@ -3,10 +3,32 @@
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/homework_sheet.gd" id="2_sheet"]
 
+; A CENTRED 640x352 box, not the whole viewport.
+;
+; Every one of the nineteen children below is placed by absolute offset in
+; a 640x352 space -- the status strip at y=0, the prompt bar at y=312, the
+; book at 32,48 -- because for a year the viewport WAS exactly 640x352.
+; Since the stretch aspect became "expand" (project.godot) it is whatever
+; shape the monitor is, and a HUD anchored to the viewport put the prompt
+; bar across the middle of the room on anything taller than 11 tiles.
+;
+; Anchoring the ROOT to the centre and giving it the old size keeps all
+; nineteen exactly where they were authored, and lands them over the room
+; -- which classroom.gd centres in the same viewport by the same maths.
+; The alternative was re-anchoring nineteen nodes and the ~40 absolute
+; Rect2 constants in hud.gd that agree with them.
 [node name="HUD" type="Control"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -176.0
+offset_right = 320.0
+offset_bottom = 176.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
 

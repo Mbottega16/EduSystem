@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/classroom.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/main.gd" id="3_main"]
@@ -6,9 +6,29 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
 [ext_resource type="PackedScene" path="res://scenes/world/hallway.tscn" id="5_hall"]
 [ext_resource type="PackedScene" path="res://scenes/world/mentor_room.tscn" id="6_mentor"]
+[ext_resource type="Texture2D" path="res://art/tile_backdrop.png" id="7_backdrop"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("3_main")
+
+; What shows AROUND the room. A CanvasLayer BELOW the world (layer -100)
+; rather than a sprite in it: screen space means it fills whatever the
+; window happens to be, in every room, without following a camera or
+; being told how big to be. It exists because the stretch aspect is
+; "expand" now -- see project.godot -- so a window that is not exactly
+; 20:11 shows real space above and below the classroom.
+[node name="Backdrop" type="CanvasLayer" parent="."]
+layer = -100
+
+[node name="Wall" type="TextureRect" parent="Backdrop"]
+texture_repeat = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("7_backdrop")
+stretch_mode = 1
 
 [node name="World" type="Node2D" parent="."]
 y_sort_enabled = true

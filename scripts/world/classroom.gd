@@ -330,15 +330,40 @@ func _attach_camera() -> void:
 	_refresh_camera_limits()
 	camera.make_current()
 	camera.reset_smoothing()
+	# Dragging the window edge changes how much room there is AROUND the
+	# classroom, so the framing has to be recomputed then too -- not only
+	# when the player buys a bigger room.
+	if not get_viewport().size_changed.is_connected(_refresh_camera_limits):
+		get_viewport().size_changed.connect(_refresh_camera_limits)
 
 
+## Clamp the camera to the room -- or, when the room is SMALLER than the
+## window, centre the room in the window instead.
+##
+## Both cases are live now that the stretch aspect is "expand": the room
+## is 640x352 and the viewport is whatever shape the monitor is, so on
+## anything but exactly 20:11 there is more viewport than room in at least
+## one axis. Limits narrower than the view would otherwise pin the room
+## against one edge with all the slack on the other side, which reads as
+## the room having slipped rather than as it being framed. The same maths
+## mentor_room.gd already uses for its own small room.
 func _refresh_camera_limits() -> void:
 	if camera == null:
 		return
-	camera.limit_left = 0
-	camera.limit_top = 0
-	camera.limit_right = Grid.W * Grid.TILE
-	camera.limit_bottom = Grid.H * Grid.TILE
+	var room := Vector2(Grid.W, Grid.H) * Grid.TILE
+	var view: Vector2 = camera.get_viewport_rect().size / camera.zoom
+	if room.x <= view.x:
+		camera.limit_left = int(room.x * 0.5 - view.x * 0.5)
+		camera.limit_right = int(room.x * 0.5 + view.x * 0.5)
+	else:
+		camera.limit_left = 0
+		camera.limit_right = int(room.x)
+	if room.y <= view.y:
+		camera.limit_top = int(room.y * 0.5 - view.y * 0.5)
+		camera.limit_bottom = int(room.y * 0.5 + view.y * 0.5)
+	else:
+		camera.limit_top = 0
+		camera.limit_bottom = int(room.y)
 
 
 ## Ambient weather for whatever today's day event is. Purely decorative —
@@ -1028,6 +1053,54 @@ func end_day() -> Dictionary:
 	day_started.emit(Game.day)
 	return report
 
+
+
+## Run `n` whole days without the teacher, and hand back one row per day.
+##
+## Built out of the calls a PLAYED day already makes, in the order it makes
+## them -- start the lesson, resolve it, ring the bell -- rather than a
+## second model of a day. A separate "what a skipped day is worth" formula
+## is exactly the thing this project keeps refusing to write: the delegated
+## rooms resolve through RoomSim, auto_teach resolves through RoomSim, and
+## so does this.
+##
+## The caller is responsible for asking Game.skip_days_available() first;
+## this clamps to it anyway, because a skip that ran through the exam would
+## resolve the term on a screen nobody saw.
+func run_skipped_days(n: int) -> Array:
+	Balance.ensure_loaded()
+	var rows: Array = []
+	var want: int = mini(n, Game.skip_days_available())
+	for i in want:
+		var day_no: int = Game.day
+		var subject: String = Curriculum.short_name(Game.lesson)
+		# Exactly what start_lesson() sets up before it hands over. Not a
+		# call to start_lesson() itself: that emits auto_lesson_resolved,
+		# which puts the watch screen up -- right for one lesson you chose
+		# to hand over, wrong five times in a row with no way past it.
+		Game.set_phase(Game.Phase.LESSON)
+		Game.quiz_done = false
+		Game.quiz_focus = false
+		Game.answer_all_cooldown = 0.0
+		lesson_left = Game.lesson_length()
+		run_auto_lesson()
+		# No homework is set. Nobody was at the desk to set it, and that is
+		# most of what a skipped day costs you -- see Balance skip._note.
+		var report: Dictionary = end_day()
+		# Read off advance_day()'s own report rather than re-deriving any of
+		# it. The letter is the only thing not in there, and it comes from
+		# the same grade_letter() every other screen prints.
+		var avg := float(report.get("average", 0.0))
+		rows.append({
+			"day": day_no,
+			"subject": subject,
+			"average": avg,
+			"letter": Game.grade_letter(avg),
+			"coins": int(report.get("coins", 0)),
+			"joined": String(report.get("joined", "")),
+			"term_over": bool(report.get("term_over", false)),
+		})
+	return rows
 
 ## A brand new run: throw away the actors bound to the previous roster and
 ## make new ones, ALREADY SEATED.

@@ -115,6 +115,12 @@ static var teacher_dash_cancel_reach: float = 24.0
 ## to the cooldown. Layout only: neither touches anything a room is graded on.
 static var teacher_dash_lane_extend: float = 0.25
 static var teacher_dash_clutter_penalty: float = 0.35
+## The launch puff. Decoration, but tunable because the Light Feet perk
+## scales all four -- see teacher._dash_smoke_note in balance.json.
+static var teacher_dash_smoke_count: int = 8
+static var teacher_dash_smoke_spread: float = 16.0
+static var teacher_dash_smoke_scale: float = 2.2
+static var teacher_dash_smoke_seconds: float = 0.5
 
 # --- students -----------------------------------------------------------
 static var stu_xp_per_lesson: int = 18
@@ -373,6 +379,14 @@ static var perk_quick_study_pct: float = 0.05
 static var perk_lucky_break_bias: float = 0.12
 static var perk_thrifty_pct: float = 0.06
 static var perk_iron_will_mult: float = 0.75
+static var perk_light_feet_duration: float = 0.05
+static var perk_light_feet_cooldown: float = 0.25
+static var perk_light_feet_smoke: int = 4
+static var perk_light_feet_smoke_scale: float = 0.45
+
+# --- teaching on your own (the multi-day skip) --------------------------
+static var skip_max_days: int = 5
+static var skip_item_bonus_cap: int = 5
 
 static var not_done_forgiveness: bool = true
 static var verdict_weight: float = 0.5
@@ -486,6 +500,10 @@ static func apply(d: Dictionary) -> void:
 	teacher_dash_cancel_reach = float(tc.get("dash_cancel_reach", teacher_dash_cancel_reach))
 	teacher_dash_lane_extend = float(tc.get("dash_lane_extend", teacher_dash_lane_extend))
 	teacher_dash_clutter_penalty = float(tc.get("dash_clutter_penalty", teacher_dash_clutter_penalty))
+	teacher_dash_smoke_count = int(tc.get("dash_smoke_count", teacher_dash_smoke_count))
+	teacher_dash_smoke_spread = float(tc.get("dash_smoke_spread", teacher_dash_smoke_spread))
+	teacher_dash_smoke_scale = float(tc.get("dash_smoke_scale", teacher_dash_smoke_scale))
+	teacher_dash_smoke_seconds = float(tc.get("dash_smoke_seconds", teacher_dash_smoke_seconds))
 
 	var st: Dictionary = d.get("student", {})
 	stu_xp_per_lesson = int(st.get("xp_per_lesson", stu_xp_per_lesson))
@@ -718,6 +736,14 @@ static func apply(d: Dictionary) -> void:
 	perk_lucky_break_bias = float(pe.get("lucky_break_bias", perk_lucky_break_bias))
 	perk_thrifty_pct = float(pe.get("thrifty_pct", perk_thrifty_pct))
 	perk_iron_will_mult = float(pe.get("iron_will_mult", perk_iron_will_mult))
+	perk_light_feet_duration = float(pe.get("light_feet_duration", perk_light_feet_duration))
+	perk_light_feet_cooldown = float(pe.get("light_feet_cooldown", perk_light_feet_cooldown))
+	perk_light_feet_smoke = int(pe.get("light_feet_smoke", perk_light_feet_smoke))
+	perk_light_feet_smoke_scale = float(pe.get("light_feet_smoke_scale", perk_light_feet_smoke_scale))
+
+	var sk: Dictionary = d.get("skip", {})
+	skip_max_days = int(sk.get("max_days", skip_max_days))
+	skip_item_bonus_cap = int(sk.get("item_bonus_cap", skip_item_bonus_cap))
 
 	var h: Dictionary = d.get("homework", {})
 	not_done_forgiveness = bool(h.get("not_done_forgiveness", not_done_forgiveness))

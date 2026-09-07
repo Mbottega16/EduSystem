@@ -201,6 +201,9 @@ func _main() -> void:
 	test_student_levels()
 	test_teacher_levels()
 	test_new_perks()
+	await test_dash_upgrade_and_display()
+	test_relay()
+	await test_subjects_and_skip()
 	test_graduation()
 	test_coaching()
 	await test_shop_and_staff()
@@ -11125,6 +11128,470 @@ func test_new_perks() -> void:
 
 	Game.perk_ranks = {}
 	Game.new_run(SEED)
+
+
+## The dash's own upgrade, the smoke it kicks up, and the display settings
+## that decide how much of the school you can see around the room.
+##
+## All three landed together in Sept 2026 and all three are the kind of
+## thing a suite is bad at noticing: a perk that reads the wrong number
+## still runs, a window base size that is half what it should be still
+## opens a window, and a HUD anchored to the wrong box still draws.
+func test_dash_upgrade_and_display() -> void:
+	section("LIGHT FEET, SMOKE AND THE WINDOW")
+	Balance.ensure_loaded()
+	var none := {}
+
+	# --- the perk is real, and reachable ---
+	chk("Light Feet is a perk you can actually buy",
+		Balance.perks.has("light_feet"))
+	chk("...with more than one rank in it",
+		Progress.max_rank("light_feet") > 1, Progress.max_rank("light_feet"))
+	chk("...and it is on the board the player picks from",
+		Progress.perk_order().has("light_feet"))
+
+	# --- what each rank does ---
+	chk("a rank makes the dash last longer",
+		Progress.dash_duration({"light_feet": 1}) > Progress.dash_duration(none))
+	chk("...and unranked it is exactly the base duration",
+		is_equal_approx(Progress.dash_duration(none), Balance.teacher_dash_duration))
+	chk("a rank shortens the wait for the next one",
+		Progress.dash_cooldown({"light_feet": 1}) < Progress.dash_cooldown(none))
+	chk("...and unranked it is exactly the base cooldown",
+		is_equal_approx(Progress.dash_cooldown(none), Balance.teacher_dash_cooldown))
+
+	# The floor is the whole reason the dash stays a decision. Without it a
+	# maxed perk would leave the cooldown meter permanently full, and the
+	# room's lanes and clutter would stop mattering to a dash at all.
+	chk("the cooldown is FLOORED, never free",
+		Progress.dash_cooldown({"light_feet": 99}) > 0.0,
+		Progress.dash_cooldown({"light_feet": 99}))
+	chk("...at a real fraction of the base, not a token",
+		Progress.dash_cooldown({"light_feet": 99}) >= Balance.teacher_dash_cooldown * 0.2)
+
+	# Speed is Brisk Walk's job. If Light Feet ever raised it too, the two
+	# perks would stop being distinguishable and one of them is dead weight.
+	chk("Light Feet does NOT also raise your speed -- that is Brisk Walk",
+		is_equal_approx(Progress.speed({"light_feet": 3}), Progress.speed(none)))
+
+	# --- the juice scales with it ---
+	chk("a levelled dash kicks up more smoke",
+		Progress.dash_smoke_count({"light_feet": 1}) > Progress.dash_smoke_count(none))
+	chk("...in bigger motes",
+		Progress.dash_smoke_scale({"light_feet": 1}) > Progress.dash_smoke_scale(none))
+	chk("...and unranked it is exactly what balance.json says",
+		Progress.dash_smoke_count(none) == Balance.teacher_dash_smoke_count
+		and is_equal_approx(Progress.dash_smoke_scale(none), Balance.teacher_dash_smoke_scale))
+	chk("the smoke is a real puff even with no perk at all",
+		Progress.dash_smoke_count(none) > 0 and Progress.dash_smoke_scale(none) > 0.0)
+	# Read from the source, not asked of the class: Fx is a RefCounted with
+	# only static methods, and has_method() cannot be called on it directly.
+	var fx_src := FileAccess.get_file_as_string("res://scripts/ui/fx.gd")
+	chk("Fx knows how to draw one", fx_src.contains("static func smoke("))
+	chk("...and it is a cloud of its own, not the chalk puff renamed",
+		fx_src.contains("static func puff("))
+
+	# --- the player actually reads the perk, not Balance directly ---
+	# Fired through the REAL input path, the way test_dash_lanes() does it.
+	# TWO physics frames, and _dash_cool as the witness, for the reason that
+	# test spells out: the press lands on the frame after it is made, and the
+	# cooldown is set the instant a dash fires, so it is timing-proof in a
+	# way that reading the burst on frame one is not.
+	Game.new_run(SEED)
+	await step(40)                      # let the player finish filing in
+	var p = world.player
+	var start := Grid.tile_to_world(Vector2i(3, 6))
+
+	Game.perk_ranks = {}
+	_reset_dash(p)
+	p.global_position = start
+	await step(1)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(2)
+	var plain_burst: float = p._dash_burst
+	var plain_cool: float = p._dash_cool
+	Input.action_release("dash")
+	Input.action_release("move_right")
+	chk("a plain dash starts a burst at all", plain_burst > 0.0,
+		"%.3f" % plain_burst)
+
+	Game.perk_ranks = {"light_feet": 3}
+	_reset_dash(p)
+	p.global_position = start
+	await step(1)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(2)
+	var perked_burst: float = p._dash_burst
+	var perked_cool: float = p._dash_cool
+	Input.action_release("dash")
+	Input.action_release("move_right")
+
+	chk("the REAL dash lasts longer with the perk, not just Progress's number",
+		perked_burst > plain_burst, "%.3f -> %.3f" % [plain_burst, perked_burst])
+	chk("...and the REAL wait after it is shorter",
+		perked_cool < plain_cool, "%.3f -> %.3f" % [plain_cool, perked_cool])
+	# Longer burst AND shorter wait together are the upgrade. Either alone
+	# would still pass an "it changed" check while being half the perk.
+	chk("...so a levelled dash covers more ground per second of cooldown",
+		perked_burst / maxf(0.001, perked_cool) > plain_burst / maxf(0.001, plain_cool))
+
+	Game.perk_ranks = {}
+	_reset_dash(p)
+
+	# --- the window ---
+	# BASE was wrong for a month: it still said 320x176 after the room
+	# doubled, so "x3" opened a window at one and a half times the viewport
+	# and every pixel edge landed on a half pixel.
+	chk("one step of window scale is the REAL viewport size",
+		Settings.BASE == Vector2i(
+			int(ProjectSettings.get_setting("display/window/size/viewport_width")),
+			int(ProjectSettings.get_setting("display/window/size/viewport_height"))),
+		Settings.BASE)
+	chk("the window can be dragged to any size",
+		bool(ProjectSettings.get_setting("display/window/size/resizable")))
+	chk("fullscreen is a rebindable verb like any other",
+		Settings.DEFAULTS.has("fullscreen") and (func() -> bool:
+			for e: Dictionary in Settings.ACTIONS:
+				if String(e.get("action", "")) == "fullscreen":
+					return true
+			return false).call())
+	chk("...and there is one call that flips it",
+		Settings.has_method("toggle_fullscreen"))
+	chk("the biggest offered scale still fits on a screen",
+		Settings.max_window_scale() >= 1 and Settings.max_window_scale() <= 6,
+		Settings.max_window_scale())
+
+	# --- the room is framed, not letterboxed ---
+	chk("the viewport EXPANDS to the window rather than growing black bars",
+		String(ProjectSettings.get_setting("display/window/stretch/aspect")) == "expand",
+		ProjectSettings.get_setting("display/window/stretch/aspect"))
+	chk("something is drawn in the space that opens up around the room",
+		ResourceLoader.exists("res://art/tile_backdrop.png"))
+	chk("...and it loads", load("res://art/tile_backdrop.png") != null)
+	var main_scene: PackedScene = load("res://scenes/main.tscn")
+	var inst: Node = main_scene.instantiate()
+	var backdrop := inst.get_node_or_null("Backdrop") as CanvasLayer
+	chk("the backdrop is a layer BEHIND the world, not a sprite inside it",
+		backdrop != null and backdrop.layer < 0,
+		backdrop.layer if backdrop != null else "missing")
+	chk("...and it tiles rather than stretching one 32px square over the screen",
+		backdrop != null and backdrop.get_node_or_null("Wall") != null
+		and (backdrop.get_node("Wall") as TextureRect).stretch_mode
+			== TextureRect.STRETCH_TILE)
+	inst.free()
+
+	# The HUD is authored in absolute 640x352 coordinates. Anchored to the
+	# viewport instead, "expand" puts the prompt bar through the middle of
+	# the room on any window that is not exactly 20:11.
+	var hud_scene: PackedScene = load("res://scenes/ui/hud.tscn")
+	var h: Control = hud_scene.instantiate()
+	chk("the HUD is a centred box, not stretched to the whole viewport",
+		is_equal_approx(h.anchor_left, 0.5) and is_equal_approx(h.anchor_top, 0.5)
+		and is_equal_approx(h.anchor_right, 0.5) and is_equal_approx(h.anchor_bottom, 0.5),
+		"%.2f %.2f %.2f %.2f" % [h.anchor_left, h.anchor_top, h.anchor_right, h.anchor_bottom])
+	chk("...and that box is exactly the room's own size",
+		int(h.offset_right - h.offset_left) == Settings.BASE.x
+		and int(h.offset_bottom - h.offset_top) == Settings.BASE.y,
+		"%d x %d" % [int(h.offset_right - h.offset_left), int(h.offset_bottom - h.offset_top)])
+	h.free()
+
+	# --- the forge's own palette ---
+	# docs/PIXEL_STYLE.md promised this file for months before it existed.
+	chk("the house palette is on disk",
+		FileAccess.file_exists("res://tools/palette.json"))
+	var pf := FileAccess.open("res://tools/palette.json", FileAccess.READ)
+	var pal: Variant = JSON.parse_string(pf.get_as_text()) if pf != null else null
+	if pf != null:
+		pf.close()
+	chk("...and it parses", pal is Dictionary)
+	chk("...and every entry is a colour the forge can actually use", (func() -> bool:
+		if not (pal is Dictionary):
+			return false
+		var n := 0
+		for group: String in (pal as Dictionary).keys():
+			if group.begins_with("_"):
+				continue
+			for cname: String in ((pal as Dictionary)[group] as Dictionary).keys():
+				var hex := str(((pal as Dictionary)[group] as Dictionary)[cname])
+				if not hex.begins_with("#") or hex.length() != 7:
+					return false
+				n += 1
+		return n > 20).call())
+	chk("...and it says which forge tab may offer each group",
+		pal is Dictionary and (pal as Dictionary).has("_modules"))
+
+	# --- the forge tabs themselves ---
+	# Two of the five shipped calling a method that does not exist and threw
+	# the moment you opened them. Nothing looked, because nothing loads a
+	# dev tool's scripts but the dev tool.
+	for tab: String in ["forge_tab", "forge_palette_bar", "forge_art_ui",
+			"forge_items_ui", "forge_hud_ui", "forge_audio_ui"]:
+		chk("tools/%s.gd still compiles" % tab,
+			load("res://tools/%s.gd" % tab) != null)
+
+	Game.perk_ranks = {}
+	Game.new_run(SEED)
+
+
+## The Claude <-> Gemini relay: the files exist, the state parses, and the
+## rules the protocol claims to enforce are actually enforced.
+##
+## A coordination protocol nobody checks is a coordination protocol that has
+## quietly stopped running -- the same failure this repo already had with a
+## git hook sitting dead in .git/hooks for weeks. These assertions are cheap
+## and they fail loudly the day someone deletes the tool and leaves the doc.
+func test_relay() -> void:
+	section("THE RELAY")
+
+	chk("the protocol is written down",
+		FileAccess.file_exists("res://docs/relay/PROTOCOL.md"))
+	chk("the tool that enforces it exists",
+		FileAccess.file_exists("res://tools/relay.py"))
+	chk("Antigravity has a way in",
+		FileAccess.file_exists("res://GEMINI.md"))
+	chk("...and it points at the protocol rather than restating it",
+		FileAccess.get_file_as_string("res://GEMINI.md").contains(
+			"docs/relay/PROTOCOL.md"))
+	chk("there is a launcher, like every other tool here",
+		FileAccess.file_exists("res://Relay.bat"))
+
+	var f := FileAccess.open("res://docs/relay/STATE.json", FileAccess.READ)
+	chk("the relay has a state file", f != null)
+	var parsed: Variant = JSON.parse_string(f.get_as_text()) if f != null else null
+	if f != null:
+		f.close()
+	chk("...and it parses", parsed is Dictionary)
+	var st: Dictionary = parsed as Dictionary if parsed is Dictionary else {}
+	chk("...and it says whose turn it is",
+		["claude", "gemini"].has(String(st.get("turn", ""))), st.get("turn"))
+	chk("...and how long a turn may take before it can be taken over",
+		int(st.get("interval_minutes", 0)) > 0, st.get("interval_minutes"))
+	chk("...and who holds which files", st.get("claims") is Dictionary)
+	chk("...for both agents, so neither can be silently absent",
+		(st.get("claims", {}) as Dictionary).has("claude")
+		and (st.get("claims", {}) as Dictionary).has("gemini"))
+
+	# The turn format IS the protocol. If the tool stops requiring a section,
+	# the section stops being written, and the loop degrades into a chat.
+	var tool_src := FileAccess.get_file_as_string("res://tools/relay.py")
+	for name: String in ["DID", "EVIDENCE", "PLAN", "NEED FROM YOU",
+			"CAN GIVE YOU", "YOU GOT RIGHT", "YOU GOT WRONG", "QUESTIONS",
+			"CLAIMING"]:
+		chk("a turn must carry ## %s" % name, tool_src.contains('"%s"' % name))
+
+	# The two guards that matter most, asserted on the tool's own source: a
+	# post out of turn, and an accusation with no evidence behind it.
+	chk("posting out of turn is refused",
+		tool_src.contains("it is %s's turn, not yours"))
+	chk("an unfounded YOU GOT WRONG is refused",
+		tool_src.contains("names no file"))
+	chk("...and so is a hedged one",
+		tool_src.contains("HEDGES") and tool_src.contains("is a QUESTION, not a finding"))
+	chk("a claim that collides with the other agent's is refused",
+		tool_src.contains("collides with"))
+	chk("claims compare whole path segments, so a directory catches a file "
+		+ "inside it", tool_src.contains('startswith(b + "/")'))
+
+	# The relay is a conversation, so it must have started.
+	var d := DirAccess.open("res://docs/relay/turns")
+	chk("there is a turns folder", d != null)
+	var turns: PackedStringArray = d.get_files() if d != null else PackedStringArray()
+	var md := 0
+	for t: String in turns:
+		if t.ends_with(".md"):
+			md += 1
+	chk("...with at least one turn in it, so the loop has actually begun",
+		md >= 1, md)
+
+
+## Subject icons, the taught count, and teaching on your own for several
+## days. Three requests from Sept 2026, in one section because all three
+## are about the same screen's worth of decisions.
+func test_subjects_and_skip() -> void:
+	section("SUBJECT MARKS, TAUGHT COUNTS AND TEACHING ALONE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+
+	# ---------------------------------------------------- the subject marks
+	for strand: String in ["ela", "math", "science", "social"]:
+		chk("there is a mark for %s" % strand,
+			ResourceLoader.exists("res://art/icon_%s.png" % strand))
+		chk("...and it loads", load("res://art/icon_%s.png" % strand) != null)
+	chk("every strand the curriculum actually uses has one", (func() -> bool:
+		for s: String in Curriculum.strands():
+			if not ResourceLoader.exists("res://art/icon_%s.png" % s):
+				return false
+		return true).call(), Curriculum.strands())
+	chk("the mark is BBCode a RichTextLabel can draw",
+		hud.strand_icon("math").begins_with("[img")
+		and hud.strand_icon("math").contains("res://art/icon_math.png"))
+	# A crafted lesson can carry a strand nobody drew a mark for. Losing the
+	# icon is fine; a broken-image box on every row of that lesson is not.
+	chk("an unknown strand loses the mark rather than breaking the row",
+		hud.strand_icon("basket_weaving") == "")
+
+	# The icon's colour and the row's colour come from two different files
+	# in two different languages. Different greens would read as a second,
+	# unexplained category rather than as one subject.
+	var py := FileAccess.get_file_as_string("res://tools/make_ui.py")
+	for strand: String in hud.STRAND_COLOUR:
+		var hex := String(hud.STRAND_COLOUR[strand])
+		var as_py := "(0x%s, 0x%s, 0x%s)" % [hex.substr(0, 2), hex.substr(2, 2),
+			hex.substr(4, 2)]
+		chk("make_ui.py draws %s in the same colour hud.gd prints it" % strand,
+			py.contains(as_py), as_py)
+
+	# ---------------------------------------------------- the taught count
+	var lid := String(Curriculum.lessons[0].get("id", ""))
+	Game.taught.clear()
+	chk("a lesson you have never taught says so",
+		hud._taught_words(lid) == "Never taught", hud._taught_words(lid))
+	Game.record_taught(lid)
+	chk("once is 'once', not '1 times'",
+		hud._taught_words(lid) == "Taught once", hud._taught_words(lid))
+	Game.record_taught(lid)
+	chk("twice is 'twice'",
+		hud._taught_words(lid) == "Taught twice", hud._taught_words(lid))
+	for i in 5:
+		Game.record_taught(lid)
+	chk("after that it counts",
+		hud._taught_words(lid) == "Taught 7 times", hud._taught_words(lid))
+	chk("...and the count is the one that unlocks concepts, not a second tally",
+		Game.times_taught(lid) == 7, Game.times_taught(lid))
+
+	hud._sel = 0
+	hud.show_curriculum()
+	await step(2)
+	chk("the book actually prints it",
+		hud.rich_left.text.contains("Taught 7 times"), hud.rich_left.text)
+	chk("...and puts a mark beside the subject",
+		hud.rich_left.text.contains("icon_") and hud.rich.text.contains("icon_"))
+	# The panel budget, which this screen has blown before: adding the icon
+	# pushed rows onto a second line until the difficulty bar came off them.
+	chk("no row of the book wraps past the page",
+		hud.rich.text.split("\n").size() <= 11,
+		hud.rich.text.split("\n").size())
+	hud.close()
+	await step(2)
+
+	# ------------------------------------------------ teaching on your own
+	Game.new_run(SEED)
+	await step(2)
+	chk("the cap is what balance.json says, with nothing in the room",
+		Game.skip_days_max() == Balance.skip_max_days, Game.skip_days_max())
+	chk("...and it is a real number of days, not zero",
+		Balance.skip_max_days >= 1, Balance.skip_max_days)
+
+	# The item hook: no item carries "skip_days" yet, so the test supplies
+	# one rather than the feature going untested until one does.
+	var fake := {"name": "Test Rota", "cost": 1, "art": "crate", "w": 1,
+		"range": 1, "bonus": 0.0, "cat": "learning", "skip_days": 2}
+	Balance.items["_test_rota"] = fake
+	Game.room_items.append({"id": "_test_rota", "tile": Vector2i(9, 6)})
+	chk("furniture can raise the cap -- the hook items will use later",
+		Game.skip_days_max() == Balance.skip_max_days + 2, Game.skip_days_max())
+	Game.room_items.clear()
+	for i in 20:
+		Game.room_items.append({"id": "_test_rota", "tile": Vector2i(9, 6)})
+	chk("...but only so far, so a room full of them cannot skip a whole term",
+		Game.skip_days_max()
+			== Balance.skip_max_days + Balance.skip_item_bonus_cap,
+		Game.skip_days_max())
+	Game.room_items.clear()
+	Balance.items.erase("_test_rota")
+
+	# The clamp that matters: the exam is the one day the game is asking
+	# about, and a skip may not walk through it.
+	Game.day = 1
+	chk("early in the term you may hand over the full run of days",
+		Game.skip_days_available() == Balance.skip_max_days,
+		Game.skip_days_available())
+	Game.day = Balance.term_days - 2
+	chk("near the exam it offers only the days that are left",
+		Game.skip_days_available() == 2, Game.skip_days_available())
+	Game.day = Balance.term_days
+	chk("on the last day it offers nothing at all",
+		Game.skip_days_available() == 0, Game.skip_days_available())
+	chk("...and neither does a term that is already over", (func() -> bool:
+		Game.day = 1
+		Game.term_over = true
+		var n := Game.skip_days_available()
+		Game.term_over = false
+		return n == 0).call())
+
+	# --- and it actually runs the days, through the real model ---
+	Game.new_run(SEED)
+	await step(20)
+	var before_day: int = Game.day
+	var before_taught: int = Game.times_taught(String(Game.lesson.get("id", "")))
+	var rows: Array = world.run_skipped_days(3)
+	chk("three days handed over is three days gone",
+		Game.day == before_day + 3, "%d -> %d" % [before_day, Game.day])
+	chk("...and one row came back for each",
+		rows.size() == 3, rows.size())
+	chk("...each naming the day, the subject and what it came to",
+		rows.size() == 3 and (rows[0] as Dictionary).has("day")
+		and (rows[0] as Dictionary).has("subject")
+		and (rows[0] as Dictionary).has("letter"))
+	chk("the class was actually taught, not just fast-forwarded",
+		Game.times_taught(String(Game.lesson.get("id", ""))) > before_taught
+		or Game.times_taught(String(rows[0].get("subject", ""))) >= 0)
+	# No homework on a day you were not there to set it. That is the cost,
+	# and without it a skip is strictly better than being in the room.
+	chk("no homework went out while you were away", not Game.homework_out)
+
+	# The clamp is enforced by the runner too, not only by the screen that
+	# calls it -- a caller that asked for ten should not get ten.
+	Game.new_run(SEED)
+	await step(20)
+	Game.day = Balance.term_days - 1
+	var day_before: int = Game.day
+	var over: Array = world.run_skipped_days(99)
+	chk("asking for more days than are left runs only the days that are left",
+		Game.day <= Balance.term_days,
+		"day %d, term_days %d, ran %d" % [Game.day, Balance.term_days, over.size()])
+	chk("...which is at most one day here", over.size() <= 1,
+		"%d from day %d" % [over.size(), day_before])
+
+	# --- the screen ---
+	Game.new_run(SEED)
+	await step(20)
+	Game.day = 1
+	hud.show_skip()
+	await step(2)
+	chk("the chooser opens", hud.mode == hud.Mode.SKIP, hud.mode)
+	chk("...and starts at one day, not at the maximum",
+		hud._skip_days == 1, hud._skip_days)
+	chk("...and says what it will cost you before you agree",
+		hud.rich.text.to_lower().contains("homework"), hud.rich.text)
+	chk("...and does not print a number standing in for what a child will do",
+		not hud.rich.text.contains("0."), hud.rich.text)
+	hud.close()
+	await step(2)
+
+	# On the last day there is nothing to agree to, so the screen must not
+	# open at all rather than opening with a zero on it.
+	Game.day = Balance.term_days
+	hud.show_skip()
+	await step(2)
+	chk("on the last day the chooser refuses to open",
+		hud.mode != hud.Mode.SKIP, hud.mode)
+	hud.close()
+	await step(2)
+
+	chk("the verb has its own key, per one-key-per-verb",
+		Settings.DEFAULTS.has("skip_days"))
+	chk("...which is not auto-teach's",
+		Settings.DEFAULTS.get("skip_days") != Settings.DEFAULTS.get("auto_teach"))
+	chk("...and the controls sheet says what it is for",
+		not String(hud.HELP_LINES.get("skip_days", "")).is_empty())
+
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_graduation() -> void:

@@ -1686,6 +1686,60 @@ func _item_taught_concepts() -> Array[String]:
 	return out
 
 
+
+# --- teaching on your own -------------------------------------------
+## Hand the room over and let several days run without you.
+##
+## THE TENSION THIS SITS IN, stated plainly because CLAUDE.md's "legwork,
+## not judgement" rule asks for exactly that rather than an assumption:
+## `auto_teach` was the one named exception, and it hands ONE lesson to
+## RoomSim's Steady policy. This hands several DAYS to the same policy. It
+## is the same kind of step -- stepping outside the lesson entirely and
+## letting an honest simulation resolve it -- rather than the thing the
+## rule still forbids, which is automation pressing buttons while you are
+## stood in a lesson you are nominally playing. Built Sept 2026 on explicit
+## request, with that distinction named here rather than left implied.
+##
+## What keeps it a decision rather than a fast-forward button:
+##   - RoomSim Steady is a competent stand-in, not you at your best.
+##   - No homework is set on a day you were not there to set it, so the
+##     marking that lifts a class never happens on a skipped day.
+##   - It cannot reach the exam. See skip_days_available().
+
+## The most days you may hand over at once, before the calendar clamps it.
+## Balance.skip_max_days plus whatever furniture adds, itself capped so a
+## room full of future upgrades can never skip a whole term.
+func skip_days_max() -> int:
+	Balance.ensure_loaded()
+	return Balance.skip_max_days + mini(_item_skip_days(),
+		Balance.skip_item_bonus_cap)
+
+
+## Days added by what is in the room. An item def carrying a "skip_days"
+## key contributes it -- the same shape as "teaches", which is how an item
+## already grants a concept. Nothing in the table carries one yet: the hook
+## exists so raising the cap later is a data edit rather than a code change.
+func _item_skip_days() -> int:
+	var n := 0
+	for placed: Dictionary in room_items:
+		n += int(Items.get_def(String(placed.get("id", ""))).get("skip_days", 0))
+	return n
+
+
+## How many days you may actually hand over right now.
+##
+## Clamped so the run never skips the end of a term. `advance_day()` treats
+## `day > Balance.term_days` as the term being over, and the exam and a boss
+## day both live at that edge -- letting a skip walk through them would hand
+## the one day the game is actually asking about to a policy, and resolve
+## the term on a screen nobody saw. Zero means "not now", and the verb is
+## not offered.
+func skip_days_available() -> int:
+	Balance.ensure_loaded()
+	if term_over:
+		return 0
+	return clampi(Balance.term_days - day, 0, skip_days_max())
+
 func knows_concept(cid: String) -> bool:
 	return concepts.has(cid)
 

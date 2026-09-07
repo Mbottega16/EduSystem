@@ -14,7 +14,7 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP, CALLER }
+	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -337,6 +337,14 @@ func _physics_process(_delta: float) -> void:
 			show_pause()
 		elif Input.is_action_just_pressed("help"):
 			show_help()
+		elif Input.is_action_just_pressed("skip_days"):
+			# Only between lessons. Handing over days you have not started
+			# is a plan; handing over the one you are stood in the middle
+			# of is auto-teach, which already has its own key.
+			if Game.phase == Game.Phase.LESSON or Game.test_active:
+				principal_says("skip_lesson", "Not in the middle of a lesson.")
+			else:
+				show_skip()
 		return
 	if mode == Mode.PAUSE:
 		_pause_input()
@@ -579,7 +587,11 @@ func _update_prompt() -> void:
 ## where the content goes and the left page sets the scene, so `rich` (which
 ## both book screens already render into) moves to the RIGHT and `rich_left`
 ## picks up the heading.
-const BOOK_RIGHT := Rect2(340, 64, 248, 228)
+# Widened from (340, 64, 248, 228) once the curriculum rows grew a fourth
+# column: the paper in book_open.png runs to within 18px of the book edge
+# and the gutter ends 12px off the spine, so the page had margin the text
+# was not using.
+const BOOK_RIGHT := Rect2(334, 64, 256, 228)
 const BOOK_RICH_HOME := Rect2(32, 48, 576, 256)
 ## Preloaded, not load()ed by name: the art audit scans the source for
 ## literal paths, and a frame built by string interpolation is invisible to
@@ -835,6 +847,8 @@ const HELP_LINES := {
 	"autopilot": "Walk to whoever needs you. Never presses a button.",
 	"auto_teach": "Hand the lesson to the simulation. Toggle.",
 	"dash": "A burst of speed. Or double-tap a direction.",
+	"skip_days": "Hand the room over and let a few days run without you.",
+	"fullscreen": "Fill the screen, or give the window back.",
 	"menu": "The class list. Cycles the shop's tabs.",
 	"dashboard": "You: items, skills, wardrobe.",
 	"watch": "Watch a delegated room's day, from the school board.",
@@ -3187,6 +3201,36 @@ static func strand_colour(strand: String) -> String:
 	return String(STRAND_COLOUR.get(strand, "cfcfcf"))
 
 
+## The subject's own mark, as BBCode, for a RichTextLabel.
+##
+## One per STRAND, not per lesson: there are 40 lessons and four strands, and
+## the row already carries the lesson's name -- what the icon adds is the
+## family, which the name does not say at a glance. Drawn by
+## tools/make_ui.py::strand_icon(), in the same four colours as
+## STRAND_COLOUR above, which a test holds the two ends of.
+##
+## Empty string for an unknown strand rather than a broken-image box: a
+## crafted lesson with a strand nobody drew an icon for should lose the
+## icon, not the row.
+## Written out as LITERAL paths rather than assembled from the strand name.
+## The art audit scans this source for res:// literals, and a path built by
+## interpolation is invisible to it -- which is exactly how these four icons
+## landed in the "on disk, nothing mentions it" list the moment they were
+## drawn. FLIP_TEXTURES carries the same warning for the same reason.
+const STRAND_ICON_PATH := {
+	"ela": "res://art/icon_ela.png",
+	"math": "res://art/icon_math.png",
+	"science": "res://art/icon_science.png",
+	"social": "res://art/icon_social.png",
+}
+
+
+static func strand_icon(strand: String) -> String:
+	if not STRAND_ICON_PATH.has(strand):
+		return ""
+	return "[img=16]%s[/img]" % String(STRAND_ICON_PATH[strand])
+
+
 ## How many subjects the panel lists at once, leaving room for the heading
 ## and the two detail lines under it.
 const CURRIC_ROWS := 7
@@ -3210,7 +3254,9 @@ func show_curriculum() -> void:
 	rich.visible = true
 	_book(true)
 	rich.add_theme_constant_override("line_separation", 3)
-	rich.add_theme_font_size_override("normal_font_size", 12)
+	# 11, not the 12 every other book screen uses: this is the one with four
+	# columns on a row. Confirmed by screenshot, not by counting characters.
+	rich.add_theme_font_size_override("normal_font_size", 11)
 
 	var lessons := Curriculum.lessons
 	if lessons.is_empty():
@@ -3263,9 +3309,18 @@ func show_curriculum() -> void:
 		var hue := strand_colour(String(l.get("strand", "")))
 		var taught: bool = Game.times_taught(lid) > 0
 		var mine: bool = Game.specialism != "" 			and String(l.get("strand", "")) == Game.specialism
-		lines.append("%s%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
+		# The row carries four things now: the strand mark, the name, how
+		# hard it is, and how well you know it. It does not fit at font 12 --
+		# the icon was the straw, and the longest row ("Essay Writing")
+		# wrapped onto a second line, which breaks the panel budget. The
+		# width came from the page and the type size rather than from
+		# dropping one of the four: the difficulty bar and the mastery words
+		# each have a test asserting they are on every row, and both tests
+		# are right that they should be.
+		lines.append("%s%s%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
 			"*" if mine else " ",
 			">" if i == _sel else " ",
+			strand_icon(String(l.get("strand", ""))),
 			hue if taught else INK_DIM,
 			Curriculum.short_name(l).rpad(9),
 			_difficulty_bar(Curriculum.difficulty(l)),
@@ -3276,14 +3331,25 @@ func show_curriculum() -> void:
 	# about the one subject you are actually deciding on.
 	var pick: Dictionary = lessons[_sel]
 	left.append("")
-	left.append("[color=#%s]%s[/color]" % [
+	left.append("%s [color=#%s]%s[/color]" % [
+		strand_icon(String(pick.get("strand", ""))),
 		strand_colour(String(pick.get("strand", ""))),
 		Curriculum.short_name(pick)])
-	left.append("[color=#%s]Length[/color]  %s" % [
-		INK_DIM, _difficulty_bar(Curriculum.difficulty(pick))])
+	# How many times you have stood at the podium and taught THIS.
+	#
+	# The number was already kept (Game.taught, which is what unlocks
+	# concepts) and had never been shown; the screen said "you know it well"
+	# and left you to guess whether that was two lessons or nine. It is a
+	# count of what YOU have done, not a score standing in for a child's
+	# ability, which is the side of the prose-never-numbers rule that
+	# CLAUDE.md names as the sanctioned exception -- the same side a coin
+	# total and a day counter sit on.
+	left.append("[color=#%s]%s[/color]" % [INK_DIM, _taught_words(
+		String(pick.get("id", "")))])
 	left.append("[color=#%s]%s[/color]" % [INK_DIM, _wrap(_mastery_words(pick,
 		_known_of(pick),
 		Curriculum.concepts_of(String(pick.get("id", ""))).size()), 22, 1)])
+
 	rich_left.text = "
 ".join(left)
 
@@ -3298,6 +3364,110 @@ func show_curriculum() -> void:
 		std, "" if std == "" else "  ",
 		"   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else ""])
 
+
+## How many times you have taught this lesson, in words and a number.
+##
+## Singular for one, because "Taught 1 time" is the kind of thing that makes
+## a screen feel generated rather than written.
+func _taught_words(lesson_id: String) -> String:
+	var n := Game.times_taught(lesson_id)
+	if n == 0:
+		return "Never taught"
+	if n == 1:
+		return "Taught once"
+	if n == 2:
+		return "Taught twice"
+	return "Taught %d times" % n
+
+
+
+## TEACH ON YOUR OWN — choose how many days to hand over.
+##
+## A chooser rather than a straight "skip 5": the number IS the decision.
+## One day is a day off; five is most of a week of a term you are being
+## judged on, run by someone competent who is not you.
+##
+## Deliberately says what it costs before you commit. A confirmation screen
+## that only says "are you sure" makes the player guess what they are sure
+## about.
+var _skip_days: int = 1
+
+func show_skip() -> void:
+	var most: int = Game.skip_days_available()
+	if most <= 0:
+		# Nothing to say yes to. The exam is the one day the game is
+		# actually asking about, so a skip may not reach it.
+		principal_says("skip_none", "Not now — the exam is too close.")
+		return
+	_open(Mode.SKIP)
+	body.visible = false
+	rich.visible = true
+	_skip_days = clampi(_skip_days, 1, most)
+	title.text = "TEACH ON YOUR OWN"
+
+	var lines: Array[String] = []
+	lines.append("[color=#%s]How many days should the class carry on without you?[/color]"
+		% DIM)
+	lines.append("")
+	var pips := ""
+	for i in most:
+		pips += "[color=#%s]%s[/color]" % [
+			C_LESSON if i < _skip_days else BAR_TRACK,
+			BAR_FULL if i < _skip_days else BAR_EMPTY]
+	lines.append("   %s   [color=#%s]%s[/color]" % [pips, C_LESSON,
+		"1 day" if _skip_days == 1 else "%d days" % _skip_days])
+	lines.append("")
+	# What it costs, in the terms the rest of the game uses. Prose, and no
+	# number standing in for what any child will manage -- see CLAUDE.md.
+	lines.append("[color=#%s]They will be taught steadily, but not by you.[/color]" % DIM)
+	lines.append("[color=#%s]No homework goes out on a day you are not here,[/color]" % DIM)
+	lines.append("[color=#%s]so none comes back to mark.[/color]" % DIM)
+	if _skip_days >= most:
+		lines.append("[color=#%s]That is as far as you can go before the exam.[/color]"
+			% C_HOMEWORK)
+	rich.text = "\n".join(lines)
+	hint.text = _clip("Left/Right - days   E - hand it over")
+
+
+## Run the days the player just agreed to, then show what happened.
+func _do_skip() -> void:
+	var n := _skip_days
+	var world: Node = get_tree().get_first_node_in_group("classroom")
+	if world == null or not world.has_method("run_skipped_days"):
+		close()
+		return
+	Sfx.play("confirm")
+	var rows: Array = world.run_skipped_days(n)
+	show_skip_report(rows)
+
+
+## What the days you were not there for came to.
+##
+## One row per day, because "three days passed" with a single average is the
+## kind of summary that hides the day it went wrong on -- and the day it went
+## wrong on is the whole reason to look.
+func show_skip_report(rows: Array) -> void:
+	_open(Mode.SKIP_REPORT)
+	body.visible = false
+	rich.visible = true
+	title.text = "WHILE YOU WERE AWAY"
+	var lines: Array[String] = []
+	if rows.is_empty():
+		lines.append("[color=#%s]Nothing happened. No days were handed over.[/color]" % DIM)
+	for row: Dictionary in rows:
+		var d: Dictionary = row
+		lines.append("[color=#%s]Day %d[/color]  %s  [color=#%s]%s[/color]  [color=#%s]+%d coins[/color]" % [
+			DIM, int(d.get("day", 0)),
+			String(d.get("subject", "")).rpad(12),
+			C_LESSON, String(d.get("letter", "?")),
+			C_COIN, int(d.get("coins", 0))])
+		if String(d.get("joined", "")) != "":
+			lines.append("   [color=#%s]%s joined the class.[/color]"
+				% [C_GOOD, String(d.get("joined", ""))])
+	lines.append("")
+	lines.append("[color=#%s]You are back in the room.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	hint.text = _clip("E - back to it")
 
 ## How many of a subject's concepts you already have.
 func _known_of(l: Dictionary) -> int:
@@ -4445,6 +4615,29 @@ func _handle_input() -> void:
 
 	if mode == Mode.ADS:
 		_handle_ads_input()
+		return
+
+	if mode == Mode.SKIP:
+		var most: int = Game.skip_days_available()
+		if Input.is_action_just_pressed("cancel"):
+			Sfx.play("blip")
+			close()
+		elif Input.is_action_just_pressed("move_right"):
+			_skip_days = mini(_skip_days + 1, most)
+			Sfx.play("blip")
+			show_skip()
+		elif Input.is_action_just_pressed("move_left"):
+			_skip_days = maxi(_skip_days - 1, 1)
+			Sfx.play("blip")
+			show_skip()
+		elif Game.claim_interact():
+			_do_skip()
+		return
+
+	if mode == Mode.SKIP_REPORT:
+		if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+			Sfx.play("blip")
+			close()
 		return
 
 	if mode == Mode.SPECIALISM:

@@ -26,7 +26,9 @@ const ACTIONS := [
 	{"action": "build", "label": "Rearrange the room"},
 	{"action": "autopilot", "label": "Go to whoever needs me"},
 	{"action": "auto_teach", "label": "Auto-teach the lesson"},
+	{"action": "skip_days", "label": "Teach on your own for a few days"},
 	{"action": "dash", "label": "Dash"},
+	{"action": "fullscreen", "label": "Fullscreen"},
 	{"action": "menu", "label": "Class list"},
 	{"action": "dashboard", "label": "Your dashboard"},
 	{"action": "watch", "label": "Watch a delegated room"},
@@ -58,7 +60,13 @@ const DEFAULTS := {
 	"build": [KEY_B],
 	"autopilot": [KEY_R],
 	"auto_teach": [KEY_T],
+	# N for "next days". Its own key, not a mode of auto-teach (T):
+	# one hands over the lesson you are stood in, the other hands over
+	# whole days, and CLAUDE.md's one-key-per-verb rule exists because
+	# two verbs sharing a key is how E stopped meaning anything.
+	"skip_days": [KEY_N],
 	"dash": [KEY_SHIFT],
+	"fullscreen": [KEY_F11],
 	"menu": [KEY_TAB],
 	"dashboard": [KEY_I],
 	"watch": [KEY_V],
@@ -77,7 +85,10 @@ var master_volume: float = 0.8
 var sfx_volume: float = 0.9
 var music_volume: float = 0.6
 var window_scale: int = 3
-var fullscreen: bool = false
+## On by default since Sept 2026, on request. A settings file written
+## before that keeps whatever it says -- FACTORY is only consulted for
+## a key that is absent.
+var fullscreen: bool = true
 var show_hints: bool = true
 var bindings: Dictionary = {}
 
@@ -88,6 +99,18 @@ func _ready() -> void:
 	Game.migrate_legacy_user_files()
 	load_settings()
 	apply_all()
+
+
+## Fullscreen, from anywhere, without walking to the settings page.
+##
+## In the AUTOLOAD rather than in main.gd or title.gd, because it has to
+## work on both and on every dev tool too, and because it is the one verb
+## in this game that is about the window rather than about the classroom.
+## Handled here and marked handled, so no screen underneath also acts on it.
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("fullscreen"):
+		toggle_fullscreen()
+		get_viewport().set_input_as_handled()
 
 
 # ------------------------------------------------------------- bindings
@@ -168,12 +191,57 @@ func apply_audio() -> void:
 
 # -------------------------------------------------------------- window
 
+## The size one "x1" of window scale means. This is the VIEWPORT, from
+## project.godot -- and it was wrong here for a month: this still said
+## 320x176 after the Aug 2026 resolution doubling, so "x3" opened a
+## 960x528 window showing a 640x352 viewport at one and a half times
+## size. Every pixel edge landed on a half pixel, which is exactly what
+## the integer scale in project.godot exists to prevent.
+const BASE := Vector2i(640, 352)
+
+
+## The largest whole scale this monitor can actually show, so "x6" on a
+## 1080p screen opens a window you can still find the title bar of.
+func max_window_scale() -> int:
+	var screen := DisplayServer.screen_get_usable_rect(
+		DisplayServer.window_get_current_screen()).size
+	if screen.x <= 0 or screen.y <= 0:
+		return 6
+	return clampi(mini(screen.x / BASE.x, screen.y / BASE.y), 1, 6)
+
+
+## True when this process was launched straight into a scene under
+## res://tools/ -- the art forge, the Master Forge, a screenshot run.
+##
+## Those set their own window size and expect to get it. Fullscreen is on
+## by DEFAULT for the game now, and DisplayServer.window_set_size() does
+## not take a fullscreen window back to windowed, so without this every
+## dev tool would open full screen at the game's aspect and ignore the
+## size it asked for. Reading the command line is blunt but it is the only
+## thing that knows, at autoload time, which scene is about to run.
+func _launched_into_a_tool() -> bool:
+	for arg: String in OS.get_cmdline_args():
+		if arg.begins_with("res://tools/"):
+			return true
+	return false
+
+
 func apply_window() -> void:
-	if fullscreen:
+	if fullscreen and not _launched_into_a_tool():
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 		return
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	DisplayServer.window_set_size(Vector2i(320, 176) * window_scale)
+	DisplayServer.window_set_size(BASE * clampi(window_scale, 1, max_window_scale()))
+
+
+## Flip fullscreen and remember it. Bound to a key as well as sitting on
+## the settings page, because the settings page is three screens away from
+## a lesson and this is the one display setting you change mid-play.
+func toggle_fullscreen() -> void:
+	fullscreen = not fullscreen
+	apply_window()
+	save_settings()
+	changed.emit()
 
 
 func apply_all() -> void:
@@ -202,7 +270,7 @@ func to_dict() -> Dictionary:
 ## silent no-op, which meant "reset to defaults" reset nothing.
 const FACTORY := {
 	"master_volume": 0.8, "sfx_volume": 0.9, "music_volume": 0.6,
-	"window_scale": 3, "fullscreen": false, "show_hints": true,
+	"window_scale": 3, "fullscreen": true, "show_hints": true,
 }
 
 func from_dict(d: Dictionary) -> void:

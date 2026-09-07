@@ -42,6 +42,52 @@ static func puff(parent: Node2D, at: Vector2, colour := Color(1, 1, 1, 0.8),
 		tw.chain().tween_callback(s.queue_free)
 
 
+## The kick of smoke a dash launches out of.
+##
+## Not puff(): a puff is five flecks of chalk dust drifting UP, for something
+## that has just been finished. This is a low, wide, ground-hugging cloud
+## that spreads outward and BACKWARDS along the direction of travel, and it
+## grows as it goes rather than only fading -- the difference between "that
+## finished" and "that shoved off hard". The trail (afterimage) says where
+## the dash went; this says how hard it started.
+##
+## `count`, `spread` and `size` come from Progress.dash_smoke_*(), so the
+## Light Feet perk makes the cloud visibly bigger as it makes the dash
+## longer. Seeded from the engine, never Game.rng -- see puff() for why.
+static func smoke(parent: Node2D, at: Vector2, heading: Vector2,
+		count: int = 8, spread: float = 16.0, size: float = 2.2,
+		seconds: float = 0.5) -> void:
+	if parent == null or not is_instance_valid(parent):
+		return
+	# Straight back down the direction of travel. A dash fired from a dead
+	# stop (the double-tap can do that) has no heading, and a cloud with no
+	# direction is still a cloud, so fall back to "outward, every way".
+	var back := -heading.normalized() if heading.length() > 0.01 else Vector2.ZERO
+	for i in maxi(1, count):
+		var s := Sprite2D.new()
+		s.texture = DUST
+		s.position = at
+		# Warm grey, and thinner the more of it there is, so a levelled dash
+		# throwing twenty motes does not become an opaque wall over the room.
+		s.modulate = Color(0.86, 0.83, 0.78, clampf(0.7 - count * 0.012, 0.28, 0.7))
+		s.scale = Vector2.ONE * size * randf_range(0.6, 1.15)
+		s.z_index = 59              # under the chalk puff, over the floor
+		parent.add_child(s)
+		var fan := Vector2.RIGHT.rotated(randf_range(-PI, PI))
+		if back != Vector2.ZERO:
+			fan = back.rotated(randf_range(-1.1, 1.1))
+		var to := at + fan * spread * randf_range(0.45, 1.0) \
+			+ Vector2(0, randf_range(-2.0, 3.0))
+		var tw := s.create_tween().set_parallel(true)
+		tw.tween_property(s, "position", to, seconds) \
+			.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
+		# billowing: a real puff of dust gets bigger as it thins out
+		tw.tween_property(s, "scale", s.scale * 1.9, seconds) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(s, "modulate:a", 0.0, seconds).set_delay(seconds * 0.25)
+		tw.chain().tween_callback(s.queue_free)
+
+
 ## A fading ghost of a sprite, left where it currently stands. Spawn one
 ## every frame or two while an actor is dashing and the trail draws itself
 ## as the actor moves on -- a lunge reads as a lunge rather than the actor

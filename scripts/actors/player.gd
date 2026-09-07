@@ -507,6 +507,11 @@ var _dash_stumbled: bool = false
 var _dash_fx_room: Node = null
 ## The most ghosts a trail may hold at once. Decoration, not a tunable.
 const DASH_TRAIL_CAP := 12
+## How far below the sprite's origin the smoke starts. The teacher's
+## origin is their middle, and dust kicked from someone's waist reads as
+## smoke coming off them rather than off the floor. Decoration, not a
+## tunable -- it is a fact about where this sprite's feet are.
+const SMOKE_FOOT_DROP := 10.0
 var _dash_ghost_t: float = 0.0
 
 ## Double-tap-a-direction trigger. Seconds since the last just_pressed on
@@ -566,7 +571,11 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 			"lane":
 				if _dash_lane_left > 0.0:
 					var carry: float = minf(delta, _dash_lane_left)
-					_dash_burst = minf(Balance.teacher_dash_duration, _dash_burst + carry)
+					# Capped at the LEVELLED duration, not the base one: with Light
+					# Feet the base is shorter than the dash you actually fired, so
+					# capping there would have a clear lane SHORTEN a levelled dash.
+					_dash_burst = minf(Progress.dash_duration(Game.perk_ranks),
+						_dash_burst + carry)
 					_dash_lane_left -= carry
 
 	# A few fading ghosts while the burst is live -- the trail draws itself
@@ -600,11 +609,34 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 	var wants_dash := Game.claim_action("dash") or double_tapped
 	if wants_dash and Game.dash_taught:
 		Balance.ensure_loaded()
-		_dash_burst = Balance.teacher_dash_duration
-		_dash_cool = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown
+		# Through Progress, not straight off Balance: the Light Feet perk
+		# lengthens the burst and shortens the wait, and every perk effect in
+		# this game funnels through Progress so there is one place to look
+		# when one does not seem to be doing anything.
+		_dash_burst = Progress.dash_duration(Game.perk_ranks)
+		_dash_cool = _dash_burst + Progress.dash_cooldown(Game.perk_ranks)
 		_dash_lane_left = Balance.teacher_dash_lane_extend
 		_dash_stumbled = false
 		Sfx.play("blip")
+		_kick_up_smoke(dir)
+
+
+## The launch cloud. Decoration only -- gated on actually being in play, the
+## same way the trail is, so a scripted walk or a locked screen kicks up
+## nothing, and skipped entirely when there is no room to hang it on (a
+## headless sim has no classroom node).
+func _kick_up_smoke(dir: Vector2) -> void:
+	if input_locked or _walking_scripted:
+		return
+	var room := get_tree().get_first_node_in_group("classroom")
+	if room == null:
+		return
+	Balance.ensure_loaded()
+	Fx.smoke(room, global_position + Vector2(0, SMOKE_FOOT_DROP), dir,
+		Progress.dash_smoke_count(Game.perk_ranks),
+		Balance.teacher_dash_smoke_spread,
+		Progress.dash_smoke_scale(Game.perk_ranks),
+		Balance.teacher_dash_smoke_seconds)
 
 
 ## 0 when dash is ready to fire again, up to 1 the instant one just did.
@@ -612,7 +644,11 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 ## hud.gd _update_status().
 func dash_cooldown_fraction() -> float:
 	Balance.ensure_loaded()
-	var total: float = Balance.teacher_dash_duration + Balance.teacher_dash_cooldown
+	# The LEVELLED total, matching what _tick_dash actually set _dash_cool
+	# to. Measured against the base instead, a Light Feet dash would show a
+	# meter that never quite filled.
+	var total: float = Progress.dash_duration(Game.perk_ranks) \
+		+ Progress.dash_cooldown(Game.perk_ranks)
 	if total <= 0.0:
 		return 0.0
 	return clampf(_dash_cool / total, 0.0, 1.0)

@@ -62,6 +62,42 @@ static func speed(ranks: Dictionary, boost: float = 1.0) -> float:
 		+ Balance.perk_brisk_walk_speed * float(ranks.get("brisk_walk", 0))) * boost
 
 
+## The dash, levelled. Light Feet makes a dash cover more ground by
+## lasting LONGER, not by going faster: speed is Brisk Walk's effect, and
+## a second perk that also raised it would be the same perk twice.
+static func dash_duration(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return Balance.teacher_dash_duration \
+		+ Balance.perk_light_feet_duration * float(ranks.get("light_feet", 0))
+
+
+## The wait between dashes. FLOORED at a quarter of the base, deliberately:
+## teacher._dash_note says the cooldown is long enough for the HUD meter to
+## mean something, and a perk that took it to zero would quietly delete the
+## thing the dash is limited by -- and with it the reason a room's layout
+## (lanes and clutter) matters to a dash at all.
+static func dash_cooldown(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	var full: float = Balance.teacher_dash_cooldown
+	return maxf(full * 0.25,
+		full - Balance.perk_light_feet_cooldown * float(ranks.get("light_feet", 0)))
+
+
+## How many motes the launch puff throws, and how big each one is. Pure
+## juice -- nothing but Fx reads these -- but they are what makes a levelled
+## dash LOOK levelled rather than only measure faster.
+static func dash_smoke_count(ranks: Dictionary) -> int:
+	Balance.ensure_loaded()
+	return Balance.teacher_dash_smoke_count \
+		+ Balance.perk_light_feet_smoke * int(ranks.get("light_feet", 0))
+
+
+static func dash_smoke_scale(ranks: Dictionary) -> float:
+	Balance.ensure_loaded()
+	return Balance.teacher_dash_smoke_scale \
+		+ Balance.perk_light_feet_smoke_scale * float(ranks.get("light_feet", 0))
+
+
 static func pick_radius(ranks: Dictionary) -> float:
 	Balance.ensure_loaded()
 	return Balance.teacher_pick_radius \

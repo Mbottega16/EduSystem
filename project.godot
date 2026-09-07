@@ -35,7 +35,16 @@ window/size/viewport_height=352
 window/size/window_width_override=1920
 window/size/window_height_override=1056
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
+; "expand", not "keep": with "keep" a window that is not exactly 20:11
+; got black bars, and black bars are not a background. Expanding grows
+; the VIEWPORT to the window's shape instead, so the extra space is
+; real space the game draws into -- scenes/main.tscn's Backdrop layer
+; fills it, and classroom.gd centres the room in it. The room itself is
+; still 640x352 and still pixel-exact; nothing about it scales.
+window/stretch/aspect="expand"
+; Drag the window to any size. It was always true (Godot's default) but
+; was never written down, and nothing in the game said so.
+window/size/resizable=true
 
 [input]
 
