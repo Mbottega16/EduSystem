@@ -73,6 +73,11 @@ var _cards: Array[Control] = []
 ## see _select(), and the scroll jump that rebuilding caused.
 var _frames: Array[PanelContainer] = []
 
+## Emitted whenever the selected sprite changes (name, or "" for none).
+## Inside the Master Forge the Art tab has no picker of its own and listens
+## to this -- the gallery is that tab's target. See master_forge.gd.
+signal sprite_selected(sprite_name: String)
+
 # --- edit mode ---
 var _editing := false
 var _edit_name := ""
@@ -334,21 +339,26 @@ func _zoom_by(d: int) -> void:
 	if z == _zoom:
 		return
 	_zoom = z
-	_build()
+	_build(true)
 
 
 func _rescan() -> void:
 	_scan_references()
 	_scan_files()
-	_build()
+	_build(true)
 
 
 func _on_filter_changed(_t: String) -> void:
 	_filter_text = String(%Filter.text).strip_edges().to_lower()
-	_build()
+	# A filter narrows the list to something new; the top is the right place
+	# to be. Do NOT chase the old selection down the page on every keystroke.
+	_build(false)
 
 
-func _build() -> void:
+## `reveal_sel` brings the selected card back into view once the rebuilt
+## grid has laid out -- wanted after Save, Rescan and zoom, not while typing
+## a filter. Rebuilding used to drop you at the top every time regardless.
+func _build(reveal_sel: bool = false) -> void:
 	for c in grid.get_children():
 		c.queue_free()
 	_cards.clear()
@@ -386,6 +396,25 @@ func _build() -> void:
 		lines.append("[color=#a5d6a7]Every image is referenced, and everything referenced exists.[/color]")
 	report.text = "\n".join(lines)
 
+	if reveal_sel and _sel_name != "":
+		_reveal_selected_deferred()
+
+
+## Bring the selected card back into view after a rebuild. The cards were
+## just freed and remade, so their rects are not settled until the next
+## layout pass -- ensure_control_visible() before that scrolls to (0, 0),
+## which is the jump-to-top this file keeps having to fight.
+func _reveal_selected_deferred() -> void:
+	var idx := _view.find(_sel_name)
+	if idx < 0:
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(self) or not is_instance_valid(scroll):
+		return
+	if idx < _cards.size() and is_instance_valid(_cards[idx]):
+		scroll.ensure_control_visible(_cards[idx])
+
 
 ## As many whole columns as the gallery is actually wide enough for.
 ## Recomputed on every resize, so dragging the forge's splitter reflows the
@@ -393,7 +422,25 @@ func _build() -> void:
 func _reflow() -> void:
 	var avail := scroll.size.x - 16.0        # leave room for the scrollbar
 	var step := _cell_size() + float(grid.get_theme_constant("h_separation"))
-	grid.columns = maxi(1, int(avail / maxf(step, 1.0)))
+	var cols := maxi(1, int(avail / maxf(step, 1.0)))
+	if cols == grid.columns:
+		return
+	# Changing the column count changes the grid's total height. The
+	# ScrollContainer would keep its pixel offset, which is now a different
+	# row of sprites. Hold the position PROPORTIONALLY instead, so dragging
+	# the forge's splitter leaves you looking at roughly the same place.
+	var vbar := scroll.get_v_scroll_bar()
+	var ratio := (scroll.scroll_vertical / vbar.max_value) if vbar.max_value > 0.0 else 0.0
+	grid.columns = cols
+	_restore_scroll_ratio(ratio)
+
+
+func _restore_scroll_ratio(ratio: float) -> void:
+	await get_tree().process_frame
+	if not is_instance_valid(self) or not is_instance_valid(scroll):
+		return
+	var vbar := scroll.get_v_scroll_bar()
+	scroll.scroll_vertical = int(round(ratio * vbar.max_value))
 
 
 func _cell_size() -> int:
@@ -604,6 +651,9 @@ func _select(index: int, reveal: bool = true) -> void:
 ## had no such line: the only feedback for a click was a border you had to
 ## hunt for among 131 thumbnails.
 func _update_selbar() -> void:
+	# One place the selection is reported out. Covers click, arrow keys and
+	# the post-save rebuild -- anything that lands here has settled _sel_name.
+	sprite_selected.emit(_sel_name)
 	var has := _sel_name != ""
 	(%EditBtn as Button).disabled = not has
 	if not has:
@@ -1336,7 +1386,8 @@ func _save_editor() -> void:
 	_scan_references()
 	_scan_files()
 	_sel_name = saved_name
-	_build()
+	# Land back on the sprite you just saved, not at the top of the gallery.
+	_build(true)
 
 	var note := "[color=#a5d6a7]Saved art/%s.png + tools/sprites/%s.txt.[/color]  " % [
 		saved_name, saved_name]

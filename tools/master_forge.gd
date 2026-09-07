@@ -38,6 +38,12 @@ func _ready() -> void:
 			(tab as ForgeTab).forged.connect(
 				func(_n: String) -> void: curator.call("_rescan"))
 
+	# The Art tab keeps no picker of its own: the gallery is its target.
+	# Keep the two in lockstep so what you select is what Forge rebuilds.
+	var art_tab := %ArtForgeUI as ForgeTab
+	if curator != null and art_tab != null:
+		curator.connect("sprite_selected", Callable(art_tab, "set_external_target"))
+
 
 func _on_sync_pressed() -> void:
 	sync_btn.disabled = true

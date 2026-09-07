@@ -9,14 +9,20 @@ extends ForgeTab
 
 func _ready() -> void:
 	cfg_script = "forge_art.py"
-	cfg_title = "Art — characters, items, tiles (forge_art.py)"
-	cfg_target_hint = "Sprite name (e.g. child1)"
+	cfg_title = "Art — characters, items, tiles"
+	cfg_target_hint = "Sprite name"
 	cfg_module = ""
-	cfg_list_arg = "names"
-	cfg_blurb = ("Recolour a generated sprite and rewrite art/. "
-		+ "To draw one by hand, use the gallery on the right instead.")
+	cfg_list_arg = ""          # the gallery is the target; nothing to list
+	cfg_blurb = ("Recolour a generated sprite by its palette, then rewrite art/. "
+		+ "The gallery on the right is the target — pick there.")
 	build_tab()
 	log_line("Character keys: hair, hair_style, glasses, skin, pattern.",
 		"#8a929c")
-	log_line("A hand-drawn sprite is refused — edit it in the browser to "
-		+ "the right instead.", "#8a929c")
+	log_line("Hand-drawn sprites are refused here — select one in the gallery "
+		+ "and press Edit sprite instead.", "#8a929c")
+
+
+## The gallery beside this tab is the picker. See ForgeTab.set_external_target,
+## wired to the curator in master_forge.gd.
+func uses_external_target() -> bool:
+	return true

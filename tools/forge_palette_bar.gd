@@ -29,6 +29,7 @@ var module_filter: String = ""
 var _key_pick: OptionButton
 var _colour_btn: ColorPickerButton
 var _swatches: HFlowContainer
+var _pen: ScrollContainer
 var _entries: Array[Dictionary] = []
 
 
@@ -39,39 +40,49 @@ func setup(filter: String = "") -> void:
 
 
 func _build() -> void:
+	add_theme_constant_override("separation", 6)
+
 	var row := HBoxContainer.new()
 	add_child(row)
 
 	var lbl := Label.new()
-	lbl.text = "colour "
-	lbl.add_theme_color_override("font_color", Color(0.62, 0.66, 0.72))
+	lbl.text = "colour"
+	lbl.add_theme_color_override("font_color", ForgeTheme.DIM)
 	row.add_child(lbl)
 
 	_key_pick = OptionButton.new()
-	_key_pick.custom_minimum_size = Vector2(190, 0)
+	_key_pick.custom_minimum_size = Vector2(180, 0)
 	_key_pick.tooltip_text = "Which colour constant to set"
 	row.add_child(_key_pick)
 
 	_colour_btn = ColorPickerButton.new()
-	_colour_btn.custom_minimum_size = Vector2(56, 0)
+	_colour_btn.custom_minimum_size = Vector2(52, 0)
 	_colour_btn.color = Color(0.61, 0.43, 0.26)
 	_colour_btn.tooltip_text = "Pick any colour"
 	row.add_child(_colour_btn)
 
-	var add := Button.new()
+	var add := ForgeTheme.secondary(Button.new())
 	add.text = "Set"
 	add.tooltip_text = "Write this KEY=#hex into the parameters below"
 	add.pressed.connect(_emit_current)
 	row.add_child(add)
 
-	var hint := Label.new()
-	hint.text = "  — or click a house swatch to set the chosen key straight away"
-	hint.add_theme_font_size_override("font_size", 11)
-	hint.add_theme_color_override("font_color", Color(0.52, 0.56, 0.62))
-	row.add_child(hint)
+	add_child(ForgeTheme.caption(
+		"Or click a house swatch below to set the chosen key straight away."))
 
+	# The Art tab's swatches were a ~90-tile wall that pushed the parameter
+	# box off the bottom of the panel. Cap it and let it scroll -- the box
+	# you type into matters more than seeing every colour at once. Tabs with
+	# only a handful of swatches (Items, HUD) shrink to fit instead; see
+	# _fit_pen().
+	_pen = ScrollContainer.new()
+	_pen.custom_minimum_size = Vector2(0, 28)
+	_pen.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_pen.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(_pen)
 	_swatches = HFlowContainer.new()
-	add_child(_swatches)
+	_swatches.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pen.add_child(_swatches)
 
 
 func _emit_current() -> void:
@@ -117,6 +128,10 @@ func _load() -> void:
 	if _entries.size() > 0:
 		_key_pick.select(0)
 		_colour_btn.color = _entries[0]["colour"]
+	# One module's worth of swatches (Items, HUD) is a row or two -- give it
+	# just that. The Art tab offers every module at once (~90) and needs the
+	# scroll. Sized off the count so it never clips or leaves a dead band.
+	_pen.custom_minimum_size.y = 104.0 if _entries.size() > 30 else 60.0
 
 
 func _build_swatches() -> void:
@@ -143,7 +158,7 @@ func _build_swatches() -> void:
 		for e: Dictionary in by_group[g]:
 			var sw := ColorRect.new()
 			sw.color = e["colour"]
-			sw.custom_minimum_size = Vector2(20, 20)
+			sw.custom_minimum_size = Vector2(16, 16)
 			sw.tooltip_text = "%s  %s" % [e["name"], e["hex"]]
 			sw.mouse_filter = Control.MOUSE_FILTER_STOP
 			sw.gui_input.connect(func(ev: InputEvent) -> void:

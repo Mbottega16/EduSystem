@@ -113,6 +113,38 @@ static func heading(text: String) -> Label:
 	return l
 
 
+## A numbered step header: a filled amber chip with the number, then the
+## step's name at a size you actually read. The tabs are a 1-2-3 and now
+## look like one -- the old header was 11px grey caps that the eye slid
+## straight past, so nothing said where to start.
+static func step(n: int, title: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 9)
+
+	var chip := PanelContainer.new()
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var sb := flat(ACCENT, Color(0, 0, 0, 0), 0, 4)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 1
+	chip.add_theme_stylebox_override("panel", sb)
+	var num := Label.new()
+	num.text = str(n)
+	num.add_theme_font_size_override("font_size", 12)
+	num.add_theme_color_override("font_color", ACCENT_INK)
+	chip.add_child(num)
+	row.add_child(chip)
+
+	var lbl := Label.new()
+	lbl.text = title
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", INK)
+	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(lbl)
+	return row
+
+
 static func caption(text: String) -> Label:
 	var l := Label.new()
 	l.text = text

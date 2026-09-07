@@ -45,6 +45,12 @@ var _filter: LineEdit
 var _forge_btn: Button
 var _all_targets: Array[String] = []
 
+## Set only when uses_external_target() is true -- the Art tab, whose target
+## is whatever is selected in the sprite gallery beside it. The shell keeps
+## it current through set_external_target().
+var _external_target := ""
+var _target_echo: Label
+
 
 func build_tab() -> void:
 	add_theme_constant_override("separation", 12)
@@ -62,7 +68,15 @@ func build_tab() -> void:
 	_build_step_params()
 	_build_step_run()
 
+	# Hold the three steps at the top. Without this the step-3 card stretched
+	# to the bottom of the tab and the Audio/Items/HUD tabs were mostly one
+	# enormous empty log.
+	var tail := Control.new()
+	tail.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(tail)
+
 	_load_targets()
+	_update_forge_btn()
 
 
 ## Step 1 -- what to rebuild.
@@ -71,7 +85,21 @@ func _build_step_target() -> void:
 	add_child(card)
 	var col := VBoxContainer.new()
 	card.add_child(col)
-	col.add_child(ForgeTheme.heading("1 · Pick what to rebuild"))
+	col.add_child(ForgeTheme.step(1, "Pick what to rebuild"))
+
+	if uses_external_target():
+		# This tab keeps no picker of its own: the sprite gallery beside it
+		# IS the target. Two lists that ignored each other -- a dropdown here
+		# and the gallery there -- was the tab's most confusing part.
+		_target_echo = Label.new()
+		_target_echo.add_theme_font_size_override("font_size", 15)
+		_target_echo.add_theme_color_override("font_color", ForgeTheme.ACCENT)
+		_target_echo.text = "— nothing selected —"
+		col.add_child(_target_echo)
+		col.add_child(ForgeTheme.caption(
+			"Click a sprite in the gallery on the right. That is what Forge rebuilds, "
+			+ "and what Edit opens for hand-drawing."))
+		return
 
 	var row := HBoxContainer.new()
 	col.add_child(row)
@@ -109,7 +137,7 @@ func _build_step_params() -> void:
 	add_child(card)
 	var col := VBoxContainer.new()
 	card.add_child(col)
-	col.add_child(ForgeTheme.heading("2 · Set what to change"))
+	col.add_child(ForgeTheme.step(2, "Set what to change"))
 
 	# "none" means this forge's parameters are not colours -- the Audio tab.
 	# A bar with every swatch filtered out is worse than no bar: it looks
@@ -133,14 +161,13 @@ func _build_step_params() -> void:
 ## Step 3 -- do it, and read what happened.
 func _build_step_run() -> void:
 	var card := ForgeTheme.card()
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(card)
 	var col := VBoxContainer.new()
 	card.add_child(col)
 
 	var row := HBoxContainer.new()
 	col.add_child(row)
-	row.add_child(ForgeTheme.heading("3 · Forge it"))
+	row.add_child(ForgeTheme.step(3, "Forge it"))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
@@ -161,8 +188,7 @@ func _build_step_run() -> void:
 	out = RichTextLabel.new()
 	out.bbcode_enabled = true
 	out.scroll_following = true
-	out.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	out.custom_minimum_size = Vector2(0, 120)
+	out.custom_minimum_size = Vector2(0, 150)
 	out.add_theme_font_size_override("normal_font_size", 12)
 	col.add_child(out)
 
@@ -172,8 +198,25 @@ func extra_controls(_row: HBoxContainer) -> void:
 	pass
 
 
+## True on a tab whose target is chosen elsewhere -- the Art tab, where the
+## sprite gallery is the one picker. The base tab owns its own dropdown.
+func uses_external_target() -> bool:
+	return false
+
+
+## The shell calls this whenever the external picker's selection changes.
+func set_external_target(sprite_name: String) -> void:
+	_external_target = sprite_name
+	if _target_echo != null:
+		_target_echo.text = sprite_name if sprite_name != "" else "— nothing selected —"
+	if _forge_btn != null:
+		_update_forge_btn()
+
+
 ## The one place anything asks "what am I forging?".
 func current_target() -> String:
+	if uses_external_target():
+		return _external_target
 	if targets == null or targets.selected < 0:
 		return ""
 	return targets.get_item_text(targets.selected)
