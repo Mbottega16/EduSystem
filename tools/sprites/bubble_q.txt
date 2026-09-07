@@ -1,0 +1,26 @@
+# name: bubble_q
+# palette: a = #241a12, b = #fcfaf2, c = #c4483c
+.aaaaaaaaaaaaaaaaaaaa.
+abbbbbbbbbbbbbbbbbbbba
+abbbbbbbccccccbbbbbbba
+abbbbbbccccccccbbbbbba
+abbbbbcccbbbbbccbbbbba
+abbbbbccbbbbbbccbbbbba
+abbbbbbbbbbbcccbbbbbba
+abbbbbbbbbbcccbbbbbbba
+abbbbbbbbbcccbbbbbbbba
+abbbbbbbbbccbbbbbbbbba
+abbbbbbbbbbbbbbbbbbbba
+abbbbbbbbbbbbbbbbbbbba
+abbbbbbbbbccbbbbbbbbba
+abbbbbbbbbccbbbbbbbbba
+abbbbbbbbbbbbbbbbbbbba
+.aabbbbbbbbbbbbbbbbaa.
+..aaaaabbbbbbbbaaaaa..
+......aabbbbbbaa......
+.......abbbbbba.......
+.......aabbbbaa.......
+........abbbba........
+.........abba.........
+..........aa..........
+......................
