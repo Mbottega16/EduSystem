@@ -14,6 +14,7 @@ extends Control
 ## zooms toward the cursor and the middle mouse button drags to pan.
 
 signal pixel_down(pos: Vector2i)
+signal pixel_right_click(pos: Vector2i)
 signal pixel_drag(pos: Vector2i)
 signal pixel_up()
 ## Fired on plain mouse-move (not while painting or panning) so the editor
@@ -121,6 +122,10 @@ func _gui_input(e: InputEvent) -> void:
 				elif _dragging:
 					_dragging = false
 					pixel_up.emit()
+				accept_event()
+			MOUSE_BUTTON_RIGHT:
+				if mb.pressed:
+					pixel_right_click.emit(_to_pixel(mb.position))
 				accept_event()
 			MOUSE_BUTTON_MIDDLE:
 				# hold to pan

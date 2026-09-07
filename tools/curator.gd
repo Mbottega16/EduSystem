@@ -58,10 +58,20 @@ var _grounds := [BG_LIGHT, BG_DARK, BG_CHROMA]
 var _ground := 0
 var _zoom := 3
 var _files: Array[String] = []
+## The filtered subset actually on screen. Everything about selection and
+## arrow-key navigation counts in THIS, not in _files.
+var _view: Array[String] = []
+var _filter_text := ""
 var _referenced := {}      ## art name -> where it is mentioned
 var _missing: Array[String] = []
-var _sel := -1
+## The selection is held as a NAME, not an index. An index into a list that
+## a filter can reshuffle stops meaning anything the moment you type.
+var _sel_name := ""
 var _cards: Array[Control] = []
+## The selection frame of each card, parallel to _cards. Kept so changing
+## the selection can repaint two borders instead of rebuilding the grid --
+## see _select(), and the scroll jump that rebuilding caused.
+var _frames: Array[PanelContainer] = []
 
 # --- edit mode ---
 var _editing := false
@@ -81,34 +91,81 @@ var _shape_anchor := Vector2i(-1, -1)   ## line/rect/ellipse anchor; -1 = none
 var _shape_last := Vector2i(-1, -1)
 var _cur_colour := Color(0.1, 0.1, 0.1, 1.0)
 var _palette: Array[Color] = []
+## The house palette (tools/palette.json), as [{group, name, colour}].
+## Always on screen while the editor is open, so painting in the game's own
+## colours is one click rather than "open another sprite and eyedrop it".
+## Empty if the file is missing -- the editor still works, it just offers
+## nothing but the sprite's own colours, which is what it did before.
+var _house: Array[Dictionary] = []
+var _house_row: HFlowContainer
 var _swatch_row: HBoxContainer
 var _status: Label
 var _size_label: Label
 var _tool_btns := {}                     ## tool name -> toggle Button
 
-@onready var grid: GridContainer = $V/Scroll/Grid
-@onready var header: Label = $V/Header
-@onready var report: RichTextLabel = $V/Report
-@onready var scroll: ScrollContainer = $V/Scroll
-@onready var editor: VBoxContainer = $V/Editor
+## Node lookups go through % unique names rather than literal paths. The
+## toolbar was one flat row of twenty buttons and is now grouped; with
+## paths, regrouping it would have meant rewriting thirty lines of $V/...
+@onready var grid: GridContainer = %Grid
+@onready var report: RichTextLabel = %Report
+@onready var scroll: ScrollContainer = %Scroll
+@onready var browse: VBoxContainer = %Browse
+@onready var editor: VBoxContainer = %Editor
 @onready var canvas: Control = $V/Editor/Body/CanvasWrap/Canvas
-@onready var _btn_brush: Button = $V/Editor/Toolbar/Brush
-@onready var _btn_eraser: Button = $V/Editor/Toolbar/Eraser
-@onready var _btn_fill: Button = $V/Editor/Toolbar/Fill
-@onready var _btn_eyedrop: Button = $V/Editor/Toolbar/Eyedrop
+@onready var _btn_brush: Button = %Brush
+@onready var _btn_eraser: Button = %Eraser
+@onready var _btn_fill: Button = %Fill
+@onready var _btn_eyedrop: Button = %Eyedrop
+@onready var _size_btns := {1: %Size1, 2: %Size2, 4: %Size4, 8: %Size8, 16: %Size16}
+
+
+## True when this tool owns the window -- launched as the main scene by
+## Browse Art.bat, or dropped straight under the root by curator_shot.gd.
+## Inside the Master Forge it is one pane among several: it must not resize
+## the window, paint its own ground over the forge's, or quit on Escape.
+func _standalone() -> bool:
+	return get_tree().current_scene == self or get_parent() == get_tree().root
 
 
 func _ready() -> void:
-	# The project renders at 320x176 with viewport stretch; a dev tool wants
-	# a real window and real pixels.
-	get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
-	DisplayServer.window_set_size(Vector2i(1180, 820))
-	get_window().title = "EDUSystem - art"
+	# Standalone (Browse Art.bat) this owns the window; inside the Master
+	# Forge it is one pane of a bigger tool and must not resize anything.
+	if _standalone():
+		# The project renders at 320x176 with viewport stretch; a dev tool
+		# wants a real window and real pixels.
+		get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+		DisplayServer.window_set_size(Vector2i(1180, 820))
+		get_window().title = "EDUSystem - art"
+		theme = ForgeTheme.build()
+		($Bg as ColorRect).color = ForgeTheme.BG
+	else:
+		# The forge draws its own ground behind this pane; a second opaque
+		# rectangle over it just made the seam visible.
+		($Bg as ColorRect).color = Color(0, 0, 0, 0)
 
-	_swatch_row = $V/Editor/SwatchRow
-	_status = $V/Editor/Status
+	_swatch_row = %SwatchRow
+	_house_row = %HouseRow
+	_status = %Status
+	_load_house_palette()
+
+	%Filter.text_changed.connect(_on_filter_changed)
+	%GroundBtn.pressed.connect(_cycle_ground)
+	%ZoomIn.pressed.connect(_zoom_by.bind(1))
+	%ZoomOut.pressed.connect(_zoom_by.bind(-1))
+	%Rescan.pressed.connect(_rescan)
+	%NewBtn.pressed.connect(_prompt_new_sprite)
+	%EditBtn.pressed.connect(func() -> void:
+		if _sel_name != "":
+			_open_editor(_sel_name, false))
+	# The grid used a hard-coded 7 columns. In the Master Forge the gallery
+	# shares the window with a forge panel and 7 columns did not fit, so the
+	# right-hand column of sprites was simply cut off the edge -- there was
+	# no horizontal scrollbar to find, because a GridContainer just
+	# overflowed its parent.
+	scroll.resized.connect(_reflow)
 
 	canvas.pixel_down.connect(_on_pixel_down)
+	canvas.pixel_right_click.connect(_on_pixel_right_click)
 	canvas.pixel_drag.connect(_on_pixel_drag)
 	canvas.pixel_up.connect(_on_pixel_up)
 	canvas.pixel_hover.connect(_on_pixel_hover)
@@ -117,28 +174,51 @@ func _ready() -> void:
 	_tool_btns = {
 		"brush": _btn_brush, "eraser": _btn_eraser, "fill": _btn_fill,
 		"eyedrop": _btn_eyedrop,
-		"line": $V/Editor/Toolbar/Line, "rect": $V/Editor/Toolbar/Rect,
-		"ellipse": $V/Editor/Toolbar/Ellipse,
+		"line": %Line, "rect": %Rect, "ellipse": %Ellipse,
 	}
 	for tname: String in _tool_btns:
 		var b: Button = _tool_btns[tname]
 		b.pressed.connect(_set_tool.bind(tname))
-	_size_label = $V/Editor/Toolbar/SizeLabel
-	$V/Editor/Toolbar/SizeMinus.pressed.connect(func() -> void: _set_brush_size(_brush_size - 1))
-	$V/Editor/Toolbar/SizePlus.pressed.connect(func() -> void: _set_brush_size(_brush_size + 1))
-	($V/Editor/Toolbar/Round as CheckButton).toggled.connect(
+	_size_label = %SizeLabel
+	%SizeMinus.pressed.connect(func() -> void: _set_brush_size(_brush_size - 1))
+	%SizePlus.pressed.connect(func() -> void: _set_brush_size(_brush_size + 1))
+	# One click to a wide nib. [ and ] still step one at a time, but going
+	# from 1 to 16 that way is fifteen presses, which is why nobody did it.
+	for n: int in _size_btns:
+		(_size_btns[n] as Button).pressed.connect(_set_brush_size.bind(n))
+	(%Round as CheckButton).toggled.connect(
 		func(on: bool) -> void: _brush_round = on)
-	($V/Editor/Toolbar/Filled as CheckButton).toggled.connect(
+	(%Filled as CheckButton).toggled.connect(
 		func(on: bool) -> void: _shape_filled = on)
-	$V/Editor/Toolbar/Mirror.pressed.connect(_cycle_mirror)
-	$V/Editor/Toolbar/Undo.pressed.connect(_undo_action)
-	$V/Editor/Toolbar/Redo.pressed.connect(_redo_action)
-	$V/Editor/Toolbar/Save.pressed.connect(_save_editor)
-	$V/Editor/Toolbar/Cancel.pressed.connect(_close_editor)
+	%Mirror.pressed.connect(_cycle_mirror)
+	%Undo.pressed.connect(_undo_action)
+	%Redo.pressed.connect(_redo_action)
+	%Save.pressed.connect(_save_editor)
+	%Cancel.pressed.connect(_close_editor)
+	_style_widgets()
 
 	_scan_references()
 	_scan_files()
 	_build()
+
+
+## Which buttons matter, said in colour rather than in a tooltip nobody
+## hovers. Exactly one filled button per mode: Edit while browsing, Save
+## while editing.
+func _style_widgets() -> void:
+	ForgeTheme.primary(%EditBtn)
+	ForgeTheme.primary(%Save)
+	for b: Button in [%NewBtn, %Rescan, %GroundBtn, %ZoomIn, %ZoomOut,
+			%Undo, %Redo, %Cancel, %SizeMinus, %SizePlus]:
+		ForgeTheme.secondary(b)
+	for tname: String in _tool_btns:
+		ForgeTheme.tool_toggle(_tool_btns[tname])
+	for n: int in _size_btns:
+		var b: Button = _size_btns[n]
+		ForgeTheme.tool_toggle(b)
+		b.custom_minimum_size = Vector2(30, 0)
+	ForgeTheme.tool_toggle(%Mirror)
+	%Mirror.toggle_mode = false
 
 
 ## Everything the game asks for by name, and where it asks.
@@ -236,40 +316,88 @@ func _scan_files() -> void:
 		if not _files.has(want):
 			_missing.append(want)
 	_missing.sort()
-	_sel = clampi(_sel, -1, _files.size() - 1)
+	if not _files.has(_sel_name):
+		_sel_name = ""
+
+
+## Everything on the toolbar, in one place, so the row and the state it
+## reports cannot drift apart.
+func _cycle_ground() -> void:
+	_ground = (_ground + 1) % _grounds.size()
+	%GroundBtn.text = "Ground: " + ["light", "dark", "magenta"][_ground]
+	for c: Control in _cards:
+		(c.get_meta("frame") as ColorRect).color = _grounds[_ground]
+
+
+func _zoom_by(d: int) -> void:
+	var z := clampi(_zoom + d, 1, 10)
+	if z == _zoom:
+		return
+	_zoom = z
+	_build()
+
+
+func _rescan() -> void:
+	_scan_references()
+	_scan_files()
+	_build()
+
+
+func _on_filter_changed(_t: String) -> void:
+	_filter_text = String(%Filter.text).strip_edges().to_lower()
+	_build()
 
 
 func _build() -> void:
 	for c in grid.get_children():
 		c.queue_free()
 	_cards.clear()
+	_frames.clear()
 
+	_view.clear()
 	var unused: Array[String] = []
-	for i in _files.size():
-		var name: String = _files[i]
+	for name: String in _files:
 		if not _referenced.has(name):
 			unused.append(name)
-		var card := _card(name, i)
+		if _filter_text == "" or _filter_text in name:
+			_view.append(name)
+
+	for i in _view.size():
+		var card := _card(_view[i], i)
 		grid.add_child(card)
 		_cards.append(card)
 
-	header.text = ("%d images    zoom x%d    ground: %s    [1] ground  " +
-		"[+/-] zoom  [R] rescan  [arrows] select  [Enter] edit  [N] new") % [
-		_files.size(), _zoom,
-		["light", "dark", "magenta"][_ground]]
+	_reflow()
+	%ZoomLabel.text = "x%d" % _zoom
+	%Count.text = ("%d images" % _files.size() if _filter_text == ""
+		else "%d of %d match \"%s\"" % [_view.size(), _files.size(), _filter_text])
+	_update_selbar()
 
 	var lines: Array[String] = []
 	if not _missing.is_empty():
-		lines.append("[color=#ff8a80]MISSING (%d) - named in code or data, no file. This will fail at runtime:[/color]"
+		lines.append("[color=#ff8a80]MISSING (%d) — named in code or data, no file. This will fail at runtime:[/color]"
 			% _missing.size())
 		lines.append("   " + ", ".join(_missing))
 	if not unused.is_empty():
-		lines.append("[color=#ffd08a]UNREFERENCED (%d) - on disk, nothing mentions it:[/color]"
+		lines.append("[color=#ffd08a]UNREFERENCED (%d) — on disk, nothing mentions it:[/color]"
 			% unused.size())
 		lines.append("   " + ", ".join(unused))
 	if lines.is_empty():
 		lines.append("[color=#a5d6a7]Every image is referenced, and everything referenced exists.[/color]")
 	report.text = "\n".join(lines)
+
+
+## As many whole columns as the gallery is actually wide enough for.
+## Recomputed on every resize, so dragging the forge's splitter reflows the
+## grid instead of hiding sprites off the right-hand edge.
+func _reflow() -> void:
+	var avail := scroll.size.x - 16.0        # leave room for the scrollbar
+	var step := _cell_size() + float(grid.get_theme_constant("h_separation"))
+	grid.columns = maxi(1, int(avail / maxf(step, 1.0)))
+
+
+func _cell_size() -> int:
+	return 48 + _zoom * 26
 
 
 ## A texture read straight off the PNG on disk, NOT through load() and the
@@ -305,29 +433,21 @@ func _card(art_name: String, index: int) -> Control:
 	# nowhere useful) and, worse, room.png is 320x176 -- at 3x it was a
 	# thousand pixels wide and tore the grid apart. Letterboxing means one
 	# cell size for a 10px paper and a whole room.
-	var cell := 48 + _zoom * 26
+	var cell := _cell_size()
 	var box := VBoxContainer.new()
 	box.custom_minimum_size = Vector2(cell, 0)
+	box.add_theme_constant_override("separation", 2)
 
 	var panel := PanelContainer.new()
-	if index == _sel:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.border_color = Color(1, 0.85, 0.3)
-		sb.set_border_width_all(3)
-		panel.add_theme_stylebox_override("panel", sb)
-	else:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.set_border_width_all(3)
-		sb.border_color = Color(0, 0, 0, 0)
-		panel.add_theme_stylebox_override("panel", sb)
+	panel.add_theme_stylebox_override("panel", _card_style(art_name == _sel_name))
 
 	var frame := ColorRect.new()
 	frame.color = _grounds[_ground]
 	frame.custom_minimum_size = Vector2(cell, cell)
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	frame.gui_input.connect(_on_card_input.bind(index))
+	frame.tooltip_text = "%s   %dx%d\nClick to select, double-click to edit." % [
+		art_name, w, h]
 
 	var pic := TextureRect.new()
 	pic.texture = tex
@@ -343,33 +463,164 @@ func _card(art_name: String, index: int) -> Control:
 	var used: Array = _referenced.get(art_name, [])
 	var label := Label.new()
 	label.add_theme_font_size_override("font_size", 11)
-	label.text = "%s\n%dx%d%s" % [art_name, w, h,
-		"" if not used.is_empty() else "   UNUSED"]
+	label.text = art_name
+	label.clip_text = true
 	label.add_theme_color_override("font_color",
-		Color(1, 0.82, 0.54) if used.is_empty() else Color(0.9, 0.9, 0.9))
+		ForgeTheme.ACCENT if art_name == _sel_name else Color(0.9, 0.9, 0.9))
 	box.add_child(label)
 
 	var where := Label.new()
 	where.add_theme_font_size_override("font_size", 9)
-	where.add_theme_color_override("font_color", Color(0.6, 0.62, 0.66))
-	where.text = ", ".join(used).substr(0, 34)
+	where.clip_text = true
+	if used.is_empty():
+		where.text = "%dx%d · unused" % [w, h]
+		where.add_theme_color_override("font_color", ForgeTheme.WARN)
+	else:
+		where.text = "%dx%d" % [w, h]
+		where.add_theme_color_override("font_color", ForgeTheme.FAINT)
 	box.add_child(where)
+
+	# _cycle_ground() and _select() reach back into the card to repaint one
+	# thing without rebuilding it; these are how they find the parts.
+	box.set_meta("panel", panel)
+	box.set_meta("frame", frame)
+	box.set_meta("label", label)
+	_frames.append(panel)
 	return box
+
+
+# =====================================================================
+# the editor's preview strip
+# =====================================================================
+
+## One live copy of the sprite per gallery ground, beside the canvas.
+##
+## Editing happens at x12 or more over a checkerboard, which is the one
+## view that tells you nothing about how the sprite reads in the game. The
+## grounds are the gallery's own three, magenta included, so the check that
+## catches unstripped chroma key is available while you are still painting
+## rather than only after you close the editor.
+const PREVIEW_LABELS: Array[String] = ["light", "dark", "magenta"]
+
+var _preview_tex: ImageTexture = null
+var _preview_dirty := false
+
+
+func _build_previews() -> void:
+	for c in %Previews.get_children():
+		c.queue_free()
+	_preview_tex = ImageTexture.create_from_image(_edit_img)
+	for i in _grounds.size():
+		var box := ColorRect.new()
+		box.color = _grounds[i]
+		box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		box.tooltip_text = "The sprite on the %s ground" % PREVIEW_LABELS[i]
+		var pic := TextureRect.new()
+		pic.texture = _preview_tex
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(pic)
+		%Previews.add_child(box)
+
+
+## Once a frame at most, and only while something has actually changed --
+## a texture upload per painted pixel would cost more than the painting.
+func _process(_dt: float) -> void:
+	if not _preview_dirty or not _editing or _edit_img == null:
+		return
+	_preview_dirty = false
+	if _preview_tex == null:
+		return
+	if _preview_tex.get_size() != Vector2(_edit_img.get_size()):
+		_preview_tex.set_image(_edit_img)
+	else:
+		_preview_tex.update(_edit_img)
+
+
+func _card_style(selected: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 0.85, 0.3, 0.10) if selected else Color(0, 0, 0, 0)
+	sb.border_color = ForgeTheme.ACCENT if selected else Color(0, 0, 0, 0)
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(4)
+	# A PanelContainer lays its child out INSIDE the content margins, so a
+	# zero margin puts the thumbnail on top of the very border that shows
+	# the selection. Reserve the border's own width, on both states, so the
+	# frame stays visible and the card does not resize when you select it.
+	sb.set_content_margin_all(3)
+	return sb
 
 
 func _on_card_input(e: InputEvent, index: int) -> void:
 	if e is InputEventMouseButton and (e as InputEventMouseButton).pressed \
 			and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-		_select(index)
+		# `false`: do NOT scroll. The card you just clicked is by definition
+		# already on screen, and scrolling to it is what made picking a
+		# sprite at the bottom of the gallery throw you back to the top.
+		_select(index, false)
 		if (e as InputEventMouseButton).double_click:
-			_open_editor(_files[index], false)
+			_open_editor(_view[index], false)
 
 
-func _select(index: int) -> void:
-	_sel = clampi(index, 0, _files.size() - 1)
-	_build()
-	if _sel >= 0 and _sel < _cards.size():
-		scroll.ensure_control_visible(_cards[_sel])
+## Move the selection to display position `index`.
+##
+## This used to call _build(), which frees every card and makes new ones,
+## and THEN asked the ScrollContainer to reveal the new card. A container
+## has not laid its children out in the frame they are added, so every one
+## of those cards was still sitting at (0, 0) -- ensure_control_visible()
+## dutifully scrolled to the top of the list, every single time, and
+## clicking a sprite at the bottom of the gallery bounced you to the first
+## row. Nothing about a selection needs the grid rebuilt: repaint the two
+## frames that changed and leave the layout, and the scroll position, alone.
+func _select(index: int, reveal: bool = true) -> void:
+	if _view.is_empty():
+		_sel_name = ""
+		_update_selbar()
+		return
+	index = clampi(index, 0, _view.size() - 1)
+	var was := _view.find(_sel_name)
+	if was == index:
+		return
+	if was >= 0 and was < _frames.size():
+		_frames[was].add_theme_stylebox_override("panel", _card_style(false))
+		(_cards[was].get_meta("label") as Label).add_theme_color_override(
+			"font_color", Color(0.9, 0.9, 0.9))
+	_sel_name = _view[index]
+	if index < _frames.size():
+		_frames[index].add_theme_stylebox_override("panel", _card_style(true))
+		(_cards[index].get_meta("label") as Label).add_theme_color_override(
+			"font_color", ForgeTheme.ACCENT)
+		# Only the keyboard needs this, and only then because the arrow keys
+		# can walk the selection off the visible rows.
+		if reveal:
+			scroll.ensure_control_visible(_cards[index])
+	_update_selbar()
+
+
+## What is selected and what would happen if you pressed Edit. The gallery
+## had no such line: the only feedback for a click was a border you had to
+## hunt for among 131 thumbnails.
+func _update_selbar() -> void:
+	var has := _sel_name != ""
+	(%EditBtn as Button).disabled = not has
+	if not has:
+		(%SelName as Label).text = "Nothing selected"
+		(%SelWhere as Label).add_theme_color_override("font_color", ForgeTheme.FAINT)
+		(%SelWhere as Label).text = ("No sprite matches \"%s\"." % _filter_text
+			if _view.is_empty() and _filter_text != ""
+			else "Click a sprite, or use the arrow keys.")
+		return
+	var img := _load_raw_image("%s/%s.png" % [ART_DIR, _sel_name])
+	var dims := "%dx%d" % [img.get_width(), img.get_height()] if img != null else "?"
+	(%SelName as Label).text = "%s   %s" % [_sel_name, dims]
+	var used: Array = _referenced.get(_sel_name, [])
+	(%SelWhere as Label).text = ("used by " + ", ".join(used) if not used.is_empty()
+		else "Nothing in the code or data mentions this file.")
+	(%SelWhere as Label).add_theme_color_override("font_color",
+		ForgeTheme.FAINT if not used.is_empty() else ForgeTheme.WARN)
 
 
 # =====================================================================
@@ -386,6 +637,12 @@ func _input(e: InputEvent) -> void:
 	# out from under a player trying to cancel just the popup.
 	var focused := get_viewport().gui_get_focus_owner()
 	if focused is LineEdit:
+		# Esc leaves the filter box rather than quitting the tool from
+		# under someone who only meant to stop typing.
+		if (e as InputEventKey).keycode == KEY_ESCAPE and focused == %Filter:
+			(%Filter as LineEdit).text = ""
+			_on_filter_changed("")
+			(%Filter as LineEdit).release_focus()
 		return
 	var k := (e as InputEventKey).keycode
 	var ctrl := (e as InputEventKey).ctrl_pressed
@@ -394,34 +651,43 @@ func _input(e: InputEvent) -> void:
 		_editor_input(k, ctrl)
 		return
 
+	# Positions count in _view (what is on screen), not in _files: with a
+	# filter typed they are different lists, and the arrow keys have to walk
+	# the one you can see.
+	var at := _view.find(_sel_name)
 	if k == KEY_1:
-		_ground = (_ground + 1) % _grounds.size()
-		_build()
+		_cycle_ground()
 	elif k == KEY_EQUAL or k == KEY_PLUS or k == KEY_KP_ADD:
-		_zoom = mini(_zoom + 1, 10)
-		_build()
+		_zoom_by(1)
 	elif k == KEY_MINUS or k == KEY_KP_SUBTRACT:
-		_zoom = maxi(_zoom - 1, 1)
-		_build()
+		_zoom_by(-1)
 	elif k == KEY_R:
-		_scan_references()
-		_scan_files()
-		_build()
+		_rescan()
+	elif k == KEY_SLASH:
+		(%Filter as LineEdit).grab_focus()
+		(%Filter as LineEdit).select_all()
 	elif k == KEY_LEFT:
-		_select(maxi(0, (_sel if _sel >= 0 else 0) - 1))
+		_select(maxi(0, at - 1) if at >= 0 else 0)
 	elif k == KEY_RIGHT:
-		_select(mini(_files.size() - 1, (_sel if _sel >= 0 else -1) + 1))
+		_select(at + 1 if at >= 0 else 0)
 	elif k == KEY_UP:
-		_select(maxi(0, (_sel if _sel >= 0 else 0) - grid.columns))
+		_select(maxi(0, at - grid.columns) if at >= 0 else 0)
 	elif k == KEY_DOWN:
-		_select(mini(_files.size() - 1, (_sel if _sel >= 0 else -grid.columns) + grid.columns))
+		_select(at + grid.columns if at >= 0 else 0)
+	elif k == KEY_HOME:
+		_select(0)
+	elif k == KEY_END:
+		_select(_view.size() - 1)
 	elif k == KEY_ENTER or k == KEY_KP_ENTER:
-		if _sel >= 0:
-			_open_editor(_files[_sel], false)
+		if _sel_name != "":
+			_open_editor(_sel_name, false)
 	elif k == KEY_N:
 		_prompt_new_sprite()
 	elif k == KEY_ESCAPE:
-		get_tree().quit()
+		# One pane of the Master Forge must not take the whole tool down
+		# with it; standalone, Esc is still how you leave.
+		if _standalone():
+			get_tree().quit()
 
 
 func _editor_input(k: Key, ctrl: bool) -> void:
@@ -459,6 +725,25 @@ func _editor_input(k: Key, ctrl: bool) -> void:
 	elif k == KEY_MINUS or k == KEY_KP_SUBTRACT:
 		canvas.set_zoom(canvas.zoom - 1)
 		_update_status()
+	elif k == KEY_UP:
+		_nudge(0, -1)
+	elif k == KEY_DOWN:
+		_nudge(0, 1)
+	elif k == KEY_LEFT:
+		_nudge(-1, 0)
+	elif k == KEY_RIGHT:
+		_nudge(1, 0)
+
+func _nudge(dx: int, dy: int) -> void:
+	_push_undo()
+	var new_img = Image.create(_edit_img.get_width(), _edit_img.get_height(), false, _edit_img.get_format())
+	new_img.fill(Color(0, 0, 0, 0))
+	var src_rect = Rect2i(0, 0, _edit_img.get_width(), _edit_img.get_height())
+	new_img.blit_rect(_edit_img, src_rect, Vector2i(dx, dy))
+	_edit_img.copy_from(new_img)
+	canvas.queue_redraw()
+	_preview_dirty = true
+
 
 
 # =====================================================================
@@ -545,7 +830,7 @@ func _open_editor_with_image(art_name: String, img: Image, is_new: bool) -> void
 	_redo.clear()
 	_last_pixel = Vector2i(-1, -1)
 	_shape_anchor = Vector2i(-1, -1)
-	($V/Editor/Toolbar/Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
+	(%Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
 	if canvas != null:
 		canvas.clear_preview()
 
@@ -555,6 +840,7 @@ func _open_editor_with_image(art_name: String, img: Image, is_new: bool) -> void
 	_cur_colour = _palette[0]
 
 	canvas.set_image(_edit_img)
+	_preview_dirty = true
 	if _edit_img.get_width() == CHAR_W and _edit_img.get_height() == CHAR_H:
 		canvas.cell_w = CHAR_CW
 		canvas.cell_h = CHAR_CH
@@ -564,20 +850,21 @@ func _open_editor_with_image(art_name: String, img: Image, is_new: bool) -> void
 	canvas.set_zoom(clampi(720 / maxi(_edit_img.get_width(), 1), 4, 24))
 
 	_editing = true
-	grid.get_parent().visible = false
-	report.visible = false
+	browse.visible = false
 	editor.visible = true
+	(%EditTitle as Label).text = "Editing  %s%s" % [art_name,
+		"   (new — nothing loads it until you Sync & Reimport)" if is_new else ""]
 	_rebuild_palette_row()
+	_build_previews()
 	_set_tool("brush")
+	_set_brush_size(_brush_size)
 	_update_status()
 
 
 func _close_editor() -> void:
 	_editing = false
-	editor.visible = true
 	editor.visible = false
-	grid.get_parent().visible = true
-	report.visible = true
+	browse.visible = true
 	_edit_img = null
 
 
@@ -591,7 +878,9 @@ func _set_tool(t: String) -> void:
 func _set_brush_size(n: int) -> void:
 	_brush_size = clampi(n, 1, 16)
 	if _size_label != null:
-		_size_label.text = " brush %d " % _brush_size
+		_size_label.text = str(_brush_size)
+	for k: int in _size_btns:
+		(_size_btns[k] as Button).button_pressed = (k == _brush_size)
 	_update_status()
 
 
@@ -604,7 +893,7 @@ const MIRROR_NAMES: Array[String] = ["off", "X", "Y", "XY"]
 
 func _cycle_mirror() -> void:
 	_mirror = (_mirror + 1) % 4
-	($V/Editor/Toolbar/Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
+	(%Mirror as Button).text = "Mirror: " + MIRROR_NAMES[_mirror]
 	_update_status()
 
 
@@ -724,11 +1013,14 @@ func _update_status() -> void:
 			and _hover_px.y >= 0 and _hover_px.y < _edit_img.get_height():
 		at = "  %d,%d" % [_hover_px.x, _hover_px.y]
 	var nib := "%s%d" % ["round " if _brush_round else "", _brush_size]
-	var mir := "" if _mirror == 0 else "  mirror " + MIRROR_NAMES[_mirror]
-	_status.text = "%s%s   %dx%d  x%d   #%s%s   %s  nib %s%s   [1-7 tools  [ ] size  M mirror  +/- zoom  MMB pan  Ctrl+Z/Y  Ctrl+S  Esc]" % [
+	var mir := "" if _mirror == 0 else "   mirror " + MIRROR_NAMES[_mirror]
+	# The keyboard reference used to be stapled to the end of this line and
+	# redrawn on every mouse move. It is a fixed Hints label now; what is
+	# left here is only what actually changes as you paint.
+	_status.text = "%s%s   %dx%d   zoom x%d   %s, nib %s%s   colour #%s   at%s" % [
 		_edit_name, news, _edit_img.get_width(), _edit_img.get_height(),
 		canvas.zoom if canvas != null else 0,
-		_cur_colour.to_html(false), at, _tool, nib, mir]
+		_tool, nib, mir, _cur_colour.to_html(false), at]
 
 
 func _extract_palette(img: Image) -> Array[Color]:
@@ -744,6 +1036,64 @@ func _extract_palette(img: Image) -> Array[Color]:
 				seen[key] = true
 				out.append(Color(c.r, c.g, c.b, 1.0))
 	return out
+
+
+## Read tools/palette.json, written by tools/make_palette.py from the
+## generators' own colour constants. Missing or malformed is not an error:
+## the editor predates this row and works without it.
+func _load_house_palette() -> void:
+	_house.clear()
+	var f := FileAccess.open("res://tools/palette.json", FileAccess.READ)
+	if f == null:
+		return
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if not (parsed is Dictionary):
+		push_warning("tools/palette.json is not readable — house swatches are off")
+		return
+	for group: String in (parsed as Dictionary).keys():
+		if group.begins_with("_"):
+			continue                      # metadata, not a group of colours
+		var row: Variant = (parsed as Dictionary)[group]
+		if not (row is Dictionary):
+			continue
+		for cname: String in (row as Dictionary).keys():
+			var hex := str((row as Dictionary)[cname])
+			if not hex.begins_with("#"):
+				continue
+			_house.append({"group": group, "name": cname,
+				"colour": Color.from_string(hex, Color.MAGENTA)})
+	_rebuild_house_row()
+
+
+## One clickable square per house colour, grouped, with the constant's own
+## name on the tooltip -- the name is what you type into the other forge
+## tabs (WOOD=#hex), so the two halves of the tool agree on vocabulary.
+func _rebuild_house_row() -> void:
+	if _house_row == null:
+		return
+	for c in _house_row.get_children():
+		c.queue_free()
+	var last_group := ""
+	for entry: Dictionary in _house:
+		if entry["group"] != last_group:
+			last_group = entry["group"]
+			if _house_row.get_child_count() > 0:
+				var gap := Control.new()
+				gap.custom_minimum_size = Vector2(10, 0)
+				_house_row.add_child(gap)
+		var col: Color = entry["colour"]
+		var sw := ColorRect.new()
+		sw.color = col
+		sw.custom_minimum_size = Vector2(18, 18)
+		sw.tooltip_text = "%s  %s  (%s)" % [entry["name"], col.to_html(false),
+			entry["group"]]
+		sw.mouse_filter = Control.MOUSE_FILTER_STOP
+		sw.gui_input.connect(func(e: InputEvent) -> void:
+			if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
+				_cur_colour = col
+				_update_status())
+		_house_row.add_child(sw)
 
 
 func _rebuild_palette_row() -> void:
@@ -772,6 +1122,13 @@ func _rebuild_palette_row() -> void:
 
 # --- painting ---
 
+func _on_pixel_right_click(p: Vector2i) -> void:
+	if not _in_bounds(p): return
+	var c := _edit_img.get_pixelv(p)
+	if c.a > 0.01:
+		_cur_colour = Color(c.r, c.g, c.b, 1.0)
+		_update_status()
+
 func _on_pixel_down(p: Vector2i) -> void:
 	if not _in_bounds(p):
 		return
@@ -785,6 +1142,7 @@ func _on_pixel_down(p: Vector2i) -> void:
 	_apply_tool(p)
 	_last_pixel = p
 	canvas.queue_redraw()
+	_preview_dirty = true
 
 
 func _on_pixel_drag(p: Vector2i) -> void:
@@ -808,6 +1166,7 @@ func _on_pixel_drag(p: Vector2i) -> void:
 		_apply_tool(p)
 	_last_pixel = p
 	canvas.queue_redraw()
+	_preview_dirty = true
 
 
 ## Hold Shift while dragging a LINE to snap it to horizontal, vertical or
@@ -858,6 +1217,7 @@ func _on_pixel_up() -> void:
 		_shape_anchor = Vector2i(-1, -1)
 		canvas.clear_preview()
 		canvas.queue_redraw()
+		_preview_dirty = true
 	_last_pixel = Vector2i(-1, -1)
 
 
@@ -930,6 +1290,7 @@ func _undo_action() -> void:
 	_redo.append(_edit_img.duplicate())
 	_edit_img = _undo.pop_back()
 	canvas.set_image(_edit_img)
+	_preview_dirty = true
 
 
 func _redo_action() -> void:
@@ -938,6 +1299,7 @@ func _redo_action() -> void:
 	_undo.append(_edit_img.duplicate())
 	_edit_img = _redo.pop_back()
 	canvas.set_image(_edit_img)
+	_preview_dirty = true
 
 
 # --- saving ---
@@ -973,7 +1335,7 @@ func _save_editor() -> void:
 	_close_editor()
 	_scan_references()
 	_scan_files()
-	_sel = _files.find(saved_name)
+	_sel_name = saved_name
 	_build()
 
 	var note := "[color=#a5d6a7]Saved art/%s.png + tools/sprites/%s.txt.[/color]  " % [

@@ -1,0 +1,167 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://tools/master_forge.gd" id="1_mf"]
+[ext_resource type="PackedScene" path="res://tools/curator.tscn" id="2_curator"]
+[ext_resource type="Script" path="res://tools/forge_balance.gd" id="3_bal"]
+[ext_resource type="Script" path="res://tools/forge_art_ui.gd" id="4_art"]
+[ext_resource type="Script" path="res://tools/forge_audio_ui.gd" id="5_aud"]
+[ext_resource type="Script" path="res://tools/forge_items_ui.gd" id="6_items"]
+[ext_resource type="Script" path="res://tools/forge_hud_ui.gd" id="7_hud"]
+
+[node name="MasterForge" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mf")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.078, 0.078, 0.094, 1)
+
+[node name="V" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = -14.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Header" type="HBoxContainer" parent="V"]
+layout_mode = 2
+
+[node name="Name" type="VBoxContainer" parent="V/Header"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="V/Header/Name"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.941, 0.714, 0.302, 1)
+theme_override_font_sizes/font_size = 20
+text = "Master Forge"
+
+[node name="Sub" type="Label" parent="V/Header/Name"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.373, 0.396, 0.447, 1)
+theme_override_font_sizes/font_size = 11
+text = "Rebuild the game's art, audio, items and numbers — then import them."
+
+[node name="Spacer" type="Control" parent="V/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SyncStatus" type="Label" parent="V/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 12
+
+[node name="SyncBtn" type="Button" parent="V/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "Sync & Reimport"
+
+[node name="Rule" type="HSeparator" parent="V"]
+layout_mode = 2
+
+[node name="Tabs" type="TabContainer" parent="V"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+; The gallery is the wider half and the forge panel is a fixed column of
+; controls, but the split is draggable: the gallery reflows its columns to
+; whatever width it is given (see curator.gd's _reflow), which is what the
+; hard-coded 7 columns could not do -- they simply overflowed the pane and
+; the right-hand sprites were cut off the edge of the window.
+[node name="Art" type="HSplitContainer" parent="V/Tabs"]
+layout_mode = 2
+split_offset = 430
+
+[node name="ArtForgeUI" type="VBoxContainer" parent="V/Tabs/Art"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+script = ExtResource("4_art")
+
+[node name="CuratorWrapper" type="Control" parent="V/Tabs/Art"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Curator" parent="V/Tabs/Art/CuratorWrapper" instance=ExtResource("2_curator")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Audio" type="Control" parent="V/Tabs"]
+visible = false
+layout_mode = 2
+
+[node name="AudioUI" type="VBoxContainer" parent="V/Tabs/Audio"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_aud")
+
+[node name="Items" type="Control" parent="V/Tabs"]
+visible = false
+layout_mode = 2
+
+[node name="ItemsUI" type="VBoxContainer" parent="V/Tabs/Items"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_items")
+
+[node name="HUD" type="Control" parent="V/Tabs"]
+visible = false
+layout_mode = 2
+
+[node name="HUDUI" type="VBoxContainer" parent="V/Tabs/HUD"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_hud")
+
+[node name="Balance" type="Control" parent="V/Tabs"]
+visible = false
+layout_mode = 2
+script = ExtResource("3_bal")
+
+[node name="BalanceUI" type="ScrollContainer" parent="V/Tabs/Balance"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="V" type="VBoxContainer" parent="V/Tabs/Balance/BalanceUI"]
+layout_mode = 2
+size_flags_horizontal = 3
