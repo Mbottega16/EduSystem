@@ -82,6 +82,19 @@ repeatedly by edits that seemed obviously right:
   buttons WHILE you are still standing in and playing your own lesson,
   that is the thing this rule still forbids; confirm the distinction
   with the user rather than assuming this precedent already covers it.
+  **A SECOND named exception (Sept 2026, on explicit request):**
+  `Game.skip_days_available()` / `Classroom.run_skipped_days()` — hand
+  the room over for up to five whole DAYS, not one lesson. Same shape
+  as `auto_teach` and resolved by the same RoomSim Steady policy, so
+  it steps outside the lesson rather than automating judgements inside
+  one; the distinction above was confirmed rather than assumed. What
+  keeps it a decision: no homework goes out on a day you were not
+  there to set it, so the marking that lifts a class never happens,
+  and the skip is clamped so it can never reach the exam. Measured on
+  a real run it grades D/D/E where played days grade B — it costs you
+  something, which is the point. The cap is `skip.max_days` in
+  balance.json; an item def carrying a `skip_days` key raises it, the
+  way `teaches` already grants a concept.
 - **One dedicated key per verb.** *(Revised Aug 2026, on user request --
   see `Interactable.Key` in `scripts/interact/interactable.gd` for the
   authoritative list.)* Used to be "two buttons per landmark": E the
@@ -132,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2075 assertions — must pass, count must not drop
+Run Tests.bat            2190 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -256,7 +269,7 @@ still looks armed is how the last one got missed.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 2075 assertions, 115 sections |
+| `tests/run.gd` | The suite — 2190 assertions, 119 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -269,6 +282,7 @@ still looks armed is how the last one got missed.
 | `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
 | `tools/playdrive.gd` | The ONE walk/keypress/boot base both walkthroughs extend. `walk_to()` used to live in each of them, byte-identical; a real fix landed in one copy only. Add a shared helper here, never a second copy there |
 | `.githooks/pre-commit`, `.githooks/pre-push` | The suite before a commit; `check_docs.py` + a whole term before a push. **Both DISARMED by default** — `EDUSYSTEM_GATE=1` re-arms one for a single command, `Verify.bat` runs the lot. `core.hooksPath` must point at `.githooks` |
+| `docs/relay/PROTOCOL.md`, `tools/relay.py` | **The Claude <-> Gemini relay.** Two agents work this folder and cannot see each other's context. Turns (whose go it is), claims (who holds which files) and a turn format whose YOU-GOT-WRONG section is validated for evidence, because an unfounded finding costs the other agent a round. `Relay.bat` shows the state; `GEMINI.md` is Antigravity's way in |
 | `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
 
 ---
