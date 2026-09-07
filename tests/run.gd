@@ -3310,6 +3310,12 @@ func test_panels_fit() -> void:
 	hud.show_title()
 	chk("the title screen fits",
 		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	# Onboarding, slice three (AUTONOMOUS_TASKLIST.md B4's "still open"):
+	# "need N" has printed on the status strip since day one and nothing
+	# on the way IN ever said what it counted. This is the first sentence
+	# a new run sees, so it is where the target gets explained.
+	chk("and it says what the term target means, not just the day count",
+		hud.body.text.contains("must pass to keep the job"), hud.body.text)
 	hud.close()
 
 	hud.show_pause()

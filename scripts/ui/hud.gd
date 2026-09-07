@@ -719,9 +719,13 @@ func close() -> void:
 ## The first thing anyone sees. The game used to boot straight into play
 ## with no explanation of anything at all.
 ##
-## Sized to the panel deliberately: the body is 128px, and at font size 8
-## a line is about 20px, so SEVEN lines is the honest limit. Earlier drafts
-## ran off the bottom and overlapped the hint bar.
+## Sized to the panel deliberately, and NINE lines is the limit -- the
+## suite's "the title screen fits" asserts it against PANEL_LINES_SMALL.
+## The note here used to say SEVEN, from the pre-Aug-2026 320x176 body at
+## font 8; the screen had already grown to eight lines and the number was
+## quietly wrong, which is the kind of stale limit that stops the next
+## person adding a line the screen needs. Earlier drafts ran off the
+## bottom and overlapped the hint bar.
 func show_title() -> void:
 	_open(Mode.TITLE)
 	body.add_theme_font_size_override("font_size", 16)
@@ -739,7 +743,16 @@ func show_title() -> void:
 		"  blue ? behind     C settles who can hear you",
 		"Collect on E, mark homework on H, ring the BELL",
 		"on F. Q for a quick quiz; test a unit you know well.",
-		"%d days, then the exam." % Balance.term_days,
+		# The STAKE, not just the clock. The status strip has printed
+		# "need N" since the first minute of the game and nothing on the
+		# way in ever said what it counted -- the only screen that
+		# explains the target is the one BETWEEN terms, which you reach
+		# by already having survived one. Same words as the end-of-term
+		# verdict ("kept the job"), so it reads as the same promise.
+		# `target_base`, not Game.term_target(): quit-to-title comes back
+		# here, and term_target() would report the abandoned run's term.
+		"%d days, then the exam. %d must pass to keep the job." % [
+			Balance.term_days, Balance.term_target_base],
 	])
 	hint.text = "E - begin        %s" % BUILD_STAMP.stamp()
 

@@ -153,10 +153,17 @@ These are not optional work; they are the queue. Prompts live in
       because numbers do not live in code. `hint_once()` already existed
       and was used exactly once in the whole game; this is the second
       caller.
-      **Still open:** this is one line, not onboarding. Nothing yet
-      teaches collecting, marking, the shop, or what the term target
-      means. Next slice should come from watching a real first run, not
-      from a list.
+      **Slice two** (Aug 2026, commit `b3658c8`): `Game.work_going_cold`
+      gets the same treatment — *"Finished work only counts once you
+      collect it."* — so collecting is covered.
+      **Slice three** (Sept 2026): the title screen's opening paragraph
+      now names the stake, not just the clock — *"...then the exam. N
+      must pass to keep the job."* — since the status strip has printed
+      `need N` since day one with nothing on the way IN saying what it
+      counted.
+      **Still open:** marking and the shop are still untaught. Next
+      slice should come from watching a real first run, not from a
+      list.
 
 ## C. Verification debt
 
