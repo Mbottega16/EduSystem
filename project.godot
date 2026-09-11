@@ -21,6 +21,9 @@ Game="*res://scripts/autoload/game.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Music="*res://scripts/autoload/music.gd"
 Settings="*res://scripts/autoload/settings.gd"
+SaveManager="*res://scripts/autoload/save_manager.gd"
+FloatingText="*res://scripts/autoload/floating_text.gd"
+ModLoader="*res://scripts/autoload/mod_loader.gd"
 
 [display]
 

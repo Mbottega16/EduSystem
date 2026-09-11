@@ -36,6 +36,7 @@ signal day_changed(day: int)
 signal coins_changed(coins: int)
 signal roster_changed()
 signal room_changed()
+signal lesson_unlocked(lesson_id: String)
 ## A brand new run has begun. The HUD listens so that no screen from the
 ## previous run is left hanging over the new one -- a report about a class
 ## that no longer exists is worse than no report.
@@ -45,6 +46,7 @@ var day: int = 1
 var coins: int = 0
 var phase: int = Phase.MORNING
 var roster: Array[StudentData] = []
+var owned_lessons: Array = []
 var room_items: Array = []      ## [{id: String, tile: Vector2i}]
 var homework_out: bool = false  ## is there homework due back tomorrow?
 var subject: String = ""        ## today's lesson NAME, for display
@@ -783,6 +785,18 @@ func new_run(seed_value: int = 0) -> void:
 	# have had no quiz in it was quietly reading 0.69 -> 0.73.
 	quiz_focus = false
 	answer_all_cooldown = 0.0
+	owned_lessons.clear()
+	# One owned lesson per strand to start -- gives assignments.gd's
+	# draw() something to hand out from turn one instead of an empty
+	# owned-lessons list.
+	var strands = Curriculum.strands()
+	for s in strands:
+		var l = Curriculum.pick(rng)
+		while String(l.get("strand", "")) != s:
+			l = Curriculum.pick(rng)
+		var id = String(l.get("id", ""))
+		owned_lessons.append(id)
+		lesson_unlocked.emit(id)
 	attention = 0.0
 	teaching = false
 	has_aide = false

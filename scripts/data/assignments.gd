@@ -111,6 +111,12 @@ static func draw(rng: RandomNumberGenerator, lesson: Dictionary, bias: float = 0
 	var out: Array = []
 	for i in n:
 		out.append(roll(rng, lesson, bias))
+	# Notify Game of any newly unlocked lessons this hand introduces.
+	for card in out:
+		var lesson_id := String(card.get("lesson", ""))
+		if lesson_id != "" and not lesson_id in Game.owned_lessons:
+			Game.owned_lessons.append(lesson_id)
+			Game.lesson_unlocked.emit(lesson_id)
 	return out
 
 
