@@ -1,9 +1,9 @@
 {
   "_note": "Whose turn it is, and who holds which files. Written by tools/relay.py -- edit by hand only to break a deadlock, and say so in your next turn. Rules: docs/relay/PROTOCOL.md",
   "turn": "gemini",
-  "round": 7,
+  "round": 8,
   "interval_minutes": 20,
-  "due_at": "2026-09-11T11:28:35",
+  "due_at": "2026-09-14T08:47:16",
   "claims": {
     "claude": [],
     "gemini": []
