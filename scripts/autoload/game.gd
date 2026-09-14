@@ -1578,11 +1578,22 @@ func pacing_report(day_ended: int) -> Dictionary:
 
 
 # --- lesson crafting --------------------------------------------------
-## lesson id -> {craft_level: int, invested_coins: int, invested_days: int}
+## lesson id -> {craft_level: int, invested_coins: int, invested_days: int,
+## style: String}
 var lesson_crafts: Dictionary = {}
 ## {} when nothing in flight, else {lesson_id: String, days_left: int}.
 ## Single pending craft at a time -- no queue in this first slice.
 var pending_craft: Dictionary = {}
+
+## Cosmetic-only, this slice: a name the FIRST craft on a lesson gets
+## assigned (through Game.rng, so it is as deterministic as everything
+## else), so a crafted lesson reads as "Algebra II -- Visual" rather than
+## a bare level number -- the naming from the 2026-08-24 vision interview
+## ("Algebra II, Visual Lesson, v15"). Every style still runs through the
+## SAME craft_work_mult() below; giving each one an actually different
+## mechanical hook, and letting the player pick rather than roll one, are
+## both real design questions this slice deliberately did not decide.
+const CRAFT_STYLES: Array[String] = ["Visual", "Hands-On", "Discussion"]
 
 
 ## A flat day-count gate for now (see docs/AUTONOMOUS_TASKLIST.md /
@@ -1611,10 +1622,19 @@ func commit_lesson_craft(lesson_id: String) -> bool:
 	if not spend(cost):
 		return false
 	pending_craft = {"lesson_id": lesson_id, "days_left": Balance.craft_days_per_attempt}
-	var entry: Dictionary = lesson_crafts.get(lesson_id, {"craft_level": 0, "invested_coins": 0, "invested_days": 0}).duplicate()
+	var entry: Dictionary = lesson_crafts.get(lesson_id,
+		{"craft_level": 0, "invested_coins": 0, "invested_days": 0, "style": ""}).duplicate()
 	entry["invested_coins"] = int(entry.get("invested_coins", 0)) + cost
+	if String(entry.get("style", "")) == "":
+		entry["style"] = CRAFT_STYLES[rng.randi_range(0, CRAFT_STYLES.size() - 1)]
 	lesson_crafts[lesson_id] = entry
 	return true
+
+
+## The style label for a lesson's craft, or "" if it has never been
+## crafted. See CRAFT_STYLES above.
+func craft_style(lesson_id: String) -> String:
+	return String(lesson_crafts.get(lesson_id, {}).get("style", ""))
 
 
 ## Called once per real advance_day() while a craft is in flight. Resolves
@@ -1631,7 +1651,8 @@ func _tick_pending_craft() -> Dictionary:
 	if pending_craft.is_empty():
 		return {}
 	var lesson_id: String = String(pending_craft["lesson_id"])
-	var entry: Dictionary = lesson_crafts.get(lesson_id, {"craft_level": 0, "invested_coins": 0, "invested_days": 0}).duplicate()
+	var entry: Dictionary = lesson_crafts.get(lesson_id,
+		{"craft_level": 0, "invested_coins": 0, "invested_days": 0, "style": ""}).duplicate()
 	entry["invested_days"] = int(entry.get("invested_days", 0)) + 1
 	lesson_crafts[lesson_id] = entry
 
@@ -3311,3 +3332,49 @@ func has_save() -> bool:
 func delete_save() -> void:
 	if has_save():
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+
+
+# ------------------------------------------------------- multi-slot saves
+#
+# The single save above (save_path) is the autosave/"Continue" file the
+# title screen already reads. These slots are a separate, additional way
+# to keep more than one run around -- same to_dict()/from_dict() state,
+# stored through SaveManager's 8 user://saves/slot_N.json files instead
+# of the one fixed path. Nothing calls these yet; no menu offers a slot
+# picker. That is a real, separate UI decision (where it lives, how many
+# slots a player actually sees) -- this is the tested, working bridge a
+# future menu can call once that's scoped.
+
+func save_to_slot(index: int) -> bool:
+	return SaveManager.save(index, to_dict())
+
+
+func load_from_slot(index: int) -> bool:
+	var d := SaveManager.load(index)
+	if d.is_empty():
+		return false
+	from_dict(d)
+	return true
+
+
+func has_slot(index: int) -> bool:
+	return FileAccess.file_exists(SaveManager.get_slot_path(index))
+
+
+## What day a slot is on, without loading it -- has_slot()'s day-number
+## sibling, same purpose saved_day() serves for the single save file.
+func slot_day(index: int) -> int:
+	if not has_slot(index):
+		return 0
+	var f := FileAccess.open(SaveManager.get_slot_path(index), FileAccess.READ)
+	if f == null:
+		return 0
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if parsed is Dictionary:
+		return int((parsed as Dictionary).get("day", 0))
+	return 0
+
+
+func delete_slot(index: int) -> bool:
+	return SaveManager.delete_slot(index)

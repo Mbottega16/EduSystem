@@ -171,6 +171,7 @@ func _main() -> void:
 	await test_day_cycle()
 	await test_confusion()
 	await test_placement()
+	await test_save_slots()
 	await test_mess()
 	test_events()
 	test_economy()
@@ -1749,6 +1750,48 @@ func test_placement() -> void:
 
 	Game.new_run(SEED)
 	await step(2)
+
+
+func test_save_slots() -> void:
+	section("SAVE SLOTS")
+	Balance.ensure_loaded()
+
+	# a clean slate -- SaveManager's directory is real disk, not memory,
+	# so a leftover slot from an earlier run (or a crash mid-test) would
+	# make this test lie about starting empty
+	Game.delete_slot(0)
+	Game.delete_slot(1)
+	chk("no slot to begin with", not Game.has_slot(0))
+
+	Game.new_run(SEED)
+	Game.day = 5
+	chk("saving to a slot works", Game.save_to_slot(0))
+	chk("the slot now exists", Game.has_slot(0))
+	chk("and knows what day it's on without loading it",
+		Game.slot_day(0) == 5, Game.slot_day(0))
+
+	var on_disk := Game.to_dict()
+	Game.new_run(1)
+	chk("loading an empty slot fails cleanly, rather than crashing",
+		not Game.load_from_slot(7))
+	chk("loading a real slot works", Game.load_from_slot(0))
+	chk("and restores the run",
+		_same_within(Game.to_dict(), on_disk, 1e-6), Game.to_dict())
+
+	# slots don't step on each other, or on the single autosave file
+	Game.day = 9
+	Game.save_to_slot(1)
+	chk("slot 0 is untouched by slot 1's write", Game.slot_day(0) == 5)
+	Game.save_game()
+	chk("slots and the single save file coexist without colliding",
+		Game.has_slot(0) and Game.has_slot(1) and Game.has_save())
+
+	Game.delete_save()
+	chk("deleting a slot removes only that slot",
+		Game.delete_slot(0) and not Game.has_slot(0) and Game.has_slot(1))
+	Game.delete_slot(1)
+
+	Game.new_run(SEED)
 
 
 ## Deep compare allowing float drift, for anything that has been through JSON.
@@ -8185,6 +8228,31 @@ func test_lesson_crafting() -> void:
 					and digit_re.search(tag_re.sub(line, "", true)) != null:
 				return false
 		return true).call())
+
+	# --- a style, so a crafted lesson has a name, not just a level ---
+	# Cosmetic this slice: every style still runs through the same
+	# craft_work_mult() as before -- confirmed below by comparing the
+	# formula across two different styles at the same level, not just
+	# eyeballing it.
+	chk("a fresh craft is given a style", Game.CRAFT_STYLES.has(Game.craft_style(lesson_id)))
+	var kept_style: String = Game.craft_style(lesson_id)
+	Game.lesson_crafts[lesson_id]["craft_level"] = 3
+	var mult_a := Game.craft_work_mult(lesson_id)
+	var other_style: String = Game.CRAFT_STYLES[
+		(Game.CRAFT_STYLES.find(kept_style) + 1) % Game.CRAFT_STYLES.size()]
+	Game.lesson_crafts[lesson_id]["style"] = other_style
+	chk("two different styles at the same level give the exact same bonus -- "
+		+ "style is a name here, not yet a mechanic",
+		is_equal_approx(Game.craft_work_mult(lesson_id), mult_a))
+
+	# a fresh (never-crafted) lesson draws its own style rather than
+	# reusing whatever the last one rolled
+	Game.pending_craft = {}
+	Game.lesson_crafts.erase(lesson_id)
+	chk("recommitting a never-crafted lesson draws a fresh style",
+		Game.commit_lesson_craft(lesson_id) and Game.CRAFT_STYLES.has(Game.craft_style(lesson_id)))
+	chk("an uncrafted lesson has no style yet",
+		Game.craft_style(String(Curriculum.lessons[1].get("id", ""))) == "")
 
 	Game.new_run(SEED)
 	await step(2)

@@ -2,7 +2,10 @@ extends Node
 
 # SaveManager handles up to 8 JSON save slots in user://saves/
 # Each slot is a file "slot_<index>.json" where index is 0-7.
-# The data is a dictionary of the entire game state via Game.save_game_state() / Game.load_game_state().
+# The data is a dictionary of the entire game state -- Game.to_dict() /
+# Game.from_dict(), the same serialization the single autosave uses.
+# Wired in via Game.save_to_slot() / Game.load_from_slot(); this file
+# stays a plain slot store and never reaches into Game itself.
 
 const MAX_SLOTS = 8
 const SAVE_DIR = "user://saves/"
@@ -65,5 +68,12 @@ func load(index: int) -> Dictionary:
 func delete_slot(index: int) -> bool:
     var path = get_slot_path(index)
     if FileAccess.file_exists(path):
-        return DirAccess.remove_absolute(path)
+        # Two bugs, not one, until a test actually exercised this (nothing
+        # had, until test_save_slots()):
+        # 1. remove_absolute() wants a real OS path, not user://'s virtual
+        #    one -- Game.delete_save() already gets this right.
+        # 2. remove_absolute() returns an Error (OK == 0), not a bool --
+        #    returning it bare made a SUCCESSFUL delete report false,
+        #    since GDScript's int->bool coercion treats 0 as false.
+        return DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK
     return false

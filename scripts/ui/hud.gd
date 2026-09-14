@@ -3853,14 +3853,16 @@ func show_day_report(report: Dictionary) -> void:
 	# with nothing to show for it (see Game._tick_pending_craft()'s note).
 	var cres: Dictionary = report.get("craft_result", {})
 	if not cres.is_empty():
-		var cname := String(Curriculum.by_id(String(cres.get("lesson_id", ""))).get(
-			"name", cres.get("lesson_id", "")))
+		var cid := String(cres.get("lesson_id", ""))
+		var cname := String(Curriculum.by_id(cid).get("name", cid))
+		var cstyle := Game.craft_style(cid)
+		var clabel := "%s — %s" % [cname, cstyle] if cstyle != "" else cname
 		if bool(cres.get("success", false)):
 			lines.append("[color=#%s]%s came out of the oven -- it teaches easier now.[/color]" % [
-				C_GOOD, cname])
+				C_GOOD, clabel])
 		else:
 			lines.append("[color=#%s]%s didn't take. The coins and the days are spent either way.[/color]" % [
-				C_BAD, cname])
+				C_BAD, clabel])
 	# A craft still in the oven -- it belongs on the same screen as
 	# everything else those bought, not buried a tab away in a catalogue
 	# nobody has a reason to reopen mid-attempt.
@@ -4156,9 +4158,11 @@ func _render_craft(rows: Array) -> Array[String]:
 	if not Game.pending_craft.is_empty():
 		var pl := String(Game.pending_craft.get("lesson_id", ""))
 		var pname := String(Curriculum.by_id(pl).get("name", pl))
+		var pstyle := Game.craft_style(pl)
+		var plabel := "%s — %s" % [pname, pstyle] if pstyle != "" else pname
 		var pdays := int(Game.pending_craft.get("days_left", 0))
 		lines.append("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
-			C_KNOW, pname, pdays, "" if pdays == 1 else "s"])
+			C_KNOW, plabel, pdays, "" if pdays == 1 else "s"])
 		lines.append("")
 
 	var lo := _window_start(rows.size(), LIST_ROWS)

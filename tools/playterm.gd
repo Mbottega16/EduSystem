@@ -20,12 +20,14 @@ extends "res://tools/playdrive.gd"
 ##   carry-on    a second term begins                             reported
 ##   competence  the class meets the term's target                reported
 ##
-## Only liveness decides the exit code today. This bot never marks homework,
-## so it cannot pass a term on merit; gating on a bar it is not equipped to
-## clear would leave the gate permanently red, and a gate that is always red
-## is not a gate. Both other answers are printed on every run, and
-## GATE_COMPETENCE below is the one-line switch that folds them into the
-## exit code once there is a marking policy to hold it to.
+## Only liveness decides the exit code today. This bot marks homework now
+## (see _mark_homework(), 2026-09-14) -- accurately, against Questions'
+## own sheet_is_good() -- but a measured run still missed the term's
+## target, so marking alone was not the whole gap. Gating on a bar it is
+## not reliably equipped to clear would leave the gate permanently red,
+## and a gate that is always red is not a gate. Both other answers are
+## printed on every run, and GATE_COMPETENCE below is the one-line switch
+## to flip once a measured run actually clears the bar -- not before.
 ##
 ## THE EXIT CODE IS THE POINT. It used to quit() with no argument, so a
 ## failed day, a clean run, and a script that never compiled all exited 0,
@@ -167,6 +169,34 @@ func _play_lesson() -> void:
 		await hold("teach", 0.8)                # the clock did not end it; we do
 
 
+## Marks whatever homework you're carrying, at the teacher's desk, after
+## the lesson and before the bell -- the trip this bot never made until
+## now (see the file's own header). Marked ACCURATELY, against
+## Questions.sheet_is_good() -- the only verdict policy that doesn't need
+## a judgement call invented for a bot standing in for "competent
+## teaching": a diligent teacher marking honestly is exactly that.
+## Fails soft (just returns) rather than calling _fail() -- a missed
+## marking trip is a competence question, not a liveness one, and this
+## bot's liveness gate has never been about how well it plays.
+func _mark_homework() -> void:
+	if player.carrying_hw <= 0:
+		return
+	if not await walk_to(Layout.TEACHER_DESK[0] + Vector2i(0, 1), 240):
+		return
+	await tap("homework")
+	if hud.mode != hud.Mode.MARKING:
+		return
+	var guard := 0
+	while hud.mode == hud.Mode.MARKING and not hud._marking.is_empty() and guard < 200:
+		guard += 1
+		var s: StudentData = hud._marking[0]
+		await tap("move_right" if Questions.sheet_is_good(s.hw_sheet) else "move_left")
+		# _marking_hold (hud.gd) ignores input until the stamp animation
+		# clears -- wait it out, the way a real player watching it would.
+		await frames(secs(hud.MARKING_STAMP_SECONDS) + 2)
+	await clear_screens()
+
+
 func _play() -> void:
 	print("\n============== A WHOLE TERM ==============")
 	await frames(secs(1.0))
@@ -222,6 +252,8 @@ func _play() -> void:
 					_offer("interact"), _offer("manage"),
 					Grid.world_to_tile(player.global_position)])
 			break
+
+		await _mark_homework()
 
 		var bell_tile: Vector2i = Layout.BELL + Vector2i(0, 1)
 		if not await walk_to(bell_tile):
@@ -302,7 +334,7 @@ func _verdict() -> bool:
 		print("   carry-on    : no second term began")
 	if _missed_target:
 		print("   competence  : the class missed its target of %d" % _missed_by)
-		print("                 (this bot never marks homework - reported, not gated)")
+		print("                 (marks homework now, still misses the bar - reported, not gated)")
 	elif live:
 		print("   competence  : ok - no term missed its target")
 	else:
