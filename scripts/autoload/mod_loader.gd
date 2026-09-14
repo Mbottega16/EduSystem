@@ -23,7 +23,13 @@ func _scan_mods() -> void:
     if dir == null:
         push_error("ModLoader: cannot open mods directory")
         return
-    dir.list_dir_begin(true, true) # skip hidden, skip navigation
+    # Godot 4's list_dir_begin() takes no arguments (the Godot 3 signature
+    # was list_dir_begin(skip_navigational, skip_hidden)). Its defaults
+    # already skip "." / ".." and hidden files, which is the behaviour this
+    # call wanted -- confirmed by the engine itself: passing the old two
+    # bools raised "Too many arguments... Expected at most 0 but received 2"
+    # and failed the ModLoader autoload to load at all (Run Tests.bat, 2026-09-14).
+    dir.list_dir_begin()
     var file_name = dir.get_next()
     while file_name != "":
         if file_name.ends_with(".gd"):

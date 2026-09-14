@@ -10070,7 +10070,17 @@ func test_curriculum() -> void:
 		Game.lesson.has("standard") and Game.subject == String(Game.lesson["name"]),
 		Game.subject)
 	var picked := {}
-	for i in 200:
+	# 200 draws over 40 lessons is a coupon-collector problem: P(a given
+	# lesson is still missed) = (39/40)^200 ~= 0.7%, so ~27% of seeds should
+	# expect at least one miss by chance alone -- this was already fragile,
+	# not something the batch below broke. new_run()'s per-strand starter
+	# lesson seeding (each strand draws one lesson via Curriculum.pick(rng)
+	# before this loop starts) shifts Game.rng's stream enough that SEED's
+	# 200 draws now land on 39 of 40, confirmed by re-running with a raised
+	# count. 500 draws makes any miss ~40 * (39/40)^500 ~= 0.006%, restoring
+	# the test's real intent (the whole curriculum surfaces with enough
+	# play) without changing what pick_subject()/new_run() actually do.
+	for i in 500:
 		picked[Game.pick_subject()] = true
 	chk("over a term you teach the whole curriculum",
 		picked.size() == Curriculum.count(), picked.size())
