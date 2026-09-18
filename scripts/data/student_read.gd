@@ -1,15 +1,19 @@
 class_name StudentRead
 
-## What is acting on one child, in words -- the ONE builder behind both
-## places the game says it.
+## What is acting on one child, in words -- the ONE builder behind however
+## many places the game says it.
 ##
-## This used to live inside hud.gd's _render_student_acting(). The game knew
-## exactly why a child was doing badly and would only tell you if you walked
-## to a screen, opened their file and pressed Tab twice; the room itself
-## never said a word. Pulling the builder out here lets a desk speak the
-## same sentence the file page would print, derived from the same conditions
-## in the same pass -- so the page and the room can never disagree about a
-## child. That is the whole reason this is one function and not two.
+## This used to live inside hud.gd's _render_student_acting(), and for a
+## while (Sept 2026) a copy of its top line also floated over the desk
+## itself. That in-room read is GONE, on the owner's call: a full sentence
+## in a black box over every desk swallowed the room it was describing, and
+## the desks stand too close together for it to fit at all. The room is back
+## to the "?" bubble alone -- see Student.set_bubble() and
+## Classroom._layout_notices() -- and this page is where the reasons live.
+##
+## The builder stays out here rather than back inside hud.gd: it is the
+## honest home for "why is this child struggling", and the next reader of it
+## (a report, a coach, a tooltip) should share it rather than re-derive it.
 ##
 ## Prose, never numbers (CLAUDE.md). Every sentence names an influence and
 ## none of them prints its value; a test compiles [0-9] against the page.
@@ -137,12 +141,13 @@ static func acting_on(s: StudentData) -> Dictionary:
 	return {"against": against, "helping": helping, "urgent": urgent}
 
 
-## The one sentence a desk should say, or "" when that desk is fine.
+## The single worst thing pulling on one child, or "" when they are fine.
 ##
-## A convenience over acting_on() for the room, which does not need the
-## whole page. Deliberately goes through the same builder rather than
-## re-deriving the conditions -- a second copy of this logic is exactly the
-## drift this file exists to prevent.
+## Nothing on screen says this out loud any more (the in-room read is gone --
+## see the header), but the RANKING is still the honest answer to "which
+## desk needs you first", and `acting_on()` already computes it. Kept as the
+## one named way to ask, so the next feature that needs it -- a report line,
+## a coach, a tooltip -- asks here instead of re-deriving the conditions.
 static func urgent_line(s: StudentData) -> String:
 	if s == null:
 		return ""

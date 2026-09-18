@@ -15,9 +15,24 @@ extends Node
 ## panel that merely looks wrong.
 
 const MAIN := "res://scenes/main.tscn"
+## The player's save is never written by this tool -- see _ready().
+const SHOT_SAVE := "user://edusystem_SHOT_save.json"
 
 
 func _ready() -> void:
+	# A dev tool must never write the player's save (CLAUDE.md), and this one
+	# boots the REAL game -- "day", "new_term" and the rest advance the run,
+	# and an advance can save. So it works on a COPY: the player's file is
+	# duplicated to the shot path, and save_path points at the duplicate
+	# before classroom.gd's ensure_run() ever reads one. Shots still show
+	# the room as it actually stands; nothing they do can reach it.
+	Game.save_path = SHOT_SAVE
+	if FileAccess.file_exists(Game.SAVE_PATH):
+		var real := FileAccess.get_file_as_string(Game.SAVE_PATH)
+		var copy := FileAccess.open(SHOT_SAVE, FileAccess.WRITE)
+		if copy != null:
+			copy.store_string(real)
+			copy.close()
 	var args := OS.get_cmdline_user_args()
 	var out: String = args[0] if args.size() > 0 else "user://shot.png"
 	var frames: int = int(args[1]) if args.size() > 1 else 30
@@ -503,6 +518,27 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.roster[1].confusion = 1.0
 			Game.roster[1].trait_id = "steady"
 			Game.roster[2].quiz_flagged = true
+		"notices":
+			# The crowded case the notice layout exists for: a full class,
+			# every one of them working AND visibly stuck, so a bar and a
+			# mark are up over every desk at once. If any two of them sit on
+			# top of each other, it shows here and nowhere else.
+			while Game.enrol() != null:
+				pass
+			world._rebind_to_new_run()
+			world.start_lesson()     # a real lesson: it sets the clock too, and
+			                         # a LESSON phase with no clock ends instantly
+			for st: StudentData in Game.roster:
+				# Fresh work each, at a different point through it, so the
+				# bars in the shot are bars and not eight identical blocks.
+				st.work_state = StudentData.Work.NONE
+				st.assign_work()
+				st.work_timer = st.work_total * (0.15 + 0.1 * float(st.seat_index % 8))
+				st.trait_id = "steady"       # no hiding: the mark is prompt
+				st.confusion = 1.0
+				st._hidden_for = 999.0
+			world._refresh_bubbles()
+			world._layout_notices()
 		"mess":
 			# The room-mess/janitor systems shipped with zero screenshot
 			# coverage -- headless proves _spawn_mess() does not crash,

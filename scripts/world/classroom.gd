@@ -599,6 +599,87 @@ func _physics_process(delta: float) -> void:
 		swept.auto_complete()
 		Floater.pop(self, at + Vector2(0, -20), "janitor",
 			Color(0.72, 0.86, 1.0))
+	_layout_notices()
+
+
+## One rung of the stack, and how far sideways a column may step before it
+## climbs instead. RUNGS caps the search rather than the height anything
+## realistically reaches: twenty-four desks all shouting at once is the
+## worst case the room can physically hold, and it settles inside a few
+## rungs because each column only has to clear the ones already down.
+const NOTICE_STEP := 7.0
+const NOTICE_SIDE := 16.0
+const NOTICE_RUNGS := 24
+## Breathing room between two notices. Touching is not overlapping, but two
+## bars that share an edge read as one bar twice as long -- so the layout
+## keeps a gap rather than merely avoiding a collision.
+const NOTICE_GAP := 1.0
+
+
+## Lay every notice in the room out so that NO TWO OVERLAP, however many are
+## up at once — the owner's own requirement, after a room of desks pushed
+## together buried half the class's bubbles behind each other.
+##
+## Placement, not physics. An earlier pass pushed the sprites apart with
+## springs, which settles into something overlap-free only when it happens
+## to, and never when a cluster is tight — exactly the case this exists for.
+## This instead places each column in the first free slot: straight up from
+## the head, then half a tile either side, then a rung higher, and so on.
+## A slot is only taken if it touches nothing already placed, so "no
+## overlap" is true by construction rather than by tuning.
+##
+## The finished sheet on a desk goes down first and never moves: it marks
+## THAT desk, and a wandering sheet would be a lie about whose work is
+## done. Everything else is placed around the sheets.
+##
+## Deterministic — seat order in, no randomness, no dependence on the frame
+## rate. Two rooms in the same state lay out identically, which is what
+## lets the suite assert on it at all.
+func _layout_notices() -> void:
+	var taken: Array[Rect2] = []
+	for st: Interactable in stations:
+		if st.paper != null and st.paper.visible and st.paper.texture != null:
+			var size: Vector2 = st.paper.texture.get_size()
+			taken.append(Rect2(st.paper.global_position - size / 2.0, size))
+
+	var column: Array[Actor] = []
+	for n: Actor in students:
+		if n.data == null:
+			continue
+		if not n.has_notice():
+			n.notice_offset = Vector2.ZERO
+			continue
+		column.append(n)
+	# Seat order, so the same room always lays out the same way and a
+	# column does not swap places with its neighbour because the class
+	# happened to be built in a different order.
+	column.sort_custom(func(a: Actor, b: Actor) -> bool:
+		return a.data.seat_index < b.data.seat_index)
+
+	for n: Actor in column:
+		var box: Rect2 = n.notice_box()
+		box.position += n.global_position
+		var off := _free_slot(box, taken)
+		n.notice_offset = off
+		taken.append(Rect2(box.position + off, box.size))
+
+
+## The first offset that puts `box` somewhere nothing else already sits.
+## Tried in order: where it wants to be, then sideways, then a rung up —
+## nearest-to-home first, so a notice only travels as far as it has to.
+static func _free_slot(box: Rect2, taken: Array[Rect2]) -> Vector2:
+	for rung in NOTICE_RUNGS:
+		for side: float in [0.0, 1.0, -1.0, 2.0, -2.0]:
+			var off := Vector2(side * NOTICE_SIDE, -float(rung) * NOTICE_STEP)
+			var candidate := Rect2(box.position + off, box.size).grow(NOTICE_GAP)
+			var clear := true
+			for t: Rect2 in taken:
+				if candidate.intersects(t.grow(NOTICE_GAP)):
+					clear = false
+					break
+			if clear:
+				return off
+	return Vector2(0.0, -float(NOTICE_RUNGS) * NOTICE_STEP)
 
 
 ## The "?" over a stuck student and the finished sheet on their desk, both
@@ -639,9 +720,6 @@ func _refresh_bubbles() -> void:
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
-		# The same words the file's third page would print for this child,
-		# above their own desk -- see StudentRead for why it's one builder.
-		st.show_need(StudentRead.urgent_line(s))
 
 
 ## Somebody sat down. If the lesson has already started they have missed

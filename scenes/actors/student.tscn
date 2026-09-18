@@ -27,7 +27,10 @@ vframes = 4
 position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_feet")
 
-[node name="Bubble" type="Sprite2D" parent="."]
+[node name="Notice" type="Node2D" parent="."]
+z_index = 5
+
+[node name="Bubble" type="Sprite2D" parent="Notice"]
 visible = false
-position = Vector2(0, -32)
+position = Vector2(0, -46)
 texture = ExtResource("3_bub")

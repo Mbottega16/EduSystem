@@ -237,7 +237,8 @@ func _main() -> void:
 	test_traits()
 	test_save_isolation()
 	await test_bubbles()
-	await test_desk_speaks_up()
+	await test_room_shows_not_tells()
+	await test_notices_never_overlap()
 	await test_screens_explain_themselves()
 	await test_no_raw_colour_codes()
 	await test_difficulty()
@@ -3969,12 +3970,15 @@ func test_bubbles() -> void:
 	await step(2)
 
 
-## Step 1 of ten-commits.md: the room says what the file page would say,
-## above the desk, without you opening a screen. One builder,
-## StudentRead.acting_on() -- called from hud.gd's third page and from
-## here -- so the two can never disagree about a child.
-func test_desk_speaks_up() -> void:
-	section("THE DESK SPEAKS UP")
+## The room SHOWS, it does not tell.
+##
+## Step 1 of ten-commits.md put the file page's own top line in a box over
+## every desk. It is gone again (Sept 2026, the owner's call): at this desk
+## spacing a full sentence per desk covered the room it was describing. What
+## is over a desk now is the "?" and the work bar -- and nothing else. The
+## reasons still live on the file page, off the same builder as before.
+func test_room_shows_not_tells() -> void:
+	section("THE ROOM SHOWS, IT DOES NOT TELL")
 	Balance.ensure_loaded()
 	Game.new_run(SEED)
 	var guard := 0
@@ -3985,8 +3989,11 @@ func test_desk_speaks_up() -> void:
 
 	var s0: StudentData = Game.roster[0]
 	var st0: Interactable = world.stations[s0.seat_index]
-	chk("every seat got its own in-room read",
-		st0.need_bubble != null, s0.seat_index)
+	var n0: Actor = world.student_node(s0.seat_index)
+	chk("no desk says a sentence out loud any more",
+		not st0.has_method("show_need"))
+	chk("and nothing is left holding a box of text",
+		st0.get("need_bubble") == null)
 
 	# calm baseline
 	s0.trait_id = ""
@@ -3995,62 +4002,167 @@ func test_desk_speaks_up() -> void:
 	s0.quiz_flagged = false
 	s0.copied = false
 	world._refresh_bubbles()
-	chk("a settled desk says nothing", st0.need_bubble.current_text() == "",
-		st0.need_bubble.current_text())
+	chk("a settled desk shows nothing at all", not n0.bubble.visible)
 
 	s0.disrupting = true
 	world._refresh_bubbles()
-	chk("playing up is spoken, the same words the file page uses",
-		st0.need_bubble.current_text() == StudentRead.PLAYING_UP,
-		st0.need_bubble.current_text())
+	chk("playing up puts the mark up", n0.bubble.visible)
+	chk("in the colour that means playing up",
+		n0.bubble.modulate.is_equal_approx(world.NOISE_BUBBLE_TINT),
+		n0.bubble.modulate)
 	s0.disrupting = false
 
 	s0.trait_id = "steady"       # no hiding, so is_visibly_struggling() is prompt
 	s0.confusion = 1.0
 	s0._hidden_for = 999.0
 	world._refresh_bubbles()
-	chk("a stuck child announces itself",
-		st0.need_bubble.current_text() == StudentRead.STUCK,
-		st0.need_bubble.current_text())
+	chk("a stuck child puts the same mark up", n0.bubble.visible)
+	chk("in the plain colour that means stuck",
+		n0.bubble.modulate.is_equal_approx(Color.WHITE), n0.bubble.modulate)
 	s0.confusion = 0.0
 	s0._hidden_for = 0.0
 	s0.trait_id = ""
 
 	s0.quiz_flagged = true
 	world._refresh_bubbles()
-	chk("the quiz catching them is spoken too",
-		st0.need_bubble.current_text() == StudentRead.QUIZ_CAUGHT,
-		st0.need_bubble.current_text())
+	chk("the quiz catching them shows too", n0.bubble.visible)
+	chk("in its own cooler colour",
+		n0.bubble.modulate.is_equal_approx(world.QUIZ_BUBBLE_TINT),
+		n0.bubble.modulate)
 	s0.quiz_flagged = false
+	world._refresh_bubbles()
 
-	# --- materials day outranks everything else, including a flare-up ---
+	# --- the WHY did not go anywhere: it is on the file page, as before ---
+	s0.disrupting = true
+	chk("the ranking still knows what is worst for a child",
+		StudentRead.urgent_line(s0) == StudentRead.PLAYING_UP,
+		StudentRead.urgent_line(s0))
 	s0.has_supply = false
-	s0.disrupting = true
-	world._refresh_bubbles()
-	chk("nothing to work with outranks even playing up",
-		st0.need_bubble.current_text() == StudentRead.NOTHING_TO_WORK_WITH,
-		st0.need_bubble.current_text())
+	chk("and that a materials day outranks even playing up",
+		StudentRead.urgent_line(s0) == StudentRead.NOTHING_TO_WORK_WITH,
+		StudentRead.urgent_line(s0))
 	s0.has_supply = true
-	s0.disrupting = false
-	world._refresh_bubbles()
-
-	# --- and it can never say something the file page would not ---
-	var digits := RegEx.new()
-	digits.compile("[0-9]")
-	s0.disrupting = true
-	world._refresh_bubbles()
-	chk("the spoken line is prose too, never a number",
-		digits.search(st0.need_bubble.current_text()) == null,
-		st0.need_bubble.current_text())
 	var hud := _hud()
 	hud.show_student(s0)           # binds _bio, so the page switch below sticks
 	hud._bio_page = hud.BIO_ACTING
 	hud.show_student(s0)
-	chk("...and it is one of the reasons the file page itself would print",
-		hud.body.text.contains(st0.need_bubble.current_text()), hud.body.text)
+	chk("...and the file page still prints it in those same words",
+		hud.body.text.contains(StudentRead.urgent_line(s0)), hud.body.text)
 	hud.close()
 	s0.disrupting = false
 	world._refresh_bubbles()
+
+	# --- the bar itself: bigger, and clear of the mark above it ---
+	chk("the work bar is the wide one, not the old smudge",
+		n0.BAR_W >= 24.0, n0.BAR_W)
+	# ...and still inside its own tile, so a row of them reads as a row.
+	chk("...but not so wide that two of them run together",
+		n0.BAR_W + n0.BAR_PAD * 2.0 <= float(Grid.TILE), n0.BAR_W)
+	var mark_bottom: float = n0.bubble.position.y + n0.bubble.texture.get_height() / 2.0
+	chk("the mark sits clear of the bar instead of on top of it",
+		mark_bottom <= n0.BAR_Y - n0.BAR_PAD, [mark_bottom, n0.BAR_Y])
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The owner's own requirement, in one sentence: you can see EVERY
+## student's notice, with no overlap, no matter how many are up at once.
+## Desks stand a tile apart and can be pushed together, so this is not a
+## rare case -- it is the ordinary one the moment a class gets busy.
+func test_notices_never_overlap() -> void:
+	section("NOTHING OVERLAPS, HOWEVER MANY")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	# A FULL room, not the four children a run opens with: the crowding is
+	# the whole point, and four desks never crowd. _rebind_to_new_run()
+	# rather than a walk-in, because the seats are what matter here, not
+	# the entrance -- it is the same call the world already uses when a run
+	# is replaced underneath it.
+	while Game.enrol() != null:
+		pass
+	world._rebind_to_new_run()
+	await step(2)
+	chk("the class is seated", world.everyone_seated())
+	chk("and it is a full one", world.students.size() == Game.seat_capacity(),
+		world.students.size())
+
+	# The worst case the room can produce: everybody working (a bar each)
+	# AND everybody visibly stuck (a mark each), all at once.
+	world.start_lesson()
+	for s: StudentData in Game.roster:
+		s.trait_id = "steady"
+		s.confusion = 1.0
+		s._hidden_for = 999.0
+	world._refresh_bubbles()
+	world._layout_notices()
+
+	var shown: Array[Actor] = []
+	for n: Actor in world.students:
+		if n.has_notice():
+			shown.append(n)
+	chk("the whole class is shouting at once",
+		shown.size() == Game.roster.size(), shown.size())
+
+	var overlaps := 0
+	var worst := ""
+	for i in shown.size():
+		for j in range(i + 1, shown.size()):
+			# Grown by the same gap the layout keeps: two notices that
+			# merely touch read as one, which is the bug in a different hat.
+			var a: Rect2 = shown[i].notice_world_box().grow(world.NOTICE_GAP)
+			var b: Rect2 = shown[j].notice_world_box().grow(world.NOTICE_GAP)
+			if a.intersects(b):
+				overlaps += 1
+				worst = "%d over %d" % [
+					shown[i].data.seat_index, shown[j].data.seat_index]
+	chk("no two notices overlap, with every desk asking for you",
+		overlaps == 0, "%d pairs, e.g. %s" % [overlaps, worst])
+
+	# The finished sheet marks ITS desk and never moves, so nothing may be
+	# parked on top of one either.
+	var on_paper := 0
+	for st: Interactable in world.stations:
+		if st.paper == null or not st.paper.visible or st.paper.texture == null:
+			continue
+		var size: Vector2 = st.paper.texture.get_size()
+		var sheet := Rect2(st.paper.global_position - size / 2.0, size)
+		for n: Actor in shown:
+			if n.notice_world_box().intersects(sheet):
+				on_paper += 1
+	chk("and nothing is parked on top of a finished sheet", on_paper == 0, on_paper)
+
+	# A notice may climb and step sideways; it may never wander off below
+	# its own student, which would leave the leader line pointing upward
+	# into somebody else's desk.
+	var stray := 0
+	for n: Actor in shown:
+		if n.notice_offset.y > 0.0 or absf(n.notice_offset.x) > 2.0 * world.NOTICE_SIDE:
+			stray += 1
+	chk("every notice stays above the child it belongs to", stray == 0, stray)
+
+	# Placement, not physics: the same room laid out twice is the same room.
+	var first: Array[Vector2] = []
+	for n: Actor in shown:
+		first.append(n.notice_offset)
+	world._layout_notices()
+	var same := true
+	for i in shown.size():
+		if not shown[i].notice_offset.is_equal_approx(first[i]):
+			same = false
+	chk("laying the same room out twice gives the same answer", same)
+
+	# And a child with nothing to say is not in the queue at all.
+	var quiet: StudentData = Game.roster[0]
+	quiet.confusion = 0.0
+	quiet._hidden_for = 0.0
+	quiet.work_state = StudentData.Work.NONE
+	world._refresh_bubbles()
+	world._layout_notices()
+	var qn: Actor = world.student_node(quiet.seat_index)
+	chk("a child with nothing to say takes up no room", not qn.has_notice())
+	chk("and is put straight back where they belong",
+		qn.notice_offset == Vector2.ZERO, qn.notice_offset)
 
 	Game.new_run(SEED)
 	await step(2)
@@ -12554,3 +12666,11 @@ func test_walkthrough() -> void:
 	# --- a dev tool must never write the player's save (CLAUDE.md) ---
 	chk("both walkthroughs redirect the save away from the player's",
 		drive.contains('Game.save_path = "user://edusystem_WALKTHROUGH_save.json"'))
+	# The screenshot harness boots the REAL game against the real save, which
+	# is the point of it -- but "day"/"new_term" advance that run, and an
+	# advance can write. Reading the player's save is fine; writing it is the
+	# thing the rule forbids.
+	var shot := FileAccess.get_file_as_string("res://tools/shot.gd")
+	chk("...and so does the screenshot harness, which boots the real run",
+		shot.contains('const SHOT_SAVE := "user://edusystem_SHOT_save.json"')
+		and shot.contains("Game.save_path = SHOT_SAVE"))

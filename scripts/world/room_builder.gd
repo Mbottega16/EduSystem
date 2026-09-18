@@ -248,15 +248,6 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		body.add_child(station)
 		stations.append(station)
 
-		# The in-room read: the same sentence the file's third page would
-		# print for this child, above their own desk, so you never have to
-		# open a screen to learn it. Above the paper (-36) so a finished
-		# sheet and a spoken need never overlap.
-		var need: SpeechBubble = SPEECH_BUBBLE_SCENE.instantiate()
-		need.position = Vector2(0, -52)
-		body.add_child(need)
-		station.need_bubble = need
-
 		# The same desk, on the other button: F picks the whole thing up.
 		var mover := Interactable.new()
 		mover.set_script(DESK_MOVER_SCRIPT)

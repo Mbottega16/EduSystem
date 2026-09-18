@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2203 assertions — must pass, count must not drop
+Run Tests.bat            2220 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -269,7 +269,7 @@ still looks armed is how the last one got missed.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 2203 assertions, 119 sections |
+| `tests/run.gd` | The suite — 2220 assertions, 121 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
