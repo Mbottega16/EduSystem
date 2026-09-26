@@ -121,6 +121,14 @@ static var teacher_dash_smoke_count: int = 8
 static var teacher_dash_smoke_spread: float = 16.0
 static var teacher_dash_smoke_scale: float = 2.2
 static var teacher_dash_smoke_seconds: float = 0.5
+## The chain dash (taught by the mentor): a dash that reaches a visible
+## raised hand answers it on arrival, and the next dash is ready after
+## chain_dash_cooldown instead of the ordinary wait. See
+## teacher._chain_dash_note in balance.json and player.gd's _tick_chain().
+static var teacher_chain_dash_cooldown: float = 0.12
+static var teacher_chain_dash_reach: float = 48.0
+static var teacher_chain_dash_max_links: int = 5
+static var teacher_chain_dash_window: float = 1.2
 
 # --- students -----------------------------------------------------------
 static var stu_xp_per_lesson: int = 18
@@ -504,6 +512,10 @@ static func apply(d: Dictionary) -> void:
 	teacher_dash_smoke_spread = float(tc.get("dash_smoke_spread", teacher_dash_smoke_spread))
 	teacher_dash_smoke_scale = float(tc.get("dash_smoke_scale", teacher_dash_smoke_scale))
 	teacher_dash_smoke_seconds = float(tc.get("dash_smoke_seconds", teacher_dash_smoke_seconds))
+	teacher_chain_dash_cooldown = float(tc.get("chain_dash_cooldown", teacher_chain_dash_cooldown))
+	teacher_chain_dash_reach = float(tc.get("chain_dash_reach", teacher_chain_dash_reach))
+	teacher_chain_dash_max_links = int(tc.get("chain_dash_max_links", teacher_chain_dash_max_links))
+	teacher_chain_dash_window = float(tc.get("chain_dash_window", teacher_chain_dash_window))
 
 	var st: Dictionary = d.get("student", {})
 	stu_xp_per_lesson = int(st.get("xp_per_lesson", stu_xp_per_lesson))

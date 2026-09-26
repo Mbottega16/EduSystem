@@ -850,7 +850,12 @@
     "dash_smoke_count": 8,
     "dash_smoke_spread": 16.0,
     "dash_smoke_scale": 2.2,
-    "dash_smoke_seconds": 0.5
+    "dash_smoke_seconds": 0.5,
+    "_chain_dash_note": "The chain dash, taught by the mentor (Game.chain_dash_taught). A dash that reaches a child with their hand visibly up answers them on arrival -- the same help() the E key gives, no stopping to press it. The burst ends there, and the wait before the next dash drops to chain_dash_cooldown, so the next hand can be run at straight away: hand to hand to hand. Only a VISIBLE hand counts (a Quiet child hiding a stall still has to be noticed and walked to), only one child per dash, and only a desk within chain_dash_reach px that lies ahead of the teacher, so a dash away from someone never answers them. After chain_dash_max_links answers in a row the refund stops and the ordinary cooldown applies. chain_dash_window is how long after one answer the next still counts toward the same chain (the floater count). Pace only: it helps exactly the children E would have, so nothing a room is graded on moves.",
+    "chain_dash_cooldown": 0.12,
+    "chain_dash_reach": 48.0,
+    "chain_dash_max_links": 5,
+    "chain_dash_window": 1.2
   },
   "skip": {
     "_note": "Teaching on your own -- the teacher hands the room over and lets the days run. Each skipped day is resolved by RoomSim under the Steady policy, the SAME model a delegated room runs and the same one Game.auto_teach already uses for a single lesson; nothing here is a formula that awards a grade. What makes it a real decision rather than a free fast-forward: no homework is set on a day you were not there to set it, so the marking that lifts a class never happens, and RoomSim Steady is a competent stand-in rather than you at your best. max_days is the cap as shipped. item_bonus_cap is how much furniture may add on top of it later -- an item def with a \"skip_days\" key contributes, the way \"teaches\" already grants a concept; no item carries one yet, which is why the hook is capped rather than open.",

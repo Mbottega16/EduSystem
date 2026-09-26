@@ -203,6 +203,7 @@ func _main() -> void:
 	test_teacher_levels()
 	test_new_perks()
 	await test_dash_upgrade_and_display()
+	await test_chain_dash()
 	test_relay()
 	await test_subjects_and_skip()
 	test_graduation()
@@ -7659,6 +7660,78 @@ func test_mentor() -> void:
 	chk("the dash is taught now", Game.dash_taught)
 	chk("and the mass-help is taught now", Game.answer_all_taught)
 
+	# --- then she SHOWS the chain dash, with her own class ---
+	# The page walk above stops where the setup page hands the screen over:
+	# the overlay is gone and the demonstration is running.
+	chk("the first visit runs on into the chain dash, not out the door",
+		mentor_room.demo_running())
+	chk("...with the chain not yet taught -- watching is not the lesson's end",
+		not Game.chain_dash_taught)
+	chk("every one of her class has a hand up for it",
+		mentor_room.hands_up() == (mentor_room.DESK_SPOTS as Array).size(),
+		mentor_room.hands_up())
+	chk("the player stands still and watches", world.player.input_locked)
+	var seen_off_home := false
+	guard = 0
+	while mentor_room.demo_running() and guard < 120:
+		await step(5)
+		if (mentor_room.mentor.position as Vector2).distance_to(
+				mentor_room.MENTOR_HOME) > 40.0:
+			seen_off_home = true
+		guard += 1
+	chk("the demonstration finishes on its own", not mentor_room.demo_running(), guard)
+	chk("she actually leaves the front to do it", seen_off_home)
+	chk("and every hand she ran at is answered", mentor_room.hands_up() == 0,
+		mentor_room.hands_up())
+	chk("she is back at the front afterwards",
+		(mentor_room.mentor.position as Vector2).distance_to(
+			mentor_room.MENTOR_HOME) < 3.0)
+	chk("then she says what you just watched",
+		hud.mode == hud.Mode.MENTOR and hud._mentor_talk == hud.MentorTalk.CHAIN_AFTER)
+	guard = 0
+	while hud.mode == hud.Mode.MENTOR and guard < 20:
+		await tap("interact")
+		guard += 1
+	chk("walking her explanation closes it", hud.mode == hud.Mode.NONE)
+	chk("the chain dash is taught now", Game.chain_dash_taught)
+	chk("and the player is free to try it", not world.player.input_locked)
+	chk("her class starts practice straight away", mentor_room.practising)
+	var rest := int(ceil(mentor_room.PRACTICE_REST * 60.0)) + 6
+	await step(rest)
+	chk("...hands go back up for the player to run at",
+		mentor_room.hands_up() == (mentor_room.DESK_SPOTS as Array).size(),
+		mentor_room.hands_up())
+
+	# The REAL input path, in open floor: a dash along the front of desk 0
+	# reaches its raised hand and answers it on the way in.
+	var d0: Interactable = mentor_room.desks[0]
+	_reset_dash(world.player)
+	var run_from: Vector2 = (mentor_room.DESK_SPOTS[0] as Vector2) \
+		+ mentor_room.ANSWER_SPOT + Vector2(-56.0, 0.0)
+	world.player.position = run_from
+	world.player.facing = Actor.DIR_RIGHT
+	world.player.velocity = Vector2.ZERO
+	await step(2)
+	chk("desk 0's hand is up before the run", d0.asking)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await step(1)
+	Input.action_release("dash")
+	await step(int(round(Balance.teacher_dash_duration * 60.0)) + 4)
+	Input.action_release("move_right")
+	await step(2)
+	chk("a real dash into her pupil's raised hand answers it", not d0.asking)
+	chk("...and leaves the next dash ready at once",
+		world.player._dash_cool <= Balance.teacher_chain_dash_cooldown + 0.001,
+		world.player._dash_cool)
+	chk("her class stays out of the save -- nobody in here is on the roster",
+		(func() -> bool:
+			for s: StudentData in Game.roster:
+				for pu: Node in mentor_room.pupils:
+					if pu.get("data") == s:
+						return false
+			return true).call())
+
 	# the desks in there really are spaced -- the room is the demonstration
 	chk("the mentor room's desks are laid out with real gaps", (func() -> bool:
 		var spots: Array = mentor_room.DESK_SPOTS
@@ -7711,6 +7784,19 @@ func test_mentor() -> void:
 	chk("the way back hands the player to the hallway",
 		world.player.get_parent() == hallway)
 	chk("with the mentor room put away", not mentor_room.visible and hallway.visible)
+
+	chk("leaving puts her class's hands down", mentor_room.hands_up() == 0
+		and not mentor_room.practising)
+	chk("and the player's hand-set depth in there does not follow them out",
+		world.player.z_index == 0, world.player.z_index)
+
+	# --- a save that had the dash but never saw the chain gets the demo ---
+	Game.chain_dash_taught = false
+	hud.show_mentor()
+	chk("a revisit before the chain has been shown opens with it",
+		hud.mode == hud.Mode.MENTOR and hud._mentor_talk == hud.MentorTalk.CHAIN_INTRO)
+	hud.close()
+	Game.chain_dash_taught = true
 
 	# --- a revisit outside a boss term is a plain idle line ---
 	Game.term = 1
@@ -9912,6 +9998,170 @@ func _reset_dash(p: Node) -> void:
 	p._dash_stumbled = false
 	for k: String in (p._tap_since as Dictionary).keys():
 		p._tap_since[k] = 999.0
+
+
+# ============================================ the chain dash
+
+## A child with their hand visibly up, and nothing louder going on at the
+## desk -- so HELP is exactly what E would offer there.
+func _chain_stuck(s: StudentData) -> void:
+	s.trait_id = "steady"
+	s.has_supply = true
+	s.flare_left = 0.0
+	s.disrupting = false
+	s.confusion = 1.0
+	s._hidden_for = 999.0
+
+
+## Mid-dash, as far as _tick_chain() can tell: a live burst on a dash that
+## has not answered anyone yet. Driven this way rather than by input so the
+## rules are checked apart from the geometry of an aisle; the real input
+## path is walked in the mentor's room, in test_mentor().
+func _chain_mid_dash(p: Node, fresh: bool = true) -> void:
+	p._dash_burst = 0.1
+	p._dash_cool = 1.0
+	if fresh:
+		p._dash_answered = false
+
+
+func test_chain_dash() -> void:
+	section("THE CHAIN DASH")
+	Balance.ensure_loaded()
+	chk("the chain's numbers live in balance.json",
+		Balance.teacher_chain_dash_cooldown > 0.0
+		and Balance.teacher_chain_dash_reach > 0.0
+		and Balance.teacher_chain_dash_max_links > 0
+		and Balance.teacher_chain_dash_window > 0.0)
+	chk("a chained dash waits far less than an ordinary one",
+		Balance.teacher_chain_dash_cooldown < Balance.teacher_dash_cooldown * 0.5,
+		"%.2f vs %.2f" % [Balance.teacher_chain_dash_cooldown, Balance.teacher_dash_cooldown])
+
+	Game.new_run(SEED)
+	var guard := 0
+	while not world.everyone_seated() and guard < 900:
+		await step(1)
+		guard += 1
+	chk("the class is seated", world.everyone_seated(), guard)
+	chk("a new career has not been shown the chain", not Game.chain_dash_taught)
+
+	var p = world.player
+	p.input_locked = false
+	_reset_dash(p)
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	var st_a: Interactable = world.stations[a.seat_index]
+	var st_b: Interactable = world.stations[b.seat_index]
+	for s: StudentData in Game.roster:
+		s.confusion = 0.0
+		s.disrupting = false
+		s.flare_left = 0.0
+	# Stand in the aisle just in front of A's desk, facing it.
+	var in_front_of_a := Layout.desk_tile(a.seat_index) + Vector2i(0, 1)
+	await place_player(in_front_of_a, Actor.DIR_UP)
+
+	# --- untaught: a dash reaches a raised hand and does nothing to it ---
+	_chain_stuck(a)
+	chk("an untaught chain answers no one", not st_a.dash_answerable())
+	_chain_mid_dash(p)
+	await step(2)
+	chk("...a dash into a raised hand leaves it up", a.is_struggling())
+
+	# --- taught: the same dash answers them on arrival ---
+	Game.chain_dash_taught = true
+	chk("taught, a visibly raised hand in front of you is answerable",
+		st_a.dash_answerable())
+	var helps_before := a.helps_received
+	_chain_mid_dash(p)
+	await step(2)
+	chk("a dash that reaches a raised hand answers it", not a.is_struggling())
+	chk("...through the same help() E gives -- it counts as help",
+		a.helps_received == helps_before + 1)
+	chk("the lunge lands there: the burst ends on the answer", p._dash_burst == 0.0)
+	chk("and the next dash is ready almost at once",
+		p._dash_cool <= Balance.teacher_chain_dash_cooldown + 0.001, p._dash_cool)
+	chk("that is one link in a chain", p.chain_links == 1, p.chain_links)
+
+	# --- one child per dash ---
+	_chain_stuck(a)
+	_chain_mid_dash(p, false)          # the SAME dash, still live
+	await step(2)
+	chk("one dash answers one child, not everyone it passes", a.is_struggling())
+
+	# --- the next dash links on ---
+	_chain_mid_dash(p)
+	await step(2)
+	chk("the next dash answers the next hand", not a.is_struggling())
+	chk("...and the chain grows", p.chain_links == 2, p.chain_links)
+
+	# --- only a hand that is UP, only the verb E would give ---
+	a.trait_id = "quiet"
+	a.confusion = 1.0
+	a._hidden_for = 0.0
+	chk("a Quiet child still hiding it is not the dash's to find",
+		not st_a.dash_answerable())
+	_chain_mid_dash(p)
+	await step(2)
+	chk("...a dash past them leaves them stuck", a.is_struggling())
+	_chain_stuck(a)
+	a.disrupting = true
+	_chain_mid_dash(p)
+	await step(2)
+	chk("a dash never settles a child playing up -- that is a word, not a run",
+		a.disrupting)
+	a.disrupting = false
+	a.confusion = 0.0
+
+	# --- not behind you ---
+	_chain_stuck(a)
+	p.facing = Actor.DIR_DOWN
+	_chain_mid_dash(p)
+	await step(2)
+	chk("a dash AWAY from a raised hand does not answer it", a.is_struggling())
+	p.facing = Actor.DIR_UP
+
+	# --- a paper in progress is silent ---
+	Game.test_active = true
+	chk("nothing is answerable during a test", not st_a.dash_answerable())
+	Game.test_active = false
+
+	# --- out of breath: past the cap the wait is the ordinary one ---
+	p.chain_links = Balance.teacher_chain_dash_max_links
+	p._chain_left = Balance.teacher_chain_dash_window
+	_chain_mid_dash(p)
+	await step(2)
+	chk("past the cap the answer still lands", not a.is_struggling())
+	chk("...but the wait is not refunded",
+		p._dash_cool > Balance.teacher_chain_dash_cooldown + 0.001, p._dash_cool)
+
+	# --- the chain lapses if you stop running ---
+	var lapse := int(ceil(Balance.teacher_chain_dash_window * 60.0)) + 6
+	await step(lapse)
+	chk("a chain left alone lapses back to nothing", p.chain_links == 0, p.chain_links)
+
+	# --- another desk works the same way ---
+	_chain_stuck(b)
+	var in_front_of_b := Layout.desk_tile(b.seat_index) + Vector2i(0, 1)
+	await place_player(in_front_of_b, Actor.DIR_UP)
+	_chain_mid_dash(p)
+	await step(2)
+	chk("any desk in the room answers the same way", not b.is_struggling())
+	chk("...via its own station", st_b.dash_answerable() == false)
+
+	# --- the save keeps it, and an old save has not seen it ---
+	Game.chain_dash_taught = true
+	var d: Dictionary = Game.to_dict()
+	chk("the chain being taught is saved", bool(d.get("chain_dash_taught", false)))
+	d.erase("chain_dash_taught")
+	Game.from_dict(d)
+	chk("a save from before it existed has NOT been shown it -- the demo is the lesson",
+		not Game.chain_dash_taught)
+	chk("...while that same save keeps the dash itself", Game.dash_taught)
+
+	_reset_dash(p)
+	p.chain_links = 0
+	p._chain_left = 0.0
+	Game.new_run(SEED)
+	await step(2)
 
 
 # ============================================ the end-of-session bell rush

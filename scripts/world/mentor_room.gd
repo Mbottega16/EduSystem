@@ -16,9 +16,13 @@ extends Node2D
 
 ## The player used the door back to the hallway.
 signal exit_chosen()
+## The mentor has finished showing the chain dash with her own class and is
+## back at the front -- hud.gd picks the dialogue up from here.
+signal demo_finished()
 
 const STUDENT_SCENE := preload("res://scenes/actors/student.tscn")
 const DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
+const MENTOR_DESK_SCRIPT := preload("res://scripts/interact/mentor_desk.gd")
 const PROP_DESK := preload("res://art/desk.png")
 const PROP_CHAIR := preload("res://art/chair.png")
 const MENTOR_TEX := preload("res://art/mentor.png")
@@ -71,11 +75,42 @@ const DRESSING := [
 	["plant",           Vector2(370, 286), "prop"],
 ]
 
+## Her own class: one pupil per desk, a recolour of the one character model
+## like every other child in the game. Nothing about them is a StudentData.
+const PUPIL_ART := ["student_b", "student_d", "student_e", "student_g"]
+## Where a pupil sits relative to their desk's anchor -- on the chair behind
+## it -- and where a teacher stands to answer them, in front of it.
+const PUPIL_OFFSET := Vector2(0.0, -10.0)
+const ANSWER_SPOT := Vector2(0.0, 20.0)
+const MENTOR_HOME := Vector2(ROOM_W * 0.5, 80.0)
+
+## The demonstration's pacing. Stage directions, not balance: nothing here
+## is graded or saved, and the player's own chain runs off teacher.chain_*
+## in balance.json, not off these.
+const DEMO_LEAD := 0.9      ## hands up, a beat before she moves
+const DEMO_DASH := 0.18     ## one lunge, desk to desk
+const DEMO_BEAT := 0.3      ## the answer landing before the next lunge
+const DEMO_GHOST := 0.03    ## seconds between trail ghosts
+const PRACTICE_REST := 1.6  ## all hands down -> this long -> all back up
+
 var mentor: Node = null
+var pupils: Array = []      ## the seated Student nodes, DESK_SPOTS order
+var desks: Array = []       ## their MentorDesk interactables, same order
+var practising := false
 var _built := false
+
+enum Demo { OFF, LEAD, DASH, BEAT, RETURN }
+var _demo: int = Demo.OFF
+var _demo_t := 0.0
+var _demo_queue: Array[int] = []
+var _demo_at := -1
+var _demo_from := Vector2.ZERO
+var _ghost_t := 0.0
+var _rest_t := 0.0
 
 
 func _ready() -> void:
+	add_to_group("mentor_room")
 	_build()
 
 
@@ -142,6 +177,29 @@ func _build() -> void:
 		body.add_child(cs)
 		add_child(body)
 
+	# Her class, one at each desk, and the desk's own hand-up/answer landmark.
+	for i in DESK_SPOTS.size():
+		var spot: Vector2 = DESK_SPOTS[i]
+		var pupil: Node = STUDENT_SCENE.instantiate()
+		add_child(pupil)
+		if pupil.has_node("Sprite2D"):
+			(pupil.get_node("Sprite2D") as Sprite2D).texture = \
+				load("res://art/%s.png" % String(PUPIL_ART[i % PUPIL_ART.size()]))
+		pupil.position = spot + PUPIL_OFFSET
+		pupil.idle_phase = float(i) * 0.9     # so they don't breathe in unison
+		pupil.sit(Actor.DIR_DOWN)
+		pupil._set_collision(false)            # the desk is already solid
+		pupil.z_index = int(spot.y) - 1        # behind their own desk
+		pupil.add_to_group("mentor_pupil")
+		pupils.append(pupil)
+
+		var d: Interactable = MENTOR_DESK_SCRIPT.new()
+		d.pupil = pupil
+		d.position = spot + Vector2(0.0, -8.0)
+		d.set_pick_radius(18.0)
+		add_child(d)
+		desks.append(d)
+
 	# The dressing -- the room the mentor's dialogue actually points at.
 	for i in DRESSING.size():
 		var row: Array = DRESSING[i]
@@ -153,7 +211,7 @@ func _build() -> void:
 	add_child(mentor)
 	if mentor.has_node("Sprite2D"):
 		(mentor.get_node("Sprite2D") as Sprite2D).texture = MENTOR_TEX
-	mentor.position = Vector2(ROOM_W * 0.5, 80.0)
+	mentor.position = MENTOR_HOME
 	mentor.facing = Actor.DIR_DOWN
 	if mentor.has_method("set_idle"):
 		mentor.set_idle()
@@ -217,6 +275,154 @@ func _add_prop(idx: int, tex_name: String, anchor: Vector2, kind: String) -> voi
 	cs.position = Vector2(0.0, -5.0)
 	body.add_child(cs)
 	add_child(body)
+
+
+## Y-sort by hand for the two things that move in here -- the room is not a
+## y-sorted node, and the desks carry their own z by their feet. Then the
+## demonstration or the practice, whichever is running.
+func _physics_process(delta: float) -> void:
+	if mentor != null:
+		mentor.z_index = int(mentor.position.y)
+	for c in get_children():
+		if c is Actor and c.is_in_group("carrier"):
+			(c as Node2D).z_index = int((c as Node2D).position.y)
+	if _demo != Demo.OFF:
+		_tick_demo(delta)
+	elif practising:
+		_tick_practice(delta)
+
+
+## How many of her class have a hand up right now.
+func hands_up() -> int:
+	var n := 0
+	for d: Interactable in desks:
+		if d.asking:
+			n += 1
+	return n
+
+
+func demo_running() -> bool:
+	return _demo != Demo.OFF
+
+
+## The mentor shows the chain dash with her own class: every hand goes up,
+## and she runs at them one after another -- lunge, answer, lunge, answer --
+## never walking, never stopping to press anything. Then she walks back to
+## the front and hud.gd says what the player just watched.
+##
+## Driven off physics frames rather than a Tween, so the suite can step it
+## exactly the way it steps everything else.
+func play_chain_demo() -> void:
+	stop_practice()
+	for d: Interactable in desks:
+		d.raise_hand()
+	_demo_queue = _demo_order()
+	_demo = Demo.LEAD
+	_demo_t = 0.0
+	if mentor != null:
+		mentor._set_collision(false)          # she runs the aisles, not into them
+		mentor.facing = Actor.DIR_DOWN
+
+
+## Nearest desk first, then the nearest to that -- the route a teacher
+## would actually run. Fixed layout, so this never changes.
+func _demo_order() -> Array[int]:
+	var out: Array[int] = []
+	var left: Array[int] = []
+	for i in DESK_SPOTS.size():
+		left.append(i)
+	var at := MENTOR_HOME
+	while not left.is_empty():
+		var best: int = left[0]
+		for i in left:
+			if at.distance_to(_answer_spot(i)) < at.distance_to(_answer_spot(best)):
+				best = i
+		out.append(best)
+		left.erase(best)
+		at = _answer_spot(best)
+	return out
+
+
+func _answer_spot(i: int) -> Vector2:
+	return (DESK_SPOTS[i] as Vector2) + ANSWER_SPOT
+
+
+func _tick_demo(delta: float) -> void:
+	_demo_t += delta
+	match _demo:
+		Demo.LEAD:
+			if _demo_t >= DEMO_LEAD:
+				_next_lunge()
+		Demo.DASH:
+			var f := clampf(_demo_t / DEMO_DASH, 0.0, 1.0)
+			mentor.position = _demo_from.lerp(_answer_spot(_demo_at), f)
+			_ghost_t += delta
+			if _ghost_t >= DEMO_GHOST:
+				_ghost_t = 0.0
+				Fx.afterimage(mentor.get_node("Sprite2D") as Sprite2D, self)
+			if f >= 1.0:
+				mentor.facing = Actor.DIR_UP          # face the child she answers
+				mentor.play_pose(Actor.POSE_HANDOFF)
+				(desks[_demo_at] as Interactable).answer(mentor)
+				_demo = Demo.BEAT
+				_demo_t = 0.0
+		Demo.BEAT:
+			if _demo_t >= DEMO_BEAT:
+				_next_lunge()
+		Demo.RETURN:
+			var to: Vector2 = MENTOR_HOME - mentor.position
+			if to.length() <= 2.0:
+				mentor.position = MENTOR_HOME
+				mentor.velocity = Vector2.ZERO
+				mentor.facing = Actor.DIR_DOWN
+				mentor.set_idle()
+				mentor._set_collision(true)
+				_demo = Demo.OFF
+				demo_finished.emit()
+			else:
+				mentor.walk(to, delta)
+
+
+func _next_lunge() -> void:
+	_demo_t = 0.0
+	if _demo_queue.is_empty():
+		_demo = Demo.RETURN
+		return
+	_demo_at = _demo_queue.pop_front()
+	_demo_from = mentor.position
+	var heading: Vector2 = _answer_spot(_demo_at) - _demo_from
+	mentor.face_towards(to_global(_answer_spot(_demo_at)))
+	Fx.smoke(self, _demo_from + Vector2(0.0, 2.0), heading, 6, 12.0, 2.0, 0.4)
+	Sfx.play("blip")
+	_ghost_t = 0.0
+	_demo = Demo.DASH
+
+
+## After the lesson, her class keeps putting hands up while the player is in
+## the room, so there is always something to try the chain on. All four go
+## up together once every hand is down and the room has rested a moment.
+func start_practice() -> void:
+	practising = true
+	_rest_t = PRACTICE_REST
+
+
+func stop_practice() -> void:
+	practising = false
+	for d: Interactable in desks:
+		if d.asking:
+			d.asking = false
+			d.pupil.set_bubble(false)
+
+
+func _tick_practice(delta: float) -> void:
+	if hands_up() > 0:
+		_rest_t = 0.0
+		return
+	_rest_t += delta
+	if _rest_t >= PRACTICE_REST:
+		_rest_t = 0.0
+		for d: Interactable in desks:
+			d.raise_hand()
 
 
 ## Where a fresh arrival stands: just inside the door, facing in. Local

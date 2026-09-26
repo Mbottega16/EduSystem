@@ -75,6 +75,16 @@ func _ready() -> void:
 	# The mentor room, likewise, is a permanent scene -- its exit door hands
 	# the player back to the hallway.
 	mentor_room.exit_chosen.connect(_leave_mentor)
+	# The chain-dash lesson: hud.gd owns the words, the room owns the
+	# demonstration. The player stays locked while the mentor runs it --
+	# close() on the setup page unlocks them, so it is locked again here.
+	hud.mentor_demo_requested.connect(func() -> void:
+		world.player.input_locked = true
+		mentor_room.play_chain_demo())
+	mentor_room.demo_finished.connect(func() -> void:
+		world.player.input_locked = true
+		hud.show_mentor_after_demo())
+	hud.mentor_chain_taught.connect(mentor_room.start_practice)
 
 	# A one-line nudge toward the mentor, the first time a day ends before
 	# the player has been down the hall to meet them. Non-blocking: it rides
@@ -85,6 +95,11 @@ func _ready() -> void:
 		if not Game.dash_taught:
 			hud.queue_hint("see_the_mentor",
 				"There is a mentor teacher down the hall now.")
+		elif not Game.chain_dash_taught:
+			# A save from before the chain dash: it met the mentor, but has
+			# not seen her show this one. Same once-per-run corner line.
+			hud.queue_hint("see_the_mentor_chain",
+				"The mentor down the hall has something to show you.")
 		# Lesson crafting unlocks silently on this exact day (step 10 of the
 		# ten-commit queue) -- queue_hint, not principal_says(), since this
 		# fires while the day report is still on screen and principal_says()
@@ -485,13 +500,21 @@ func _enter_mentor() -> void:
 	# _process() -- the same reason the intro locks the player in _ready().
 	p.input_locked = true
 	hud.show_mentor()
+	# Her class only puts hands up for practice once the chain is taught;
+	# before that the room is waiting on her to show it.
+	if Game.chain_dash_taught:
+		mentor_room.start_practice()
 
 
 ## Back out through the mentor room's door, into the hallway.
 func _leave_mentor() -> void:
 	hallway.rebuild()
 	var p: Actor = world.player
+	mentor_room.stop_practice()
 	mentor_room.remove_child(p)
+	# The mentor room y-sorts the player by hand (it is not a y-sorted node);
+	# everywhere else it must be back at 0 for the real y-sort to work.
+	p.z_index = 0
 	hallway.add_child(p)
 	p.position = hallway.entry_position()
 	p.facing = p.DIR_DOWN

@@ -104,11 +104,15 @@ static func afterimage(src: Sprite2D, parent: Node2D,
 	g.vframes = src.vframes
 	g.frame = src.frame
 	g.flip_h = src.flip_h
-	g.global_position = src.global_position
 	g.z_index = src.z_index - 1
 	g.modulate = tint
 	g.set_meta("afterimage", true)
 	parent.add_child(g)
+	# AFTER add_child: a global position set on a node with no parent yet is
+	# just its local one, which is only right for a parent at the origin.
+	# The mentor's room sits at (0, 20000), and a trail there landed 20000px
+	# below the room.
+	g.global_position = src.global_position
 	var tw := g.create_tween()
 	tw.tween_property(g, "modulate:a", 0.0, seconds) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

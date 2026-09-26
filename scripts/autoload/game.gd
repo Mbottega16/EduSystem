@@ -632,6 +632,14 @@ var intro_seen: bool = false
 ## hall yet" -- what the day-end nudge and the first-visit dialogue check.
 var dash_taught: bool = false
 var answer_all_taught: bool = false
+## The chain dash -- a dash that reaches a raised hand answers it and leaves
+## the next dash ready at once (player.gd's _tick_chain()). Taught by the
+## mentor SHOWING it, with her own class, then saying what you saw. NOT
+## grandfathered, unlike the two above: a save from before this has the
+## dash but has never seen the demonstration, and the demonstration is the
+## lesson. from_dict() defaults it false, so the next walk down the hall
+## plays it -- the day-end nudge in main.gd points there.
+var chain_dash_taught: bool = false
 
 signal teacher_levelled(level: int)
 
@@ -762,6 +770,7 @@ func new_run(seed_value: int = 0) -> void:
 	intro_seen = false
 	dash_taught = false
 	answer_all_taught = false
+	chain_dash_taught = false
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -3152,6 +3161,7 @@ func to_dict() -> Dictionary:
 		"intro_seen": intro_seen,
 		"dash_taught": dash_taught,
 		"answer_all_taught": answer_all_taught,
+		"chain_dash_taught": chain_dash_taught,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -3211,6 +3221,9 @@ func from_dict(d: Dictionary) -> void:
 	# mass-help it has always had. A new career sets them false in new_run().
 	dash_taught = bool(d.get("dash_taught", true))
 	answer_all_taught = bool(d.get("answer_all_taught", true))
+	# NOT grandfathered -- see the var's own note. No key means the mentor
+	# has not shown it yet, whatever else this save already knows.
+	chain_dash_taught = bool(d.get("chain_dash_taught", false))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()

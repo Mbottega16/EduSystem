@@ -143,6 +143,28 @@ func interact(by: Node) -> void:
 			used.emit(by)
 
 
+## The chain dash (player.gd's _tick_chain()): can a dash that reaches this
+## desk answer it on arrival? Only a hand that is visibly UP -- the same
+## HELP the E key would give here, and only when HELP is what E would give,
+## so a dash never settles a disruption or collects a sheet on the way
+## past. A Quiet child still hiding their stall is not answerable: noticing
+## them is yours to do, not the dash's.
+func dash_answerable() -> bool:
+	if not Game.chain_dash_taught or Game.test_active:
+		return false
+	var s := student()
+	return s != null and action() == Action.HELP and s.is_visibly_struggling()
+
+
+## Answer them on arrival. Exactly the E key's HELP branch -- one verb, two
+## ways to reach it.
+func dash_answer(by: Node) -> bool:
+	if not dash_answerable():
+		return false
+	interact(by)
+	return true
+
+
 func _pop(text: String, colour: Color) -> void:
 	var world := get_parent()
 	while world != null and not world.has_method("student_node"):

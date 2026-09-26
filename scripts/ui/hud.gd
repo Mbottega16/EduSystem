@@ -2779,6 +2779,46 @@ const MENTOR_PAGES := [
 	],
 ]
 
+## The chain dash, taught by SHOWING it. One page to set the demonstration
+## up, then the overlay gets out of the way while she does it with her own
+## class (mentor_room.play_chain_demo()), then these pages say what the
+## player just watched. The chain is taught when the last one is closed.
+const MENTOR_CHAIN_INTRO := [
+	[
+		"One more thing for your feet, and it is easier",
+		"shown than said. I am going to ask my lot",
+		"something they are not sure of.",
+		"",
+		"Watch what I do when the hands go up.",
+	],
+]
+const MENTOR_CHAIN_AFTER := [
+	[
+		"See that? I never walked. I ran at a hand,",
+		"answered it as I got there, and was off to",
+		"the next before the first one had sat back.",
+		"",
+		"Run into a child with their hand up and you",
+		"answer them on arrival. No stopping to ask.",
+	],
+	[
+		"And land an answer, and your feet are ready",
+		"again at once -- no breath between. Hand to",
+		"hand to hand. That is a chain.",
+		"",
+		"Miss, and you wait like anyone. And a quiet",
+		"one who has not put a hand up yet? You still",
+		"have to notice them yourself.",
+	],
+	[
+		"Go on, have a go. My lot will keep putting",
+		"their hands up while you are in here.",
+		"",
+		"Even a chain runs out of breath after a few.",
+		"Mind the gaps.",
+	],
+]
+
 const _MENTOR_IDLE := [
 	"Still room between the desks, I see. Good.",
 	"",
@@ -2787,15 +2827,28 @@ const _MENTOR_IDLE := [
 ]
 
 ## TEACH is the first-visit paged dialogue; READ is the boss-term
-## readiness projection; IDLE is the plain revisit line.
-enum MentorTalk { TEACH, READ, IDLE }
+## readiness projection; IDLE is the plain revisit line. CHAIN_INTRO and
+## CHAIN_AFTER bracket the chain-dash demonstration -- a first visit runs
+## straight on into them after TEACH, and a save that already had the dash
+## gets them on its next walk down the hall.
+enum MentorTalk { TEACH, READ, IDLE, CHAIN_INTRO, CHAIN_AFTER }
 var _mentor_talk: int = MentorTalk.IDLE
+
+## The chain-dash page is closed and the overlay is out of the way -- main.gd
+## starts the mentor's demonstration in her room.
+signal mentor_demo_requested()
+## The last CHAIN_AFTER page is closed: the chain is taught, and her class
+## starts putting hands up for the player to try it on.
+signal mentor_chain_taught()
 
 
 func show_mentor() -> void:
 	_open(Mode.MENTOR)
 	if not Game.dash_taught:
 		_mentor_talk = MentorTalk.TEACH
+		_sel = 0
+	elif not Game.chain_dash_taught:
+		_mentor_talk = MentorTalk.CHAIN_INTRO
 		_sel = 0
 	elif _boss_term_due():
 		_mentor_talk = MentorTalk.READ
@@ -2922,12 +2975,19 @@ func _render_mentor() -> void:
 	portrait.texture = load("res://art/portrait_mentor.png")
 	portrait.visible = true
 	match _mentor_talk:
-		MentorTalk.TEACH:
-			_sel = clampi(_sel, 0, MENTOR_PAGES.size() - 1)
+		MentorTalk.TEACH, MentorTalk.CHAIN_INTRO, MentorTalk.CHAIN_AFTER:
+			var pages := _mentor_pages()
+			_sel = clampi(_sel, 0, pages.size() - 1)
 			title.text = "THE MENTOR"
-			body.text = "\n".join(MENTOR_PAGES[_sel])
-			hint.text = "E - go on" if _sel < MENTOR_PAGES.size() - 1 \
-				else "E - back to it"
+			body.text = "\n".join(pages[_sel])
+			var last := _sel >= pages.size() - 1
+			if _mentor_talk == MentorTalk.CHAIN_INTRO and last:
+				hint.text = "E - watch"
+			elif _mentor_talk == MentorTalk.TEACH and last \
+					and not Game.chain_dash_taught:
+				hint.text = "E - go on"
+			else:
+				hint.text = "E - go on" if not last else "E - back to it"
 		MentorTalk.READ:
 			title.text = "A WORD BEFORE THE PAPER"
 			body.text = _mentor_readiness_text() + _mentor_tactic_text()
@@ -2989,10 +3049,33 @@ func _mentor_tactic_text() -> String:
 	return "\n\n" + _wrap(tactic, 46, 3)
 
 
+## The page set the current talk is walking through.
+func _mentor_pages() -> Array:
+	match _mentor_talk:
+		MentorTalk.CHAIN_INTRO:
+			return MENTOR_CHAIN_INTRO
+		MentorTalk.CHAIN_AFTER:
+			return MENTOR_CHAIN_AFTER
+	return MENTOR_PAGES
+
+
+## Back from the demonstration: the mentor is at the front again, and says
+## what the player just watched.
+func show_mentor_after_demo() -> void:
+	_open(Mode.MENTOR)
+	_mentor_talk = MentorTalk.CHAIN_AFTER
+	_sel = 0
+	_render_mentor()
+
+
 func _handle_mentor_input() -> void:
 	if not Game.claim_interact():
 		return
 	Sfx.play("blip")
+	if _mentor_talk == MentorTalk.CHAIN_INTRO \
+			or _mentor_talk == MentorTalk.CHAIN_AFTER:
+		_handle_chain_page()
+		return
 	if _mentor_talk != MentorTalk.TEACH:
 		close()
 		return
@@ -3009,7 +3092,31 @@ func _handle_mentor_input() -> void:
 		# visit as a whole always leaves both verbs taught
 		Game.dash_taught = true
 		Game.answer_all_taught = true
+		# A first visit runs straight on into the chain dash -- the feet
+		# page has only just been read, so this is the moment it lands.
+		if not Game.chain_dash_taught:
+			_mentor_talk = MentorTalk.CHAIN_INTRO
+			_sel = 0
+			_render_mentor()
+			return
 		close()
+
+
+## CHAIN_INTRO's last page hands the screen to the demonstration; the last
+## CHAIN_AFTER page teaches the chain and lets the player try it.
+func _handle_chain_page() -> void:
+	var pages := _mentor_pages()
+	if _sel < pages.size() - 1:
+		_sel += 1
+		_render_mentor()
+		return
+	if _mentor_talk == MentorTalk.CHAIN_INTRO:
+		close()
+		mentor_demo_requested.emit()
+		return
+	Game.chain_dash_taught = true
+	close()
+	mentor_chain_taught.emit()
 
 
 func show_office() -> void:

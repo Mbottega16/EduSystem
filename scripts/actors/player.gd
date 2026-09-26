@@ -588,8 +588,9 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 		_dash_ghost_t += delta
 		if _dash_ghost_t >= 0.03:
 			_dash_ghost_t = 0.0
-			if _dash_fx_room == null or not is_instance_valid(_dash_fx_room):
-				_dash_fx_room = get_tree().get_first_node_in_group("classroom")
+			# Asked fresh each ghost rather than cached for good: the same
+			# body walks between the classroom and the mentor's room.
+			_dash_fx_room = _fx_room()
 			if _dash_fx_room != null and Fx.afterimage_count(_dash_fx_room) < DASH_TRAIL_CAP:
 				Fx.afterimage(sprite, _dash_fx_room)
 
@@ -600,6 +601,7 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 		_dash_cancel_grace = Balance.teacher_dash_cancel_grace
 	_dash_cancel_grace = maxf(0.0, _dash_cancel_grace - delta)
 	_apply_dash_reach()
+	_tick_chain(delta)
 	if input_locked or _walking_scripted:
 		return
 	if dir == Vector2.ZERO or _dash_burst > 0.0 or _dash_cool > 0.0:
@@ -617,8 +619,90 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 		_dash_cool = _dash_burst + Progress.dash_cooldown(Game.perk_ranks)
 		_dash_lane_left = Balance.teacher_dash_lane_extend
 		_dash_stumbled = false
+		_dash_answered = false
 		Sfx.play("blip")
 		_kick_up_smoke(dir)
+
+
+## The chain dash -- see teacher._chain_dash_note in balance.json. Whether
+## the current dash has already answered someone (one child per dash), how
+## many answers in a row the current chain holds, and how long is left for
+## the next answer to still count toward it.
+var _dash_answered: bool = false
+var chain_links: int = 0
+var _chain_left: float = 0.0
+
+
+## While a burst is live, or in the blink of grace right after it, a desk
+## with a visible raised hand AHEAD of the teacher and within reach is
+## answered on arrival. The burst ends there -- the lunge lands on the child
+## -- and the wait before the next dash drops to the short chain cooldown,
+## so the next hand can be run at at once. Past the link cap the answer
+## still lands, but the wait is the ordinary one.
+##
+## Legwork, not judgement: it answers only whoever the PLAYER ran at, only
+## a hand that is already up, with the same help() the E key gives there.
+func _tick_chain(delta: float) -> void:
+	_chain_left = maxf(0.0, _chain_left - delta)
+	if _chain_left == 0.0:
+		chain_links = 0
+	if not Game.chain_dash_taught or _dash_answered or input_locked \
+			or _walking_scripted:
+		return
+	if _dash_burst <= 0.0 and _dash_cancel_grace <= 0.0:
+		return
+	var it := _chain_target()
+	if it == null or not it.dash_answer(self):
+		return
+	Balance.ensure_loaded()
+	_dash_answered = true
+	_dash_burst = 0.0
+	_dash_cancel_grace = 0.0
+	chain_links += 1
+	_chain_left = Balance.teacher_chain_dash_window
+	if chain_links <= Balance.teacher_chain_dash_max_links:
+		_dash_cool = minf(_dash_cool, Balance.teacher_chain_dash_cooldown)
+	if chain_links >= 2:
+		var room := _fx_room()
+		if room != null:
+			Floater.pop(room, room.to_local(global_position) + Vector2(0, -52),
+				"chain x%d!" % chain_links, Color(1.0, 0.86, 0.45))
+
+
+## The nearest desk a dash can answer: in reach, and not behind you.
+func _chain_target() -> Interactable:
+	if zone == null:
+		return null
+	Balance.ensure_loaded()
+	var f := facing_vector()
+	var best: Interactable = null
+	var best_d := INF
+	for a in zone.get_overlapping_areas():
+		if not (a is Interactable) or not is_instance_valid(a) \
+				or not a.is_inside_tree() or not a.has_method("dash_answerable"):
+			continue
+		var it := a as Interactable
+		if not it.dash_answerable():
+			continue
+		var to: Vector2 = it.global_position - global_position
+		var d := to.length()
+		if d > Balance.teacher_chain_dash_reach:
+			continue
+		if d > 0.01 and f.dot(to / d) < 0.0:
+			continue
+		if d < best_d:
+			best_d = d
+			best = it
+	return best
+
+
+## Where a dash's decoration hangs: the mentor's room while you are
+## standing in it, the classroom otherwise.
+func _fx_room() -> Node2D:
+	var p := get_parent()
+	if p != null and p.is_in_group("mentor_room"):
+		return p as Node2D
+	return get_tree().get_first_node_in_group("classroom") as Node2D
 
 
 ## The launch cloud. Decoration only -- gated on actually being in play, the
@@ -628,11 +712,11 @@ func _tick_dash(delta: float, dir: Vector2) -> void:
 func _kick_up_smoke(dir: Vector2) -> void:
 	if input_locked or _walking_scripted:
 		return
-	var room := get_tree().get_first_node_in_group("classroom")
+	var room := _fx_room()
 	if room == null:
 		return
 	Balance.ensure_loaded()
-	Fx.smoke(room, global_position + Vector2(0, SMOKE_FOOT_DROP), dir,
+	Fx.smoke(room, room.to_local(global_position) + Vector2(0, SMOKE_FOOT_DROP), dir,
 		Progress.dash_smoke_count(Game.perk_ranks),
 		Balance.teacher_dash_smoke_spread,
 		Progress.dash_smoke_scale(Game.perk_ranks),

@@ -285,7 +285,7 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.intro_seen = true
 			hud.close()
 			hud.show_caller(Complication.by_id("trip_fund"), null)
-		"mentor":
+		"mentor", "mentor_demo", "mentor_chain":
 			# The mentor's room, dressed. Reparent the same body in, park it
 			# by the door looking in, pin the camera -- the layout is what
 			# this shot is for.
@@ -308,6 +308,16 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			main.get_node("Hallway").visible = false
+			# mentor_demo: the chain-dash demonstration part-way through --
+			# every hand up, and her mid-run between desks.
+			if screen == "mentor_demo":
+				mroom.play_chain_demo()
+			# mentor_chain: what she says after it -- the longest page, which
+			# is the one that has to fit the panel.
+			if screen == "mentor_chain":
+				hud.show_mentor_after_demo()
+				hud._sel = 1
+				hud._render_mentor()
 		"intro":
 			# The title slate. new_run(0) then force intro_seen back off:
 			# new_run() already resets it, but a case run right after another
