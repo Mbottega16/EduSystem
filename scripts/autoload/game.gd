@@ -1594,15 +1594,22 @@ var lesson_crafts: Dictionary = {}
 ## Single pending craft at a time -- no queue in this first slice.
 var pending_craft: Dictionary = {}
 
-## Cosmetic-only, this slice: a name the FIRST craft on a lesson gets
+## Cosmetic-only, still: a name the FIRST craft on a lesson gets
 ## assigned (through Game.rng, so it is as deterministic as everything
 ## else), so a crafted lesson reads as "Algebra II -- Visual" rather than
 ## a bare level number -- the naming from the 2026-08-24 vision interview
 ## ("Algebra II, Visual Lesson, v15"). Every style still runs through the
 ## SAME craft_work_mult() below; giving each one an actually different
 ## mechanical hook, and letting the player pick rather than roll one, are
-## both real design questions this slice deliberately did not decide.
-const CRAFT_STYLES: Array[String] = ["Visual", "Hands-On", "Discussion"]
+## both real design questions this doc deliberately does not decide (see
+## docs/relay/turns/0011-claude.md's NEED FROM YOU, still open).
+## Five named styles, each with its own colour, UI treatment and
+## asset-naming convention -- see docs/CRAFT_STYLES.md. The colour table
+## lives in hud.gd (CRAFT_STYLE_COLOUR), next to STRAND_COLOUR, since it
+## is a display concern, not game state.
+const CRAFT_STYLES: Array[String] = [
+	"Visual", "Hands-On", "Discussion", "Story-Based", "Game-Based",
+]
 
 
 ## A flat day-count gate for now (see docs/AUTONOMOUS_TASKLIST.md /

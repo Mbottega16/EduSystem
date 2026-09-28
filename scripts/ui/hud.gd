@@ -3963,7 +3963,8 @@ func show_day_report(report: Dictionary) -> void:
 		var cid := String(cres.get("lesson_id", ""))
 		var cname := String(Curriculum.by_id(cid).get("name", cid))
 		var cstyle := Game.craft_style(cid)
-		var clabel := "%s — %s" % [cname, cstyle] if cstyle != "" else cname
+		var clabel := "%s — [color=#%s]%s[/color]" % [cname, craft_style_colour(cstyle), cstyle] \
+			if cstyle != "" else cname
 		if bool(cres.get("success", false)):
 			lines.append("[color=#%s]%s came out of the oven -- it teaches easier now.[/color]" % [
 				C_GOOD, clabel])
@@ -4247,6 +4248,24 @@ func _staff_row(idx: int, label: String, hired: bool, level: int,
 		C_GOOD if hired else C_COIN, status]
 
 
+## One colour per Game.CRAFT_STYLES entry, so a crafted lesson's own
+## flavour reads at a glance the same way a curriculum STRAND's does --
+## same hue everywhere that style's name is printed. Cosmetic only, same
+## as the styles themselves (see Game.CRAFT_STYLES' own comment); full
+## palette + UI-appearance + asset-naming writeup in docs/CRAFT_STYLES.md.
+const CRAFT_STYLE_COLOUR := {
+	"Visual": "7fd0c9",       # teal
+	"Hands-On": "e2a15e",     # orange
+	"Discussion": "e296b0",   # rose
+	"Story-Based": "9b93e0",  # indigo
+	"Game-Based": "c7d96b",   # chartreuse
+}
+
+
+static func craft_style_colour(style: String) -> String:
+	return String(CRAFT_STYLE_COLOUR.get(style, "cfcfcf"))
+
+
 ## The staff-room board: what you have learned to do better.
 ## Craft a lesson you already teach: coins + a few in-game days raise its
 ## craft_level, which makes that SAME material go down easier next time
@@ -4266,7 +4285,8 @@ func _render_craft(rows: Array) -> Array[String]:
 		var pl := String(Game.pending_craft.get("lesson_id", ""))
 		var pname := String(Curriculum.by_id(pl).get("name", pl))
 		var pstyle := Game.craft_style(pl)
-		var plabel := "%s — %s" % [pname, pstyle] if pstyle != "" else pname
+		var plabel := "%s — [color=#%s]%s[/color]" % [pname, craft_style_colour(pstyle), pstyle] \
+			if pstyle != "" else pname
 		var pdays := int(Game.pending_craft.get("days_left", 0))
 		lines.append("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
 			C_KNOW, plabel, pdays, "" if pdays == 1 else "s"])
@@ -4279,13 +4299,17 @@ func _render_craft(rows: Array) -> Array[String]:
 		var lesson_id: String = rows[i]
 		var d := Curriculum.by_id(lesson_id)
 		var level: int = int(Game.lesson_crafts.get(lesson_id, {}).get("craft_level", 0))
+		var style := Game.craft_style(lesson_id)
 		var cap: int = Balance.craft_level_cap_for_bonus
 		var cost := Game.craft_next_cost(lesson_id)
 		var afford: bool = Game.can_afford(cost)
+		# A crafted lesson's bar tints to its own style's colour rather than
+		# the flat C_LESSON every other row uses -- the one bit of UI
+		# appearance a style carries today. See docs/CRAFT_STYLES.md.
 		lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%s[/color] [color=#%s]%4d[/color]" % [
 			">" if i == _sel else " ", C_LESSON,
 			String(d.get("name", lesson_id)).substr(0, 13),
-			C_LESSON if level > 0 else DIM,
+			craft_style_colour(style) if level > 0 else DIM,
 			BAR_FULL.repeat(mini(level, cap)) + BAR_EMPTY.repeat(maxi(0, cap - level)),
 			C_GOOD if afford else C_BAD, cost])
 	if lo + LIST_ROWS < rows.size():

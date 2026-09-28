@@ -173,6 +173,13 @@ so it touches nothing the balance contract measures.
 | `icon_ela.png`, `icon_math.png`, `icon_science.png`, `icon_social.png` | one subject mark per curriculum STRAND, 16&times;16 (`tools/make_ui.py::strand_icon`) — a book, a plus, a flask, a globe, each in that strand's own `STRAND_COLOUR` from `hud.gd`. Four, not forty: the row already carries the lesson's name, so what the mark adds is the family. Doubled with plain NEAREST, not `scale2x`, which rounded the plus into a diamond *(Sept 2026)* |
 | `tile_backdrop.png` | what shows AROUND the room now the stretch aspect is `expand` — a far corridor wall, tiled behind everything by `main.tscn`'s Backdrop layer *(Sept 2026)* |
 
+Not built yet: a per-`Game.CRAFT_STYLES` icon, one per lesson-craft
+style, the same shape as the four strand marks above (16&times;16, one
+flat colour). `docs/CRAFT_STYLES.md` names the five styles, each one's
+colour, and the `art/icon_craft_<stem>.png` naming a future pass should
+follow — written down now so the stem a style resolves to doesn't drift
+before the art exists to test it against.
+
 ## Which tool draws which category
 
 | tool | scope |

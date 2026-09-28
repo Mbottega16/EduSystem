@@ -713,6 +713,11 @@ scale2x'd, so the book has the same pixel density as the room behind it.
   grey on cream is not quiet, it is invisible. `hud._on_paper()` keeps a
   colour's hue and pulls its lightness down until it reads as ink; a
   common plan's own title was unreadable until it existed.
+- **A crafted lesson carries its own colour, too.** Five named
+  lesson-craft styles (`Game.CRAFT_STYLES`), each with its own hue,
+  cosmetic only -- see `docs/CRAFT_STYLES.md` for the full palette, where
+  each colour shows up on-screen today, and the asset-naming convention
+  a future per-style icon should follow.
 
 ## 13. Audio
 

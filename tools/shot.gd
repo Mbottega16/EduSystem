@@ -461,6 +461,19 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud._shop = hud.Shop.STAFF
 			hud._sel = 6
 			hud._render_catalogue()
+		"craft":
+			# One lesson per Game.CRAFT_STYLES entry, forced to a real
+			# craft_level so every style's colour shows in the same shot --
+			# see docs/CRAFT_STYLES.md.
+			Game.add_coins(3000)
+			Game.day = Balance.craft_unlock_day
+			for i in Game.CRAFT_STYLES.size():
+				var lid: String = String(Curriculum.lessons[i].get("id", ""))
+				Game.lesson_crafts[lid] = {"craft_level": 3, "invested_coins": 500,
+					"invested_days": 4, "style": Game.CRAFT_STYLES[i]}
+			hud.open_catalogue()
+			hud._shop = hud.Shop.CRAFT
+			hud._render_catalogue()
 		"class_list":
 			hud.show_class_list()
 		# "curriculum" is handled earlier in this match -- GDScript's match
