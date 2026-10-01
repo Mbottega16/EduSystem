@@ -56,6 +56,9 @@ HAIR_BAND = (226, 196, 96)     # the tie on a ponytail
 LANYARD = (206, 64, 68)
 BADGE = (246, 244, 236)
 BADGE_STRIPE = (96, 150, 206)
+LASH = (32, 24, 30)
+SCLERA = (250, 250, 254)
+PUPIL = (28, 22, 32)
 
 HAIR_STYLES = ("short", "long", "curly", "spiky", "bob", "bun", "buzz",
                "ponytail")
@@ -81,6 +84,7 @@ CHARACTERS = {
         "legs": (78, 92, 130), "shoe": (74, 53, 36),
         "long_hair": False, "skirt": False,
         "hair_style": "short", "skin": "light", "pattern": "lanyard",
+        "eyes": (54, 120, 205),
     },
     # The inspector. Grey, and in a suit nobody else in the building owns,
     # because the entire job of this sprite is to be recognised across the
@@ -93,6 +97,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "short", "skin": "light", "pattern": "tie",
         "tie": (150, 40, 44),
+        "eyes": (80, 110, 145),
     },
     # The principal. Older (white hair, same trick as the inspector's grey)
     # and in a colour nobody else in the building wears, so a popup can
@@ -106,6 +111,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "short", "skin": "brown", "pattern": "tie",
         "tie": (222, 178, 70),
+        "eyes": (180, 120, 40),
     },
     # The mentor teacher, in the small room off the hallway. Another
     # colleague rather than an authority figure, so a WARM everyday palette
@@ -119,6 +125,7 @@ CHARACTERS = {
         "long_hair": True, "skirt": False,
         "hair_style": "long", "skin": "light", "pattern": "cardigan",
         "glasses": True,
+        "eyes": (130, 80, 45),
     },
     # The examiner, who invigilates the end-of-term assessment. Austere:
     # charcoal-navy suit, silver hair in a bun, glasses -- built to be told
@@ -131,17 +138,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": True,
         "hair_style": "bun", "skin": "fair", "pattern": "collar",
         "glasses": True,
-    },
-    # The examiner, at the front of the room for exactly as long as the
-    # boss paper runs (scripts/world/classroom.gd refresh_examiner). A
-    # third authority figure, so a third colour nobody else wears: charcoal
-    # with silver hair, austere next to the inspector's grey suit and the
-    # principal's purple. One palette entry, same generator.
-    "examiner": {
-        "hair": (214, 214, 220), "hair_d": (168, 168, 178),
-        "shirt": (44, 48, 66), "shirt_d": (30, 32, 46),
-        "legs": (38, 40, 52), "shoe": (24, 22, 28),
-        "long_hair": True, "skirt": False,
+        "eyes": (55, 75, 115),
     },
     # Eight students. Two identical sprites across eight desks badly
     # undercuts "these are individual kids", and this is a data-table edit
@@ -156,6 +153,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "spiky", "skin": "tan", "pattern": "stripes",
         "sleeves": "short",
+        "eyes": (160, 95, 40),
     },
     "student_b": {
         "hair": (168, 102, 52), "hair_d": (126, 74, 36),
@@ -164,6 +162,7 @@ CHARACTERS = {
         "long_hair": True, "skirt": True,
         "hair_style": "bob", "skin": "light", "pattern": "collar",
         "sleeves": "short",
+        "eyes": (145, 80, 165),
     },
     "student_c": {
         "hair": (222, 190, 104), "hair_d": (176, 142, 66),
@@ -172,6 +171,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "short", "skin": "fair", "pattern": "dungarees",
         "sleeves": "short",
+        "eyes": (45, 125, 210),
     },
     "student_d": {
         "hair": (72, 52, 44), "hair_d": (48, 34, 30),
@@ -180,6 +180,7 @@ CHARACTERS = {
         "long_hair": True, "skirt": True,
         "hair_style": "long", "skin": "brown", "pattern": "plain",
         "sleeves": "long",
+        "eyes": (95, 55, 35),
     },
     "student_e": {
         "hair": (206, 108, 58), "hair_d": (158, 76, 38),
@@ -188,6 +189,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "curly", "skin": "light", "pattern": "stripes",
         "sleeves": "short",
+        "eyes": (45, 145, 85),
     },
     "student_f": {
         "hair": (40, 38, 48), "hair_d": (26, 24, 32),
@@ -196,6 +198,7 @@ CHARACTERS = {
         "long_hair": True, "skirt": True,
         "hair_style": "ponytail", "skin": "dark", "pattern": "plain",
         "sleeves": "short",
+        "eyes": (55, 40, 35),
     },
     "student_g": {
         "hair": (140, 104, 66), "hair_d": (100, 72, 44),
@@ -204,6 +207,7 @@ CHARACTERS = {
         "long_hair": False, "skirt": False,
         "hair_style": "buzz", "skin": "brown", "pattern": "collar",
         "sleeves": "long",
+        "eyes": (120, 80, 40),
     },
     "student_h": {
         "hair": (222, 218, 208), "hair_d": (176, 172, 166),
@@ -212,6 +216,7 @@ CHARACTERS = {
         "long_hair": True, "skirt": True,
         "hair_style": "bun", "skin": "fair", "pattern": "dungarees",
         "sleeves": "short",
+        "eyes": (45, 155, 215),
     },
 }
 
@@ -550,6 +555,8 @@ def resolve_palette(pal):
     p["legs_d"] = darker(p["legs"], 0.25)
     p["shoe_l"] = lighter(p["shoe"], 0.35)
     p["tie_l"] = lighter(p["tie"], 0.3)
+    p["eyes_l"] = lighter(p["eyes"], 0.35)
+    p["eyes_d"] = darker(p["eyes"], 0.25)
     return p
 
 
@@ -622,20 +629,34 @@ def _hair_front(im, p, dy, extras_only=False):
 
 def _face_front(im, p, dy, pose):
     eyes = p["eyes"]
-    # eyes with the highlight that makes them look alive
+    eyes_l = p.get("eyes_l", lighter(eyes, 0.35))
+    # Pokemon-style eyes: defined upper lash, white sclera, vibrant iris, specular catchlight
     for ex in (8, 20):
-        rect(im, ex, 16 + dy, ex + 3, 20 + dy, eyes)
-        rect(im, ex, 16 + dy, ex + 1, 17 + dy, (255, 255, 255))
+        # Sclera base (outer/lower white)
+        rect(im, ex, 16 + dy, ex + 3, 19 + dy, SCLERA)
+        # Upper lash line (dark, defines eye shape)
+        rect(im, ex, 15 + dy, ex + 3, 15 + dy, LASH)
+        px(im, ex - 1 if ex == 8 else ex + 4, 15 + dy, LASH)
+        # Iris & pupil: dark pupil at top, vibrant iris color below
+        rect(im, ex + 1, 16 + dy, ex + 2, 17 + dy, PUPIL)
+        rect(im, ex + 1, 18 + dy, ex + 2, 19 + dy, eyes)
+        px(im, ex + 2, 19 + dy, eyes_l)
+        # Brilliant specular catchlight (upper corner)
+        px(im, ex, 16 + dy, (255, 255, 255))
+        px(im, ex + 1, 16 + dy, (255, 255, 255))
+
     # brows
     if pose == POSE_SAD:
-        for x, y in ((8, 15), (9, 15), (10, 14), (11, 14),
-                     (20, 14), (21, 14), (22, 15), (23, 15)):
+        for x, y in ((8, 14), (9, 14), (10, 13), (11, 13),
+                     (20, 13), (21, 13), (22, 14), (23, 14)):
             px(im, x, y + dy, p["hair_d"])
     else:
-        rect(im, 8, 14 + dy, 11, 14 + dy, p["hair_d"])
-        rect(im, 20, 14 + dy, 23, 14 + dy, p["hair_d"])
+        rect(im, 8, 13 + dy, 11, 13 + dy, p["hair_d"])
+        rect(im, 20, 13 + dy, 23, 13 + dy, p["hair_d"])
+
     # nose
-    rect(im, 15, 22 + dy, 16, 22 + dy, p["skin_d"])
+    rect(im, 15, 21 + dy, 16, 21 + dy, p["skin_d"])
+
     # mouth, by mood
     if pose == POSE_SAD:
         rect(im, 15, 24 + dy, 16, 25 + dy, MOUTH)
@@ -653,17 +674,19 @@ def _face_front(im, p, dy, pose):
         px(im, 13, 24 + dy, MOUTH)
         px(im, 18, 24 + dy, MOUTH)
         rect(im, 14, 25 + dy, 17, 25 + dy, MOUTH)
+
     # cheeks
-    blend_rect(im, 5, 22 + dy, 7, 23 + dy, BLUSH)
-    blend_rect(im, 24, 22 + dy, 26, 23 + dy, BLUSH)
+    blend_rect(im, 5, 21 + dy, 7, 22 + dy, BLUSH)
+    blend_rect(im, 24, 21 + dy, 26, 22 + dy, BLUSH)
+
     if p["glasses"]:
-        blend_rect(im, 8, 16 + dy, 11, 20 + dy, LENS)
-        blend_rect(im, 20, 16 + dy, 23, 20 + dy, LENS)
-        ring(im, 7, 15 + dy, 12, 21 + dy, GLASS_FRAME, r=1)
-        ring(im, 19, 15 + dy, 24, 21 + dy, GLASS_FRAME, r=1)
-        rect(im, 13, 17 + dy, 18, 17 + dy, GLASS_FRAME)
-        rect(im, 4, 16 + dy, 6, 16 + dy, GLASS_FRAME)
-        rect(im, 25, 16 + dy, 27, 16 + dy, GLASS_FRAME)
+        blend_rect(im, 8, 15 + dy, 11, 19 + dy, LENS)
+        blend_rect(im, 20, 15 + dy, 23, 19 + dy, LENS)
+        ring(im, 7, 14 + dy, 12, 20 + dy, GLASS_FRAME, r=1)
+        ring(im, 19, 14 + dy, 24, 20 + dy, GLASS_FRAME, r=1)
+        rect(im, 13, 16 + dy, 18, 16 + dy, GLASS_FRAME)
+        rect(im, 4, 15 + dy, 6, 15 + dy, GLASS_FRAME)
+        rect(im, 25, 15 + dy, 27, 15 + dy, GLASS_FRAME)
 
 
 def _torso_pattern_front(im, p, dy, back=False):
@@ -886,14 +909,33 @@ def _profile(im, p, dy, step, seated, pose):
         rect(im, 10, 36, 19, 40, legs)
         rect(im, 8, 41, 19, 43, shoe)
     else:
-        fx = -step * 2                          # front leg strides forward
-        lift = abs(step) * 2
-        rect(im, 15 - fx, 40, 19 - fx, 45, legs)     # back leg
-        rect(im, 14 - fx, 45, 19 - fx, 47, shoe)
-        rect(im, 9 + fx, 40 - lift, 13 + fx, 45 - lift, legs)   # front leg
-        rect(im, 13 + fx, 40 - lift, 13 + fx, 45 - lift, legs_d)
-        rect(im, 7 + fx, 45 - lift, 13 + fx, 47 - lift, shoe)
-        px(im, 8 + fx, 45 - lift, shoe_l)
+        # Symmetrical stride:
+        # step == 0: neutral standing, both legs side by side
+        # step == 1: near leg strides forward (x: 7..11), far leg back (x: 16..20)
+        # step == -1: near leg strides back (x: 16..20), far leg strides forward (x: 7..11)
+        if step == 0:
+            rect(im, 14, 40, 18, 45, legs_d)
+            rect(im, 14, 45, 18, 47, shoe)
+            rect(im, 9, 40, 13, 45, legs)
+            rect(im, 13, 40, 13, 45, legs_d)
+            rect(im, 8, 45, 13, 47, shoe)
+            px(im, 9, 45, shoe_l)
+        elif step == 1:
+            # Near leg forward (lifted), Far leg back
+            rect(im, 16, 40, 20, 45, legs_d)
+            rect(im, 15, 45, 20, 47, shoe)
+            rect(im, 7, 38, 11, 43, legs)
+            rect(im, 11, 38, 11, 43, legs_d)
+            rect(im, 5, 43, 11, 45, shoe)
+            px(im, 6, 43, shoe_l)
+        else:
+            # Near leg back, Far leg forward (lifted)
+            rect(im, 7, 38, 11, 43, legs_d)
+            rect(im, 5, 43, 11, 45, shoe)
+            rect(im, 16, 40, 20, 45, legs)
+            rect(im, 20, 40, 20, 45, legs_d)
+            rect(im, 15, 45, 20, 47, shoe)
+            px(im, 16, 45, shoe_l)
 
     # hair that hangs behind the shoulder goes under the torso
     if st == "long":
@@ -994,15 +1036,21 @@ def _profile(im, p, dy, step, seated, pose):
     # ear, over the hair
     rect(im, 17, 17 + dy, 19, 21 + dy, skin)
     px(im, 18, 19 + dy, skin_d)
-    # face
-    rect(im, 7, 16 + dy, 9, 20 + dy, p["eyes"])
-    rect(im, 7, 16 + dy, 7, 17 + dy, (255, 255, 255))
+    # face / eye: looking left
+    eyes = p["eyes"]
+    eyes_l = p.get("eyes_l", lighter(eyes, 0.35))
+    rect(im, 7, 16 + dy, 10, 19 + dy, SCLERA)
+    rect(im, 6, 15 + dy, 10, 15 + dy, LASH)
+    rect(im, 7, 16 + dy, 8, 17 + dy, PUPIL)
+    rect(im, 7, 18 + dy, 8, 19 + dy, eyes)
+    px(im, 8, 19 + dy, eyes_l)
+    px(im, 7, 16 + dy, (255, 255, 255))
     if pose == POSE_SAD:
-        px(im, 7, 15 + dy, hair_d)
-        px(im, 8, 14 + dy, hair_d)
-        px(im, 9, 14 + dy, hair_d)
+        px(im, 7, 14 + dy, hair_d)
+        px(im, 8, 13 + dy, hair_d)
+        px(im, 9, 13 + dy, hair_d)
     else:
-        rect(im, 7, 14 + dy, 9, 14 + dy, hair_d)
+        rect(im, 7, 13 + dy, 9, 13 + dy, hair_d)
     px(im, 3, 21 + dy, skin)                   # the nose, proud of the face
     px(im, 3, 22 + dy, skin_d)
     if pose == POSE_SAD:
@@ -1019,11 +1067,11 @@ def _profile(im, p, dy, step, seated, pose):
     else:
         rect(im, 5, 25 + dy, 7, 25 + dy, MOUTH)
         px(im, 8, 24 + dy, MOUTH)
-    blend_rect(im, 9, 22 + dy, 11, 23 + dy, BLUSH)
+    blend_rect(im, 9, 21 + dy, 11, 22 + dy, BLUSH)
     if p["glasses"]:
-        blend_rect(im, 7, 16 + dy, 9, 20 + dy, LENS)
-        ring(im, 5, 15 + dy, 10, 21 + dy, GLASS_FRAME, r=1)
-        rect(im, 11, 16 + dy, 17, 16 + dy, GLASS_FRAME)
+        blend_rect(im, 6, 15 + dy, 9, 19 + dy, LENS)
+        ring(im, 5, 14 + dy, 10, 20 + dy, GLASS_FRAME, r=1)
+        rect(im, 10, 15 + dy, 17, 15 + dy, GLASS_FRAME)
     if pose == POSE_CHAT:
         rect(im, 10, 26 + dy, 12, 33 + dy, shirt)
         rect(im, 9, 23 + dy, 12, 25 + dy, skin)
@@ -1070,7 +1118,7 @@ def draw_char(direction, frame, pal):
     elif pose == POSE_SAD:
         dy = 2
     else:
-        dy = -1 if step else 0           # a 1px head bob on the step frames
+        dy = 0                           # head stays steady during walk cycle to avoid parity distortion
     if direction == 0:
         _front(im, p, dy, step, seated, pose)
     elif direction == 3:
@@ -1080,16 +1128,14 @@ def draw_char(direction, frame, pal):
         if direction == 2:
             im = ImageOps.mirror(im)
     rim_light(im)
-    outline(im)
-    # contact shadow LAST, so the outline pass does not trace it. A
-    # jumper's shadow stays on the floor while the figure rises above it,
-    # which is most of what sells "in the air" at this scale.
-    shadow(im, CW // 2, CH - 4, 12 if pose != POSE_JUMP else 8, 4)
-    # Quantise onto the room's 16-px-per-tile grid: resize to half and
-    # Scale2x back, exactly the pipeline every tile and every item uses.
-    # Frame stays 32x48, so the sheet, the scene and the on-screen size
-    # are all unchanged -- only the pixels get bigger, to match the set.
-    return scale2x(im.resize((CW // 2, CH // 2), Image.NEAREST))
+    # Quantise onto the room's 16-px-per-tile grid FIRST, then outline
+    # and shadow directly at lowres before Scale2x. This guarantees a
+    # 100% uniform, solid 2px outline (1 texel) with zero dropped border
+    # pixels on walking frames or pose bobs.
+    lowres = im.resize((CW // 2, CH // 2), Image.NEAREST)
+    outline(lowres, LINE)
+    shadow(lowres, (CW // 2) // 2, (CH // 2) - 2, 6 if pose != POSE_JUMP else 4, 2)
+    return scale2x(lowres)
 
 
 def make_character(name, pal):
@@ -1215,14 +1261,35 @@ def draw_portrait(pal):
                     rect(im, cx - half, 6 - hgt, cx + half, 6 - hgt, hair)
     rect(im, 28, 10, 48, 13, hair_l)
 
-    # brows, eyes, nose, mouth, cheeks
+    # Expressive Pokemon style portrait eyes:
     eyes = p["eyes"]
-    rect(im, 30, 31, 39, 32, hair_d)
-    rect(im, 56, 31, 65, 32, hair_d)
-    for ex in (30, 56):
-        rrect(im, ex, 35, ex + 9, 46, eyes, r=2)
-        rect(im, ex + 1, 36, ex + 3, 39, (255, 255, 255))
-        rect(im, ex + 6, 43, ex + 7, 44, (255, 255, 255))
+    eyes_l = p.get("eyes_l", lighter(eyes, 0.35))
+    eyes_d = p.get("eyes_d", darker(eyes, 0.25))
+
+    # brows
+    rect(im, 29, 30, 40, 31, hair_d)
+    rect(im, 55, 30, 66, 31, hair_d)
+
+    for ex in (29, 56):
+        # White sclera
+        rrect(im, ex, 34, ex + 10, 46, SCLERA, r=3)
+        # Upper lash line (bold anime curve, 2px thick at top)
+        rect(im, ex - 1, 33, ex + 11, 34, LASH)
+        px(im, ex - 2 if ex == 29 else ex + 12, 34, LASH)
+        # Lower subtle lash rim
+        rect(im, ex + 1, 46, ex + 9, 46, (200, 175, 170))
+        # Iris (oval)
+        rrect(im, ex + 2, 35, ex + 8, 45, eyes_d, r=2)
+        # Iris gradient: vibrant lower crescent
+        rect(im, ex + 2, 41, ex + 8, 44, eyes)
+        rect(im, ex + 3, 43, ex + 7, 44, eyes_l)
+        # Pupil (deep black center)
+        rect(im, ex + 4, 37, ex + 6, 41, PUPIL)
+        # Specular catchlight: 2x2 brilliant white gleam
+        rect(im, ex + 2, 36, ex + 3, 37, (255, 255, 255))
+        # Micro secondary gleam
+        px(im, ex + 7, 43, (255, 255, 255))
+
     rect(im, 46, 47, 47, 52, skin_d)
     px(im, 48, 52, skin_d)
     for x, y in ((38, 57), (39, 58), (56, 58), (57, 57)):
@@ -1232,13 +1299,13 @@ def draw_portrait(pal):
     blend_rect(im, 23, 50, 30, 53, BLUSH)
     blend_rect(im, 65, 50, 72, 53, BLUSH)
     if p["glasses"]:
-        blend_rect(im, 28, 33, 41, 48, LENS)
-        blend_rect(im, 54, 33, 67, 48, LENS)
-        ring(im, 27, 32, 42, 49, GLASS_FRAME, r=3, thickness=2)
-        ring(im, 53, 32, 68, 49, GLASS_FRAME, r=3, thickness=2)
-        rect(im, 43, 39, 52, 40, GLASS_FRAME)
-        rect(im, 18, 38, 26, 39, GLASS_FRAME)
-        rect(im, 69, 38, 77, 39, GLASS_FRAME)
+        blend_rect(im, 27, 32, 42, 48, LENS)
+        blend_rect(im, 53, 32, 68, 48, LENS)
+        ring(im, 26, 31, 43, 49, GLASS_FRAME, r=3, thickness=2)
+        ring(im, 52, 31, 69, 49, GLASS_FRAME, r=3, thickness=2)
+        rect(im, 44, 38, 51, 39, GLASS_FRAME)
+        rect(im, 17, 37, 25, 38, GLASS_FRAME)
+        rect(im, 70, 37, 78, 38, GLASS_FRAME)
 
     rim_light(im, 0.14)
     outline(im)
