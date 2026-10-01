@@ -204,3 +204,134 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.7, 0.68, 0.6, 1)
 theme_override_font_sizes/font_size = 18
 horizontal_alignment = 1
+
+[node name="DialogueBox" type="Control" parent="."]
+visible = false
+offset_left = 16.0
+offset_top = 232.0
+offset_right = 624.0
+offset_bottom = 344.0
+mouse_filter = 2
+
+[node name="Tail" type="Polygon2D" parent="DialogueBox"]
+color = Color(0.06, 0.05, 0.08, 1)
+polygon = PackedVector2Array(48, 0, 68, 0, 40, -10)
+
+[node name="OuterBorder" type="ColorRect" parent="DialogueBox"]
+offset_right = 608.0
+offset_bottom = 112.0
+mouse_filter = 2
+color = Color(0.06, 0.05, 0.08, 1)
+
+[node name="InnerBorder" type="ColorRect" parent="DialogueBox"]
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 606.0
+offset_bottom = 110.0
+mouse_filter = 2
+color = Color(0.88, 0.78, 0.52, 1)
+
+[node name="Bg" type="ColorRect" parent="DialogueBox"]
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 604.0
+offset_bottom = 108.0
+mouse_filter = 2
+color = Color(0.08, 0.06, 0.12, 0.95)
+
+[node name="NameTagBorder" type="ColorRect" parent="DialogueBox"]
+offset_left = 12.0
+offset_top = -14.0
+offset_right = 148.0
+offset_bottom = 10.0
+mouse_filter = 2
+color = Color(0.06, 0.05, 0.08, 1)
+
+[node name="NameTagInner" type="ColorRect" parent="DialogueBox"]
+offset_left = 14.0
+offset_top = -12.0
+offset_right = 146.0
+offset_bottom = 8.0
+mouse_filter = 2
+color = Color(0.88, 0.78, 0.52, 1)
+
+[node name="NameTagBg" type="ColorRect" parent="DialogueBox"]
+offset_left = 15.0
+offset_top = -11.0
+offset_right = 145.0
+offset_bottom = 7.0
+mouse_filter = 2
+color = Color(0.14, 0.1, 0.2, 1)
+
+[node name="SpeakerLabel" type="Label" parent="DialogueBox"]
+offset_left = 16.0
+offset_top = -12.0
+offset_right = 144.0
+offset_bottom = 8.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.42, 1)
+theme_override_font_sizes/font_size = 14
+text = "Ms. Clara"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PortraitBorder" type="ColorRect" parent="DialogueBox"]
+offset_left = 12.0
+offset_top = 16.0
+offset_right = 88.0
+offset_bottom = 92.0
+mouse_filter = 2
+color = Color(0.88, 0.78, 0.52, 1)
+
+[node name="PortraitBg" type="ColorRect" parent="DialogueBox"]
+offset_left = 14.0
+offset_top = 18.0
+offset_right = 86.0
+offset_bottom = 90.0
+mouse_filter = 2
+color = Color(0.12, 0.09, 0.16, 1)
+
+[node name="SpeakerPortrait" type="TextureRect" parent="DialogueBox"]
+offset_left = 14.0
+offset_top = 18.0
+offset_right = 86.0
+offset_bottom = 90.0
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="TextBody" type="Label" parent="DialogueBox"]
+offset_left = 98.0
+offset_top = 14.0
+offset_right = 588.0
+offset_bottom = 96.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_constants/line_spacing = 4
+autowrap_mode = 3
+
+[node name="AdvanceIndicator" type="Control" parent="DialogueBox"]
+offset_left = 520.0
+offset_top = 84.0
+offset_right = 596.0
+offset_bottom = 104.0
+mouse_filter = 2
+
+[node name="Arrow" type="Label" parent="DialogueBox/AdvanceIndicator"]
+offset_right = 20.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 16
+text = "▼"
+horizontal_alignment = 1
+
+[node name="Hint" type="Label" parent="DialogueBox/AdvanceIndicator"]
+offset_left = 22.0
+offset_right = 72.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 0.65, 1)
+theme_override_font_sizes/font_size = 14
+text = "[E]"
+vertical_alignment = 1

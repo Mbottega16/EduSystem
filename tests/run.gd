@@ -535,6 +535,8 @@ func test_scene() -> void:
 	chk("a new career opens on the storyline intro", hud.mode == hud.Mode.INTRO, hud.mode)
 	chk("it opens on the title slate", hud._sel == -1, hud._sel)
 	chk("the slate fits the panel", hud.body.text.split("\n").size() <= 11, hud.body.text)
+	chk("the intro shows the pokemon dialogue box", hud.dialogue_box != null and hud.dialogue_box.visible)
+	chk("the dialogue box has speaker and portrait", hud.dialogue_speaker.text != "" and hud.dialogue_portrait.texture != null)
 
 	# The scene itself is said from a bubble above the teacher's own head
 	# (main.gd wires hud's words to world.player), not a panel hud owns
@@ -602,6 +604,7 @@ func test_scene() -> void:
 			last_line.split("\n").size() <= 2, last_line)
 		await tap("interact")
 	chk("walking through every page closes it", hud.mode == hud.Mode.NONE, hud.mode)
+	chk("and closes the dialogue box", not hud.dialogue_box.visible)
 	chk("and marks it seen, so it never replays for this career", Game.intro_seen)
 	chk("the intro is backstory now, not a control sheet", (func() -> bool:
 		var blob := (" ".join(hud.INTRO_SLATE) + " ").to_upper()

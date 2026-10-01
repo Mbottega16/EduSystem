@@ -95,6 +95,22 @@ var _reveal: Tween = null
 const PRINCIPAL_PORTRAIT := preload("res://art/portrait_principal.png")
 const PLAYER_PORTRAIT := preload("res://art/portrait_player.png")
 
+@onready var dialogue_box: Control = $DialogueBox
+@onready var dialogue_speaker: Label = $DialogueBox/SpeakerLabel
+@onready var dialogue_portrait: TextureRect = $DialogueBox/SpeakerPortrait
+@onready var dialogue_portrait_border: ColorRect = $DialogueBox/PortraitBorder
+@onready var dialogue_portrait_bg: ColorRect = $DialogueBox/PortraitBg
+@onready var dialogue_text: Label = $DialogueBox/TextBody
+@onready var dialogue_advance: Control = $DialogueBox/AdvanceIndicator
+@onready var dialogue_arrow: Label = $DialogueBox/AdvanceIndicator/Arrow
+
+var _dialogue_full_text: String = ""
+var _dialogue_visible_chars: int = 0
+var _dialogue_char_timer: float = 0.0
+var _dialogue_typing: bool = false
+var _arrow_bob: float = 0.0
+var _blip_counter: int = 0
+
 var mode: int = Mode.NONE
 var _player: Node = null
 var _sel: int = 0
@@ -281,6 +297,24 @@ func _process(_delta: float) -> void:
 			prompt.text = _beat_full.substr(0, _beat_chars)
 	if banner.visible and _banner_until <= Time.get_ticks_msec() / 1000.0:
 		banner.visible = false
+
+	# Pokémon-style dialogue box typewriter reveal and advance indicator bob
+	if dialogue_box != null and dialogue_box.visible:
+		if _dialogue_typing:
+			_dialogue_char_timer += _delta * 38.0
+			while _dialogue_char_timer >= 1.0 and _dialogue_visible_chars < _dialogue_full_text.length():
+				_dialogue_char_timer -= 1.0
+				_dialogue_visible_chars += 1
+				dialogue_text.text = _dialogue_full_text.substr(0, _dialogue_visible_chars)
+				_blip_counter += 1
+				if _blip_counter % 3 == 0:
+					Sfx.play("blip")
+			if _dialogue_visible_chars >= _dialogue_full_text.length():
+				_dialogue_typing = false
+				dialogue_advance.visible = true
+		if dialogue_advance.visible and dialogue_arrow != null:
+			_arrow_bob += _delta * 6.0
+			dialogue_arrow.position.y = sin(_arrow_bob) * 3.0
 
 
 ## ALL input, on ONE clock.
@@ -674,6 +708,8 @@ func _open(m: int) -> void:
 	# forgets where you were.
 	if mode != m:
 		_book_page_shown = -1
+	if m != Mode.INTRO:
+		hide_dialogue()
 	mode = m
 	body.add_theme_font_size_override("font_size", 20)
 	body.add_theme_constant_override("line_spacing", 8)
@@ -705,6 +741,7 @@ func _open(m: int) -> void:
 func close() -> void:
 	mode = Mode.NONE
 	overlay.visible = false
+	hide_dialogue()
 	# The book has to be put away here as well as in _open(). close() can be
 	# reached without another screen ever opening -- show_hand() closes
 	# itself when there is nothing to deal -- and a book left standing would
@@ -1020,6 +1057,66 @@ var _beat_chars: int = 0
 func queue_day_beat(text: String) -> void:
 	if not text.is_empty():
 		_queued_beat = text
+
+
+# -------------------------------------------------------- pokemon dialogue box
+## Display a Pokémon-style dialogue box on the lower portion of the screen,
+## with a speaker name tag, portrait frame, typewriter text reveal, and advance arrow.
+func say_dialogue(speaker: String, portrait_tex: Texture2D, text: String, instant: bool = false) -> void:
+	if dialogue_box == null:
+		return
+	_dialogue_full_text = text
+	_dialogue_char_timer = 0.0
+	_arrow_bob = 0.0
+	_blip_counter = 0
+
+	dialogue_speaker.text = speaker
+	if portrait_tex != null:
+		dialogue_portrait.texture = portrait_tex
+		dialogue_portrait.visible = true
+		dialogue_portrait_border.visible = true
+		dialogue_portrait_bg.visible = true
+		dialogue_text.offset_left = 98.0
+		dialogue_text.offset_right = 588.0
+	else:
+		dialogue_portrait.visible = false
+		dialogue_portrait_border.visible = false
+		dialogue_portrait_bg.visible = false
+		dialogue_text.offset_left = 20.0
+		dialogue_text.offset_right = 588.0
+
+	dialogue_box.visible = true
+
+	if instant or Game.save_path != Game.SAVE_PATH:
+		_dialogue_typing = false
+		_dialogue_visible_chars = text.length()
+		dialogue_text.text = text
+		dialogue_advance.visible = true
+	else:
+		_dialogue_typing = true
+		_dialogue_visible_chars = 0
+		dialogue_text.text = ""
+		dialogue_advance.visible = false
+
+
+func hide_dialogue() -> void:
+	if dialogue_box != null:
+		dialogue_box.visible = false
+	_dialogue_typing = false
+	_dialogue_full_text = ""
+
+
+func is_dialogue_typing() -> bool:
+	return _dialogue_typing
+
+
+func finish_dialogue_typing() -> void:
+	_dialogue_typing = false
+	_dialogue_visible_chars = _dialogue_full_text.length()
+	if dialogue_text != null:
+		dialogue_text.text = _dialogue_full_text
+	if dialogue_advance != null:
+		dialogue_advance.visible = true
 
 
 ## A line across the top of the room, faded in, gone after `seconds`. The
@@ -2675,31 +2772,47 @@ func _render_intro() -> void:
 		body.add_theme_constant_override("line_spacing", 2)
 		body.text = "\n".join(INTRO_SLATE)
 		hint.text = "E - go on"
+		overlay.color = Color(0.04, 0.03, 0.06, 0.45)
+		body.visible = false
+		hint.visible = false
+		say_dialogue("Ms. Clara", PLAYER_PORTRAIT,
+			"Years of these, and a new one still lands the same way. Fresh floor polish, sharpened pencils... The bell goes in twenty minutes. Start with the desks.")
 		return
 	# The slate is gone and stays gone -- the room is visible behind the
-	# bubble for the rest of the scene, which is the whole point of a
+	# dialogue box for the rest of the scene, which is the whole point of a
 	# cutscene over a panel that talks ABOUT the room instead.
 	overlay.visible = false
+	overlay.color = Color(0.06, 0.05, 0.08, 0.93)
+	body.visible = true
+	hint.visible = true
 	if _sel == -2:
-		# The desk-pull. A bubble over the teacher's head; the prompt bar
-		# counts down what is left folded up in the cabinet.
+		# The desk-pull. A dialogue box and countdown prompt while the teacher
+		# pulls desks out of the cabinet.
 		var left: int = Game.desks_in_store
-		intro_line_changed.emit("Chairs are stacked.\nDesks are in the cabinet.")
+		var msg := "Chairs are stacked.\nDesks are in the cabinet."
+		intro_line_changed.emit(msg)
 		prompt.text = ("E - pull a desk out  (%d left)" % left) if left > 0 \
 			else "E - right then"
 		prompt.visible = true
 		prompt_box.visible = true
+		say_dialogue("Ms. Clara", PLAYER_PORTRAIT,
+			msg + ("  (%d left in cabinet)" % left if left > 0 else ""))
 		return
-	intro_line_changed.emit("\n".join(INTRO_PAGES[_sel]))
+	var page_line := "\n".join(INTRO_PAGES[_sel])
+	intro_line_changed.emit(page_line)
 	prompt.text = "E - go on" if _sel < INTRO_PAGES.size() - 1 else "E - right then"
 	prompt.visible = true
 	prompt_box.visible = true
+	say_dialogue("Ms. Clara", PLAYER_PORTRAIT, page_line)
 
 
 func _handle_intro_input() -> void:
 	if not Game.claim_interact():
 		return
 	Sfx.play("blip")
+	if _dialogue_typing and Game.save_path == Game.SAVE_PATH:
+		finish_dialogue_typing()
+		return
 	if _sel == -1:
 		# Leave the slate -> the desk-pull. main.gd puts the teacher at the
 		# door, stashes every desk, and walks them to the cabinet.
@@ -2717,6 +2830,7 @@ func _handle_intro_input() -> void:
 		_render_intro()
 	else:
 		Game.intro_seen = true
+		hide_dialogue()
 		intro_finished.emit()
 		close()
 
