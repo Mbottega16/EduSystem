@@ -3396,5 +3396,25 @@ func slot_day(index: int) -> int:
 	return 0
 
 
+## Key run facts for a slot without loading it into live state.
+func slot_info(index: int) -> Dictionary:
+	if not has_slot(index):
+		return {}
+	var f := FileAccess.open(SaveManager.get_slot_path(index), FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if parsed is Dictionary:
+		var d: Dictionary = parsed as Dictionary
+		return {
+			"day": int(d.get("day", 1)),
+			"coins": int(d.get("coins", 0)),
+			"term": int(d.get("term", 1)),
+			"subject": String(d.get("subject", "general")),
+		}
+	return {}
+
+
 func delete_slot(index: int) -> bool:
 	return SaveManager.delete_slot(index)

@@ -7,7 +7,7 @@ extends Node2D
 ## choose to play. That also means "New game" is a clean scene load rather
 ## than an in-place reset of a running world.
 
-enum Page { MAIN, SETTINGS, CONTROLS, HOWTO, CREDITS, CONFIRM_WIPE }
+enum Page { MAIN, SETTINGS, CONTROLS, HOWTO, CREDITS, CONFIRM_WIPE, SLOTS, SLOT_ACTIONS, CONFIRM_SLOT_DELETE }
 
 const GAME_SCENE := "res://scenes/main.tscn"
 const DUST_COUNT := 26
@@ -20,6 +20,7 @@ const DUST_COUNT := 26
 
 var page: int = Page.MAIN
 var sel: int = 0
+var sel_slot: int = 0           ## chosen slot (0-7) when viewing slot actions
 var rebinding: String = ""      ## action awaiting a key press, "" if none
 var message: String = ""
 
@@ -104,7 +105,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if page == Page.MAIN:
 			return
 		Sfx.play("blip")
-		_go(Page.MAIN)
+		if page == Page.SLOT_ACTIONS or page == Page.CONFIRM_SLOT_DELETE:
+			_go(Page.SLOTS)
+		else:
+			_go(Page.MAIN)
 		return
 	else:
 		return
@@ -142,11 +146,32 @@ func _rows() -> Array:
 			var m: Array = []
 			if Game.has_save():
 				m.append("continue")
+			m.append("slots")
 			m.append_array(["new", "howto", "settings", "controls", "credits"])
 			if Game.has_save():
 				m.append("wipe")
 			m.append("quit")
 			return m
+		Page.SLOTS:
+			var s: Array = []
+			for i in SaveManager.MAX_SLOTS:
+				s.append("slot_%d" % i)
+			s.append("back")
+			return s
+		Page.SLOT_ACTIONS:
+			var act: Array = []
+			if Game.has_slot(sel_slot):
+				act.append("load")
+			else:
+				act.append("new")
+			if Game.has_save():
+				act.append("save_current")
+			if Game.has_slot(sel_slot):
+				act.append("delete")
+			act.append("back")
+			return act
+		Page.CONFIRM_SLOT_DELETE:
+			return ["no", "yes"]
 		Page.SETTINGS:
 			return ["master", "sfx", "music", "scale", "fullscreen", "hints", "back"]
 		Page.CONTROLS:
@@ -174,12 +199,59 @@ func _activate() -> void:
 					Game.new_run()
 				Sfx.play("confirm")
 				get_tree().change_scene_to_file(GAME_SCENE)
+			"slots": _go(Page.SLOTS)
 			"howto": _go(Page.HOWTO)
 			"settings": _go(Page.SETTINGS)
 			"controls": _go(Page.CONTROLS)
 			"credits": _go(Page.CREDITS)
 			"wipe": _go(Page.CONFIRM_WIPE)
 			"quit": get_tree().quit()
+		return
+
+	if page == Page.SLOTS:
+		if id == "back":
+			_go(Page.MAIN)
+			return
+		sel_slot = int(id.trim_prefix("slot_"))
+		_go(Page.SLOT_ACTIONS)
+		return
+
+	if page == Page.SLOT_ACTIONS:
+		match id:
+			"load":
+				if Game.load_from_slot(sel_slot):
+					Sfx.play("confirm")
+					get_tree().change_scene_to_file(GAME_SCENE)
+				else:
+					message = "Failed to load slot."
+					_go(Page.SLOTS)
+			"new":
+				Game.delete_save()
+				Game.new_run()
+				Game.save_to_slot(sel_slot)
+				Game.save_game()
+				Sfx.play("confirm")
+				get_tree().change_scene_to_file(GAME_SCENE)
+			"save_current":
+				if Game.save_to_slot(sel_slot):
+					message = "Saved autosave to Slot %d." % [sel_slot + 1]
+					Sfx.play("confirm")
+				else:
+					message = "Failed to save."
+					Sfx.play("deny")
+				_go(Page.SLOTS)
+			"delete":
+				_go(Page.CONFIRM_SLOT_DELETE)
+			"back":
+				_go(Page.SLOTS)
+		return
+
+	if page == Page.CONFIRM_SLOT_DELETE:
+		if id == "yes":
+			Game.delete_slot(sel_slot)
+			Sfx.play("confirm")
+			message = "Slot %d erased." % [sel_slot + 1]
+		_go(Page.SLOTS)
 		return
 
 	if page == Page.CONFIRM_WIPE:
@@ -274,11 +346,11 @@ func _render() -> void:
 		Page.MAIN:
 			heading.text = ""
 			logo.visible = true
-			menu.offset_top = 108.0   # doubled Aug 2026
+			menu.offset_top = 100.0   # adjusted to fit rows comfortably
 			for i in rows.size():
 				var id := String(rows[i])
 				var names_main := {
-					"continue": "Continue", "new": "New term", "howto": "How to play",
+					"continue": "Continue", "slots": "Save slots", "new": "New term", "howto": "How to play",
 					"settings": "Settings", "controls": "Controls",
 					"credits": "Credits", "wipe": "Erase save", "quit": "Quit",
 				}
@@ -287,6 +359,58 @@ func _render() -> void:
 					text += "   (day %d)" % Game.saved_day()
 				lines.append("%s %s" % [">" if i == sel else " ", text])
 			footer.text = message if message != "" else "Arrows to choose, E to pick"
+
+		Page.SLOTS:
+			heading.text = "SAVE SLOTS"
+			logo.visible = false
+			menu.offset_top = 58.0
+			for i in rows.size():
+				var row_id := String(rows[i])
+				if row_id == "back":
+					lines.append("%s Back" % [">" if i == sel else " "])
+				else:
+					var slot_idx := int(row_id.trim_prefix("slot_"))
+					var label := ""
+					if Game.has_slot(slot_idx):
+						var info := Game.slot_info(slot_idx)
+						label = "Slot %d: Day %d  (Term %d, %s, %d coins)" % [
+							slot_idx + 1,
+							info.get("day", 1),
+							info.get("term", 1),
+							String(info.get("subject", "general")).capitalize(),
+							info.get("coins", 0)
+						]
+					else:
+						label = "Slot %d: [Empty]" % [slot_idx + 1]
+					lines.append("%s %s" % [">" if i == sel else " ", label])
+			footer.text = message if message != "" else "Arrows to choose, E to select, Esc to go back"
+
+		Page.SLOT_ACTIONS:
+			heading.text = "SLOT %d" % [sel_slot + 1]
+			logo.visible = false
+			menu.offset_top = 80.0
+			var action_names := {
+				"load": "Load this slot",
+				"new": "Start new game in this slot",
+				"save_current": "Copy autosave to this slot",
+				"delete": "Erase this slot",
+				"back": "Back to slots",
+			}
+			for i in rows.size():
+				var aid := String(rows[i])
+				lines.append("%s %s" % [">" if i == sel else " ", action_names.get(aid, aid)])
+			footer.text = "E to pick, Esc to go back"
+
+		Page.CONFIRM_SLOT_DELETE:
+			heading.text = "ERASE SLOT %d?" % [sel_slot + 1]
+			logo.visible = false
+			menu.offset_top = 80.0
+			lines = ["This cannot be undone.", ""]
+			for i in rows.size():
+				lines.append("%s %s" % [
+					">" if i == sel else " ",
+					"No, keep it" if String(rows[i]) == "no" else "Yes, erase it"])
+			footer.text = ""
 
 		Page.SETTINGS:
 			heading.text = "SETTINGS"

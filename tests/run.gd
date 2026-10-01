@@ -9028,6 +9028,35 @@ func test_title() -> void:
 	t._activate()
 	chk("answering Yes erases it", not Game.has_save())
 
+	# Save slots page
+	t._go(t.Page.MAIN)
+	chk("main page offers save slots", t._rows().has("slots"))
+	t._go(t.Page.SLOTS)
+	chk("slots page lists 8 slots plus back", t._rows().size() == 9 and t._rows().has("slot_0") and t._rows().has("back"))
+	chk("empty slot renders cleanly", t.menu.text.contains("Slot 1: [Empty]"))
+
+	# Select empty slot 0
+	t.sel = 0
+	t._activate()
+	chk("activating an empty slot enters SLOT_ACTIONS", t.page == t.Page.SLOT_ACTIONS and t.sel_slot == 0)
+	chk("empty slot offers new game", t._rows().has("new"))
+
+	# Save current into slot 0 and verify slot rendering
+	Game.new_run(SEED)
+	Game.day = 7
+	Game.save_to_slot(0)
+	t._go(t.Page.SLOTS)
+	chk("populated slot shows day", t.menu.text.contains("Slot 1: Day 7"))
+
+	# Open populated slot 0 actions
+	t.sel = 0
+	t._activate()
+	chk("populated slot offers load and delete", t._rows().has("load") and t._rows().has("delete"))
+
+	# Clean up slot 0
+	Game.delete_slot(0)
+	chk("deleted slot becomes empty again", not Game.has_slot(0))
+
 	t.queue_free()
 	await step(2)
 	Game.delete_save()
