@@ -527,19 +527,18 @@ def finish(im, amt=0.14):
     return outline(im)
 
 
-def rim_light2(img, amt=0.20, amt2=0.09):
-    """Two-band version of rim_light: the same upper-left-lit,
-    lower-right-shaded rule, plus a second, softer band one ring further
-    in, so a flat fill reads as a gradient rather than a hard 1px edge.
-
-    Style reference: limezu's "Modern Farm" pack (Oct 2026) -- its props
-    carry a visible multi-step highlight/shadow across large flat faces
-    (a roof, a barrel) where rim_light's single edge band reads flatter
-    by comparison. This does not change rim_light itself (every other
-    piece of art keeps its existing look); it is an opt-in second pass
-    for the pieces redrawn against that reference.
+def second_band(img, amt2=0.09):
+    """A second, softer shading ring one pixel further in from the
+    silhouette edge, layered ON TOP of whatever rim_light already did --
+    it does not redo rim_light's own edge band, only adds one more step
+    inward, so a flat fill gets a two-step gradient instead of a hard 1px
+    edge. Style reference: limezu's "Modern Farm" pack (Oct 2026) -- its
+    props carry a visible multi-step highlight/shadow across large flat
+    faces (a roof, a barrel) where a single edge band reads flatter by
+    comparison. Call this AFTER rim_light, at whatever resolution
+    rim_light itself was applied at (characters: the 32x48 build, before
+    the pixel-grid quantise; furniture: native low-res, same as finish).
     """
-    rim_light(img, amt)
     src = img.copy()
     w, h = img.size
     get = src.getpixel
@@ -564,6 +563,15 @@ def rim_light2(img, amt=0.20, amt2=0.09):
                 img.putpixel((x, y), lighter(c, amt2) + (c[3],))
             elif dark and not lit:
                 img.putpixel((x, y), darker(c, amt2) + (c[3],))
+
+
+def rim_light2(img, amt=0.20, amt2=0.09):
+    """rim_light() followed by second_band() -- the combined two-band
+    pass furniture's finish_rich() uses. See second_band() for why the
+    two are kept separate: characters need the second band applied at a
+    different resolution than the first."""
+    rim_light(img, amt)
+    second_band(img, amt2)
 
 
 def finish_rich(im, amt=0.20, amt2=0.09):
@@ -1182,6 +1190,12 @@ def draw_char(direction, frame, pal):
     # 100% uniform, solid 2px outline (1 texel) with zero dropped border
     # pixels on walking frames or pose bobs.
     lowres = im.resize((CW // 2, CH // 2), Image.NEAREST)
+    # A second, softer shading ring at the lowres stage (Oct 2026, style
+    # reference: limezu's Modern Farm pack) -- applied here rather than
+    # on the hi-res build above because that's the resolution furniture's
+    # finish_rich() shades at, and a hi-res second band mostly vanished
+    # under the NEAREST half-resize anyway.
+    second_band(lowres, 0.08)
     outline(lowres, LINE)
     shadow(lowres, (CW // 2) // 2, (CH // 2) - 2, 6 if pose != POSE_JUMP else 4, 2)
     return scale2x(lowres)
@@ -1357,6 +1371,7 @@ def draw_portrait(pal):
         rect(im, 70, 37, 78, 38, GLASS_FRAME)
 
     rim_light(im, 0.14)
+    second_band(im, 0.07)
     outline(im)
     return im
 
