@@ -83,6 +83,7 @@ reads convincingly regardless of which way the wearer is walking.
 | `cap.png` | a beanie, not a baseball cap — a brim read as a disconnected floating block at this scale | `cap` |
 | `bow.png` | a bow-tie shape | `bow` |
 | `wizard.png` | a pointed hat with a star tip | `wizard` |
+| `mortarboard.png` | a graduation cap: a flat board and a hanging tassel (Oct 2026, style-referenced against the Modern Farm pack's shaded accessory hats -- the only one of the four with `rim_light` rather than a flat fill) | `mortarboard` |
 
 Backgrounds (the other half of the same cosmetics hook) are flat
 colours behind the portrait, not art files — see `Cosmetics.BACKGROUNDS`.

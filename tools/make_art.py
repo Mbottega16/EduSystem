@@ -1675,8 +1675,53 @@ def draw_hat_wizard():
     return outline(im)
 
 
+def draw_hat_mortarboard():
+    """A graduation mortarboard. draw_hat_cap's brim read as a
+    disconnected floating block at this scale and was redrawn without
+    one -- but the flat board here IS a mortarboard's whole identity, so
+    it stays, drawn wide and short (a flattened diamond, the convention
+    most chibi/pixel mortarboards use) rather than brim-thin, so it
+    reads as a board and not a stray smear. Unlike the other three flat
+    hats above, this one gets rim_light -- style reference: the Modern
+    Farm pack's shaded layered accessory hats (Oct 2026)."""
+    im = Image.new("RGBA", (24, 22), (0, 0, 0, 0))
+    # A deliberately big value gap between the two forms -- an early
+    # pass used two close charcoal tones and the whole hat read as one
+    # muddy blob, board and cap indistinguishable from each other.
+    CAP = (104, 98, 128)
+    CAP_D = (76, 72, 98)
+    BOARD = (20, 18, 26)
+    CORD = (222, 182, 72)
+    TUFT = (238, 204, 104)
+    # the flat board -- a wide, short diamond (a lens seen edge-on), near-
+    # black against the cap's lighter slate so the silhouette splits into
+    # two readable forms rather than one blob
+    rect(im, 11, 2, 12, 2, BOARD)
+    rect(im, 5, 3, 18, 3, BOARD)
+    rect(im, 0, 4, 23, 4, BOARD)
+    rect(im, 5, 5, 18, 5, BOARD)
+    rect(im, 11, 6, 12, 6, BOARD)
+    # the base skull-cap, same taper trick as draw_hat_cap/draw_hat_wizard,
+    # narrower than the board and starting the row BELOW the board's own
+    # narrow point -- row 6 above and row 7 below share columns 11-13, so
+    # the two forms touch with no floating gap between them.
+    for y, (x0, x1) in enumerate(((10, 13), (9, 14), (8, 15), (7, 16))):
+        rect(im, x0, 7 + y, x1, 7 + y, CAP)
+    rect(im, 8, 10, 15, 11, CAP_D)                   # the band, near the head
+    # the cord, hanging from the board's right corner past the cap's
+    # edge, with a small tuft where it ends
+    px(im, 16, 3, CORD)
+    px(im, 17, 4, CORD)
+    px(im, 18, 5, CORD)
+    px(im, 18, 6, CORD)
+    rect(im, 17, 7, 19, 8, TUFT)
+    rim_light(im, 0.16)
+    return outline(im)
+
+
 HAT_ART = {
     "cap": draw_hat_cap, "bow": draw_hat_bow, "wizard": draw_hat_wizard,
+    "mortarboard": draw_hat_mortarboard,
 }
 
 

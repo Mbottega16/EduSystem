@@ -18,6 +18,7 @@ const HATS := [
 	{"id": "cap", "name": "Beanie", "art": "cap"},
 	{"id": "bow", "name": "Bow", "art": "bow"},
 	{"id": "wizard", "name": "Wizard Hat", "art": "wizard"},
+	{"id": "mortarboard", "name": "Mortarboard", "art": "mortarboard"},
 ]
 
 ## A flat colour behind the character portrait -- the dashboard, the
