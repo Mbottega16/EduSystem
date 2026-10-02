@@ -172,7 +172,7 @@ so it touches nothing the balance contract measures.
 | `dust.png` | a 2&times;2 particle |
 | `book_open.png`, `book_flip0..3.png` | the book the curriculum and the lesson plans are read out of, and four frames of a page turning (`tools/make_ui.py`). Rectangular boards and paper, textured rather than curved *(Sept 2026)* |
 | `icon_ela.png`, `icon_math.png`, `icon_science.png`, `icon_social.png` | one subject mark per curriculum STRAND, 16&times;16 (`tools/make_ui.py::strand_icon`) — a book, a plus, a flask, a globe, each in that strand's own `STRAND_COLOUR` from `hud.gd`. Four, not forty: the row already carries the lesson's name, so what the mark adds is the family. Doubled with plain NEAREST, not `scale2x`, which rounded the plus into a diamond *(Sept 2026)* |
-| `tile_backdrop.png` | what shows AROUND the room now the stretch aspect is `expand` — a far corridor wall, tiled behind everything by `main.tscn`'s Backdrop layer *(Sept 2026)* |
+| `tile_backdrop.png` | what shows AROUND the room now the stretch aspect is `expand` — tiled behind everything by `main.tscn`'s Backdrop layer. A dim schoolyard (lawn + a soft hedge-line silhouette along the top edge standing in for trees) as of Oct 2026 — was a far corridor wall before that. Four tiles wide, not one, so the hedge silhouette varies before repeating |
 
 Not built yet: a per-`Game.CRAFT_STYLES` icon, one per lesson-craft
 style, the same shape as the four strand marks above (16&times;16, one

@@ -1925,7 +1925,7 @@ def make_contact_shadow():
 
 
 def backdrop_tile():
-    """What lies BEYOND the classroom: the school itself, out of focus.
+    """What lies BEYOND the classroom: the schoolyard, out of focus.
 
     The room used to be exactly the size of the viewport, so nothing was
     ever visible around it and there was nothing to draw. Since the window
@@ -1933,36 +1933,53 @@ def backdrop_tile():
     16:10 or ultrawide monitor shows real space above and below the room)
     something has to be there, and black bars are not something.
 
-    Deliberately LOW CONTRAST and dark. This tile is out of play -- it is
-    never walked on, never interacted with, and must never pull the eye off
-    the room. It is the far corridor wall: dark panelling, a chair rail,
-    and a lamp-lit floor course, in the same palette as the room's own
-    dado so the two read as one building.
+    *(Oct 2026, the outside pass.)* Used to be the far corridor wall, dark
+    panelling in the room's own palette. Replaced with a dim grassy
+    schoolyard -- the user wants the room read as a real building from
+    outside it, Sims-style, not a windowless box -- with a soft, low hedge
+    line along the top edge standing in for "maybe even trees": full trees
+    do NOT fit this mechanism (Godot tiles this one short strip both ways
+    via `texture_repeat`, so anything taller than the tile would stack
+    into a repeating column, not read as a tree -- see
+    docs/ART_STYLE_REFERENCE.md's note on this if that changes later).
+
+    Deliberately LOW CONTRAST and dark, same restraint as the corridor
+    version it replaces: out of play, never walked on, never interacted
+    with, must never pull the eye off the room.
+
+    Four tiles wide so the hedge silhouette can vary across its width
+    before repeating, rather than visibly stamping one identical tile --
+    the same reasoning make_room_tiles' floor variants already use.
     """
-    t = Image.new("RGBA", (TILE, TILE))
-    # a dark, desaturated cousin of the room's plaster
-    far = tuple(int(c * 0.34) for c in WALL)
-    far_l = tuple(int(c * 0.42) for c in WALL)
-    far_d = tuple(int(c * 0.26) for c in WALL)
-    rect(t, 0, 0, TILE - 1, TILE - 1, far)
+    W = TILE * 4
+    t = Image.new("RGBA", (W, TILE))
+    # a dim, desaturated lawn -- not the room's warm plaster family
+    # anymore, since this is outside it now, not another room of it
+    grass = (42, 54, 36)
+    grass_l = (52, 66, 44)
+    grass_d = (34, 44, 29)
+    hedge = (28, 38, 26)
+    hedge_l = (36, 48, 32)
+    rect(t, 0, 0, W - 1, TILE - 1, grass)
 
-    # panel joints: a vertical groove every quarter tile, one lit edge each,
-    # so the surface has a direction without having a pattern you can count
-    for x in range(0, TILE, TILE // 4):
-        rect(t, x, 0, x, TILE - 1, far_d)
-        rect(t, x + 1, 0, x + 1, TILE - 1, far_l)
-
-    # a course line across the top of the tile -- the corridor's chair rail,
-    # which is what stops a big empty area reading as a flat fill
-    rect(t, 0, 0, TILE - 1, 0, far_d)
-    rect(t, 0, 1, TILE - 1, 1, far_l)
-
-    # the same seeded fleck the room's own plaster takes, so the two
-    # surfaces are the same material at different distances
+    # the hedge line: a soft, rounded silhouette along the top edge only
+    # (never crosses the tile's own top/bottom border, so it tiles
+    # vertically with no seam) -- bump heights vary across the 4-tile
+    # width so the repeat doesn't read as one stamped shape
     rnd = random.Random(4711)
-    for _ in range(9):
-        x, y = rnd.randrange(TILE), rnd.randrange(TILE)
-        px(t, x, y, far_l if rnd.random() < 0.5 else far_d)
+    heights = [rnd.randrange(3, 7) for _ in range(W // 2)]
+    for i, h in enumerate(heights):
+        x0 = i * 2
+        for y in range(h):
+            shade = hedge_l if y == h - 1 else hedge
+            rect(t, x0, y, min(x0 + 1, W - 1), y, shade)
+
+    # seeded fleck across the lawn, same technique the room's own plaster
+    # and the old corridor backdrop both used -- a material cue, not a
+    # pattern you can count
+    for _ in range(28):
+        x, y = rnd.randrange(W), rnd.randrange(max(heights) if heights else 0, TILE)
+        px(t, x, y, grass_l if rnd.random() < 0.5 else grass_d)
     return t
 
 
