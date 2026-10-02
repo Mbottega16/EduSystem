@@ -14,8 +14,8 @@ import os
 
 from PIL import Image
 
-from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, finish, px, rect,
-                      shadow, hand_edited, scale2x)
+from make_art import (LINE, WOOD, WOOD_L, WOOD_D, outline, finish,
+                      finish_rich, px, rect, shadow, hand_edited, scale2x)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -467,33 +467,60 @@ def draw_pouf():
 
 
 def draw_window_seat():
+    """A cushioned reading bench. Oct 2026 -- redrawn with finish_rich's
+    two-band gradient and a tufted cushion (a row of pressed-in highlight
+    dots), style-referenced against the Modern Farm pack's benches, which
+    read with a visible seat-cushion gradient this used to lack."""
     im = _blank(32, 16)
     rect(im, 1, 5, 30, 10, BLUE)
     rect(im, 1, 5, 30, 6, BLUE_L)
+    for x in range(4, 29, 4):
+        px(im, x, 7, BLUE_L)
     rect(im, 3, 11, 4, 14, WOOD_D)
     rect(im, 27, 11, 28, 14, WOOD_D)
-    return finish(im)
+    rect(im, 3, 10, 4, 11, WOOD)
+    rect(im, 27, 10, 28, 11, WOOD)
+    return finish_rich(im)
 
 
 def draw_low_shelf():
+    """A low classroom bookshelf, three compartments of mixed supplies
+    rather than two flat blocks -- style-referenced against the Modern
+    Farm pack's shelving units, each stocked with several distinct items
+    rather than one solid colour per shelf. finish_rich (Oct 2026) in
+    place of finish for the same reason: a gradient across the wood frame
+    rather than a single hard edge."""
     im = _blank(16, 14)
     rect(im, 1, 4, 14, 12, WOOD)
     rect(im, 1, 4, 14, 5, WOOD_L)
     rect(im, 1, 8, 14, 8, WOOD_D)
+    rect(im, 7, 4, 7, 12, WOOD_D)
     rect(im, 3, 5, 5, 7, CLOTH)
-    rect(im, 7, 9, 9, 11, BLUE)
-    return finish(im)
+    rect(im, 9, 5, 11, 7, GOLD)
+    rect(im, 3, 9, 5, 11, BLUE)
+    rect(im, 9, 9, 11, 11, GREEN)
+    return finish_rich(im)
 
 
 def draw_display_rack():
+    """A supply rack: three shelf rows, a divider post, and more than one
+    colour per row -- style-referenced against the Modern Farm pack's
+    stocked shelving (several small goods per shelf, not one wide block).
+    finish_rich (Oct 2026) for the gradient across the wood frame."""
     im = _blank(28, 20)
     rect(im, 1, 2, 26, 17, WOOD_D)
     rect(im, 2, 3, 25, 8, WOOD)
     rect(im, 2, 10, 25, 15, WOOD)
-    rect(im, 4, 4, 8, 7, GREEN)
-    rect(im, 12, 4, 16, 7, BLUE)
+    rect(im, 13, 3, 13, 15, WOOD_D)
+    rect(im, 4, 4, 7, 7, GREEN)
+    rect(im, 9, 4, 11, 7, GOLD)
+    rect(im, 15, 4, 18, 7, BLUE)
     rect(im, 20, 4, 23, 7, CLOTH)
-    return finish(im)
+    rect(im, 4, 11, 7, 14, CLOTH)
+    rect(im, 9, 11, 11, 14, BLUE)
+    rect(im, 15, 11, 18, 14, GOLD)
+    rect(im, 20, 11, 23, 14, GREEN)
+    return finish_rich(im)
 
 
 def draw_filing_cart():

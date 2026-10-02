@@ -527,6 +527,55 @@ def finish(im, amt=0.14):
     return outline(im)
 
 
+def rim_light2(img, amt=0.20, amt2=0.09):
+    """Two-band version of rim_light: the same upper-left-lit,
+    lower-right-shaded rule, plus a second, softer band one ring further
+    in, so a flat fill reads as a gradient rather than a hard 1px edge.
+
+    Style reference: limezu's "Modern Farm" pack (Oct 2026) -- its props
+    carry a visible multi-step highlight/shadow across large flat faces
+    (a roof, a barrel) where rim_light's single edge band reads flatter
+    by comparison. This does not change rim_light itself (every other
+    piece of art keeps its existing look); it is an opt-in second pass
+    for the pieces redrawn against that reference.
+    """
+    rim_light(img, amt)
+    src = img.copy()
+    w, h = img.size
+    get = src.getpixel
+    for y in range(h):
+        for x in range(w):
+            c = get((x, y))
+            if c[3] == 0:
+                continue
+            # Skip the silhouette edge itself -- rim_light already set it.
+            if (y == 0 or get((x, y - 1))[3] == 0
+                    or x == 0 or get((x - 1, y))[3] == 0
+                    or y == h - 1 or get((x, y + 1))[3] == 0
+                    or x == w - 1 or get((x + 1, y))[3] == 0):
+                continue
+            up = y <= 1 or get((x, y - 2))[3] == 0
+            left = x <= 1 or get((x - 2, y))[3] == 0
+            down = y >= h - 2 or get((x, y + 2))[3] == 0
+            right = x >= w - 2 or get((x + 2, y))[3] == 0
+            lit = up or left
+            dark = down or right
+            if lit and not dark:
+                img.putpixel((x, y), lighter(c, amt2) + (c[3],))
+            elif dark and not lit:
+                img.putpixel((x, y), darker(c, amt2) + (c[3],))
+
+
+def finish_rich(im, amt=0.20, amt2=0.09):
+    """finish(), but with rim_light2's two-band gradient in place of the
+    single hard-edge band -- the richer, more dimensional look used for
+    the classroom-overlap furniture redrawn against the Modern Farm pack
+    as a style reference (Oct 2026): bench, crate, cabinet, stool,
+    supply_shelf. Everything else keeps calling plain finish()."""
+    rim_light2(im, amt, amt2)
+    return outline(im)
+
+
 def resolve_palette(pal):
     """Fill in every optional key and derive the shading tones."""
     p = dict(pal)
