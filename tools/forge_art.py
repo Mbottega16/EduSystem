@@ -163,11 +163,28 @@ def _hand_owned(name):
     return os.path.exists(os.path.join(HERE, "sprites", name + ".txt"))
 
 
+def _limezu_owned(name):
+    try:
+        import limezu
+        return name in limezu.owned_names()
+    except ImportError:
+        return False
+
+
 def _hand_guard(name, force):
     """A sprite with a text-grid source is the pixel editor's (Browse
     Art.bat) job -- this tool has no canvas and cannot regenerate the .txt
     from a colour tweak. --force writes the PNG anyway, but says plainly
     that the source still owns it and the next make_art.py run reverts it."""
+    if _limezu_owned(name) and not _hand_owned(name):
+        if not force:
+            sys.exit("%s comes from the LimeZu packs (tools/limezu_manifest.json or "
+                     "limezu_cast.json). Change which sprite it uses there and run "
+                     "import_limezu.py / limezu_chars.py, or pass --force for a throwaway "
+                     "override." % name)
+        print("  NOTE: %s is LimeZu-owned. The next import_limezu.py / limezu_chars.py "
+              "run reverts what you just wrote." % name)
+        return
     if not _hand_owned(name):
         return
     if not force:

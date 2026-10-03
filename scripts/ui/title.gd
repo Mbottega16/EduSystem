@@ -489,9 +489,10 @@ func _render() -> void:
 			lines = [
 				"A small game about paying attention.",
 				"",
-				"Every image is drawn by tools/make_art.py",
+				"Pixel art by LimeZu (limezu.itch.io):",
+				"Modern Interiors, Modern Office, Modern UI",
+				"The rest is drawn by tools/make_art.py",
 				"Every sound is synthesised by make_audio.py",
-				"Nothing here was sourced from anywhere else.",
 				"",
 				"Built with Godot 4.",
 			]

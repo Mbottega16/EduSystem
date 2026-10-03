@@ -1,0 +1,247 @@
+{
+  "_about": "Sprites the game takes from LimeZu's packs (limezu.itch.io). Read by tools/limezu.py and tools/import_limezu.py; every name in props/tiles is owned by the importer and the procedural generators stand down for it. A ref like 'classroom#6' is the numbered single #6 in that theme (see themes). Licence: edit/use freely in commercial projects, no resale or redistribution of the asset, credit required (limezu.itch.io). The packs themselves are never committed.",
+  "themes": {
+    "living": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/2_Living_Room_Singles_Shadowless"
+    },
+    "bath": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/3_Bathroom_Singles_Shadowless"
+    },
+    "bedroom": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/4_Bedroom_Singles_Shadowless"
+    },
+    "classroom": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/5_Classroom_and_Library_Singles_Shadowless"
+    },
+    "music": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/6_Music_and_Sport_Shadowless"
+    },
+    "art": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/7_Art_Singles_Shadowless"
+    },
+    "gym": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/8_Gym_Singles_Shadowless"
+    },
+    "fishing": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/9_Fishing_Singles_Shadowless"
+    },
+    "birthday": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/10_Birthday_Party_Singles_Shadowless"
+    },
+    "halloween": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/11_Halloween_Singles_Shadowless"
+    },
+    "kitchen": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/12_Kitchen_Singles_Shadowless"
+    },
+    "conference": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/13_Conference_Hall_Singles_Shadowless"
+    },
+    "basement": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/14_Basement_Singles_Shadowless"
+    },
+    "christmas": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/15_Christmas_Singles_Shadowless"
+    },
+    "grocery": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/16_Grocery_Store_Singles_Shadowless"
+    },
+    "hospital": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/19_Hospital_SIngles_Shadowless"
+    },
+    "clothing": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/21_Clothing_Store_Singles_Shadowless"
+    },
+    "museum": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/22_Museum_Singles_Shadowless"
+    },
+    "tv": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/23_Television_and_Film_Studio_Singles_Shadowless"
+    },
+    "icecream": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/24_Ice_Cream_Shop_Singles_Shadowless"
+    },
+    "condo": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/26_Condominium_Singles_Shadowless"
+    },
+    "office": {
+      "pack": "office",
+      "dir": "4_Modern_Office_singles/16x16"
+    }
+  },
+  "props": {
+    "desk": {
+      "ref": "classroom#6",
+      "why": "plain school desk; trims to 32x36, within 4px of the old 32x40, so the child behind it keeps the same lap-hidden read"
+    },
+    "chair": {
+      "ref": "classroom#1",
+      "why": "front-on school chair; backrest peeks over the child's shoulders"
+    },
+    "teacher_desk": {
+      "ref": "classroom#25",
+      "why": "green-topped desk with the open register and a pencil pot"
+    },
+    "podium": {
+      "ref": "museum#131",
+      "why": "wooden lectern with a sheet on it (the museum info stand, plaque-free one)"
+    },
+    "noticeboard": {
+      "ref": "classroom#33",
+      "why": "cork board with pinned notes"
+    },
+    "cabinet_body": {
+      "ref": "classroom#40",
+      "trim": "xy",
+      "why": "a school locker is what a classroom stores things in"
+    },
+    "cabinet": {
+      "ref": "classroom#40",
+      "trim": "xy",
+      "hue": 95,
+      "why": "the same locker, hue-rotated to green so a bought one is not the landmark twice"
+    },
+    "supply_shelf": {
+      "ref": "classroom#56",
+      "why": "two-wide library shelf of supplies"
+    },
+    "bookshelf": {
+      "ref": "classroom#59",
+      "why": "one-wide tall bookcase"
+    },
+    "display_rack": {
+      "ref": "living#91",
+      "why": "glass-fronted display cabinet"
+    },
+    "side_table": {
+      "ref": "living#65",
+      "why": "plain wooden side table with a drawer"
+    },
+    "filing_cart": {
+      "ref": "office#168",
+      "trim": "xy",
+      "why": "grey metal filing unit"
+    },
+    "whiteboard": {
+      "ref": "office#170",
+      "why": "whiteboard on a stand with a marker tray"
+    },
+    "vocab_board": {
+      "ref": "classroom#36",
+      "why": "wall chalkboard"
+    },
+    "globe": {
+      "ref": "classroom#34",
+      "why": "desk globe on a gold stand"
+    },
+    "art_easel": {
+      "ref": "art#37",
+      "why": "easel holding a finished painting"
+    },
+    "lab_bench": {
+      "ref": "hospital#209",
+      "why": "lab counter with flasks and test tubes"
+    },
+    "music_corner": {
+      "ref": "music#46",
+      "why": "acoustic guitar on a stand"
+    },
+    "map_corner": {
+      "ref": "classroom#31",
+      "why": "wall map of the world"
+    },
+    "lamp": {
+      "ref": "living#87",
+      "trim": "xy",
+      "why": "floor lamp, cream shade, wooden stand"
+    },
+    "plant": {
+      "ref": "living#16",
+      "trim": "xy",
+      "why": "potted ficus"
+    },
+    "radiator": {
+      "ref": "hospital#237",
+      "why": "white cast radiator"
+    },
+    "water_cooler": {
+      "ref": "office#173",
+      "trim": "xy",
+      "why": "office water cooler"
+    },
+    "wall_clock": {
+      "ref": "hospital#336",
+      "why": "square white wall clock"
+    },
+    "alphabet_frieze": {
+      "ref": "classroom#32",
+      "why": "alphabet poster"
+    },
+    "coat_hooks": {
+      "ref": "clothing#168",
+      "why": "coat rail with hangers"
+    },
+    "sticker_chart": {
+      "ref": "office#97",
+      "trim": "xy",
+      "why": "cork board of colourful stickers"
+    },
+    "duty_roster": {
+      "ref": "office#113",
+      "trim": "xy",
+      "why": "framed rota with a gold rosette"
+    },
+    "stool": {
+      "ref": "art#30",
+      "why": "round wooden stool"
+    },
+    "beanbag": {
+      "ref": "gym#79",
+      "trim": "xy",
+      "why": "blue bean bag"
+    },
+    "pouf": {
+      "ref": "basement#105",
+      "why": "yellow padded pouf"
+    },
+    "floor_cushion": {
+      "ref": "basement#23",
+      "why": "blue floor cushion"
+    },
+    "ottoman": {
+      "ref": "basement#9",
+      "why": "grey padded ottoman"
+    },
+    "bench": {
+      "ref": "basement#66",
+      "why": "slatted wooden bench"
+    },
+    "photocopies": {
+      "ref": "office#155",
+      "trim": "xy",
+      "why": "a ream of photocopies"
+    }
+  },
+  "tiles": {}
+}

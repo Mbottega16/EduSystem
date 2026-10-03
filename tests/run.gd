@@ -213,6 +213,7 @@ func _main() -> void:
 	test_catalogue()
 	test_global_classes_registered()
 	test_every_asset_loads()
+	test_limezu_art()
 	test_curator()
 	test_cheats()
 	await test_moving_desks()
@@ -12473,6 +12474,79 @@ func test_every_asset_loads() -> void:
 	chk("there is art to check", checked > 0, checked)
 	chk("and every single piece of it loads", broken.is_empty(),
 		"%d of %d fail to load: %s" % [broken.size(), checked, broken])
+
+
+## The LimeZu packs are NOT in the repo (the licence forbids redistributing
+## them), so this reads only what IS: the two JSON files that say which sprites
+## came from LimeZu, and the finished PNGs those sprites became.
+##
+## What it guards, in plain terms: a sprite the importer owns must exist, load,
+## and be at the doubled scale; it must not also have a hand-drawn source
+## fighting it for the PNG (the generators stand down for a hand source AND for
+## a LimeZu one, but the suite's other hand-source check would then compare the
+## wrong dimensions); and -- because the licence REQUIRES credit -- the credits
+## page has to name LimeZu, or the game ships using his art without saying so.
+func test_limezu_art() -> void:
+	section("LIMEZU ART")
+	var m: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tools/limezu_manifest.json"))
+	chk("the manifest of LimeZu props and tiles parses", m is Dictionary)
+	# The cast file is optional: a checkout with only the props imported has none.
+	var cast: Variant = {}
+	if FileAccess.file_exists("res://tools/limezu_cast.json"):
+		cast = JSON.parse_string(FileAccess.get_file_as_string("res://tools/limezu_cast.json"))
+		chk("and so does the cast file", cast is Dictionary)
+	if not (m is Dictionary and cast is Dictionary):
+		return
+	var names: Array[String] = []
+	for section_key: String in ["props", "tiles"]:
+		for n: String in (m as Dictionary).get(section_key, {}).keys():
+			names.append(n)
+	var sheets: Array[String] = []
+	var busts: Array[String] = []
+	for n: String in (cast as Dictionary).get("characters", {}).keys():
+		sheets.append(n)
+		if bool(cast["characters"][n].get("portrait", true)):
+			busts.append(n)
+	chk("the importer owns some sprites", names.size() > 0, names.size())
+
+	var missing: Array[String] = []
+	var odd: Array[String] = []
+	var fought: Array[String] = []
+	for n: String in names:
+		var tex: Texture2D = load("res://art/%s.png" % n) if ResourceLoader.exists("res://art/%s.png" % n) else null
+		if tex == null:
+			missing.append(n)
+		elif tex.get_width() % 2 != 0 or tex.get_height() % 2 != 0 or tex.get_width() < 8 or tex.get_height() < 8:
+			odd.append("%s %dx%d" % [n, tex.get_width(), tex.get_height()])
+		if FileAccess.file_exists("res://tools/sprites/%s.txt" % n):
+			fought.append(n)
+	chk("every LimeZu prop and tile exists and loads", missing.is_empty(), missing)
+	chk("each is at the doubled scale (even width and height)", odd.is_empty(), odd)
+	chk("none also has a hand-drawn source fighting it", fought.is_empty(), fought)
+
+	var wrong: Array[String] = []
+	for n: String in sheets:
+		var tex: Texture2D = load("res://art/%s.png" % n) if ResourceLoader.exists("res://art/%s.png" % n) else null
+		if tex == null or tex.get_width() != 288 or tex.get_height() != 192:
+			wrong.append(n)
+	chk("every baked person is a 9x4 sheet of 32x48 cells", wrong.is_empty(), wrong)
+	var wrong_bust: Array[String] = []
+	for n: String in busts:
+		var tex: Texture2D = load("res://art/portrait_%s.png" % n) if ResourceLoader.exists("res://art/portrait_%s.png" % n) else null
+		if tex == null or tex.get_width() != 96 or tex.get_height() != 96:
+			wrong_bust.append(n)
+	chk("and every baked portrait is 96x96", wrong_bust.is_empty(), wrong_bust)
+
+	# The licence requires credit (limezu.itch.io). Say it where a player can read it.
+	var scene: PackedScene = load("res://scenes/ui/title.tscn")
+	var t: Node2D = scene.instantiate()
+	add_child(t)
+	t._go(t.Page.CREDITS)
+	chk("the credits page credits LimeZu", t.menu.text.findn("LimeZu") >= 0, t.menu.text)
+	chk("...with the page the licence names", t.menu.text.findn("limezu.itch.io") >= 0)
+	chk("...and no longer claims every image is drawn by the game's own script",
+		t.menu.text.findn("Nothing here was sourced") < 0)
+	t.queue_free()
 
 
 func test_curator() -> void:
