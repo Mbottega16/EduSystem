@@ -190,6 +190,10 @@ def owned_names():
         m = load_manifest()
         names.update(m.get("props", {}).keys())
         names.update(m.get("tiles", {}).keys())
+    room_cfg = os.path.join(TOOLS, "limezu_room.json")
+    if os.path.exists(room_cfg):
+        import limezu_room
+        names.update(limezu_room.OUTPUTS)
     cast = load_cast()
     for name, spec in cast.get("characters", {}).items():
         names.add(name)
