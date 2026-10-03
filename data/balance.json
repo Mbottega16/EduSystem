@@ -146,6 +146,16 @@
       "bonus": 0.08,
       "blurb": "Wide, and always within reach."
     },
+    "printer": {
+      "name": "Printer",
+      "cat": "learning",
+      "cost": 120,
+      "art": "printer",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.06,
+      "blurb": "Jams exactly when you need it most."
+    },
     "maths_tiles": {
       "name": "Number Tiles",
       "cat": "learning",
@@ -346,6 +356,16 @@
       "bonus": 0.09,
       "blurb": "Reaches further than it looks like it should.",
       "cat": "learning"
+    },
+    "computer": {
+      "name": "Computer",
+      "cat": "learning",
+      "cost": 145,
+      "art": "computer",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.07,
+      "blurb": "Half the class wants to use it at once."
     },
     "art_easel": {
       "name": "Art Easel",
@@ -711,6 +731,26 @@
       "blurb": "Hangs a little crooked, on purpose.",
       "teaches": "state_symbols.landmarks"
     },
+    "telephone": {
+      "name": "Telephone",
+      "cat": "decor",
+      "cost": 68,
+      "art": "telephone",
+      "w": 1,
+      "range": 4,
+      "bonus": 0.03,
+      "blurb": "The front office, two rings away."
+    },
+    "certificate": {
+      "name": "Certificate",
+      "cat": "decor",
+      "cost": 85,
+      "art": "certificate",
+      "w": 1,
+      "range": 5,
+      "bonus": 0.04,
+      "blurb": "Something to point at when they ask what you did."
+    },
     "vote_box": {
       "name": "Vote Box",
       "cat": "decor",
@@ -775,9 +815,11 @@
     "sound_cards",
     "shape_sorter",
     "maths_tiles",
+    "printer",
     "abacus",
     "vocab_board",
     "bookshelf",
+    "computer",
     "globe",
     "music_corner",
     "art_easel",
@@ -809,7 +851,9 @@
     "wall_clock",
     "chalk_border",
     "duty_roster",
+    "telephone",
     "state_flag",
+    "certificate",
     "class_banner",
     "alphabet_frieze",
     "season_wheel",

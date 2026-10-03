@@ -791,6 +791,53 @@ def draw_timeline_wall():
     return finish(im)
 
 
+# --- office pack, Oct 2026 -- EduSystem had zero "tech" items until now
+# (shape-referenced against Modern Office Revamped's icon set, redrawn
+# in house style rather than imported -- same reasoning as every prior
+# pack pass this session) -----------------------------------------------
+
+def draw_computer():
+    im = _blank(18, 20)
+    rect(im, 2, 1, 15, 11, STEEL_D)
+    rect(im, 3, 2, 14, 10, (74, 108, 150))
+    rect(im, 4, 3, 11, 8, (96, 138, 188))
+    rect(im, 7, 12, 10, 14, STEEL_D)
+    rect(im, 3, 15, 14, 17, STEEL)
+    rect(im, 2, 18, 15, 19, DARK)
+    return finish_rich(im)
+
+
+def draw_printer():
+    im = _blank(20, 16)
+    rect(im, 1, 4, 18, 13, STEEL)
+    rect(im, 1, 4, 18, 6, STEEL_L)
+    rect(im, 3, 1, 16, 4, PAPER)
+    rect(im, 5, 9, 14, 11, DARK)
+    px(im, 16, 11, GREEN)
+    return finish_rich(im)
+
+
+def draw_telephone():
+    im = _blank(16, 12)
+    rect(im, 2, 6, 13, 10, STEEL_D)
+    rect(im, 3, 2, 12, 6, (196, 60, 60))
+    rect(im, 2, 1, 6, 3, (196, 60, 60))
+    rect(im, 9, 1, 13, 3, (196, 60, 60))
+    for x in range(4, 12, 2):
+        px(im, x, 8, STEEL_L)
+    return finish_rich(im)
+
+
+def draw_certificate():
+    im = _blank(16, 18)
+    rect(im, 1, 1, 14, 16, WOOD_D)
+    rect(im, 2, 2, 13, 15, PAPER)
+    rect(im, 4, 5, 11, 5, DARK)
+    rect(im, 4, 7, 11, 7, DARK)
+    rect(im, 6, 10, 9, 13, GOLD)
+    return finish_rich(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -835,6 +882,9 @@ ITEMS = {
     # subject shelf -- one strand each
     "number_line": draw_number_line, "bug_viewer": draw_bug_viewer,
     "rhyme_chart": draw_rhyme_chart, "map_corner": draw_map_corner,
+    # office pack -- tech/decor, Oct 2026
+    "computer": draw_computer, "printer": draw_printer,
+    "telephone": draw_telephone, "certificate": draw_certificate,
     # subject shelf, second wave -- a second item per strand
     "word_wall": draw_word_wall, "ten_frame": draw_ten_frame,
     "rock_tray": draw_rock_tray, "timeline_wall": draw_timeline_wall,
