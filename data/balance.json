@@ -263,6 +263,16 @@
       "bonus": 0.06,
       "blurb": "They will use any excuse to visit it."
     },
+    "sofa": {
+      "name": "Sofa",
+      "cat": "comfort",
+      "cost": 160,
+      "art": "sofa",
+      "w": 2,
+      "range": 4,
+      "bonus": 0.07,
+      "blurb": "Big enough for two, if they don't mind sharing."
+    },
     "radiator": {
       "name": "Radiator",
       "cat": "comfort",
@@ -304,6 +314,16 @@
       "bonus": 0.04,
       "blurb": "This is OUR classroom.",
       "flat": true
+    },
+    "server_rack": {
+      "name": "Server Rack",
+      "cat": "decor",
+      "cost": 95,
+      "art": "server_rack",
+      "w": 1,
+      "range": 4,
+      "bonus": 0.04,
+      "blurb": "Nobody knows what half these lights mean."
     },
     "alphabet_frieze": {
       "name": "Letter Frieze",
@@ -389,6 +409,16 @@
       "cat": "comfort",
       "flat": true,
       "lane": true
+    },
+    "robot_kit": {
+      "name": "Robot Kit",
+      "cat": "learning",
+      "cost": 310,
+      "art": "robot_kit",
+      "w": 1,
+      "range": 4,
+      "bonus": 0.1,
+      "blurb": "Builds itself, eventually, with help."
     },
     "lab_bench": {
       "name": "Lab Bench",
@@ -709,6 +739,16 @@
       "bonus": 0.03,
       "blurb": "Turns slowly whenever the door opens."
     },
+    "backpack": {
+      "name": "Backpack",
+      "cat": "decor",
+      "cost": 50,
+      "art": "backpack",
+      "w": 1,
+      "range": 3,
+      "bonus": 0.03,
+      "blurb": "Left behind, again."
+    },
     "chalk_border": {
       "name": "Chalk Border",
       "cat": "decor",
@@ -828,6 +868,7 @@
     "web_of_life",
     "microscope",
     "whiteboard",
+    "robot_kit",
     "lab_bench",
     "rhyme_chart",
     "ten_frame",
@@ -844,10 +885,12 @@
     "desk_fan",
     "hammock_chair",
     "water_cooler",
+    "sofa",
     "radiator",
     "rug",
     "pot_of_pens",
     "paper_mobile",
+    "backpack",
     "wall_clock",
     "chalk_border",
     "duty_roster",
@@ -855,6 +898,7 @@
     "state_flag",
     "certificate",
     "class_banner",
+    "server_rack",
     "alphabet_frieze",
     "season_wheel",
     "library_ladder",

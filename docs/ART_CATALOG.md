@@ -123,7 +123,8 @@ data. Everything from `bookshelf.png` down is this category:
 `maths_tiles`, `music_corner`, `lamp`, `water_cooler`, `radiator`,
 `coat_hooks`, `wall_clock`, `alphabet_frieze`, `fish_tank`,
 `class_banner`, `pot_of_pens`, `library_ladder`, `computer`, `printer`,
-`telephone`, `certificate`, `coffee`, `sticker_chart`, `bake_sale`,
+`telephone`, `certificate`, `server_rack`, `backpack`, `sofa`,
+`robot_kit`, `coffee`, `sticker_chart`, `bake_sale`,
 `photocopies`, `desk`, `chair`, `table`, `podium`, `bell`,
 `teacher_desk`, `noticeboard`, `supply_shelf`.
 

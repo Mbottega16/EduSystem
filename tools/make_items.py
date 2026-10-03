@@ -838,6 +838,47 @@ def draw_certificate():
     return finish_rich(im)
 
 
+def draw_server_rack():
+    im = _blank(14, 24)
+    rect(im, 1, 1, 12, 22, DARK)
+    rect(im, 1, 1, 12, 3, STEEL_D)
+    for y in range(5, 21, 3):
+        rect(im, 2, y, 11, y + 1, STEEL)
+        px(im, 10, y, GREEN if y % 6 == 5 else (196, 60, 60))
+    return finish_rich(im)
+
+
+def draw_backpack():
+    im = _blank(14, 16)
+    rect(im, 2, 3, 11, 14, BLUE)
+    rect(im, 2, 3, 11, 5, BLUE_L)
+    rect(im, 4, 7, 9, 10, CLOTH)
+    rect(im, 3, 1, 4, 4, STEEL_D)
+    rect(im, 9, 1, 10, 4, STEEL_D)
+    return finish_rich(im)
+
+
+def draw_sofa():
+    im = _blank(32, 20)
+    rect(im, 1, 6, 30, 17, CLOTH)
+    rect(im, 1, 4, 30, 8, CLOTH_L)
+    rect(im, 1, 16, 30, 17, (150, 70, 80))
+    rect(im, 1, 6, 4, 17, CLOTH_L)
+    rect(im, 27, 6, 30, 17, CLOTH_L)
+    rect(im, 15, 6, 16, 17, (150, 70, 80))
+    return finish_rich(im)
+
+
+def draw_robot_kit():
+    im = _blank(18, 20)
+    rect(im, 2, 14, 15, 18, WOOD_D)
+    rect(im, 7, 10, 10, 14, STEEL_D)
+    rect(im, 8, 4, 9, 10, STEEL)
+    rect(im, 9, 3, 13, 5, STEEL_L)
+    px(im, 12, 4, GREEN)
+    return finish_rich(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -885,6 +926,8 @@ ITEMS = {
     # office pack -- tech/decor, Oct 2026
     "computer": draw_computer, "printer": draw_printer,
     "telephone": draw_telephone, "certificate": draw_certificate,
+    "server_rack": draw_server_rack, "backpack": draw_backpack,
+    "sofa": draw_sofa, "robot_kit": draw_robot_kit,
     # subject shelf, second wave -- a second item per strand
     "word_wall": draw_word_wall, "ten_frame": draw_ten_frame,
     "rock_tray": draw_rock_tray, "timeline_wall": draw_timeline_wall,
