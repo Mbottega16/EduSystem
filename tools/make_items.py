@@ -190,7 +190,7 @@ def draw_whiteboard():
     rect(im, 1, 16, 30, 17, STEEL_D)
     rect(im, 5, 18, 8, 19, STEEL_D)
     rect(im, 23, 18, 26, 19, STEEL_D)
-    return finish(im)
+    return finish_rich(im)
 
 
 def draw_reading_nook():
@@ -282,7 +282,7 @@ def draw_alphabet_frieze():
     for i, x in enumerate(range(3, 30, 4)):
         c = (CLOTH, BLUE, GREEN, GOLD)[i % 4]
         rect(im, x, 3, x + 2, 8, c)
-    return finish(im)
+    return finish_rich(im)
 
 
 def draw_fish_tank():

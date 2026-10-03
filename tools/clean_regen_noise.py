@@ -63,7 +63,17 @@ def pixel_identical(path):
         return False
     if old.size != new.size:
         return False
-    return ImageChops.difference(old, new).getbbox() is None
+    # getbbox()'s alpha_only defaults to True on an RGBA image -- it
+    # then checks ONLY the alpha channel and ignores RGB entirely. Two
+    # fully-opaque images always diff to alpha=0 everywhere even when
+    # their colours are completely different, so the old
+    # `.getbbox() is None` check here always returned True (pixel
+    # identical) regardless of colour -- confirmed the hard way: it
+    # silently reverted a real finish() -> finish_rich() shading change
+    # on whiteboard/alphabet_frieze, discarding real work. alpha_only
+    # =False makes it check every channel, which is what "pixel
+    # identical" actually has to mean here.
+    return ImageChops.difference(old, new).getbbox(alpha_only=False) is None
 
 
 def main():
