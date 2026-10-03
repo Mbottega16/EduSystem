@@ -59,7 +59,30 @@ def entries(manifest):
 
 def build(section, name, manifest):
     spec = manifest[section][name]
+    if "anim" in spec:
+        return limezu.build_anim(spec, manifest)[0]
     return limezu.build_prop(spec, manifest)
+
+
+def anim_strip(section, name, manifest):
+    return limezu.build_anim(manifest[section][name], manifest)[1]
+
+
+def balance_agrees(name, spec):
+    """The item's `anim` block in data/balance.json must say what the strip is."""
+    import json
+    with open(os.path.join(ROOT, "data", "balance.json"), encoding="utf-8") as fh:
+        items = json.load(fh)["items"]
+    owners = [k for k, v in items.items() if v.get("art", k) == name]
+    problems = []
+    for k in owners:
+        a = items[k].get("anim")
+        if not a:
+            problems.append("%s: balance.json has no `anim` block for the animated art '%s'" % (k, name))
+        elif a.get("art") != name + "_anim" or int(a.get("frames", 0)) != int(spec["anim"]["frames"]):
+            problems.append("%s: balance.json anim %s does not match the manifest (%s_anim, %s frames)"
+                            % (k, a, name, spec["anim"]["frames"]))
+    return problems
 
 
 def same_image(a, b):
@@ -107,6 +130,22 @@ def main(argv):
         path = os.path.join(ART, name + ".png")
         have = Image.open(path).convert("RGBA") if os.path.exists(path) else None
         if have is not None and same_image(have, img):
+            if "anim" in spec:
+                sp = os.path.join(ART, name + "_anim.png")
+                want = anim_strip(section, name, manifest)
+                got = Image.open(sp).convert("RGBA") if os.path.exists(sp) else None
+                if got is None or not same_image(got, want):
+                    if check:
+                        bad += 1
+                        print("DIFFERS  %s_anim" % name)
+                    else:
+                        want.save(sp)
+                        wrote += 1
+                        print("art/%-22s %3dx%-3d  (strip rewritten)" % (name + "_anim.png", want.width, want.height))
+                    continue
+                for problem in balance_agrees(name, spec):
+                    bad += 1
+                    print("DIFFERS  " + problem)
             same += 1
             continue
         if check:
@@ -117,6 +156,12 @@ def main(argv):
         moved = archive_hand_source(name, force)
         img.save(path)
         wrote += 1
+        if "anim" in spec:
+            strip = anim_strip(section, name, manifest)
+            strip.save(os.path.join(ART, name + "_anim.png"))
+            print("art/%-22s %3dx%-3d  (%d frames)" % (name + "_anim.png", strip.width, strip.height, spec["anim"]["frames"]))
+            for problem in balance_agrees(name, spec):
+                print("  !! " + problem)
         print("art/%-22s %3dx%-3d  <- %-14s%s" % (
             name + ".png", img.width, img.height, source_label(spec),
             ("   (hand source archived: %s)" % os.path.relpath(moved, ROOT)) if moved else ""))

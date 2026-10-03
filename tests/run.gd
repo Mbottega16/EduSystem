@@ -214,6 +214,7 @@ func _main() -> void:
 	test_global_classes_registered()
 	test_every_asset_loads()
 	test_limezu_art()
+	test_animated_props()
 	test_curator()
 	test_cheats()
 	await test_moving_desks()
@@ -12548,6 +12549,59 @@ func test_limezu_art() -> void:
 	chk("...and no longer claims every image is drawn by the game's own script",
 		t.menu.text.findn("Nothing here was sourced") < 0)
 	t.queue_free()
+
+
+## An item whose def carries an `anim` block plays a strip of frames once it is placed
+## (RoomBuilder._animate_if_it_moves + prop_anim.gd). The shop's ghost keeps the still art, so
+## the strip has to be the same size frame for frame or the item would jump when it lands.
+func test_animated_props() -> void:
+	section("ANIMATED PROPS")
+	Balance.ensure_loaded()
+	var def := Items.get_def("fish_tank")
+	chk("the fish tank's def names an animation strip", def.get("anim") is Dictionary, def)
+	if not (def.get("anim") is Dictionary):
+		return
+	var anim: Dictionary = def["anim"]
+	var frames := int(anim["frames"])
+	var still: Texture2D = load("res://art/%s.png" % String(def["art"]))
+	var strip: Texture2D = load("res://art/%s.png" % String(anim["art"]))
+	chk("the strip loads", strip != null)
+	chk("it is `frames` still-art widths wide",
+		strip.get_width() == frames * still.get_width(), [strip.get_width(), frames, still.get_width()])
+	chk("and exactly as tall -- the same footprint, shadow and collider",
+		strip.get_height() == still.get_height(), [strip.get_height(), still.get_height()])
+	chk("an animation has more than one frame and a sane speed", frames > 1 and float(anim["fps"]) > 0.0)
+
+	# Built for real, into a throwaway parent: no live world is touched.
+	var saved: Array = Game.room_items.duplicate(true)
+	Game.room_items = [{"id": "fish_tank", "tile": Vector2i(6, 6)}, {"id": "plant", "tile": Vector2i(9, 6)}]
+	var parent := Node2D.new()
+	add_child(parent)
+	var nodes := RoomBuilder.build_purchased(parent, Grid.new())
+	Game.room_items = saved
+	chk("both items were built", nodes.size() == 2, nodes.size())
+	var tank_driver: Node = (nodes[0] as Node).get_node_or_null("PropAnim")
+	chk("the placed fish tank gets an animation driver", tank_driver != null)
+	chk("an ordinary item does not", (nodes[1] as Node).get_node_or_null("PropAnim") == null)
+	if tank_driver != null:
+		var spr: Sprite2D = tank_driver.sprite
+		chk("the driver swaps in the strip and slices it into frames",
+			spr.texture == strip and spr.hframes == frames, [spr.hframes, frames])
+		var before: int = spr.frame
+		tank_driver._process(1.0 / float(anim["fps"]) + 0.001)
+		chk("one frame-time later it is on the next frame",
+			spr.frame == (before + 1) % frames, [before, spr.frame])
+		var wrapped := false
+		for i in frames + 1:
+			tank_driver._process(1.0 / float(anim["fps"]) + 0.001)
+			if spr.frame == 0:
+				wrapped = true
+		chk("and it loops", wrapped)
+		chk("its shadow is the still art's width, not the strip's",
+			(nodes[0] as Node).get_child(0) is Sprite2D
+			and absf(((nodes[0] as Node).get_child(0) as Sprite2D).scale.x
+				- maxf(1.0, still.get_width() / 32.0)) < 0.001)
+	parent.queue_free()
 
 
 func test_curator() -> void:

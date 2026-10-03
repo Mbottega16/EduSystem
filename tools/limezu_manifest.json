@@ -88,6 +88,18 @@
     "office": {
       "pack": "office",
       "dir": "4_Modern_Office_singles/16x16"
+    },
+    "jail": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/18_Jail_Singles_Shadowless"
+    },
+    "japanese": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/20_Japanese_Interiors_Singles_Shadowless"
+    },
+    "shooting": {
+      "pack": "interiors",
+      "dir": "1_Interiors/16x16/Theme_Sorter_Shadowless_Singles/25_Shooting_Range_Singles_Shadowless"
     }
   },
   "props": {
@@ -251,7 +263,11 @@
         32,
         32
       ],
-      "why": "first frame of the animated orange fish tank (8 frames, 32x32)"
+      "anim": {
+        "frames": 8,
+        "fps": 5
+      },
+      "why": "the animated orange fish tank: frame 0 is the static art (shop ghost), the 8-frame strip is what a placed tank plays"
     },
     "coffee": {
       "ref": "kitchen#177",

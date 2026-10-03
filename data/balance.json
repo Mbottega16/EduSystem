@@ -311,6 +311,7 @@
       "cat": "decor",
       "cost": 240,
       "art": "fish_tank",
+      "anim": { "art": "fish_tank_anim", "frames": 8, "fps": 5 },
       "w": 2,
       "range": 6,
       "bonus": 0.07,

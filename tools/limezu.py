@@ -190,6 +190,9 @@ def owned_names():
         m = load_manifest()
         names.update(m.get("props", {}).keys())
         names.update(m.get("tiles", {}).keys())
+        for pname, pspec in m.get("props", {}).items():
+            if "anim" in pspec:
+                names.add(pname + "_anim")
     room_cfg = os.path.join(TOOLS, "limezu_room.json")
     if os.path.exists(room_cfg):
         import limezu_room
@@ -307,6 +310,34 @@ def hue_shift(im, degrees):
             nr, ng, nb = colorsys.hsv_to_rgb(h, min(1.0, s * 1.15), v)
             px[x, y] = (int(nr * 255 + .5), int(ng * 255 + .5), int(nb * 255 + .5), a)
     return im
+
+
+def build_anim(spec, manifest):
+    """An animated prop -> (static first frame, horizontal strip of every frame), both at game scale.
+
+    The spec is a "sheet"+"rect" prop (rect = FRAME 0: x, y, frame_w, frame_h) plus
+    "anim": {"frames": N, ...}; frames sit side by side in the pack's sheet. Every frame is
+    cropped by the UNION of their bounds, so the strip is aligned frame to frame and the
+    static art (frame 0 with that same crop) lines up with it exactly -- the shop's ghost and
+    the placed, animating sprite are the same size.
+    """
+    pack = need_pack(spec["pack"])
+    sheet = pack.image(spec["sheet"])
+    x0, y0, w, h = spec["rect"]
+    n = int(spec["anim"]["frames"])
+    frames = [sheet.crop((x0 + i * w, y0, x0 + (i + 1) * w, y0 + h)) for i in range(n)]
+    boxes = [f.getbbox() for f in frames if f.getbbox()]
+    ux0 = min(b[0] for b in boxes)
+    uy0 = min(b[1] for b in boxes)
+    ux1 = max(b[2] for b in boxes)
+    uy1 = max(b[3] for b in boxes)
+    mode = spec.get("trim", "y")
+    box = (0 if mode == "y" else ux0, uy0, w if mode == "y" else ux1, uy1)
+    cut = [f.crop(box) for f in frames]
+    strip = Image.new("RGBA", (cut[0].width * n, cut[0].height), (0, 0, 0, 0))
+    for i, f in enumerate(cut):
+        strip.alpha_composite(f, (i * f.width, 0))
+    return up2(cut[0]), up2(strip)
 
 
 def build_prop(spec, manifest):
