@@ -31,7 +31,7 @@ suite insists every live .txt matches its PNG's dimensions.
 import os
 import sys
 
-from PIL import Image, ImageChops
+from PIL import Image
 
 import limezu
 
@@ -55,7 +55,7 @@ def build(section, name, manifest):
 
 
 def same_image(a, b):
-    return a.size == b.size and ImageChops.difference(a, b).getbbox() is None
+    return limezu.same_pixels(a, b)
 
 
 def archive_hand_source(name, force):

@@ -193,7 +193,7 @@ def owned_names():
     cast = load_cast()
     for name, spec in cast.get("characters", {}).items():
         names.add(name)
-        if spec.get("portrait", True):
+        if isinstance(spec.get("portrait"), dict):
             names.add("portrait_" + name)
     return names
 
@@ -240,6 +240,17 @@ def trim(im, mode="y"):
     if mode == "y":
         return im.crop((0, bb[1], im.width, bb[3]))
     return im.crop(bb)
+
+
+def same_pixels(a, b):
+    """True when two RGBA images look identical.
+
+    NOT ImageChops.difference(a, b).getbbox() is None: on an RGBA image getbbox()
+    looks at the alpha channel only, so a recolour that leaves the silhouette alone
+    (a different hair colour, a hue shift) reads as "no change" and the importer
+    would skip a sprite that really did change. Premultiplied bytes compare the
+    colours too, and make every fully transparent pixel equal whatever its RGB."""
+    return a.size == b.size and a.convert("RGBa").tobytes() == b.convert("RGBa").tobytes()
 
 
 def up2(im):
