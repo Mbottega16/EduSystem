@@ -48,6 +48,33 @@ session's pack had 2200 listed entries but only 1102 unique basenames).
 Read the license file in full — terms vary pack to pack, record them in
 `docs/ART_STYLE_REFERENCE.md`'s license table.
 
+**For a pack over a few hundred files, delegate the actual categorizing
+to a background `Agent` (general-purpose or Explore) rather than reading
+the raw file list yourself.** Reading ~1100 filenames directly into the
+main conversation (done once, the slow way, Oct 2026) burns a huge slice
+of context on raw listings and produces nothing reusable — the useful
+output is a short categorized summary, not the file list itself. Hand
+the agent: the unzipped path (or the zip + instructions to list it with
+`zipfile`, not `unzip -l`, since column parsing breaks on filenames with
+spaces), the current `docs/ART_CATALOG.md` furniture/item table to
+cross-reference against, and ask it to return (a) a category breakdown
+with counts, (b) a shortlist of genuine classroom-relevant matches with
+each file's ACTUAL pixel size, (c) anything it's unsure about. Verify
+its shortlist spot-checks before trusting it (open 2-3 of its claimed
+matches yourself) — an agent doing a large mechanical sort can still
+miscategorize an edge case, and this step feeds directly into what gets
+built, so a wrong inclusion here costs real work downstream.
+
+This is the one genuinely agent-shaped step in this whole skill. The
+rest of this document is deterministic (regenerate art, diff pixels,
+run tests) and is handled by the scripts in "Workflow notes" below,
+*not* by spawning an agent — a script either passes or fails with no
+room for a hallucinated verdict, which is strictly more reliable than
+an LLM judging pass/fail for a mechanical check. Reach for an agent
+where judgment or synthesis is the actual job (categorizing hundreds of
+oddly-named files, reading an ambiguous style off a reference image),
+not as a default for anything repetitive.
+
 ## Step 2 — characters: almost always style-reference-only, not direct use
 
 Check three things before concluding otherwise:
@@ -157,10 +184,36 @@ still applies unchanged.
 
 ## Workflow notes (things that bit this session, don't re-learn them)
 
-- **No Godot on this machine (usually).** Check `which godot`. If
-  absent, you can still run the Python generators directly (Pillow-only)
-  and visually review PNGs, but cannot run `Verify.bat`/import/tests.
-  Say so plainly rather than claiming something is "verified."
+- **Check for Godot before claiming anything is unverified.** `which
+  godot`, then check for `tools/godot_path.mac.txt` (a Mac-specific
+  binary path, added Oct 2026 — separate from `tools/godot_path.txt`,
+  which every Windows `.bat` launcher reads; never write a Mac path into
+  that file or a Windows path into this one). If `godot_path.mac.txt`
+  exists, run `tools/verify_quick.sh` — it imports art, runs the full
+  test suite, and runs the 24-day balance-contract sim, in one call, and
+  exits non-zero the moment anything fails. If no Godot is reachable at
+  all, you can still run the Python generators directly (Pillow-only)
+  and visually review PNGs, but say plainly that nothing is
+  Godot-verified yet — don't claim "verified" for a visual review alone.
+- **After ANY regen, run `python3 tools/clean_regen_noise.py` before
+  `git add`.** Regenerating even completely untouched items changes
+  their PNG bytes (Pillow/zlib version differences from whatever
+  generated the committed art) — pixel-identical, not a real change,
+  but `git status` can't tell the difference and will flag 20-30 files
+  nobody touched. This script pixel-diffs every modified PNG against
+  HEAD and restores the ones that are byte-different but pixel-identical
+  automatically, printing a clean list of what's actually new. Built and
+  tested Oct 2026 after doing this by hand three separate times.
+- **The FIRST time Godot ever opens this project on a fresh machine, it
+  can rewrite `project.godot` and strip every hand-written comment in
+  it** (confirmed Oct 2026: a one-time first-open artifact, not a
+  per-run risk — re-running import or playing normally afterward did not
+  re-trigger it). `tools/verify_quick.sh` checks for this automatically
+  and warns if `project.godot` changed during its run; if it ever fires,
+  `git diff project.godot` before deciding whether to `git checkout --`
+  it. The actual config VALUES were never different, only the comments
+  explaining them — still worth restoring, since those comments are real
+  documentation a past session wrote on purpose.
 - **Characters with `tools/sprites/<name>.txt` sources are hand-edited
   and WIN over anything the generator draws** — `hand_edited()` in
   `make_art.py` silently stands down for them. Check this BEFORE
@@ -169,17 +222,13 @@ still applies unchanged.
   anything it skipped. Confirmed this session: 5 of the first furniture
   targets picked turned out to be dead-code edits for exactly this
   reason.
-- **Regenerating even untouched items changes their PNG bytes** (Pillow/
-  zlib version differences from whatever generated the committed art) —
-  pixel-identical, not a real change. Confirm with
-  `ImageChops.difference(...).getbbox()` (`None` = identical), then
-  `git checkout --` the unintended files before committing, so the diff
-  only shows real changes.
 - **Run `tools/check_docs.py` and `tools/check_balance.py`** after any
-  change — Python-only, no Godot needed, and they catch real
-  regressions (doc/data drift) even without a full verify pass.
-- **Don't push until the user has Godot-verified on a machine that has
+  change even when Godot IS available — they're instant and catch
+  doc/data drift that a gameplay-focused test pass wouldn't think to
+  check.
+- **Don't push until the user has reviewed on a machine they trust for
   it** — this repo's own golden rule is "verify by looking at the
-  running game, not by reading the code," and that only works where
-  Godot is installed. Commit locally, say clearly what's NOT yet
-  verified, let the user decide on timing.
+  running game, not by reading the code." `verify_quick.sh` passing is
+  real engine verification, not just a visual review, but it is still
+  only this machine's word for it — commit locally, say plainly what
+  ran and what the result was, let the user decide on push timing.
