@@ -274,6 +274,11 @@ func _scan_references() -> void:
 	# regex the same way the tiles above are.
 	for n: String in Names.ART:
 		_note("portrait_%s" % n, "hud.gd (show_student)")
+	# Same reasoning again: _render_dash_overview() loads
+	# "res://art/mood_%s.png" % mood_state, one call site covering all
+	# three grade-band faces.
+	for n: String in ["mood_good", "mood_ok", "mood_struggling"]:
+		_note(n, "hud.gd (_render_dash_overview)")
 
 
 func _note(art_name: String, where: String) -> void:

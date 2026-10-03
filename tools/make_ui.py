@@ -32,7 +32,7 @@ import os
 
 from PIL import Image
 
-from make_art import scale2x, save_png
+from make_art import scale2x, save_png, outline
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "art")
@@ -395,6 +395,52 @@ def strand_icon(strand):
     return im
 
 
+# A small face icon for the room's overall grade band, on the Dashboard
+# Overview page next to a new grade-letter line. Style-referenced against
+# the Modern UI pack's mood/smiley icon strip (Oct 2026).
+#
+# NOTE on why this exists at all: the project's own stated rule, in the
+# inspection screen's own doc comment, is "three verdicts in words, not
+# three numbers... 0.62 is not [something you act on]" -- prose, never a
+# visual score, for anything judging a CHILD. A face tied to the room's
+# grade sits close to that line. Built anyway on the user's explicit,
+# confirmed-after-the-tension-was-raised instruction (same shape as
+# Game.auto_teach's own documented exception in the repo's CLAUDE.md --
+# a deliberate override, not an oversight).
+MOOD_FACE = (240, 200, 90)
+MOOD_LINE = (60, 50, 30)
+
+
+def mood_icon(state):
+    """state: 'good' (A/B), 'ok' (C/D), 'struggling' (E/F)."""
+    im = Image.new("RGBA", (14, 14), (0, 0, 0, 0))
+    for y in range(14):
+        for x in range(14):
+            dx, dy = x - 6.5, y - 6.5
+            if dx * dx + dy * dy <= 6.5 * 6.5:
+                im.putpixel((x, y), MOOD_FACE + (255,))
+    im.putpixel((4, 5), MOOD_LINE + (255,))
+    im.putpixel((9, 5), MOOD_LINE + (255,))
+    if state == "good":
+        for x in (3, 10):
+            im.putpixel((x, 8), MOOD_LINE + (255,))
+        for x in (4, 9):
+            im.putpixel((x, 9), MOOD_LINE + (255,))
+        for x in range(5, 9):
+            im.putpixel((x, 10), MOOD_LINE + (255,))
+    elif state == "struggling":
+        for x in (3, 10):
+            im.putpixel((x, 10), MOOD_LINE + (255,))
+        for x in (4, 9):
+            im.putpixel((x, 9), MOOD_LINE + (255,))
+        for x in range(5, 9):
+            im.putpixel((x, 8), MOOD_LINE + (255,))
+    else:
+        for x in range(4, 10):
+            im.putpixel((x, 9), MOOD_LINE + (255,))
+    return outline(im)
+
+
 def make_all():
     made = []
     save_png(scale2x(book_open()), "book_open")
@@ -408,6 +454,10 @@ def make_all():
         save_png(_double(strand_icon(strand)), "icon_%s" % strand)
         made.append("icon_%s" % strand)
     print("art/icon_*.png       %d subject marks, 16x16" % len(STRAND_GLYPH))
+    for state in ("good", "ok", "struggling"):
+        save_png(_double(mood_icon(state)), "mood_%s" % state)
+        made.append("mood_%s" % state)
+    print("art/mood_*.png       3 dashboard mood faces, 28x28")
     return made
 
 

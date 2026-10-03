@@ -142,6 +142,15 @@ offset_bottom = 196.0
 mouse_filter = 2
 stretch_mode = 5
 
+[node name="MoodIcon" type="TextureRect" parent="Overlay"]
+visible = false
+offset_left = 500.0
+offset_top = 204.0
+offset_right = 528.0
+offset_bottom = 232.0
+mouse_filter = 2
+stretch_mode = 5
+
 [node name="Body" type="Label" parent="Overlay"]
 offset_left = 32.0
 offset_top = 48.0

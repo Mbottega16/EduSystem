@@ -81,6 +81,13 @@ var _reveal: Tween = null
 ## that display your own character (never the student bio: that is
 ## someone else's portrait, not yours).
 @onready var portrait_bg: ColorRect = $Overlay/PortraitBg
+## A small face for the room's overall grade band (A/B good, C/D ok, E/F
+## struggling) -- Dashboard Overview only. Oct 2026, built on explicit
+## request despite the project's own stated preference for prose over a
+## visual score on anything judging a child (see show_inspection()'s own
+## doc comment) -- a deliberate, confirmed override, not an oversight;
+## see make_ui.py's mood_icon() for the fuller note.
+@onready var mood_icon: TextureRect = $Overlay/MoodIcon
 ## The principal's own corner, for a tutorial tip -- deliberately OUTSIDE
 ## $Overlay. Overlay is hidden whenever mode == NONE (close()), which is
 ## exactly when a tip needs to fire: nobody has a screen open, they are
@@ -717,6 +724,7 @@ func _open(m: int) -> void:
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
 	portrait_bg.visible = false
+	mood_icon.visible = false
 	# ...and the book, for the same reason.
 	_book(false)
 	flip.visible = false
@@ -1185,6 +1193,11 @@ func _render_dashboard() -> void:
 	# both pages that show it. An empty/"none" colour has alpha 0, so it
 	# stays invisible without a separate visibility flag to manage.
 	portrait_bg.visible = portrait.visible
+	# Same leak portrait/portrait_bg already had to be guarded against --
+	# this is called directly when cycling pages, not just through
+	# _open(), so a stale mood face would follow Overview onto Items/
+	# Skills/Wardrobe without this.
+	mood_icon.visible = (_dash == Dash.OVERVIEW)
 	portrait_bg.color = Color(Cosmetics.background_by_id(Game.background_id).get("colour", Color(0, 0, 0, 0)))
 	if _dash == Dash.WARDROBE:
 		portrait.texture = load("res://art/portrait_player.png")
@@ -1211,6 +1224,13 @@ func _render_dashboard() -> void:
 ## read honestly as "not chosen" rather than as a broken feature.
 func _render_dash_overview() -> Array[String]:
 	portrait.texture = load("res://art/portrait_player.png")   # visibility is handled by _render_dashboard()
+	# The face alone carries the grade band -- no new text line, since
+	# this panel is already at its line budget (see the note below).
+	# Visibility is handled by _render_dashboard(), same as portrait.
+	var letter := Game.grade_letter(Game.class_average())
+	var mood_state := "good" if letter in ["A", "B"] \
+		else "ok" if letter in ["C", "D"] else "struggling"
+	mood_icon.texture = load("res://art/mood_%s.png" % mood_state)
 
 	# The panel does not scroll (scroll_active = false on Rich in
 	# hud.tscn) -- content past its 128px height clips SILENTLY, and that
@@ -1229,6 +1249,16 @@ func _render_dash_overview() -> Array[String]:
 	lines.append("[color=#%s]Furniture[/color]  %d piece%s, %d coins" % [
 		DIM, Game.room_items.size(), "" if Game.room_items.size() == 1 else "s",
 		Game.coins])
+	# A day-count progress bar -- calendar/time, not a judgement of a
+	# child, so it is outside the prose-not-numbers rule the mood icon
+	# above has to carry an explicit exception note for (day counters are
+	# the sanctioned case; see CLAUDE.md). Same pip-bar convention the
+	# teaching HUD's own "voice" meter already uses ("|".repeat(pips)),
+	# not a new visual language.
+	var term_days: int = Balance.term_days
+	var pips: int = int(round(8.0 * float(Game.day) / float(maxi(term_days, 1))))
+	lines.append("[color=#%s]Term[/color]       day %d of %d  [%s%s]" % [
+		DIM, Game.day, term_days, "|".repeat(pips), ".".repeat(8 - pips)])
 	lines.append("")
 	# Deliberately unimplemented -- see the function doc above.
 	lines.append("[color=#%s]Hat[/color]         none chosen yet" % DIM)
