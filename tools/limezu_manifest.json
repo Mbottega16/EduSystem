@@ -241,6 +241,90 @@
       "ref": "office#155",
       "trim": "xy",
       "why": "a ream of photocopies"
+    },
+    "fish_tank": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_fishtank_orange.png",
+      "rect": [
+        0,
+        0,
+        32,
+        32
+      ],
+      "why": "first frame of the animated orange fish tank (8 frames, 32x32)"
+    },
+    "coffee": {
+      "ref": "kitchen#177",
+      "trim": "xy",
+      "why": "an espresso machine"
+    },
+    "bake_sale": {
+      "ref": "birthday#9",
+      "trim": "xy",
+      "why": "a decorated birthday cake"
+    },
+    "rug": {
+      "ref": "bedroom#381",
+      "trim": "xy",
+      "why": "pink quatrefoil rug"
+    },
+    "crate": {
+      "ref": "grocery#117",
+      "trim": "xy",
+      "why": "an orange crate basket"
+    },
+    "word_wall": {
+      "ref": "museum#89",
+      "trim": "xy",
+      "why": "a blank framed board"
+    },
+    "rhyme_chart": {
+      "ref": "museum#86",
+      "trim": "xy",
+      "why": "a pair of small framed charts"
+    },
+    "bug_viewer": {
+      "ref": "museum#169",
+      "trim": "xy",
+      "why": "framed butterfly specimens"
+    },
+    "timeline_wall": {
+      "ref": "museum#93",
+      "trim": "xy",
+      "why": "a wide framed board"
+    },
+    "ten_frame": {
+      "ref": "museum#91",
+      "trim": "xy",
+      "why": "a wide orange-framed board"
+    },
+    "web_of_life": {
+      "ref": "museum#109",
+      "trim": "xy",
+      "why": "a framed woodland scene"
+    },
+    "class_banner": {
+      "ref": "christmas#79",
+      "trim": "xy",
+      "why": "a red hanging banner"
+    },
+    "shape_sorter": {
+      "ref": "bedroom#451",
+      "trim": "xy",
+      "why": "a stack of coloured blocks"
+    },
+    "paper_mobile": {
+      "ref": "bedroom#390",
+      "trim": "xy",
+      "why": "a hanging glass ornament"
+    },
+    "reading_nook": {
+      "join": [
+        "basement#16",
+        "basement#18"
+      ],
+      "trim": "y",
+      "why": "two one-seat sofa modules joined into a loveseat"
     }
   },
   "tiles": {}

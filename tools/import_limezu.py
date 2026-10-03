@@ -41,6 +41,14 @@ SPRITES = os.path.join(ROOT, "tools", "sprites")
 ARCHIVE = os.path.join(SPRITES, "_replaced_by_limezu")
 
 
+def source_label(spec):
+    if "ref" in spec:
+        return spec["ref"]
+    if "join" in spec:
+        return "+".join(spec["join"])
+    return spec.get("sheet", "?").split("/")[-1]
+
+
 def entries(manifest):
     out = []
     for section in ("props", "tiles"):
@@ -87,7 +95,7 @@ def main(argv):
         for section, name, spec in todo:
             p = os.path.join(ART, name + ".png")
             size = Image.open(p).size if os.path.exists(p) else None
-            print("%-22s %-7s %-16s %s" % (name, section, spec.get("ref", spec.get("sheet", "?")), size))
+            print("%-22s %-7s %-18s %s" % (name, section, source_label(spec), size))
         print("\n%d sprites owned by the LimeZu importer" % len(todo))
         return 0
 
@@ -110,7 +118,7 @@ def main(argv):
         img.save(path)
         wrote += 1
         print("art/%-22s %3dx%-3d  <- %-14s%s" % (
-            name + ".png", img.width, img.height, spec.get("ref", spec.get("sheet", "?")),
+            name + ".png", img.width, img.height, source_label(spec),
             ("   (hand source archived: %s)" % os.path.relpath(moved, ROOT)) if moved else ""))
     print("\n%d written, %d already up to date%s" % (wrote, same, ("" if not check else ", %d differ" % bad)))
     if wrote:

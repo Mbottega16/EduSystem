@@ -309,12 +309,25 @@ def hue_shift(im, degrees):
 def build_prop(spec, manifest):
     """One manifest prop entry -> the finished, game-scale RGBA image.
 
-    A spec names its source one of two ways: "ref": "classroom#6" (a numbered
-    single, see "themes" in the manifest) or "sheet" + "pack" + "rect" (a
-    [x, y, w, h] cut, in 16x16 art pixels, from one of a pack's big sheets --
-    how room tiles come out of the Room Builder).
+    A spec names its source one of three ways: "ref": "classroom#6" (a numbered
+    single, see "themes" in the manifest), "join": [ref, ref] (several singles side
+    by side), or "sheet" + "pack" + "rect" (a [x, y, w, h] cut, in 16x16 art pixels,
+    from one of a pack's big sheets -- how animated first frames come out).
     """
-    if "sheet" in spec:
+    if "join" in spec:
+        # "join": [ref, ref, ...] -- numbered singles set side by side, bottoms aligned
+        # (a two-seat sofa out of two one-seat modules).
+        parts = []
+        for ref in spec["join"]:
+            pack, member = resolve(ref, manifest)
+            parts.append(pack.image(member))
+        h = max(p.height for p in parts)
+        im = Image.new("RGBA", (sum(p.width for p in parts), h), (0, 0, 0, 0))
+        x = 0
+        for p in parts:
+            im.alpha_composite(p, (x, h - p.height))
+            x += p.width
+    elif "sheet" in spec:
         pack = need_pack(spec["pack"])
         im = pack.image(spec["sheet"])
         x, y, w, h = spec["rect"]
