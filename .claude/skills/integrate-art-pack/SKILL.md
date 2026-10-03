@@ -203,7 +203,17 @@ still applies unchanged.
   nobody touched. This script pixel-diffs every modified PNG against
   HEAD and restores the ones that are byte-different but pixel-identical
   automatically, printing a clean list of what's actually new. Built and
-  tested Oct 2026 after doing this by hand three separate times.
+  tested Oct 2026 after doing this by hand three separate times. **Had
+  a real bug for one commit** (fixed same session): PIL's `getbbox()`
+  defaults `alpha_only=True` on RGBA images, so the script's "is this
+  really pixel-identical" check only ever looked at alpha and silently
+  passed ANY two fully-opaque images as identical regardless of colour —
+  it reverted a real `finish()`→`finish_rich()` shading change on
+  `whiteboard`/`alphabet_frieze` before this was caught and fixed with
+  `getbbox(alpha_only=False)`. If a code change to an existing item's
+  colours/shading doesn't show up after running this script, that's the
+  first thing to suspect — confirm with a direct pixel sample, not
+  another bbox diff.
 - **The FIRST time Godot ever opens this project on a fresh machine, it
   can rewrite `project.godot` and strip every hand-written comment in
   it** (confirmed Oct 2026: a one-time first-open artifact, not a
