@@ -322,6 +322,26 @@ free, rather than each character needing its own redraw.
 | `Reimport Art.bat` | Runs `--import` from a console. Use it to make the GAME pick up a `Browse Art` edit -- Save no longer does. |
 | `tools/forge_art.py` | **CLI art forge** -- regenerate ONE sprite into `art/` with tweaks, no GUI. `python tools/forge_art.py list` \| `... <name> key=value`. Characters take palette keys (`hair=#hex hair_style=curly glasses=1 skin=tan pattern=stripes`) and rewrite the sheet + portrait. Furniture/items take shared palette-colour keys plus `tint=#hex strength=0..1` and `swap=#from:#to`. `tiles floor_a=#hex …` rewrites the tile set. A sprite with a `tools/sprites/*.txt` hand source is refused (edit it in Browse Art) unless `--force`. Sibling of `tools/forge_audio.py`. |
 
+**LimeZu art (Oct 2026) -- the owner's chosen look.** Most sprites now come from the
+LimeZu *Modern Interiors / Office / UI* packs, read in place from their zips (the
+licence forbids redistributing them, so they are never committed; they must be on the
+machine for these tools, and only the finished sprites live in `art/`):
+
+| | |
+|---|---|
+| `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
+| `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
+| `tools/limezu_chars.py` | the 13 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
+| `tools/limezu_ui.py` | UI pieces that need LimeZu's frame and our glyph (`bubble_q`) |
+
+Rules: a LimeZu-owned name is protected -- `make_art.hand_edited()` includes it, so the
+generators and `forge_art.py` stand down. To change one, edit its manifest/cast entry and
+re-run the importer, **not** the PNG. The suite's `LIMEZU ART` section guards the credit
+to limezu.itch.io on the credits page (a licence condition), that every owned PNG loads at
+the doubled scale, and that none has a hand source fighting it. The **FREE** Modern
+Interiors edition is non-commercial -- never use it. Compare images with
+`limezu.same_pixels`, not `ImageChops...getbbox()` (alpha-only on RGBA).
+
 **The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
 write PNGs but do not import them, and Godot cannot load an unimported
 texture. After adding or editing art run `godot --headless --path .
