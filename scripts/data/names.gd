@@ -43,6 +43,7 @@ const LAST := [
 const ART := [
 	"student_a", "student_b", "student_c", "student_d",
 	"student_e", "student_f", "student_g", "student_h",
+	"student_i", "student_j", "student_k", "student_l",
 ]
 
 
