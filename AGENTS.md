@@ -333,6 +333,9 @@ machine for these tools, and only the finished sprites live in `art/`):
 | `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
 | `tools/limezu_chars.py` | the 13 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
 | `tools/limezu_ui.py` | UI pieces that need LimeZu's frame and our glyph (`bubble_q`) |
+| `tools/limezu_catalog.py` | browse the packs as labelled contact sheets (`props <theme>`, `kids`, `adults`, `animated`, `ui`, `room` ...) into `shots/catalog/`; the ids are the ones the JSON files take |
+| `tools/shot_all.py` | screenshot every named screen (deterministic: it clears the scratch save per shot) and `compare` two runs side by side -- Windows/Mac/Linux |
+| `tools/lz_conform.py` | snap ANY image to LimeZu's real palette + the #3a3a50 keyline (`--build-palette` once; `tools/limezu_palette.json` is colours only) |
 
 Rules: a LimeZu-owned name is protected -- `make_art.hand_edited()` includes it, so the
 generators and `forge_art.py` stand down. To change one, edit its manifest/cast entry and
