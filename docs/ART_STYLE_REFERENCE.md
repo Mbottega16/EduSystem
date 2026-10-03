@@ -126,15 +126,98 @@ Table, Box, Crate, Wood Box, Basket, Color Can, Sign Blank, Trunk/Chest
 (closed+open, 2 sizes — good `cabinet` fit), Scale (market-stand weighing
 scale — good math/science-corner fit).
 
+**2026-10-03, three more limezu packs (Modern Office Revamped, Modern
+Interiors, Modern UI) — catalogued by three parallel background Agents
+per this doc's own skill, then spot-verified by hand (see "Packs studied"
+below for the hit-rate numbers). Combined direct-use shortlist, all
+pixel sizes agent-verified by opening the file, not assumed from its
+name:**
+
+From **Modern Interiors** (`moderninteriors-win.zip`) — the standout
+pack, because it has an actual "Classroom and Library" theme category
+(75 items) plus an "Art" category (46 items). Verified by hand against a
+contact sheet of all 75 Classroom/Library items, not just the agent's
+word: bookshelves (~25 colour/stock variants — strong `bookshelf`
+upgrade), a noticeboard with pinned notes (`noticeboard`), an
+alphabet/colour chart grid (`alphabet_frieze`/`sticker_chart`), two
+globe sizes (`globe`), a wood-frame blackboard and a wheeled green
+chalkboard (both `whiteboard` candidates), a world map poster (decor/
+`class_banner` candidate), a circulation/checkout desk with a computer
+(`teacher_desk` upgrade), plus from the Art category: potted plant
+(`plant`), round stool (`stool`), easel with canvas (`art_easel`), bench
+(`bench`), water cooler (`water_cooler`). **Two genuinely NEW items with
+no current EduSystem equivalent:** a short and a tall library ladder.
+
+From **Modern Office Revamped** — ~55-60 of 339 true-unique icons are
+classroom/office relevant (a ~17% hit rate, 9-10x the farm pack's ~2%,
+because an office theme fits a classroom-management game far better
+than a farm theme does). Direct swaps: office chair (`chair`), desk lamp
+(`lamp`). **New items, no current equivalent:** flat monitor, printer,
+server rack, telephone, AV gear (all "tech" — EduSystem currently has
+NO tech items at all), framed certificate/diploma and a 2-seat sofa
+(principal's-office/staff-room decor), a backpack (student-cubby prop),
+and a robotic-arm desk rig (unclear exact identity — possibly a STEM
+"robot kit" learning item alongside `microscope`/`abacus`, flagged by
+the agent as uncertain rather than guessed).
+
+From **Modern UI** — mostly style-reference, not direct-use (nothing is
+pre-cut, all packed into atlas sheets, and the visual language — slate/
+navy outlines, gold-highlight buttons — doesn't match EduSystem's warm-
+cream chalk style). Two things worth building toward: a mood/smiley icon
+set (fits the game's hard rule against showing raw numbers for anything
+judging a child) and segmented/smooth progress bars (a compact non-
+numeric fill indicator, relevant given the HUD's 11-row panel budget).
+Neither exists in EduSystem today.
+
+**Characters, across both Modern Farm and Modern Interiors now:** same
+verdict both times — style-reference only, not direct swap-in. Modern
+Interiors' characters lean chibi already (closer to EduSystem's own
+proportions than Modern Farm's), and its "Premade Character" sheets
+include a "gift" pose (handing an item out — a real analog for
+`POSE_HANDOFF`) and a "phone" pose (loose analog for `POSE_CHAT`).
+Still no jump-for-joy or sad-slump equivalent in either pack. Both packs
+are architecturally layered paper-doll systems requiring new Godot-side
+compositing code to use directly, which is the real blocker, not the
+art itself — this has now shown up twice, worth treating as the default
+expectation for any future character pack rather than re-verifying from
+scratch each time.
+
+**Decision for props, reconfirmed 2026-10-03:** redraw in-house inspired
+by these shapes/compositions, don't crop-and-paste the actual PNGs —
+same reasoning the user gave for the Modern Farm bench/crate/cabinet
+overlap (license-clean, stays consistent with the scale2x/outline/
+rim-light pipeline, stays easy to retune). The shortlist above is a
+reference for WHAT to draw, not files to import.
+
 ## License (per pack — re-check every new one)
 
 limezu "Modern Farm": edit/use freely in commercial or non-commercial
 projects; cannot resell or redistribute the assets themselves; credit
-to limezu.itch.io appreciated. Record each new pack's license terms here
-when it's added, since terms can differ pack to pack.
+to limezu.itch.io appreciated.
+
+limezu "Modern Office Revamped": same terms as Modern Farm (freely
+use/edit, no resale, credit appreciated).
+
+limezu "Modern Interiors" (full/paid version): same permissive terms,
+but credit to limezu.itch.io is REQUIRED, not just appreciated. The
+free version (`Modern_Interiors_Free_v2.2.zip`) is non-commercial use
+only and confirmed a pure content subset of the full version — no
+reason to use it once the full pack is available.
+
+limezu "Modern UI": credit REQUIRED if anything is used directly
+(cropped/lightly edited), not just appreciated. Since the conclusion
+above is style-reference-only, this mostly doesn't bite, but matters if
+any mood/progress-bar asset is ever cropped rather than redrawn.
+
+EduSystem's HUD already has a credits screen, so satisfying a
+"required" credit is a one-line addition whenever it's actually needed
+— not done yet since nothing has been used directly yet.
 
 ## Packs studied so far
 
 | Pack | Studied | Verdict |
 |---|---|---|
 | limezu "Modern Farm" (`artgen.zip`) | 2026-10-02 | Characters: inspiration only (proportions/poses/architecture mismatch). Props: ~20 direct-use candidates out of 1102 files. Technique findings #1-5 above. |
+| limezu "Modern Office Revamped" | 2026-10-03 | Items: ~55-60/339 classroom-relevant (~17%, 9-10x the farm pack's hit rate). Best pack so far for NEW item ideas (tech category EduSystem has zero of). |
+| limezu "Modern Interiors" (+ RPG Maker variant, Free variant) | 2026-10-03 | Free variant is a pure subset of the full pack, skip it. Items: best pack so far for DIRECT matches to EXISTING items (actual "Classroom and Library" + "Art" theme categories). Characters: inspiration only, same verdict as Modern Farm, but closer proportions and two useful pose analogs ("gift" ≈ POSE_HANDOFF, "phone" ≈ POSE_CHAT). |
+| limezu "Modern UI" | 2026-10-03 | Style-reference only. Two concrete gaps found: non-numeric mood icons, non-numeric progress bars. Neither built yet. |

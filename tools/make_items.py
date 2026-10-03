@@ -309,6 +309,32 @@ def draw_class_banner():
     return finish(im)
 
 
+def draw_library_ladder():
+    """A library's rolling ladder, reaching the top shelf. Oct 2026 --
+    the first genuinely NEW item (no prior EduSystem equivalent) drawn
+    this pass, shape-referenced against the "Classroom and Library"
+    theme category of limezu's Modern Interiors pack and redrawn in
+    house style rather than imported (same reasoning as the earlier
+    Modern Farm furniture pass: license-clean, stays consistent with
+    the scale2x/outline/rim-light pipeline). finish_rich from the start,
+    since this is new content rather than a reshade of something old."""
+    # Rungs are a single row, spaced 7 apart -- a 2-row rung spaced every
+    # 5 rows was tried first and came out wrong: a full-width rung's
+    # neighbouring rows ALSO touch it top and bottom, so outline()'s 1px
+    # border (correctly) ate almost the entire gap from both sides,
+    # leaving the ladder reading as a solid block with thin slits rather
+    # than open rungs. Wider spacing leaves real clear rows once that
+    # border is accounted for.
+    im = _blank(16, 34)
+    rect(im, 3, 4, 4, 31, WOOD_D)
+    rect(im, 11, 4, 12, 31, WOOD_D)
+    for y in range(7, 30, 7):
+        rect(im, 3, y, 12, y, WOOD_L)
+    rect(im, 2, 1, 13, 3, STEEL_D)
+    rect(im, 4, 0, 11, 1, STEEL)
+    return finish_rich(im)
+
+
 def draw_pot_of_pens():
     im = _blank(14, 16)
     rect(im, 4, 7, 10, 14, STEEL)
@@ -785,7 +811,7 @@ ITEMS = {
     # decor
     "wall_clock": draw_wall_clock, "alphabet_frieze": draw_alphabet_frieze,
     "fish_tank": draw_fish_tank, "class_banner": draw_class_banner,
-    "pot_of_pens": draw_pot_of_pens,
+    "pot_of_pens": draw_pot_of_pens, "library_ladder": draw_library_ladder,
     # consumables
     "coffee": draw_coffee, "sticker_chart": draw_sticker_chart,
     "bake_sale": draw_bake_sale, "photocopies": draw_photocopies,

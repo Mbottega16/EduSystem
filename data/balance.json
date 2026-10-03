@@ -306,6 +306,17 @@
       "blurb": "Round the top of the wall, where it belongs.",
       "flat": true
     },
+    "library_ladder": {
+      "name": "Shelf Ladder",
+      "cat": "decor",
+      "cost": 110,
+      "art": "library_ladder",
+      "w": 1,
+      "range": 5,
+      "bonus": 0.05,
+      "blurb": "The top shelf stops being a myth.",
+      "flat": true
+    },
     "fish_tank": {
       "name": "Fish Tank",
       "cat": "decor",
@@ -802,6 +813,7 @@
     "class_banner",
     "alphabet_frieze",
     "season_wheel",
+    "library_ladder",
     "vote_box",
     "winners_flag",
     "fish_tank",
