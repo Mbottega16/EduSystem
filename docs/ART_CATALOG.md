@@ -124,7 +124,7 @@ data. Everything from `bookshelf.png` down is this category:
 `coat_hooks`, `wall_clock`, `alphabet_frieze`, `fish_tank`,
 `class_banner`, `pot_of_pens`, `library_ladder`, `computer`, `printer`,
 `telephone`, `certificate`, `server_rack`, `backpack`, `sofa`,
-`robot_kit`, `coffee`, `sticker_chart`, `bake_sale`,
+`robot_kit`, `world_map`, `coffee`, `sticker_chart`, `bake_sale`,
 `photocopies`, `desk`, `chair`, `table`, `podium`, `bell`,
 `teacher_desk`, `noticeboard`, `supply_shelf`.
 

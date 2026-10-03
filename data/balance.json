@@ -325,6 +325,16 @@
       "bonus": 0.04,
       "blurb": "Nobody knows what half these lights mean."
     },
+    "world_map": {
+      "name": "World Map",
+      "cat": "decor",
+      "cost": 97,
+      "art": "world_map",
+      "w": 2,
+      "range": 5,
+      "bonus": 0.04,
+      "blurb": "Every country they'll never visit, right there."
+    },
     "alphabet_frieze": {
       "name": "Letter Frieze",
       "cat": "decor",
@@ -899,6 +909,7 @@
     "certificate",
     "class_banner",
     "server_rack",
+    "world_map",
     "alphabet_frieze",
     "season_wheel",
     "library_ladder",

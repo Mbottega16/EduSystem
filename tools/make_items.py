@@ -879,6 +879,17 @@ def draw_robot_kit():
     return finish_rich(im)
 
 
+def draw_world_map():
+    im = _blank(20, 14)
+    rect(im, 1, 1, 18, 12, WOOD_D)
+    rect(im, 2, 2, 17, 11, (196, 214, 226))
+    rect(im, 3, 4, 6, 7, GREEN)
+    rect(im, 8, 3, 10, 6, GREEN)
+    rect(im, 12, 5, 16, 9, GREEN)
+    rect(im, 5, 8, 7, 10, GREEN)
+    return finish_rich(im)
+
+
 MESS_ITEMS = {"mess_trash": draw_mess_trash, "mess_spill": draw_mess_spill}
 
 
@@ -928,6 +939,7 @@ ITEMS = {
     "telephone": draw_telephone, "certificate": draw_certificate,
     "server_rack": draw_server_rack, "backpack": draw_backpack,
     "sofa": draw_sofa, "robot_kit": draw_robot_kit,
+    "world_map": draw_world_map,
     # subject shelf, second wave -- a second item per strand
     "word_wall": draw_word_wall, "ten_frame": draw_ten_frame,
     "rock_tray": draw_rock_tray, "timeline_wall": draw_timeline_wall,
