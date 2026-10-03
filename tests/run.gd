@@ -12505,7 +12505,8 @@ func test_limezu_art() -> void:
 	var busts: Array[String] = []
 	for n: String in (cast as Dictionary).get("characters", {}).keys():
 		sheets.append(n)
-		if bool(cast["characters"][n].get("portrait", true)):
+		# a character opts in to a baked bust with a dictionary of its parts
+		if cast["characters"][n].get("portrait", false) is Dictionary:
 			busts.append(n)
 	chk("the importer owns some sprites", names.size() > 0, names.size())
 

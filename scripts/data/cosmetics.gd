@@ -13,12 +13,17 @@ extends RefCounted
 ## (names, art, a colour), not a tunable, the same reasoning that already
 ## keeps Names.FIRST/LAST out of the balance file.
 
+## `dy` nudges a hat down (+) or up (-), in pixels, from the HatSprite's home
+## position in player.tscn -- the hats are not all drawn the same height. The
+## procedural ones were drawn for the old, slightly taller head and now ride a few
+## pixels low to meet the LimeZu one; a LimeZu hat sits where LimeZu drew it on
+## the head. Each gets its own number.
 const HATS := [
 	{"id": "", "name": "None", "art": ""},
-	{"id": "cap", "name": "Beanie", "art": "cap"},
-	{"id": "bow", "name": "Bow", "art": "bow"},
-	{"id": "wizard", "name": "Wizard Hat", "art": "wizard"},
-	{"id": "mortarboard", "name": "Mortarboard", "art": "mortarboard"},
+	{"id": "cap", "name": "Beanie", "art": "cap", "dy": 6},
+	{"id": "bow", "name": "Bow", "art": "bow", "dy": 3},
+	{"id": "wizard", "name": "Wizard Hat", "art": "wizard", "dy": -4},
+	{"id": "mortarboard", "name": "Mortarboard", "art": "mortarboard", "dy": 6},
 ]
 
 ## A flat colour behind the character portrait -- the dashboard, the

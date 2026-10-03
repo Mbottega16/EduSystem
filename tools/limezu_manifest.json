@@ -325,6 +325,30 @@
       ],
       "trim": "y",
       "why": "two one-seat sofa modules joined into a loveseat"
+    },
+    "cap": {
+      "pack": "interiors",
+      "sheet": "2_Characters/Character_Generator/Accessories/16x16/Accessory_11_Beanie_04.png",
+      "rect": [
+        288,
+        32,
+        16,
+        32
+      ],
+      "trim": "xy",
+      "why": "LimeZu's teal beanie (the Beanie accessory layer, front idle frame, hat pixels only)"
+    },
+    "wizard": {
+      "pack": "interiors",
+      "sheet": "2_Characters/Character_Generator/Accessories/16x16/Accessory_19_Party_Cone_02.png",
+      "rect": [
+        288,
+        32,
+        16,
+        32
+      ],
+      "trim": "xy",
+      "why": "a magenta party cone: the pack's pointed hat"
     }
   },
   "tiles": {}

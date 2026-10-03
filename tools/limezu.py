@@ -194,6 +194,9 @@ def owned_names():
     if os.path.exists(room_cfg):
         import limezu_room
         names.update(limezu_room.OUTPUTS)
+    if os.path.exists(os.path.join(TOOLS, "limezu_ui.py")):
+        import limezu_ui
+        names.update(limezu_ui.OUTPUTS)
     cast = load_cast()
     for name, spec in cast.get("characters", {}).items():
         names.add(name)

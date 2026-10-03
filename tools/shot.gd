@@ -513,11 +513,11 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
-		"hat":
+		"hat", "hat_bow", "hat_wizard", "hat_mortarboard":
 			# refresh_hat() again on purpose: the player's own _ready()
 			# already ran, with hat_id still "", by the time this case
-			# gets to set it.
-			Game.hat_id = "cap"
+			# gets to set it. "hat" is the beanie; the others name theirs.
+			Game.hat_id = "cap" if screen == "hat" else screen.trim_prefix("hat_")
 			world.player.refresh_hat()
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))

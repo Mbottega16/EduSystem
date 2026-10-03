@@ -342,15 +342,7 @@
         "ramp": "hair_silver"
       },
       "accessory": "15_Glasses_02",
-      "portrait": {
-        "skin": "2",
-        "eyes": "07",
-        "hair": {
-          "id": "20_5",
-          "ramp": "hair_silver"
-        },
-        "accessory": "15_Glasses_2"
-      },
+      "portrait": false,
       "why": "silver hair in a knot, glasses, navy suit"
     }
   }

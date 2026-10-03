@@ -13,6 +13,8 @@ signal carrying_changed(count: int)
 @onready var zone: Area2D = $InteractZone
 @onready var carry_icon: Sprite2D = $CarryIcon
 @onready var hat_sprite: Sprite2D = $HatSprite
+## Where the HatSprite sits in the scene; each hat nudges from here (Cosmetics.HATS "dy").
+@onready var _hat_home: Vector2 = hat_sprite.position if hat_sprite != null else Vector2.ZERO
 @onready var bubble: SpeechBubble = $SpeechBubble
 
 ## What each BUTTON is pointing at. Two interactables may share a tile so
@@ -827,4 +829,5 @@ func refresh_hat() -> void:
 		hat_sprite.visible = false
 		return
 	hat_sprite.texture = load("res://art/%s.png" % art)
+	hat_sprite.position = _hat_home + Vector2(0.0, float(h.get("dy", 0)))
 	hat_sprite.visible = true
