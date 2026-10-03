@@ -339,7 +339,8 @@ machine for these tools, and only the finished sprites live in `art/`):
 | `tools/lz_conform.py` | snap ANY image to LimeZu's real palette + the #3a3a50 keyline (`--build-palette` once; `tools/limezu_palette.json` is colours only) |
 
 Rules: a LimeZu-owned name is protected -- `make_art.hand_edited()` includes it, so the
-generators and `forge_art.py` stand down. To change one, edit its manifest/cast entry and
+generators and all three forges (`forge_art.py`, `forge_items.py`, `forge_ui.py` -- the
+Master Forge's tabs shell out to them) stand down. To change one, edit its manifest/cast entry and
 re-run the importer, **not** the PNG. The suite's `LIMEZU ART` section guards the credit
 to limezu.itch.io on the credits page (a licence condition), that every owned PNG loads at
 the doubled scale, and that none has a hand source fighting it. The **FREE** Modern
