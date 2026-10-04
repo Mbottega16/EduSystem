@@ -365,6 +365,57 @@
       ],
       "trim": "xy",
       "why": "a magenta party cone: the pack's pointed hat"
+    },
+    "library_ladder": {
+      "ref": "classroom#41",
+      "trim": "xy",
+      "why": "the pack's wooden library ladder"
+    },
+    "computer": {
+      "ref": "office#133",
+      "trim": "xy",
+      "why": "a flat desktop monitor with a blue screen"
+    },
+    "printer": {
+      "ref": "office#148",
+      "trim": "xy",
+      "why": "a grey office printer with a sheet in the tray"
+    },
+    "telephone": {
+      "ref": "office#119",
+      "trim": "xy",
+      "why": "an office desk phone"
+    },
+    "certificate": {
+      "ref": "office#114",
+      "trim": "xy",
+      "why": "a framed certificate with a ribbon (duty_roster uses the neighbouring #113)"
+    },
+    "server_rack": {
+      "ref": "office#176",
+      "trim": "xy",
+      "why": "a dark server rack"
+    },
+    "backpack": {
+      "ref": "office#329",
+      "trim": "xy",
+      "why": "a blue school backpack"
+    },
+    "sofa": {
+      "ref": "office#200",
+      "trim": "xy",
+      "why": "a grey two-seat sofa"
+    },
+    "robot_kit": {
+      "ref": "office#320",
+      "trim": "xy",
+      "why": "a small robot with tools and parts on a workbench"
+    },
+    "world_map": {
+      "ref": "classroom#31",
+      "trim": "xy",
+      "hue": 35,
+      "why": "the pack's only world-map poster, hue-rotated to an aged-map tone so it is not Map Corner twice"
     }
   },
   "tiles": {}

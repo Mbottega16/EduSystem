@@ -180,6 +180,11 @@ judging a child) and segmented/smooth progress bars (a compact non-
 numeric fill indicator, relevant given the HUD's 11-row panel budget).
 Neither exists in EduSystem today.
 
+**SUPERSEDED (2026-10-04, owner's call): the game now uses LimeZu's actual
+sprites -- every character and 54 of the 73 shop items are imported, not
+redrawn; see "How the game uses the packs" below. The two paragraphs that
+follow record the earlier, redraw-only verdict and are kept for the reasoning.**
+
 **Characters, across both Modern Farm and Modern Interiors now:** same
 verdict both times — style-reference only, not direct swap-in. Modern
 Interiors' characters lean chibi already (closer to EduSystem's own
