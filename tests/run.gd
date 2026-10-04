@@ -209,6 +209,7 @@ func _main() -> void:
 	test_graduation()
 	test_coaching()
 	await test_shop_and_staff()
+	await test_room_ideas()
 	await test_bio_actions()
 	test_catalogue()
 	test_global_classes_registered()
@@ -608,9 +609,17 @@ func test_scene() -> void:
 			if (id_tile[1] as Vector2i).y != Layout.WALL_ROW:
 				return false
 		return true).call())
-	chk("the clock, banner and letter frieze are flagged as wall pieces", (func() -> bool:
-		for id: String in ["wall_clock", "class_banner", "alphabet_frieze"]:
+	chk("every piece that belongs on a wall is flagged as one", (func() -> bool:
+		for id: String in ["wall_clock", "class_banner", "alphabet_frieze", "world_map",
+				"map_corner", "certificate", "duty_roster", "coat_hooks"]:
 			if not Items.is_wall(id):
+				return false
+		return true).call())
+	chk("a hung piece reaches desks from the foot of the wall, as a floor piece standing there would", (func() -> bool:
+		for id: String in ["wall_clock", "world_map", "coat_hooks"]:
+			var up: Array[int] = Items.seats_in_range(id, Vector2i(4, Layout.WALL_ROW))
+			var feet: Array[Vector2i] = Items.reach_footprint(id, Vector2i(4, Layout.WALL_ROW))
+			if up.is_empty() or feet[0] != Vector2i(4, Layout.TOP_WALL):
 				return false
 		return true).call())
 	chk("every seeded piece's sprite sits inside the wall band, above the floor", (func() -> bool:
@@ -1802,9 +1811,12 @@ func test_placement() -> void:
 	wall.tile = Vector2i(5, Layout.WALL_ROW)
 	wall._refresh()
 	chk("a hung piece cannot cover a window", not wall.is_valid())
+	wall.tile = Vector2i(16, Layout.WALL_ROW)
+	wall._refresh()
+	chk("...or the catalogue board's wall", not wall.is_valid())
 	wall.tile = Vector2i(8, Layout.WALL_ROW)
 	wall._refresh()
-	chk("...or the piece the room already starts with", not wall.is_valid())
+	chk("...but it may go where the room's starting clock hangs (that gives way)", wall.is_valid())
 	wall.tile = Vector2i(2, 6)
 	wall._refresh()
 	chk("...and cannot be put on the floor", not wall.is_valid())
@@ -1833,6 +1845,24 @@ func test_placement() -> void:
 	chk("...and it is not allowed to land on top of itself",
 		not Layout.wall_slot_ok("wall_clock", Vector2i(4, Layout.WALL_ROW))
 		or not Game.item_fits("wall_clock", Vector2i(4, Layout.WALL_ROW)))
+
+	# the room's starting decor gives way to a bought piece, and comes back
+	var seeds_before: int = get_tree().get_nodes_in_group("seeded_decor").size()
+	Game.place_item("world_map", Vector2i(7, Layout.WALL_ROW))
+	await step(3)
+	chk("hanging a map where the starting clock hung takes the clock down",
+		get_tree().get_nodes_in_group("seeded_decor").size() == seeds_before - 1,
+		get_tree().get_nodes_in_group("seeded_decor").size())
+	Game.remove_item(Vector2i(7, Layout.WALL_ROW))
+	await step(3)
+	chk("...and the wall stays solid after the rebuild: no wall cell was handed back as floor", (func() -> bool:
+		for tx in range(1, Grid.W - 1):
+			if world.grid.is_free(Vector2i(tx, Layout.WALL_ROW)):
+				return false
+		return true).call())
+	chk("...and taking the map down puts the starting clock back",
+		get_tree().get_nodes_in_group("seeded_decor").size() == seeds_before,
+		get_tree().get_nodes_in_group("seeded_decor").size())
 
 	# an older save kept the clock standing on the floor: it is hung on load
 	Game.add_item("wall_clock", Vector2i(9, 6))
@@ -8359,14 +8389,16 @@ func test_shop() -> void:
 	chk("you get back half, not the full price",
 		refund == int(floor(Items.cost(sell_id) * Balance.sell_fraction)), refund)
 
-	# Tab is a five-stop cycle: buy -> cabinet -> staff room -> the room ->
-	# lesson crafting -> buy
+	# Tab is a six-stop cycle: buy -> cabinet -> staff room -> the room ->
+	# lesson crafting -> room ideas -> buy
 	await tap("menu")
 	chk("Tab goes on to the staff room", hud._shop == hud.Shop.STAFF)
 	await tap("menu")
 	chk("then to the room itself", hud._shop == hud.Shop.ROOM)
 	await tap("menu")
 	chk("then to lesson crafting", hud._shop == hud.Shop.CRAFT)
+	await tap("menu")
+	chk("then to room ideas", hud._shop == hud.Shop.IDEAS)
 	await tap("menu")
 	chk("and round again to buying", hud._shop == hud.Shop.BUY)
 	await tap("cancel")
@@ -12337,6 +12369,110 @@ func test_coaching() -> void:
 		Game.coach(Game.roster[2], "tuition") != "")
 
 
+func test_room_ideas() -> void:
+	section("ROOM IDEAS")
+	var hud := _hud()
+	Game.new_run(SEED)
+	Game.add_coins(3000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+
+	var all: Array = RoomTemplates.all()
+	chk("there are several ready-made rooms to browse", all.size() >= 5, all.size())
+	chk("each has a short name, a one-line blurb, and a real number of pieces", (func() -> bool:
+		for t: Dictionary in all:
+			var nm := String(t.get("name", ""))
+			var bl := String(t.get("blurb", ""))
+			if nm == "" or nm.length() > 22 or bl == "" or bl.length() > 62:
+				return false
+			if RoomTemplates.entries(t).size() < 8:
+				return false
+		return true).call())
+	var all_problems: Array = []
+	for t: Dictionary in all:
+		for line in RoomTemplates.problems(t):
+			all_problems.append("%s: %s" % [t["id"], line])
+	chk("every template is a layout the real room would accept: nothing overlaps, nothing sits on a desk, a window or a fixture, and nobody is cut off from the door",
+		all_problems.is_empty(), all_problems)
+	chk("every template hangs at least two things on the wall", (func() -> bool:
+		for t: Dictionary in all:
+			var n := 0
+			for e: Dictionary in RoomTemplates.entries(t):
+				if Items.is_wall(String(e["id"])):
+					n += 1
+			if n < 2:
+				return false
+		return true).call())
+	chk("no two templates are the same room", (func() -> bool:
+		var seen: Dictionary = {}
+		for t: Dictionary in all:
+			var key := JSON.stringify(t.get("items", []))
+			if seen.has(key):
+				return false
+			seen[key] = true
+		return true).call())
+
+	# the checker has to be able to say no
+	var bad := {"id": "bad", "name": "Bad", "blurb": "x", "items": [
+		{"id": "plant", "tile": [3, 4]},          # on a seat
+		{"id": "wall_clock", "tile": [5, 1]},     # over a window
+		{"id": "nonsense", "tile": [2, 6]},       # not an item
+		{"id": "bookshelf", "tile": [2, 6]},
+		{"id": "bookshelf", "tile": [2, 6]},      # on top of the other
+		{"id": "coffee", "tile": [6, 6]}]}        # a consumable
+	chk("the checker catches a layout the room would refuse", RoomTemplates.problems(bad).size() >= 5,
+		RoomTemplates.problems(bad))
+	var sealed := {"id": "sealed", "name": "Sealed", "blurb": "x", "items": [
+		{"id": "bookshelf", "tile": [1, 7]}, {"id": "bookshelf", "tile": [1, 8]},
+		{"id": "bookshelf", "tile": [1, 6]}, {"id": "bookshelf", "tile": [1, 9]}]}
+	chk("...and one that walls the class off from the door", (func() -> bool:
+		for line in RoomTemplates.problems(sealed):
+			if line.contains("cut off"):
+				return true
+		return false).call(), RoomTemplates.problems(sealed))
+
+	# ownership and cost read off the player's own stuff
+	var first: Dictionary = all[0]
+	var full_cost := RoomTemplates.cost(first)
+	chk("a template's price is the list price of its pieces",
+		full_cost == (func() -> int:
+			var n := 0
+			for e: Dictionary in RoomTemplates.entries(first):
+				n += Items.cost(String(e["id"]))
+			return n).call(), full_cost)
+	chk("a new run owns none of it", RoomTemplates.owned_count(first) == 0
+		and RoomTemplates.missing_cost(first) == full_cost)
+	var some_id := String(RoomTemplates.entries(first)[0]["id"])
+	Game.cabinet.append(some_id)
+	chk("a piece in your cabinet counts as one you have", RoomTemplates.owned_count(first) == 1
+		and RoomTemplates.missing_cost(first) == full_cost - Items.cost(some_id))
+	Game.cabinet.erase(some_id)
+
+	# the tab: reachable by Tab from the shop, shows the picture, and is put away elsewhere
+	var coins_before: int = Game.coins
+	var items_before: int = Game.room_items.size()
+	hud.open_catalogue()
+	for _i in 5:
+		await tap("menu")
+	chk("five Tabs from the buy list reach Room Ideas", hud._shop == hud.Shop.IDEAS, hud._shop)
+	chk("which shows the room picture, its frame and the lines beneath",
+		hud._preview.visible and hud._ideas_frame.visible and hud._info.visible)
+	chk("and the picture is the template you have selected",
+		hud._preview.template.get("id", "") == String(all[0]["id"]), hud._preview.template.get("id", ""))
+	await tap("move_down")
+	chk("Down moves to the next room", hud._sel == 1
+		and hud._preview.template.get("id", "") == String(all[1]["id"]), hud._sel)
+	chk("the lines say what it is made of and what the rest would cost",
+		hud._info.text.contains(String(all[1]["blurb"])) and hud._info.text.contains("coins"), hud._info.text)
+	chk("browsing ideas spends nothing and moves nothing",
+		Game.coins == coins_before and Game.room_items.size() == items_before)
+	await tap("menu")
+	chk("one more Tab goes back to the buy list and puts the picture away",
+		hud._shop == hud.Shop.BUY and not hud._preview.visible and not hud._info.visible
+		and is_equal_approx(hud.rich.offset_right, 608.0), [hud._shop, hud.rich.offset_right])
+	hud.close()
+
+
 func test_shop_and_staff() -> void:
 	section("SHOP & STAFF ROOM")
 	var hud := _hud()
@@ -12392,6 +12528,8 @@ func test_shop_and_staff() -> void:
 		hud.rich.text.contains("%d by %d" % [Grid.W, Grid.H]), hud.rich.text)
 	await tap("menu")
 	chk("Tab again reaches lesson crafting", hud._shop == hud.Shop.CRAFT)
+	await tap("menu")
+	chk("Tab again reaches room ideas", hud._shop == hud.Shop.IDEAS)
 	await tap("menu")
 	chk("and Tab cycles back round to buying", hud._shop == hud.Shop.BUY)
 
@@ -12592,7 +12730,7 @@ func test_global_classes_registered() -> void:
 	for cls: String in ["Fx", "Floater", "Items", "Traits", "Curriculum",
 			"Balance", "Layout", "Grid", "Progress", "StudentData",
 			"Interactable", "Placement", "RoomBuilder", "DayEvent", "DayBeats",
-			"BossFight"]:
+			"BossFight", "RoomTemplates", "RoomPreview"]:
 		chk("%s is a registered global class" % cls,
 			ClassDB.class_exists(cls) or _gdscript_class_exists(cls), cls)
 

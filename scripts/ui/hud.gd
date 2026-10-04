@@ -19,7 +19,7 @@ enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
 ## and one screen changed.
-enum Shop { BUY, CABINET, STAFF, ROOM, CRAFT }
+enum Shop { BUY, CABINET, STAFF, ROOM, CRAFT, IDEAS }
 ## The dashboard's own three pages, cycled by the same "menu" key the shop
 ## already cycles its tabs with -- one overview screen for "who am I, what
 ## do I have", not a fourth thing bolted onto E/F.
@@ -127,6 +127,9 @@ const UI_FRAME := preload("res://art/ui_frame.png")
 const UI_FRAME_MARGIN := 12
 var _frame: NinePatchRect = null     ## the bamboo border round the overlay
 var _slot: NinePatchRect = null      ## the cream slot behind a shop item's picture
+var _preview: RoomPreview = null     ## the Ideas tab's half-size room picture
+var _ideas_frame: NinePatchRect = null
+var _info: RichTextLabel = null      ## the Ideas tab's blurb / pieces / cost lines
 ## What the highlighted item is for, shown on the hint bar.
 var _shop_blurb: String = ""
 ## Which category tab the buy list is showing. 29 items in one flat
@@ -258,6 +261,24 @@ func _ready() -> void:
 	overlay.add_child(_slot)
 	overlay.move_child(_slot, 1)
 	_slot.visible = false
+	_ideas_frame = _nine_patch(UI_FRAME, Rect2(282, 40, 344, 200), false)
+	overlay.add_child(_ideas_frame)
+	overlay.move_child(_ideas_frame, 2)
+	_preview = RoomPreview.new()
+	_preview.position = Vector2(294, 52)
+	overlay.add_child(_preview)
+	overlay.move_child(_preview, 3)
+	_info = RichTextLabel.new()
+	_info.bbcode_enabled = true
+	_info.scroll_active = false
+	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info.position = Vector2(32, 241)
+	_info.size = Vector2(576, 72)
+	_info.add_theme_color_override("default_color", Color(0.95, 0.91, 0.77))
+	_info.add_theme_font_size_override("normal_font_size", 16)
+	_info.add_theme_constant_override("line_separation", 2)
+	overlay.add_child(_info)
+	_set_ideas_ui(false)
 	# A new run must not inherit the last one's screen.
 	Game.run_started.connect(func() -> void:
 		if mode != Mode.TITLE:
@@ -284,6 +305,18 @@ func _nine_patch(tex: Texture2D, rect: Rect2, centre: bool) -> NinePatchRect:
 	n.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return n
+
+
+## The Ideas tab's extra furniture: the framed picture of the room and the
+## lines beneath it. Off for every other screen; and the shared text box gets
+## its full width back.
+func _set_ideas_ui(on: bool) -> void:
+	if _preview == null:
+		return
+	_preview.visible = on
+	_ideas_frame.visible = on
+	_info.visible = on
+	rich.offset_right = 278.0 if on else 608.0
 
 
 ## `tex` enlarged by the biggest WHOLE number that still fits `w` x `h`
@@ -774,6 +807,7 @@ func _open(m: int) -> void:
 	portrait_bg.visible = false
 	if _slot != null:
 		_slot.visible = false
+	_set_ideas_ui(false)
 	mood_icon.visible = false
 	# ...and the book, for the same reason.
 	_book(false)
@@ -4226,6 +4260,8 @@ func _shop_rows() -> Array:
 		return staff
 	if _shop == Shop.ROOM:
 		return ROOM_ROWS.duplicate()
+	if _shop == Shop.IDEAS:
+		return RoomTemplates.ids()
 	if _shop == Shop.CRAFT:
 		if not Game.lesson_crafting_unlocked():
 			return []
@@ -4248,6 +4284,7 @@ func _render_catalogue() -> void:
 	body.add_theme_constant_override("line_spacing", 2)
 	var rows := _shop_rows()
 	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
+	_set_ideas_ui(_shop == Shop.IDEAS)
 
 	var tabs := ""
 	if _shop == Shop.BUY:
@@ -4272,6 +4309,8 @@ func _render_catalogue() -> void:
 		heading = "THE ROOM  %dx%d" % [Grid.W, Grid.H]
 	elif _shop == Shop.CRAFT:
 		heading = "LESSON CRAFTING"
+	elif _shop == Shop.IDEAS:
+		heading = "ROOM IDEAS"
 	title.text = "%s  -  %d coins" % [heading, Game.coins]
 
 	# Show the thing you are buying. You used to be choosing furniture you
@@ -4297,6 +4336,8 @@ func _render_catalogue() -> void:
 		lines = _render_room()
 	elif _shop == Shop.CRAFT:
 		lines = _render_craft(rows)
+	elif _shop == Shop.IDEAS:
+		lines = _render_ideas(rows)
 	elif rows.is_empty():
 		lines.append("   The cabinet is empty. Buy something first.")
 	elif _shop == Shop.BUY:
@@ -4360,6 +4401,9 @@ func _render_catalogue() -> void:
 	rich.visible_ratio = 1.0
 	var verb := "order"
 	var next_tab := "cabinet"
+	if _shop == Shop.IDEAS:
+		hint.text = "Up/Down browse   Tab buy list   Esc close"
+		return
 	if _shop == Shop.BUY:
 		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E buy to cabinet   Esc close"
 		return
@@ -4374,8 +4418,46 @@ func _render_catalogue() -> void:
 		next_tab = "lesson crafting"
 	elif _shop == Shop.CRAFT:
 		verb = "craft"
-		next_tab = "buy list"
+		next_tab = "room ideas"
 	hint.text = "Up/Down choose   E %s   Tab %s   Esc close" % [verb, next_tab]
+
+
+## The Ideas tab: the list of ready-made rooms on the left, the selected one
+## drawn on the right, and what it is made of and what it would cost beneath.
+func _render_ideas(rows: Array) -> Array[String]:
+	var lines: Array[String] = []
+	for i in rows.size():
+		var t := RoomTemplates.get_template(String(rows[i]))
+		var name := String(t.get("name", "")).substr(0, 22)
+		if i == _sel:
+			lines.append("> %s" % name)
+		else:
+			lines.append("[color=#%s]  %s[/color]" % [DIM, name])
+	if rows.is_empty():
+		return lines
+	var cur := RoomTemplates.get_template(String(rows[_sel]))
+	_preview.show_template(cur)
+	var names: Dictionary = {}
+	for e: Dictionary in RoomTemplates.entries(cur):
+		var nm := String(Items.get_def(String(e["id"])).get("name", e["id"]))
+		names[nm] = int(names.get(nm, 0)) + 1
+	var shown := ""
+	var more := 0
+	for nm: String in names:
+		var piece: String = nm if int(names[nm]) == 1 else "%s x%d" % [nm, int(names[nm])]
+		if more == 0 and (shown + ", " + piece).length() <= 48:
+			shown = piece if shown == "" else shown + ", " + piece
+		else:
+			more += 1
+	if more > 0:
+		shown += " and %d more" % more
+	var total := RoomTemplates.entries(cur).size()
+	var owned := RoomTemplates.owned_count(cur)
+	var left := RoomTemplates.missing_cost(cur)
+	_info.text = "%s\n[color=#%s]%s[/color]\nYou have %d of its %d pieces. %s" % [
+		String(cur.get("blurb", "")), DIM, shown, owned, total,
+		"You have all of it." if left == 0 else "The rest would cost [color=#%s]%d[/color] coins." % [C_COIN, left]]
+	return lines
 
 
 ## Buying floor space.
@@ -5175,7 +5257,7 @@ func _handle_input() -> void:
 			Sfx.play("deny" if fe != "" else "blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("menu"):
-			_shop = (_shop + 1) % 5      # buy -> cabinet -> staff -> room -> craft
+			_shop = (_shop + 1) % 6      # buy -> cabinet -> staff -> room -> craft -> ideas
 			_sel = 0
 			Sfx.play("blip")
 			_render_catalogue()

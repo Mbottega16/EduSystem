@@ -1,0 +1,754 @@
+{
+ "_about": "Room ideas shown on the shop's Ideas tab. Each is a layout for the OPENING 20x11 room and its eight default desks, built from real shop items; scripts/data/room_templates.gd problems() checks every one against the placement rules (and the suite runs it). Floor pieces use the tile of their LEFT end; hung pieces sit on the wall row (y=1).",
+ "templates": [
+  {
+   "id": "reading_corner",
+   "name": "Cosy Reading Corner",
+   "blurb": "Soft seats, full shelves and a lamp for the quiet readers.",
+   "items": [
+    {
+     "id": "reading_nook",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "tile": [
+      18,
+      8
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "tile": [
+      18,
+      7
+     ]
+    },
+    {
+     "id": "lamp",
+     "tile": [
+      17,
+      7
+     ]
+    },
+    {
+     "id": "plant",
+     "tile": [
+      17,
+      8
+     ]
+    },
+    {
+     "id": "beanbag",
+     "tile": [
+      14,
+      9
+     ]
+    },
+    {
+     "id": "floor_cushion",
+     "tile": [
+      13,
+      9
+     ]
+    },
+    {
+     "id": "rug",
+     "tile": [
+      11,
+      9
+     ]
+    },
+    {
+     "id": "ottoman",
+     "tile": [
+      10,
+      9
+     ]
+    },
+    {
+     "id": "coat_hooks",
+     "tile": [
+      1,
+      1
+     ]
+    },
+    {
+     "id": "alphabet_frieze",
+     "tile": [
+      3,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "little_scientists",
+   "name": "Little Scientists",
+   "blurb": "A bench to explore at, and living things to look after.",
+   "items": [
+    {
+     "id": "lab_bench",
+     "tile": [
+      17,
+      4
+     ]
+    },
+    {
+     "id": "microscope",
+     "tile": [
+      17,
+      5
+     ]
+    },
+    {
+     "id": "terrarium",
+     "tile": [
+      18,
+      5
+     ]
+    },
+    {
+     "id": "rock_tray",
+     "tile": [
+      17,
+      6
+     ]
+    },
+    {
+     "id": "bug_viewer",
+     "tile": [
+      18,
+      6
+     ]
+    },
+    {
+     "id": "fish_tank",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "plant",
+     "tile": [
+      18,
+      8
+     ]
+    },
+    {
+     "id": "display_rack",
+     "tile": [
+      10,
+      2
+     ]
+    },
+    {
+     "id": "water_cooler",
+     "tile": [
+      12,
+      2
+     ]
+    },
+    {
+     "id": "whiteboard",
+     "tile": [
+      13,
+      2
+     ]
+    },
+    {
+     "id": "coat_hooks",
+     "tile": [
+      1,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      3,
+      1
+     ]
+    },
+    {
+     "id": "world_map",
+     "tile": [
+      7,
+      1
+     ]
+    },
+    {
+     "id": "duty_roster",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "number_den",
+   "name": "The Number Den",
+   "blurb": "Counting things, sorting things, and a big board to show it.",
+   "items": [
+    {
+     "id": "sand_timer",
+     "tile": [
+      6,
+      2
+     ]
+    },
+    {
+     "id": "computer",
+     "tile": [
+      7,
+      2
+     ]
+    },
+    {
+     "id": "printer",
+     "tile": [
+      8,
+      2
+     ]
+    },
+    {
+     "id": "maths_tiles",
+     "tile": [
+      10,
+      2
+     ]
+    },
+    {
+     "id": "abacus",
+     "tile": [
+      11,
+      2
+     ]
+    },
+    {
+     "id": "shape_sorter",
+     "tile": [
+      12,
+      2
+     ]
+    },
+    {
+     "id": "whiteboard",
+     "tile": [
+      13,
+      2
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "tile": [
+      1,
+      4
+     ]
+    },
+    {
+     "id": "stool",
+     "tile": [
+      1,
+      5
+     ]
+    },
+    {
+     "id": "low_shelf",
+     "tile": [
+      18,
+      3
+     ]
+    },
+    {
+     "id": "crate",
+     "tile": [
+      18,
+      4
+     ]
+    },
+    {
+     "id": "duty_roster",
+     "tile": [
+      4,
+      1
+     ]
+    },
+    {
+     "id": "wall_clock",
+     "tile": [
+      8,
+      1
+     ]
+    },
+    {
+     "id": "class_banner",
+     "tile": [
+      10,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "explorers",
+   "name": "Explorers' Room",
+   "blurb": "The wider world, on the wall and within reach.",
+   "items": [
+    {
+     "id": "globe",
+     "tile": [
+      4,
+      2
+     ]
+    },
+    {
+     "id": "library_ladder",
+     "tile": [
+      6,
+      2
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "tile": [
+      10,
+      2
+     ]
+    },
+    {
+     "id": "bookshelf",
+     "tile": [
+      11,
+      2
+     ]
+    },
+    {
+     "id": "state_flag",
+     "tile": [
+      13,
+      2
+     ]
+    },
+    {
+     "id": "vote_box",
+     "tile": [
+      14,
+      2
+     ]
+    },
+    {
+     "id": "bench",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "backpack",
+     "tile": [
+      16,
+      9
+     ]
+    },
+    {
+     "id": "winners_flag",
+     "tile": [
+      18,
+      3
+     ]
+    },
+    {
+     "id": "plant",
+     "tile": [
+      18,
+      4
+     ]
+    },
+    {
+     "id": "coat_hooks",
+     "tile": [
+      1,
+      1
+     ]
+    },
+    {
+     "id": "world_map",
+     "tile": [
+      7,
+      1
+     ]
+    },
+    {
+     "id": "map_corner",
+     "tile": [
+      10,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "calm_corner",
+   "name": "Calm and Comfy",
+   "blurb": "A room that lets everyone settle before the lesson starts.",
+   "items": [
+    {
+     "id": "rug",
+     "tile": [
+      8,
+      9
+     ]
+    },
+    {
+     "id": "pouf",
+     "tile": [
+      6,
+      9
+     ]
+    },
+    {
+     "id": "pouf",
+     "tile": [
+      7,
+      9
+     ]
+    },
+    {
+     "id": "beanbag",
+     "tile": [
+      10,
+      9
+     ]
+    },
+    {
+     "id": "hammock_chair",
+     "tile": [
+      4,
+      9
+     ]
+    },
+    {
+     "id": "lamp",
+     "tile": [
+      3,
+      9
+     ]
+    },
+    {
+     "id": "plant",
+     "tile": [
+      2,
+      9
+     ]
+    },
+    {
+     "id": "window_seat",
+     "tile": [
+      13,
+      9
+     ]
+    },
+    {
+     "id": "radiator",
+     "tile": [
+      13,
+      2
+     ]
+    },
+    {
+     "id": "sofa",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "lamp",
+     "tile": [
+      18,
+      8
+     ]
+    },
+    {
+     "id": "ottoman",
+     "tile": [
+      16,
+      9
+     ]
+    },
+    {
+     "id": "coat_hooks",
+     "tile": [
+      1,
+      1
+     ]
+    },
+    {
+     "id": "wall_clock",
+     "tile": [
+      8,
+      1
+     ]
+    },
+    {
+     "id": "alphabet_frieze",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "makers_space",
+   "name": "Tech and Making",
+   "blurb": "Screens, wires and a robot: where ideas get built.",
+   "items": [
+    {
+     "id": "computer",
+     "tile": [
+      6,
+      2
+     ]
+    },
+    {
+     "id": "computer",
+     "tile": [
+      7,
+      2
+     ]
+    },
+    {
+     "id": "printer",
+     "tile": [
+      8,
+      2
+     ]
+    },
+    {
+     "id": "server_rack",
+     "tile": [
+      10,
+      2
+     ]
+    },
+    {
+     "id": "telephone",
+     "tile": [
+      11,
+      2
+     ]
+    },
+    {
+     "id": "filing_cart",
+     "tile": [
+      12,
+      2
+     ]
+    },
+    {
+     "id": "robot_kit",
+     "tile": [
+      17,
+      4
+     ]
+    },
+    {
+     "id": "side_table",
+     "tile": [
+      17,
+      5
+     ]
+    },
+    {
+     "id": "desk_fan",
+     "tile": [
+      18,
+      5
+     ]
+    },
+    {
+     "id": "backpack",
+     "tile": [
+      18,
+      9
+     ]
+    },
+    {
+     "id": "crate",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "duty_roster",
+     "tile": [
+      3,
+      1
+     ]
+    },
+    {
+     "id": "wall_clock",
+     "tile": [
+      8,
+      1
+     ]
+    },
+    {
+     "id": "class_banner",
+     "tile": [
+      10,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "showpiece",
+   "name": "The Showpiece",
+   "blurb": "A bit of everything, arranged so nothing gets in the way.",
+   "items": [
+    {
+     "id": "bookshelf",
+     "tile": [
+      10,
+      2
+     ]
+    },
+    {
+     "id": "globe",
+     "tile": [
+      11,
+      2
+     ]
+    },
+    {
+     "id": "whiteboard",
+     "tile": [
+      12,
+      2
+     ]
+    },
+    {
+     "id": "music_corner",
+     "tile": [
+      18,
+      4
+     ]
+    },
+    {
+     "id": "art_easel",
+     "tile": [
+      18,
+      5
+     ]
+    },
+    {
+     "id": "reading_nook",
+     "tile": [
+      17,
+      9
+     ]
+    },
+    {
+     "id": "beanbag",
+     "tile": [
+      16,
+      9
+     ]
+    },
+    {
+     "id": "plant",
+     "tile": [
+      18,
+      8
+     ]
+    },
+    {
+     "id": "lamp",
+     "tile": [
+      17,
+      7
+     ]
+    },
+    {
+     "id": "rug",
+     "tile": [
+      13,
+      9
+     ]
+    },
+    {
+     "id": "world_map",
+     "tile": [
+      1,
+      1
+     ]
+    },
+    {
+     "id": "certificate",
+     "tile": [
+      3,
+      1
+     ]
+    },
+    {
+     "id": "wall_clock",
+     "tile": [
+      8,
+      1
+     ]
+    },
+    {
+     "id": "class_banner",
+     "tile": [
+      10,
+      1
+     ]
+    },
+    {
+     "id": "alphabet_frieze",
+     "tile": [
+      14,
+      1
+     ]
+    }
+   ]
+  }
+ ]
+}

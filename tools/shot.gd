@@ -437,6 +437,11 @@ func _open_screen(main: Node, screen: String) -> void:
 		"shop":
 			Game.add_coins(3000)
 			hud.open_catalogue()
+		"ideas", "ideas_science", "ideas_explorers", "ideas_calm":
+			Game.add_coins(3000)
+			hud.open_catalogue(hud.Shop.IDEAS)
+			hud._sel = {"ideas": 0, "ideas_science": 1, "ideas_explorers": 3, "ideas_calm": 4}[screen]
+			hud._render_catalogue()
 		"room":
 			Game.add_coins(50000)
 			hud.open_catalogue()
