@@ -208,8 +208,8 @@ what prints.
 3. Run whichever tool covers what you touched (see table above).
 4. Screenshot anything visual.
 5. Commit, with a message that says *why*, not just what.
-6. `git push` — the remote is `EduSystems-Code/EduSystem` (private; the old
-   `PixelRoom` URL still redirects).
+6. `git push` — the remote is `Mbottega16/EduSystem` (private; GitHub moved the
+   repo there from `EduSystems-Code/EduSystem`, and the old URLs still redirect).
 
 ### Steps 2 and 3 are yours to run. The hooks are OFF by default.
 
