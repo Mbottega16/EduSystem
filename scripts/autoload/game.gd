@@ -2966,6 +2966,32 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 	return true
 
 
+## The first place on the back wall this hanging piece fits, scanning left to
+## right; (-1, -1) once the wall is full.
+func free_wall_slot(id: String) -> Vector2i:
+	for tx in range(1, Grid.W - 1):
+		var t := Vector2i(tx, Layout.WALL_ROW)
+		if Layout.wall_slot_ok(id, t) and item_fits(id, t):
+			return t
+	return Vector2i(-1, -1)
+
+
+## A save from before wall pieces hung had its clock and banner standing on the
+## floor. Put each one up on the wall; if the wall has no room it goes back in
+## the cabinet rather than vanishing.
+func rehang_wall_items() -> void:
+	for placed: Dictionary in room_items.duplicate():
+		var id := String(placed["id"])
+		if not Items.is_wall(id) or (placed["tile"] as Vector2i).y == Layout.WALL_ROW:
+			continue
+		room_items.erase(placed)
+		var slot := free_wall_slot(id)
+		if slot.x >= 0:
+			room_items.append({"id": id, "tile": slot})
+		else:
+			cabinet.append(id)
+
+
 ## Quick Sweep, wired up: how many presses a piece of mess takes to clean.
 func mess_presses_needed() -> int:
 	return Progress.mess_presses(perk_ranks)
@@ -3294,6 +3320,7 @@ func from_dict(d: Dictionary) -> void:
 			"tile": Vector2i(int(p.get("tx", 0)), int(p.get("ty", 0)))})
 	# An older save has no cabinet key -- it simply loads with an empty one.
 	cabinet = (d.get("cabinet", []) as Array).duplicate()
+	rehang_wall_items()      # an older save kept its clock standing on the floor
 	desks_in_store = int(d.get("desks_in_store", 0))
 	phase = Phase.MORNING
 	roster.clear()

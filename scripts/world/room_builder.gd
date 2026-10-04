@@ -181,6 +181,11 @@ static func compose_room() -> ImageTexture:
 const WINDOW_FIRST := 5
 const WINDOW_EVERY := 7
 
+## True when something hung at this column would cover a window.
+static func is_window_col(tx: int) -> bool:
+	return _window_col(tx, Grid.W) >= 0
+
+
 static func _window_col(tx: int, w: int) -> int:
 	if tx < WINDOW_FIRST or tx >= w - 2:
 		return -1
@@ -418,10 +423,15 @@ static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interact
 ## never entered into Game.room_items, so they are not owned, sold, moved
 ## or scored -- purely the difference between a bare room and a lived-in
 ## one. Ids confirmed against the cat:"decor" block in data/balance.json.
+## They HANG: on the wall row (Layout.WALL_ROW == 1, written as a literal here
+## so these two scripts do not reference each other's constants; the suite
+## asserts they agree), in the wall's own band, not on the first row of floor
+## where they used to stand like furniture. The frieze sits at 14-15 because
+## the second window covers 12-13.
 const DECOR_SEED := [
-	["wall_clock", Vector2i(8, 2)],
-	["class_banner", Vector2i(10, 2)],
-	["alphabet_frieze", Vector2i(13, 2)],
+	["wall_clock", Vector2i(8, 1)],
+	["class_banner", Vector2i(10, 1)],
+	["alphabet_frieze", Vector2i(14, 1)],
 ]
 
 static func build_decor(parent: Node2D, _grid: Grid) -> Array:
@@ -437,7 +447,7 @@ static func build_decor(parent: Node2D, _grid: Grid) -> Array:
 			continue
 		# Vector2.ZERO block -> no collider, and no grid.set_cell(): a wall
 		# decoration does not stand on the floor, so it does not occupy it.
-		var body := add_prop(parent, tex, Layout.span_anchor(tiles),
+		var body := add_prop(parent, tex, Layout.wall_anchor(tiles),
 			Vector2.ZERO, 0.0, false)
 		body.add_to_group("seeded_decor")
 		nodes.append(body)
@@ -491,12 +501,16 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		if def.is_empty():
 			continue
 		var tiles := Items.footprint(id, placed["tile"])
-		var anchor := Layout.span_anchor(tiles)
+		var hung := Items.is_wall(id)
+		var anchor := Layout.wall_anchor(tiles) if hung else Layout.span_anchor(tiles)
 		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
+		# A hung piece has no collider and no shadow, and (below) takes no floor.
 		var body := add_prop(parent, tex, anchor,
-			Vector2(Items.width(id) * Grid.TILE - 4, 16), 0.0,   # was * 16 - 2, 8
-			not Items.is_flat(id))
+			Vector2.ZERO if hung else Vector2(Items.width(id) * Grid.TILE - 4, 16), 0.0,   # was * 16 - 2, 8
+			not (hung or Items.is_flat(id)))
 		body.add_to_group("purchased")
+		if hung:
+			body.add_to_group("hung")
 		_animate_if_it_moves(body, def, placed["tile"])
 
 		# every bought item can be picked up again
@@ -506,6 +520,8 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		it.origin = placed["tile"]
 		body.add_child(it)
 		nodes.append(body)
+		if hung:
+			continue          # on the wall: no floor tile is used up
 		for t: Vector2i in tiles:
 			grid.set_cell(t, Grid.Cell.BLOCKED)
 	return nodes

@@ -130,7 +130,7 @@ func begin(id: String, grid: Grid, start: Vector2i) -> void:
 	add_to_group("placement")
 	item_id = id
 	_grid = grid
-	tile = start
+	tile = _wall_start(id, start) if Items.is_wall(id) else start
 	active = true
 	visible = true
 	if _ghost == null:
@@ -139,6 +139,19 @@ func begin(id: String, grid: Grid, start: Vector2i) -> void:
 	var def := Items.get_def(id)
 	_ghost.texture = load("res://art/%s.png" % String(def["art"]))
 	_refresh()
+
+
+## A hung piece starts on the wall, at the free slot closest to where the
+## teacher is standing (or, moving one that is already up, where it was).
+func _wall_start(id: String, start: Vector2i) -> Vector2i:
+	var best := Vector2i(clampi(start.x, 1, maxi(1, Grid.W - 1 - Items.width(id))), Layout.WALL_ROW)
+	var best_d := 9999
+	for tx in range(1, Grid.W - 1):
+		var t := Vector2i(tx, Layout.WALL_ROW)
+		if Layout.wall_slot_ok(id, t) and Game.item_fits(id, t) and absi(tx - start.x) < best_d:
+			best = t
+			best_d = absi(tx - start.x)
+	return best
 
 
 func finish() -> void:
@@ -159,6 +172,10 @@ func is_valid() -> bool:
 		return _desk_is_valid()
 	if item_id == "":
 		return false
+	if Items.is_wall(item_id):
+		# On the wall: its own rules, and it can never trap anyone because it
+		# takes no floor.
+		return Layout.wall_slot_ok(item_id, tile) and Game.item_fits(item_id, tile)
 	for t: Vector2i in Items.footprint(item_id, tile):
 		if not _grid.is_free(t):
 			return false
@@ -285,7 +302,8 @@ func _refresh() -> void:
 		queue_redraw()
 		return
 	var tiles := Items.footprint(item_id, tile)
-	_ghost.position = Layout.span_anchor(tiles) - Vector2(0, ghost_h / 2.0)
+	var anchor := Layout.wall_anchor(tiles) if Items.is_wall(item_id) else Layout.span_anchor(tiles)
+	_ghost.position = anchor - Vector2(0, ghost_h / 2.0)
 	_ghost.modulate = OK_TINT if is_valid() else BAD_TINT
 	_reached = Items.seats_in_range(item_id, tile)
 	queue_redraw()
@@ -337,6 +355,9 @@ func _draw_crowding() -> void:
 
 func move_by(d: Vector2i) -> void:
 	var want := tile + d
+	if desk_index < 0 and not browsing and Items.is_wall(item_id):
+		# A hung piece slides along the wall; up and down do nothing.
+		want = Vector2i(tile.x + d.x, Layout.WALL_ROW)
 	if Grid.in_bounds(want):
 		tile = want
 		_refresh()

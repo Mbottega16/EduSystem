@@ -44,6 +44,13 @@ static func is_flat(id: String) -> bool:
 	return bool(get_def(id).get("flat", false))
 
 
+## Hangs on the back wall rather than standing on the floor (a clock, a
+## banner, the letter frieze). It lives on the wall row, takes up no floor,
+## and is placed along the wall -- see Layout.wall_slot_ok().
+static func is_wall(id: String) -> bool:
+	return bool(get_def(id).get("wall", false))
+
+
 static func category_of(id: String) -> String:
 	return String(get_def(id).get("cat", ""))
 

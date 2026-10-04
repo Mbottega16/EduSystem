@@ -261,6 +261,8 @@ func _cheat_grow() -> String:
 
 ## Somewhere this item actually fits, or (-1,-1).
 func _free_spot(id: String) -> Vector2i:
+	if Items.is_wall(id):
+		return Game.free_wall_slot(id)       # (-1,-1) once the wall is full
 	var room := get_tree().get_first_node_in_group("classroom")
 	for ty in range(2, Grid.H - 1):
 		for tx in range(1, Grid.W - 1):

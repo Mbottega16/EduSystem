@@ -155,6 +155,9 @@ once produced 22 items at half the correct strength.)*
   (0.02–0.15).
 - `w` is width in tiles (1 or 2). `flat: true` for wall/floor items that
   cast no shadow — a clock, a banner, a rug. Omit it otherwise.
+- `wall: true` for a piece that HANGS on the back wall (the clock, banner and
+  letter frieze). It is placed on the wall row (`Layout.WALL_ROW`), slides along
+  the wall only, can't cover a window or a fixture, and uses up no floor.
 - Optional `teaches` (a concept id it unlocks outright) or `needs` (a
   concept id that must be known before it is on sale).
 - `blurb` ≤ 60 characters. See the voice rule below.

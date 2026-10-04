@@ -302,7 +302,8 @@
       "range": 5,
       "bonus": 0.03,
       "blurb": "They will watch it. Everyone does.",
-      "flat": true
+      "flat": true,
+      "wall": true
     },
     "class_banner": {
       "name": "Class Banner",
@@ -313,7 +314,8 @@
       "range": 5,
       "bonus": 0.04,
       "blurb": "This is OUR classroom.",
-      "flat": true
+      "flat": true,
+      "wall": true
     },
     "server_rack": {
       "name": "Server Rack",
@@ -344,7 +346,8 @@
       "range": 6,
       "bonus": 0.04,
       "blurb": "Round the top of the wall, where it belongs.",
-      "flat": true
+      "flat": true,
+      "wall": true
     },
     "library_ladder": {
       "name": "Shelf Ladder",

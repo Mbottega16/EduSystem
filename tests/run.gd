@@ -596,8 +596,36 @@ func test_scene() -> void:
 		get_tree().get_nodes_in_group("seeded_decor").size())
 	chk("the seeded decor never blocks the floor it hangs over", (func() -> bool:
 		for id_tile: Array in RoomBuilder.DECOR_SEED:
-			if not world.grid.is_free(id_tile[1] as Vector2i):
+			# it hangs on the wall row; the floor row directly beneath stays free
+			var below: Vector2i = (id_tile[1] as Vector2i) + Vector2i(0, 1)
+			if not world.grid.is_free(below):
 				return false
+		return true).call())
+
+	# --- hung pieces: on the wall, not standing on the floor (Oct 2026) ---
+	chk("RoomBuilder.DECOR_SEED and Layout.WALL_ROW agree on which row is the wall", (func() -> bool:
+		for id_tile: Array in RoomBuilder.DECOR_SEED:
+			if (id_tile[1] as Vector2i).y != Layout.WALL_ROW:
+				return false
+		return true).call())
+	chk("the clock, banner and letter frieze are flagged as wall pieces", (func() -> bool:
+		for id: String in ["wall_clock", "class_banner", "alphabet_frieze"]:
+			if not Items.is_wall(id):
+				return false
+		return true).call())
+	chk("every seeded piece's sprite sits inside the wall band, above the floor", (func() -> bool:
+		for n: Node in get_tree().get_nodes_in_group("seeded_decor"):
+			if (n as Node2D).position.y > float(Layout.TOP_WALL * Grid.TILE):
+				return false
+		return get_tree().get_nodes_in_group("seeded_decor").size() >= 3).call(),
+		get_tree().get_nodes_in_group("seeded_decor").map(func(n: Node) -> float: return (n as Node2D).position.y))
+	chk("no seeded piece covers a window or another fixture", (func() -> bool:
+		for row: Array in RoomBuilder.DECOR_SEED:
+			for t: Vector2i in Items.footprint(String(row[0]), row[1] as Vector2i):
+				if RoomBuilder.is_window_col(t.x):
+					return false
+				if [Layout.CABINET.x, Layout.PODIUM.x, Layout.BOARD.x, Layout.BOARD.x + 1, Layout.BELL.x].has(t.x):
+					return false
 		return true).call())
 
 	var pages: int = hud.INTRO_PAGES.size()
@@ -1763,6 +1791,66 @@ func test_placement() -> void:
 		return false).call())
 
 	place.queue_free()
+
+	# --- hung pieces (Oct 2026): a clock, banner or frieze goes on the WALL ---
+	var wall := Placement.new()
+	world.add_child(wall)
+	wall.begin("wall_clock", world.grid, Vector2i(2, 6))
+	chk("a hung piece starts on the wall row, not on the floor",
+		wall.tile.y == Layout.WALL_ROW, wall.tile)
+	chk("...at a slot that is actually free", wall.is_valid(), wall.tile)
+	wall.tile = Vector2i(5, Layout.WALL_ROW)
+	wall._refresh()
+	chk("a hung piece cannot cover a window", not wall.is_valid())
+	wall.tile = Vector2i(8, Layout.WALL_ROW)
+	wall._refresh()
+	chk("...or the piece the room already starts with", not wall.is_valid())
+	wall.tile = Vector2i(2, 6)
+	wall._refresh()
+	chk("...and cannot be put on the floor", not wall.is_valid())
+	wall.tile = Vector2i(2, Layout.WALL_ROW)
+	wall.move_by(Vector2i.DOWN)
+	chk("up and down do nothing to a hung piece's cursor",
+		wall.tile == Vector2i(2, Layout.WALL_ROW), wall.tile)
+	wall.move_by(Vector2i.RIGHT)
+	chk("left and right slide it along the wall",
+		wall.tile == Vector2i(3, Layout.WALL_ROW), wall.tile)
+	wall.finish()
+	wall.begin("plant", world.grid, Vector2i(3, Layout.WALL_ROW))
+	chk("and a floor piece cannot go up on the wall row", not wall.is_valid())
+	wall.queue_free()
+
+	var under := Vector2i(4, Layout.TOP_WALL)
+	var floor_free_before: bool = world.grid.is_free(under)
+	var wall_before: int = get_tree().get_nodes_in_group("hung").size()
+	Game.place_item("wall_clock", Vector2i(4, Layout.WALL_ROW))
+	await step(3)
+	chk("a bought wall piece is hung on the wall",
+		get_tree().get_nodes_in_group("hung").size() == wall_before + 1,
+		get_tree().get_nodes_in_group("hung").size())
+	chk("...and uses up no floor: the tile beneath it is exactly as free as before",
+		world.grid.is_free(under) == floor_free_before and floor_free_before)
+	chk("...and it is not allowed to land on top of itself",
+		not Layout.wall_slot_ok("wall_clock", Vector2i(4, Layout.WALL_ROW))
+		or not Game.item_fits("wall_clock", Vector2i(4, Layout.WALL_ROW)))
+
+	# an older save kept the clock standing on the floor: it is hung on load
+	Game.add_item("wall_clock", Vector2i(9, 6))
+	Game.rehang_wall_items()
+	chk("a clock saved on the floor is rehung on the wall when the save loads", (func() -> bool:
+		for placed: Dictionary in Game.room_items:
+			if Items.is_wall(String(placed["id"])) and (placed["tile"] as Vector2i).y != Layout.WALL_ROW:
+				return false
+		return true).call())
+	chk("...and a wall with no room left sends it to the cabinet instead of losing it", (func() -> bool:
+		var cab_before: int = Game.cabinet.size()
+		for tx in range(1, Grid.W - 1):
+			var t := Vector2i(tx, Layout.WALL_ROW)
+			if Layout.wall_slot_ok("wall_clock", t) and Game.item_fits("wall_clock", t):
+				Game.add_item("wall_clock", t)
+		Game.add_item("wall_clock", Vector2i(9, 6))
+		Game.rehang_wall_items()
+		return Game.cabinet.size() == cab_before + 1).call())
 
 	# save round-trip including the room
 	var snapshot := Game.to_dict()
