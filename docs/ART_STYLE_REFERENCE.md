@@ -106,7 +106,7 @@ This is a modest step in the right DIRECTION (more tonal steps than a
 single hard edge) but it is still silhouette-edge-based, not per-surface
 — it does NOT yet implement finding #2 above, the biggest structural
 gap. Applied to: `window_seat`, `low_shelf`, `display_rack` (make_items.py)
-and all 13 characters + 12 portraits (make_art.py). Characters/portraits
+and all 17 characters + 16 portraits (make_art.py). Characters/portraits
 also don't yet have the cool-outline or grain-texture treatment.
 
 **Not yet done — the real next steps, in priority order:**
@@ -235,7 +235,7 @@ forbids redistributing them.
 |---|---|---|
 | `tools/import_limezu.py` | props, fixtures, hats -- one PNG each in `art/` | `tools/limezu_manifest.json` (`props`): a ref like `classroom#6` = the numbered *shadowless* single #6 of that theme, or a `sheet`+`rect` cut, or a `join` |
 | `tools/limezu_room.py` | the 18 `tile_*.png` the room is stamped from | `tools/limezu_room.json` (which floor block, which wall set, which door/window) |
-| `tools/limezu_chars.py` | the 13 character sheets (9x4 cells of 32x48) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
+| `tools/limezu_chars.py` | the 17 character sheets (9x4 cells of 32x48) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
 | `tools/limezu_ui.py` | UI pieces that need "their frame, our glyph" (the stuck "?" bubble) | the builders in the file |
 
 * **The generators stand down.** `make_art.hand_edited()` unions in
@@ -312,4 +312,4 @@ pack's licence here when it is added; terms differ pack to pack.
 | limezu "Modern Farm" (`artgen.zip`) | 2026-10-02 | Characters: inspiration only (proportions/poses/architecture mismatch). Props: ~20 direct-use candidates out of 1102 files. Technique findings #1-5 above. |
 | limezu **Modern Interiors** (full, `moderninteriors-win.zip`) | 2026-10-02 | Used directly: 38 shop items, 6 fixtures (desk, chair, teacher's desk, lectern, noticeboard, cabinet) and 2 hats, the room shell, the whole cast (Character Generator, baked), the "?" bubble frame. A themed *Classroom & Library* set of 75 singles, kid bodies/hair/outfits, 29 hair styles x ~7 colours, 33 outfit groups. |
 | limezu **Modern Office Revamped** (`Modern_Office_Revamped_v1.2.zip`) | 2026-10-02 | Used (6 shop items): whiteboard, water cooler, ream of paper, filing unit, rota, sticker board. 339 singles, mostly modular desks and computers. |
-| limezu **Modern UI** (`modernuserinterface-win.zip`) | 2026-10-02 | Used: the Portrait Generator (32x32 head portraits in a 10x3 expression grid) for the 12 HUD busts. **Not yet used:** the Style 1/2 panel frames, gamepad glyphs, animated buttons. |
+| limezu **Modern UI** (`modernuserinterface-win.zip`) | 2026-10-02 | Used: the Portrait Generator (32x32 head portraits in a 10x3 expression grid) for the 16 HUD busts. **Not yet used:** the Style 1/2 panel frames, gamepad glyphs, animated buttons. |

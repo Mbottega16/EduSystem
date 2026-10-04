@@ -9,7 +9,7 @@ trusting it's still accurate.
 > **Provenance, 2026-10-02.** Most of what this catalog describes as drawn by
 > `make_art.py` / `make_items.py` is now **LimeZu's art**, imported by
 > `tools/import_limezu.py` (props/hats, `limezu_manifest.json`), `limezu_room.py`
-> (the 18 `tile_*`), `limezu_chars.py` (the 13 character sheets and 12 busts,
+> (the 18 `tile_*`), `limezu_chars.py` (the 17 character sheets and 16 busts,
 > `limezu_cast.json`) and `limezu_ui.py` (`bubble_q`). `python tools/import_limezu.py
 > --list` prints every owned sprite and where it came from. The generators below
 > stand down for those names and still draw everything else: **still procedural** --

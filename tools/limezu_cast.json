@@ -344,6 +344,99 @@
       "accessory": "15_Glasses_02",
       "portrait": false,
       "why": "silver hair in a knot, glasses, navy suit"
+    },
+    "student_i": {
+      "kind": "kid",
+      "body": {
+        "id": "1"
+      },
+      "eyes": "2",
+      "outfit": {
+        "id": "2",
+        "hue": -25
+      },
+      "hair": {
+        "id": "5_4",
+        "ramp": "hair_silver"
+      },
+      "portrait": {
+        "skin": "1",
+        "eyes": "02",
+        "hair": {
+          "id": "14_5"
+        }
+      },
+      "why": "medium-brown skin, short silver hair, orange top"
+    },
+    "student_j": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "1",
+      "outfit": {
+        "id": "3",
+        "hue": 70
+      },
+      "hair": {
+        "id": "2_2",
+        "ramp": "hair_black"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "01",
+        "hair": {
+          "id": "21_2",
+          "ramp": "hair_black"
+        }
+      },
+      "why": "fair skin, curly black hair, purple top"
+    },
+    "student_k": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "4",
+      "outfit": {
+        "id": "3"
+      },
+      "hair": {
+        "id": "1_3",
+        "ramp": "hair_auburn"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "04",
+        "hair": {
+          "id": "02_4",
+          "ramp": "hair_auburn"
+        }
+      },
+      "why": "light skin, spiky auburn hair, navy top"
+    },
+    "student_l": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "6",
+      "outfit": {
+        "id": "1",
+        "hue": 0
+      },
+      "hair": {
+        "id": "6_4",
+        "ramp": "hair_silver"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "06",
+        "hair": {
+          "id": "12_5"
+        }
+      },
+      "why": "fair skin, silver hair, green top (the pack has no kid glasses)"
     }
   }
 }

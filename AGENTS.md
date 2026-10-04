@@ -331,7 +331,7 @@ machine for these tools, and only the finished sprites live in `art/`):
 |---|---|
 | `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
 | `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
-| `tools/limezu_chars.py` | the 13 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
+| `tools/limezu_chars.py` | the 17 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
 | `tools/limezu_ui.py` | UI pieces that need LimeZu's frame and our glyph (`bubble_q`) |
 | `tools/limezu_catalog.py` | browse the packs as labelled contact sheets (`props <theme>`, `kids`, `adults`, `animated`, `ui`, `room` ...) into `shots/catalog/`; the ids are the ones the JSON files take |
 | `tools/shot_all.py` | screenshot every named screen (deterministic: it clears the scratch save per shot) and `compare` two runs side by side -- Windows/Mac/Linux |
