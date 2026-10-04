@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 Limezu Sprite Hub & Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-darker: #0d0f17;
+      --bg-dark: #131722;
+      --bg-card: #1c2233;
+      --bg-card-hover: #232b40;
+      --border: #2c354e;
+      --border-light: #3e4a6d;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #10b981;
+      --accent-pink: #ec4899;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --tag-bg: #2d3748;
+      --checker-1: #222736;
+      --checker-2: #181d29;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg-darker);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Pixelated image rendering helper */
+    .pixelated {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Checkerboard background for sprite previews */
+    .checkerboard {
+      background-color: var(--checker-1);
+      background-image: linear-gradient(45deg, var(--checker-2) 25%, transparent 25%),
+                        linear-gradient(-45deg, var(--checker-2) 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, var(--checker-2) 75%),
+                        linear-gradient(-45deg, transparent 75%, var(--checker-2) 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    }
+
+    /* Header */
+    header {
+      background: var(--bg-dark);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 18px;
+      color: #fff;
+    }
+    .brand span.badge {
+      font-size: 11px;
+      background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .source-select-wrap {
+      position: relative;
+      min-width: 280px;
+    }
+    select.custom-select {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+    }
+    select.custom-select:focus {
+      border-color: var(--primary);
+    }
+
+    .search-box {
+      flex: 1;
+      max-width: 450px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 12px 8px 36px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: var(--primary);
+      background: var(--bg-card-hover);
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .filters-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .pill-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-main);
+    }
+    .pill-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+    .btn-action:hover { opacity: 0.9; }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); }
+
+    /* Layout */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    aside.sidebar {
+      width: 290px;
+      background: var(--bg-dark);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tree-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 8px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      user-select: none;
+      margin-bottom: 2px;
+    }
+    .tree-item:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+    }
+    .tree-item.active {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .tree-item .badge {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+    }
+
+    /* Main Content */
+    main.content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-darker);
+    }
+
+    .content-subbar {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-darker);
+    }
+    .breadcrumbs {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .breadcrumbs span.current {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .stats-info {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Sprite Grid */
+    .grid-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .sprite-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .sprite-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+    .sprite-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-light);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .card-preview {
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: 8px;
+    }
+    .card-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .card-actions-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 15, 23, 0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      padding: 10px;
+    }
+    .sprite-card:hover .card-actions-overlay {
+      opacity: 1;
+    }
+
+    .action-btn-sm {
+      width: 100%;
+      padding: 6px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .action-btn-sm:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .action-btn-sm.btn-slice {
+      background: #7c3aed;
+      border-color: #7c3aed;
+    }
+    .action-btn-sm.btn-slice:hover { background: #6d28d9; }
+    .action-btn-sm.btn-copy {
+      background: #059669;
+      border-color: #059669;
+    }
+    .action-btn-sm.btn-copy:hover { background: #047857; }
+
+    .card-info {
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .tag-badge {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+    .tag-badge.res {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+    }
+    .tag-badge.sheet {
+      background: rgba(236, 72, 153, 0.2);
+      color: #f472b6;
+    }
+
+    /* Pagination */
+    .pagination-bar {
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-dark);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .page-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .page-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .page-btn:hover:not(:disabled) { background: var(--bg-card-hover); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-indicator {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0 8px;
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.active { display: flex; }
+
+    .modal-window {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      max-height: 90vh;
+      overflow: hidden;
+    }
+    .modal-window.large { width: 92vw; max-width: 1200px; height: 86vh; }
+    .modal-window.medium { width: 600px; }
+
+    .modal-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: #fff; }
+
+    .modal-body {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Slicer Layout */
+    .slicer-view {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    .slicer-canvas-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    #slicerCanvas {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      cursor: crosshair;
+    }
+    .slicer-controls {
+      width: 320px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+    .control-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .preset-buttons {
+      display: flex;
+      gap: 6px;
+    }
+    .preset-btn {
+      flex: 1;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .preset-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .slice-preview-box {
+      width: 100%;
+      height: 140px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #slicePreviewCanvas {
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    /* Studio Layout */
+    .studio-view {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+    .studio-sidebar {
+      width: 260px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+    .studio-canvas-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: var(--bg-darker);
+    }
+    #studioCanvas {
+      box-shadow: 0 4px 25px rgba(0,0,0,0.6);
+      border: 2px solid var(--border);
+    }
+    .studio-tools-bar {
+      width: 280px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    /* Notification Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+    #toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    #toast.error {
+      background: #ef4444;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-darker); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <span>🎮 Limezu Hub</span>
+      <span class="badge" id="totalBadge">...</span>
+    </div>
+
+    <!-- Source Selector -->
+    <div class="source-select-wrap">
+      <select id="sourceSelect" class="custom-select" onchange="onSourceChange()">
+        <!-- Populated dynamically -->
+      </select>
+    </div>
+
+    <!-- Search Input -->
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search sprites (e.g. chair, desk, hair, plant, door, anim)..." oninput="onSearchInput()">
+    </div>
+
+    <!-- Resolution Filters -->
+    <div class="filters-group">
+      <button class="pill-btn active" data-res="all" onclick="setResFilter('all')">All Res</button>
+      <button class="pill-btn" data-res="16x16" onclick="setResFilter('16x16')">16×16</button>
+      <button class="pill-btn" data-res="32x32" onclick="setResFilter('32x32')">32×32</button>
+      <button class="pill-btn" data-res="48x48" onclick="setResFilter('48x48')">48×48</button>
+    </div>
+
+    <!-- Type Filters -->
+    <div class="filters-group">
+      <button class="pill-btn active" data-type="all" onclick="setTypeFilter('all')">All Types</button>
+      <button class="pill-btn" data-type="single" onclick="setTypeFilter('single')">Singles</button>
+      <button class="pill-btn" data-type="sheet" onclick="setTypeFilter('sheet')">Sheets / Tilesets</button>
+      <button class="pill-btn" data-type="anim" onclick="setTypeFilter('anim')">Animations</button>
+    </div>
+
+    <!-- Studio / Action Button -->
+    <button class="btn-action" onclick="openStudioModal()">
+      <span>🎨</span> Item Studio
+    </button>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>Folders & Themes</span>
+        <button class="pill-btn" style="padding:2px 8px; font-size:10px;" onclick="resetFolder()">Show All</button>
+      </div>
+      <div class="tree-scroll" id="treeContainer">
+        <!-- Folders populated dynamically -->
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      <!-- Subbar -->
+      <div class="content-subbar">
+        <div class="breadcrumbs">
+          <span id="currentSourceBreadcrumb">Source</span>
+          <span id="currentFolderBreadcrumb"></span>
+        </div>
+        <div class="stats-info" id="statsDisplay">Loading catalog...</div>
+      </div>
+
+      <!-- Sprite Gallery -->
+      <div class="grid-container" id="gridContainer">
+        <div class="sprite-grid" id="spriteGrid">
+          <!-- Cards populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <div class="stats-info" id="pageRangeDisplay">Showing 0-0</div>
+        <div class="page-controls">
+          <button class="page-btn" id="prevPageBtn" onclick="prevPage()" disabled>◀ Previous</button>
+          <span class="page-indicator" id="pageIndicator">Page 1 / 1</span>
+          <button class="page-btn" id="nextPageBtn" onclick="nextPage()" disabled>Next ▶</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Slicer / Tile Cutter Modal -->
+  <div class="modal-backdrop" id="slicerModal">
+    <div class="modal-window large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>✂️</span>
+          <span id="slicerModalTitle">Sprite Sheet Slicer & Cutter</span>
+        </div>
+        <button class="modal-close" onclick="closeSlicerModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="slicer-view">
+          <div class="slicer-canvas-wrap checkerboard" id="slicerCanvasWrap">
+            <canvas id="slicerCanvas" class="pixelated"></canvas>
+          </div>
+          <div class="slicer-controls">
+            <div>
+              <div class="control-label">Grid Tile Size</div>
+              <div class="preset-buttons">
+                <button class="preset-btn active" data-grid="16" onclick="setGridSize(16)">16×16</button>
+                <button class="preset-btn" data-grid="32" onclick="setGridSize(32)">32×32</button>
+                <button class="preset-btn" data-grid="48" onclick="setGridSize(48)">48×48</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="control-label">Zoom Level</div>
+              <div class="preset-buttons">
+                <button class="preset-btn" onclick="setSlicerZoom(1)">1×</button>
+                <button class="preset-btn active" id="zoom2xBtn" onclick="setSlicerZoom(2)">2×</button>
+                <button class="preset-btn" onclick="setSlicerZoom(4)">4×</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="control-label">Selection Info</div>
+              <div style="font-size:12px; color:var(--text-muted); line-height:1.6;" id="selectionInfo">
+                Click any tile or drag across tiles to select a custom region.
+              </div>
+            </div>
+
+            <div>
+              <div class="control-label">Cropped Preview</div>
+              <div class="slice-preview-box checkerboard">
+                <canvas id="slicePreviewCanvas" class="pixelated"></canvas>
+              </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:auto;">
+              <button class="action-btn-sm btn-copy" style="padding:10px; font-size:12px;" onclick="copySlicedImage()">
+                📋 Copy Slice to Clipboard
+              </button>
+              <button class="action-btn-sm" style="padding:10px; font-size:12px; background:var(--primary);" onclick="saveSliceAsCustomItem()">
+                💾 Save as New Item
+              </button>
+              <button class="action-btn-sm" style="padding:10px; font-size:12px; background:#7c3aed;" onclick="sendSliceToStudio()">
+                🎨 Send to Item Studio
+              </button>
+              <button class="btn-secondary" style="font-size:12px;" onclick="downloadSlicePNG()">
+                ⬇️ Download PNG
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Studio / Composer Modal -->
+  <div class="modal-backdrop" id="studioModal">
+    <div class="modal-window large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🎨</span>
+          <span>Item Studio & Sprite Maker</span>
+        </div>
+        <button class="modal-close" onclick="closeStudioModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="studio-view">
+          <!-- Left: Layers & Presets -->
+          <div class="studio-sidebar">
+            <div class="control-label">Canvas Dimensions</div>
+            <div class="preset-buttons">
+              <button class="preset-btn" onclick="setStudioCanvasSize(16, 16)">16×16</button>
+              <button class="preset-btn active" id="studio32Btn" onclick="setStudioCanvasSize(32, 32)">32×32</button>
+              <button class="preset-btn" onclick="setStudioCanvasSize(48, 48)">48×48</button>
+              <button class="preset-btn" onclick="setStudioCanvasSize(64, 64)">64×64</button>
+            </div>
+
+            <div class="control-label" style="margin-top:10px;">Layers</div>
+            <div id="layersList" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;">
+              <!-- Layer items populated here -->
+            </div>
+
+            <button class="btn-secondary" style="font-size:11px;" onclick="addBlankLayer()">+ Add Blank Layer</button>
+            <button class="btn-secondary" style="font-size:11px;" onclick="clearAllStudioLayers()">🗑️ Clear All Layers</button>
+
+            <div class="control-label" style="margin-top:10px;">Selected Layer Transform</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <button class="btn-secondary" style="font-size:11px;" onclick="flipLayerH()">↔ Flip Horiz</button>
+              <button class="btn-secondary" style="font-size:11px;" onclick="flipLayerV()">↕ Flip Vert</button>
+              <button class="btn-secondary" style="font-size:11px;" onclick="rotateLayer()">⟳ Rotate 90°</button>
+              <button class="btn-secondary" style="font-size:11px;" onclick="deleteSelectedLayer()">🗑️ Delete</button>
+            </div>
+          </div>
+
+          <!-- Center: Canvas Area -->
+          <div class="studio-canvas-wrap checkerboard">
+            <canvas id="studioCanvas" class="pixelated"></canvas>
+            <div style="margin-top:12px; font-size:12px; color:var(--text-muted);">
+              Use arrow keys or drag to position active layer • Pencil/Eraser tools below
+            </div>
+          </div>
+
+          <!-- Right: Tools, Palette, Export -->
+          <div class="studio-tools-bar">
+            <div class="control-label">Tools</div>
+            <div class="preset-buttons">
+              <button class="preset-btn active" id="toolMoveBtn" onclick="setStudioTool('move')">✋ Move</button>
+              <button class="preset-btn" id="toolPencilBtn" onclick="setStudioTool('pencil')">✏️ Pencil</button>
+              <button class="preset-btn" id="toolEraserBtn" onclick="setStudioTool('eraser')">🧹 Eraser</button>
+            </div>
+
+            <div class="control-label" style="margin-top:8px;">Pencil Color</div>
+            <input type="color" id="pencilColorPicker" value="#ffffff" style="width:100%; height:36px; border:none; border-radius:6px; cursor:pointer;">
+
+            <div class="control-label" style="margin-top:8px;">Palette Swatches</div>
+            <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:4px;" id="paletteSwatches">
+              <!-- Preset pixel colors -->
+            </div>
+
+            <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
+              <input type="text" id="studioSaveName" class="custom-select" placeholder="my_custom_item.png" value="new_custom_item.png">
+              <button class="action-btn-sm btn-copy" style="padding:10px; font-size:12px;" onclick="copyStudioImage()">
+                📋 Copy Image to Clipboard
+              </button>
+              <button class="action-btn-sm" style="padding:10px; font-size:12px; background:var(--primary);" onclick="saveStudioToDisk()">
+                💾 Save to "My Custom Items"
+              </button>
+              <button class="btn-secondary" style="font-size:12px;" onclick="downloadStudioPNG()">
+                ⬇️ Export PNG
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <span id="toastIcon">✅</span>
+    <span id="toastMessage">Success!</span>
+  </div>
+
+  <script>
+    // State
+    let currentSourceId = 'office_extracted';
+    let currentFolder = '';
+    let currentSearch = '';
+    let currentRes = 'all';
+    let currentType = 'all';
+    let currentPage = 1;
+    let totalPages = 1;
+    let sourcesList = [];
+    let searchDebounceTimer = null;
+
+    // Slicer state
+    let activeSlicerImage = null;
+    let activeSlicerItem = null;
+    let slicerGridSize = 16;
+    let slicerZoom = 2;
+    let slicerSelection = { x: 0, y: 0, w: 16, h: 16 };
+    let isDraggingSlicer = false;
+    let dragStartTile = { x: 0, y: 0 };
+
+    // Studio state
+    let studioWidth = 32;
+    let studioHeight = 32;
+    let studioZoom = 8;
+    let studioLayers = [];
+    let activeLayerIndex = -1;
+    let studioTool = 'move'; // 'move', 'pencil', 'eraser'
+    let isDrawingStudio = false;
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadSources();
+      initPalette();
+      setupStudioEvents();
+      setupSlicerEvents();
+    });
+
+    // Toast Helper
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toastMessage');
+      const icon = document.getElementById('toastIcon');
+      msg.textContent = message;
+      icon.textContent = isError ? '⚠️' : '✅';
+      toast.className = isError ? 'show error' : 'show';
+      setTimeout(() => { toast.className = ''; }, 3000);
+    }
+
+    // Sources & Tree
+    async function loadSources() {
+      try {
+        const res = await fetch('/api/sources');
+        sourcesList = await res.json();
+        const sel = document.getElementById('sourceSelect');
+        sel.innerHTML = '';
+        let totalAll = 0;
+        sourcesList.forEach(s => {
+          totalAll += s.count;
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.name} (${s.count.toLocaleString()})`;
+          sel.appendChild(opt);
+        });
+        document.getElementById('totalBadge').textContent = `${totalAll.toLocaleString()} Sprites Available`;
+        if (sourcesList.length > 0) {
+          currentSourceId = sourcesList[0].id;
+          sel.value = currentSourceId;
+        }
+        await loadTree();
+        await loadSprites();
+      } catch (e) {
+        showToast('Error loading sources', true);
+      }
+    }
+
+    async function onSourceChange() {
+      currentSourceId = document.getElementById('sourceSelect').value;
+      currentFolder = '';
+      currentPage = 1;
+      await loadTree();
+      await loadSprites();
+    }
+
+    async function loadTree() {
+      try {
+        const res = await fetch(`/api/tree?source_id=${encodeURIComponent(currentSourceId)}`);
+        const tree = await res.json();
+        const container = document.getElementById('treeContainer');
+        container.innerHTML = '';
+
+        const allItem = document.createElement('div');
+        allItem.className = `tree-item ${currentFolder === '' ? 'active' : ''}`;
+        allItem.innerHTML = `<span>📂 All Files</span>`;
+        allItem.onclick = () => selectFolder('');
+        container.appendChild(allItem);
+
+        tree.forEach(t => {
+          if (!t.folder) return;
+          const item = document.createElement('div');
+          item.className = `tree-item ${currentFolder === t.folder ? 'active' : ''}`;
+          const displayFolder = t.folder.length > 28 ? '...' + t.folder.slice(-26) : t.folder;
+          item.title = t.folder;
+          item.innerHTML = `
+            <span>📁 ${displayFolder}</span>
+            <span class="badge">${t.count}</span>
+          `;
+          item.onclick = () => selectFolder(t.folder);
+          container.appendChild(item);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function selectFolder(folder) {
+      currentFolder = folder;
+      currentPage = 1;
+      loadTree();
+      loadSprites();
+    }
+
+    function resetFolder() {
+      selectFolder('');
+    }
+
+    // Sprites Loading
+    async function loadSprites() {
+      const stats = document.getElementById('statsDisplay');
+      stats.textContent = 'Searching sprites...';
+
+      const url = `/api/sprites?source_id=${encodeURIComponent(currentSourceId)}` +
+                  `&folder=${encodeURIComponent(currentFolder)}` +
+                  `&search=${encodeURIComponent(currentSearch)}` +
+                  `&res=${encodeURIComponent(currentRes)}` +
+                  `&type=${encodeURIComponent(currentType)}` +
+                  `&page=${currentPage}&limit=72`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        renderSpriteGrid(data.items);
+        totalPages = data.total_pages;
+
+        // Update stats & breadcrumbs
+        const srcObj = sourcesList.find(s => s.id === currentSourceId);
+        document.getElementById('currentSourceBreadcrumb').textContent = srcObj ? srcObj.name : 'Sprites';
+        document.getElementById('currentFolderBreadcrumb').textContent = currentFolder ? ` / ${currentFolder}` : ' / All';
+        stats.textContent = `${data.total.toLocaleString()} items found`;
+
+        const startIdx = data.total === 0 ? 0 : (data.page - 1) * data.limit + 1;
+        const endIdx = Math.min(data.page * data.limit, data.total);
+        document.getElementById('pageRangeDisplay').textContent = `Showing ${startIdx}-${endIdx} of ${data.total.toLocaleString()}`;
+        document.getElementById('pageIndicator').textContent = `Page ${data.page} of ${Math.max(1, data.total_pages)}`;
+        document.getElementById('prevPageBtn').disabled = data.page <= 1;
+        document.getElementById('nextPageBtn').disabled = data.page >= data.total_pages;
+      } catch (e) {
+        stats.textContent = 'Error loading sprites';
+      }
+    }
+
+    function renderSpriteGrid(items) {
+      const grid = document.getElementById('spriteGrid');
+      grid.innerHTML = '';
+      if (!items || items.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-muted);">
+          No sprites matched your current filters or search query.
+        </div>`;
+        return;
+      }
+
+      items.forEach(it => {
+        const card = document.createElement('div');
+        card.className = 'sprite-card';
+        const imgUrl = `/api/image?source_id=${encodeURIComponent(it.source_id)}&path=${encodeURIComponent(it.rel_path)}`;
+
+        const isSheet = it.is_sheet;
+        const resTag = it.res ? `<span class="tag-badge res">${it.res}</span>` : '';
+        const typeTag = `<span class="tag-badge ${isSheet ? 'sheet' : ''}">${isSheet ? 'Sheet' : 'Single'}</span>`;
+
+        card.innerHTML = `
+          <div class="card-preview checkerboard">
+            <img src="${imgUrl}" alt="${it.name}" class="pixelated" loading="lazy">
+            <div class="card-actions-overlay">
+              <button class="action-btn-sm btn-copy" onclick="copyImageDirect('${imgUrl}', event)">
+                📋 Copy PNG
+              </button>
+              ${isSheet ? `
+                <button class="action-btn-sm btn-slice" onclick="openSlicerModal('${it.source_id}', '${it.rel_path}', '${it.name}', event)">
+                  ✂️ Slice / Inspect
+                </button>
+              ` : `
+                <button class="action-btn-sm" style="background:#7c3aed;" onclick="addSingleToStudio('${imgUrl}', '${it.name}', event)">
+                  🎨 Send to Studio
+                </button>
+              `}
+              <button class="action-btn-sm" onclick="downloadFile('${imgUrl}', '${it.name}', event)">
+                ⬇️ Download
+              </button>
+              <button class="action-btn-sm" onclick="duplicateToCustom('${it.source_id}', '${it.rel_path}', event)">
+                📄 Duplicate
+              </button>
+            </div>
+          </div>
+          <div class="card-info">
+            <div class="card-title" title="${it.name}">${it.name}</div>
+            <div class="card-meta">
+              <span>${typeTag}</span>
+              ${resTag}
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // Filters & Pagination
+    function onSearchInput() {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        currentSearch = document.getElementById('searchInput').value;
+        currentPage = 1;
+        loadSprites();
+      }, 250);
+    }
+
+    function setResFilter(val) {
+      currentRes = val;
+      currentPage = 1;
+      document.querySelectorAll('[data-res]').forEach(b => b.classList.toggle('active', b.dataset.res === val));
+      loadSprites();
+    }
+
+    function setTypeFilter(val) {
+      currentType = val;
+      currentPage = 1;
+      document.querySelectorAll('[data-type]').forEach(b => b.classList.toggle('active', b.dataset.type === val));
+      loadSprites();
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        loadSprites();
+      }
+    }
+
+    function nextPage() {
+      if (currentPage < totalPages) {
+        currentPage++;
+        loadSprites();
+      }
+    }
+
+    // Direct Copy Image to OS Clipboard
+    async function copyImageDirect(url, event) {
+      if (event) event.stopPropagation();
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast('Image copied to clipboard! Paste anywhere (Cmd+V)');
+      } catch (err) {
+        showToast('Direct copy failed, downloading instead...', true);
+        downloadFile(url, 'sprite.png');
+      }
+    }
+
+    function downloadFile(url, filename, event) {
+      if (event) event.stopPropagation();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function duplicateToCustom(sourceId, path, event) {
+      if (event) event.stopPropagation();
+      try {
+        const res = await fetch('/api/duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_id: sourceId, path: path })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Duplicated to My Custom Items: ${data.filename}`);
+          await loadSources();
+        } else {
+          showToast(data.error || 'Duplicate failed', true);
+        }
+      } catch (e) {
+        showToast('Failed to duplicate', true);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // SLICER / TILE CUTTER
+    // -------------------------------------------------------------
+    function openSlicerModal(sourceId, path, name, event) {
+      if (event) event.stopPropagation();
+      activeSlicerItem = { sourceId, path, name };
+      document.getElementById('slicerModalTitle').textContent = `Slice: ${name}`;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = `/api/image?source_id=${encodeURIComponent(sourceId)}&path=${encodeURIComponent(path)}`;
+      img.onload = () => {
+        activeSlicerImage = img;
+        slicerSelection = { x: 0, y: 0, w: slicerGridSize, h: slicerGridSize };
+        document.getElementById('slicerModal').classList.add('active');
+        renderSlicerCanvas();
+        updateSlicePreview();
+      };
+    }
+
+    function closeSlicerModal() {
+      document.getElementById('slicerModal').classList.remove('active');
+    }
+
+    function setGridSize(size) {
+      slicerGridSize = size;
+      document.querySelectorAll('[data-grid]').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grid) === size));
+      slicerSelection = {
+        x: Math.floor(slicerSelection.x / size) * size,
+        y: Math.floor(slicerSelection.y / size) * size,
+        w: size,
+        h: size
+      };
+      renderSlicerCanvas();
+      updateSlicePreview();
+    }
+
+    function setSlicerZoom(z) {
+      slicerZoom = z;
+      renderSlicerCanvas();
+    }
+
+    function setupSlicerEvents() {
+      const canvas = document.getElementById('slicerCanvas');
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (!activeSlicerImage) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) / slicerZoom;
+        const clientY = (e.clientY - rect.top) / slicerZoom;
+
+        const tileX = Math.floor(clientX / slicerGridSize) * slicerGridSize;
+        const tileY = Math.floor(clientY / slicerGridSize) * slicerGridSize;
+
+        isDraggingSlicer = true;
+        dragStartTile = { x: tileX, y: tileY };
+        slicerSelection = { x: tileX, y: tileY, w: slicerGridSize, h: slicerGridSize };
+        renderSlicerCanvas();
+        updateSlicePreview();
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!activeSlicerImage || !isDraggingSlicer) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) / slicerZoom;
+        const clientY = (e.clientY - rect.top) / slicerZoom;
+
+        const currentTileX = Math.floor(clientX / slicerGridSize) * slicerGridSize;
+        const currentTileY = Math.floor(clientY / slicerGridSize) * slicerGridSize;
+
+        const minX = Math.min(dragStartTile.x, currentTileX);
+        const minY = Math.min(dragStartTile.y, currentTileY);
+        const maxX = Math.max(dragStartTile.x, currentTileX) + slicerGridSize;
+        const maxY = Math.max(dragStartTile.y, currentTileY) + slicerGridSize;
+
+        slicerSelection = {
+          x: Math.max(0, minX),
+          y: Math.max(0, minY),
+          w: Math.min(activeSlicerImage.width - minX, maxX - minX),
+          h: Math.min(activeSlicerImage.height - minY, maxY - minY)
+        };
+        renderSlicerCanvas();
+        updateSlicePreview();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDraggingSlicer) {
+          isDraggingSlicer = false;
+        }
+      });
+    }
+
+    function renderSlicerCanvas() {
+      if (!activeSlicerImage) return;
+      const canvas = document.getElementById('slicerCanvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = activeSlicerImage.width * slicerZoom;
+      canvas.height = activeSlicerImage.height * slicerZoom;
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(activeSlicerImage, 0, 0, canvas.width, canvas.height);
+
+      // Draw Grid Overlay
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1;
+      const step = slicerGridSize * slicerZoom;
+
+      for (let x = 0; x <= canvas.width; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvas.width, y + 0.5);
+        ctx.stroke();
+      }
+
+      // Draw Selection Box
+      if (slicerSelection && slicerSelection.w > 0 && slicerSelection.h > 0) {
+        const sx = slicerSelection.x * slicerZoom;
+        const sy = slicerSelection.y * slicerZoom;
+        const sw = slicerSelection.w * slicerZoom;
+        const sh = slicerSelection.h * slicerZoom;
+
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.3)';
+        ctx.fillRect(sx, sy, sw, sh);
+
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
+      }
+    }
+
+    function updateSlicePreview() {
+      if (!activeSlicerImage || !slicerSelection) return;
+      const prevCanvas = document.getElementById('slicePreviewCanvas');
+      const pctx = prevCanvas.getContext('2d');
+
+      prevCanvas.width = slicerSelection.w;
+      prevCanvas.height = slicerSelection.h;
+      pctx.imageSmoothingEnabled = false;
+      pctx.clearRect(0, 0, prevCanvas.width, prevCanvas.height);
+
+      pctx.drawImage(
+        activeSlicerImage,
+        slicerSelection.x, slicerSelection.y, slicerSelection.w, slicerSelection.h,
+        0, 0, slicerSelection.w, slicerSelection.h
+      );
+
+      document.getElementById('selectionInfo').innerHTML = `
+        <strong>Region:</strong> (${slicerSelection.x}, ${slicerSelection.y})<br>
+        <strong>Dimensions:</strong> ${slicerSelection.w} × ${slicerSelection.h} px<br>
+        <strong>Tiles:</strong> ${Math.round(slicerSelection.w / slicerGridSize)} × ${Math.round(slicerSelection.h / slicerGridSize)}
+      `;
+    }
+
+    async function copySlicedImage() {
+      const prevCanvas = document.getElementById('slicePreviewCanvas');
+      prevCanvas.toBlob(async (blob) => {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          showToast('Cropped slice copied to clipboard!');
+        } catch (e) {
+          showToast('Failed to copy slice', true);
+        }
+      });
+    }
+
+    async function saveSliceAsCustomItem() {
+      const defaultName = `${activeSlicerItem.name.replace('.png', '')}_slice_${slicerSelection.w}x${slicerSelection.h}.png`;
+      const name = prompt('Enter a name for this custom sprite:', defaultName);
+      if (!name) return;
+
+      const prevCanvas = document.getElementById('slicePreviewCanvas');
+      const dataUrl = prevCanvas.toDataURL('image/png');
+
+      try {
+        const res = await fetch('/api/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, data: dataUrl })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Saved to My Custom Items: ${data.filename}`);
+          await loadSources();
+        } else {
+          showToast(data.error || 'Failed to save', true);
+        }
+      } catch (e) {
+        showToast('Error saving item', true);
+      }
+    }
+
+    function sendSliceToStudio() {
+      const prevCanvas = document.getElementById('slicePreviewCanvas');
+      const img = new Image();
+      img.src = prevCanvas.toDataURL('image/png');
+      img.onload = () => {
+        closeSlicerModal();
+        openStudioModal();
+        addStudioLayerFromImage(img, `Slice_${slicerSelection.w}x${slicerSelection.h}`);
+      };
+    }
+
+    function downloadSlicePNG() {
+      const prevCanvas = document.getElementById('slicePreviewCanvas');
+      const a = document.createElement('a');
+      a.href = prevCanvas.toDataURL('image/png');
+      a.download = `slice_${slicerSelection.w}x${slicerSelection.h}.png`;
+      a.click();
+    }
+
+    // -------------------------------------------------------------
+    // ITEM STUDIO / SPRITE MAKER
+    // -------------------------------------------------------------
+    function openStudioModal() {
+      document.getElementById('studioModal').classList.add('active');
+      renderStudio();
+    }
+
+    function closeStudioModal() {
+      document.getElementById('studioModal').classList.remove('active');
+    }
+
+    function setStudioCanvasSize(w, h) {
+      studioWidth = w;
+      studioHeight = h;
+      document.querySelectorAll('#studioModal .preset-buttons .preset-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent === `${w}×${h}`);
+      });
+      renderStudio();
+    }
+
+    function setStudioTool(tool) {
+      studioTool = tool;
+      document.getElementById('toolMoveBtn').classList.toggle('active', tool === 'move');
+      document.getElementById('toolPencilBtn').classList.toggle('active', tool === 'pencil');
+      document.getElementById('toolEraserBtn').classList.toggle('active', tool === 'eraser');
+    }
+
+    function addSingleToStudio(url, name, event) {
+      if (event) event.stopPropagation();
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      img.onload = () => {
+        openStudioModal();
+        addStudioLayerFromImage(img, name);
+      };
+    }
+
+    function addStudioLayerFromImage(img, name) {
+      const layerCanvas = document.createElement('canvas');
+      layerCanvas.width = studioWidth;
+      layerCanvas.height = studioHeight;
+      const lctx = layerCanvas.getContext('2d');
+      lctx.imageSmoothingEnabled = false;
+
+      // Center image
+      const ox = Math.floor((studioWidth - img.width) / 2);
+      const oy = Math.floor((studioHeight - img.height) / 2);
+      lctx.drawImage(img, ox, oy);
+
+      const layer = {
+        name: name || `Layer ${studioLayers.length + 1}`,
+        canvas: layerCanvas,
+        ctx: lctx,
+        x: 0,
+        y: 0,
+        visible: true
+      };
+      studioLayers.push(layer);
+      activeLayerIndex = studioLayers.length - 1;
+      updateLayersList();
+      renderStudio();
+    }
+
+    function addBlankLayer() {
+      const layerCanvas = document.createElement('canvas');
+      layerCanvas.width = studioWidth;
+      layerCanvas.height = studioHeight;
+      const lctx = layerCanvas.getContext('2d');
+      lctx.imageSmoothingEnabled = false;
+
+      studioLayers.push({
+        name: `Layer ${studioLayers.length + 1}`,
+        canvas: layerCanvas,
+        ctx: lctx,
+        x: 0,
+        y: 0,
+        visible: true
+      });
+      activeLayerIndex = studioLayers.length - 1;
+      updateLayersList();
+      renderStudio();
+    }
+
+    function clearAllStudioLayers() {
+      if (confirm('Clear all layers in studio?')) {
+        studioLayers = [];
+        activeLayerIndex = -1;
+        updateLayersList();
+        renderStudio();
+      }
+    }
+
+    function deleteSelectedLayer() {
+      if (activeLayerIndex >= 0 && activeLayerIndex < studioLayers.length) {
+        studioLayers.splice(activeLayerIndex, 1);
+        activeLayerIndex = Math.max(0, studioLayers.length - 1);
+        updateLayersList();
+        renderStudio();
+      }
+    }
+
+    function flipLayerH() {
+      if (activeLayerIndex < 0) return;
+      const layer = studioLayers[activeLayerIndex];
+      const temp = document.createElement('canvas');
+      temp.width = layer.canvas.width;
+      temp.height = layer.canvas.height;
+      const tctx = temp.getContext('2d');
+      tctx.drawImage(layer.canvas, 0, 0);
+
+      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+      layer.ctx.save();
+      layer.ctx.translate(layer.canvas.width, 0);
+      layer.ctx.scale(-1, 1);
+      layer.ctx.drawImage(temp, 0, 0);
+      layer.ctx.restore();
+      renderStudio();
+    }
+
+    function flipLayerV() {
+      if (activeLayerIndex < 0) return;
+      const layer = studioLayers[activeLayerIndex];
+      const temp = document.createElement('canvas');
+      temp.width = layer.canvas.width;
+      temp.height = layer.canvas.height;
+      const tctx = temp.getContext('2d');
+      tctx.drawImage(layer.canvas, 0, 0);
+
+      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+      layer.ctx.save();
+      layer.ctx.translate(0, layer.canvas.height);
+      layer.ctx.scale(1, -1);
+      layer.ctx.drawImage(temp, 0, 0);
+      layer.ctx.restore();
+      renderStudio();
+    }
+
+    function rotateLayer() {
+      if (activeLayerIndex < 0) return;
+      const layer = studioLayers[activeLayerIndex];
+      const temp = document.createElement('canvas');
+      temp.width = layer.canvas.width;
+      temp.height = layer.canvas.height;
+      const tctx = temp.getContext('2d');
+      tctx.drawImage(layer.canvas, 0, 0);
+
+      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+      layer.ctx.save();
+      layer.ctx.translate(layer.canvas.width / 2, layer.canvas.height / 2);
+      layer.ctx.rotate(Math.PI / 2);
+      layer.ctx.drawImage(temp, -layer.canvas.width / 2, -layer.canvas.height / 2);
+      layer.ctx.restore();
+      renderStudio();
+    }
+
+    function updateLayersList() {
+      const container = document.getElementById('layersList');
+      container.innerHTML = '';
+      if (studioLayers.length === 0) {
+        container.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:10px;">No layers yet</div>`;
+        return;
+      }
+
+      studioLayers.forEach((l, idx) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '6px 10px';
+        row.style.borderRadius = '6px';
+        row.style.background = idx === activeLayerIndex ? 'var(--primary)' : 'var(--bg-dark)';
+        row.style.fontSize = '12px';
+        row.style.cursor = 'pointer';
+
+        row.innerHTML = `
+          <span style="font-weight:600;">${l.name}</span>
+          <span style="font-size:10px; opacity:0.8;">${l.visible ? '👁️' : '🕶️'}</span>
+        `;
+        row.onclick = () => {
+          activeLayerIndex = idx;
+          updateLayersList();
+          renderStudio();
+        };
+        container.appendChild(row);
+      });
+    }
+
+    function setupStudioEvents() {
+      const canvas = document.getElementById('studioCanvas');
+      let isDragging = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (activeLayerIndex < 0 || activeLayerIndex >= studioLayers.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const px = Math.floor((e.clientX - rect.left) / studioZoom);
+        const py = Math.floor((e.clientY - rect.top) / studioZoom);
+
+        if (studioTool === 'pencil' || studioTool === 'eraser') {
+          isDrawingStudio = true;
+          drawPixelAt(px, py);
+        } else if (studioTool === 'move') {
+          isDragging = true;
+          lastX = px;
+          lastY = py;
+        }
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const px = Math.floor((e.clientX - rect.left) / studioZoom);
+        const py = Math.floor((e.clientY - rect.top) / studioZoom);
+
+        if (isDrawingStudio) {
+          drawPixelAt(px, py);
+        } else if (isDragging && studioTool === 'move' && activeLayerIndex >= 0) {
+          const dx = px - lastX;
+          const dy = py - lastY;
+          if (dx !== 0 || dy !== 0) {
+            moveLayerOffset(dx, dy);
+            lastX = px;
+            lastY = py;
+          }
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDrawingStudio = false;
+        isDragging = false;
+      });
+
+      // Arrow key layer nudge
+      window.addEventListener('keydown', (e) => {
+        if (!document.getElementById('studioModal').classList.contains('active')) return;
+        if (document.activeElement.tagName === 'INPUT') return;
+        if (activeLayerIndex < 0) return;
+
+        if (e.key === 'ArrowUp') { moveLayerOffset(0, -1); e.preventDefault(); }
+        else if (e.key === 'ArrowDown') { moveLayerOffset(0, 1); e.preventDefault(); }
+        else if (e.key === 'ArrowLeft') { moveLayerOffset(-1, 0); e.preventDefault(); }
+        else if (e.key === 'ArrowRight') { moveLayerOffset(1, 0); e.preventDefault(); }
+      });
+    }
+
+    function moveLayerOffset(dx, dy) {
+      const layer = studioLayers[activeLayerIndex];
+      const temp = document.createElement('canvas');
+      temp.width = layer.canvas.width;
+      temp.height = layer.canvas.height;
+      const tctx = temp.getContext('2d');
+      tctx.drawImage(layer.canvas, 0, 0);
+
+      layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+      layer.ctx.drawImage(temp, dx, dy);
+      renderStudio();
+    }
+
+    function drawPixelAt(x, y) {
+      if (activeLayerIndex < 0) return;
+      const layer = studioLayers[activeLayerIndex];
+      if (x < 0 || x >= studioWidth || y < 0 || y >= studioHeight) return;
+
+      if (studioTool === 'pencil') {
+        const color = document.getElementById('pencilColorPicker').value;
+        layer.ctx.fillStyle = color;
+        layer.ctx.fillRect(x, y, 1, 1);
+      } else if (studioTool === 'eraser') {
+        layer.ctx.clearRect(x, y, 1, 1);
+      }
+      renderStudio();
+    }
+
+    function renderStudio() {
+      const canvas = document.getElementById('studioCanvas');
+      canvas.width = studioWidth * studioZoom;
+      canvas.height = studioHeight * studioZoom;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      studioLayers.forEach((l) => {
+        if (!l.visible) return;
+        ctx.drawImage(l.canvas, 0, 0, canvas.width, canvas.height);
+      });
+
+      // Draw subtle pixel grid overlay
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += studioZoom) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += studioZoom) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(canvas.width, y + 0.5);
+        ctx.stroke();
+      }
+    }
+
+    function getFlattenedStudioCanvas() {
+      const flat = document.createElement('canvas');
+      flat.width = studioWidth;
+      flat.height = studioHeight;
+      const fctx = flat.getContext('2d');
+      fctx.imageSmoothingEnabled = false;
+
+      studioLayers.forEach(l => {
+        if (l.visible) {
+          fctx.drawImage(l.canvas, 0, 0);
+        }
+      });
+      return flat;
+    }
+
+    async function copyStudioImage() {
+      const flat = getFlattenedStudioCanvas();
+      flat.toBlob(async (blob) => {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          showToast('Composed sprite copied to clipboard!');
+        } catch (e) {
+          showToast('Clipboard copy failed', true);
+        }
+      });
+    }
+
+    async function saveStudioToDisk() {
+      const nameInput = document.getElementById('studioSaveName');
+      const filename = nameInput.value.trim() || 'custom_item.png';
+      const flat = getFlattenedStudioCanvas();
+      const dataUrl = flat.toDataURL('image/png');
+
+      try {
+        const res = await fetch('/api/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: filename, data: dataUrl })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Saved to My Custom Items: ${data.filename}`);
+          await loadSources();
+        } else {
+          showToast(data.error || 'Failed to save', true);
+        }
+      } catch (e) {
+        showToast('Error saving to server', true);
+      }
+    }
+
+    function downloadStudioPNG() {
+      const nameInput = document.getElementById('studioSaveName');
+      const filename = nameInput.value.trim() || 'custom_item.png';
+      const flat = getFlattenedStudioCanvas();
+      const a = document.createElement('a');
+      a.href = flat.toDataURL('image/png');
+      a.download = filename;
+      a.click();
+    }
+
+    function initPalette() {
+      const colors = [
+        '#000000', '#ffffff', '#6366f1', '#ec4899', '#10b981', '#f59e0b',
+        '#ef4444', '#8b5cf6', '#14b8a6', '#84cc16', '#3b82f6', '#d97706',
+        '#64748b', '#475569', '#334155', '#1e293b', '#e2e8f0', '#f8fafc'
+      ];
+      const container = document.getElementById('paletteSwatches');
+      container.innerHTML = '';
+      colors.forEach(c => {
+        const swatch = document.createElement('div');
+        swatch.style.width = '24px';
+        swatch.style.height = '24px';
+        swatch.style.borderRadius = '4px';
+        swatch.style.backgroundColor = c;
+        swatch.style.cursor = 'pointer';
+        swatch.style.border = '1px solid rgba(255,255,255,0.2)';
+        swatch.onclick = () => {
+          document.getElementById('pencilColorPicker').value = c;
+        };
+        container.appendChild(swatch);
+      });
+    }
+  </script>
+</body>
+</html>
