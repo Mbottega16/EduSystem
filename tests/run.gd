@@ -12351,7 +12351,22 @@ func test_shop_and_staff() -> void:
 	chk("the picture is the item you have selected", (func() -> bool:
 		var want := String(Items.get_def(Items.order()[hud._sel]).get("art", ""))
 		return hud.portrait.texture != null \
-			and hud.portrait.texture.resource_path.ends_with(want + ".png")).call())
+			and String(hud.portrait.get_meta("art", "")) == want).call())
+	chk("the item sits in LimeZu's cream slot, in its bamboo frame", hud._slot.visible
+		and hud._slot.draw_center and hud._slot.get_parent() == hud.overlay)
+	chk("the picture is enlarged by a whole number, so its pixels stay square", (func() -> bool:
+		var src: Texture2D = load("res://art/%s.png" % String(hud.portrait.get_meta("art", "")))
+		var k: float = float(hud.portrait.texture.get_width()) / float(src.get_width())
+		return (is_equal_approx(k, roundf(k)) and k >= 1.0
+			and hud.portrait.texture.get_width() <= 96 and hud.portrait.texture.get_height() <= 140)).call())
+	chk("every full-screen panel has the bamboo border, drawn behind its text",
+		hud._frame != null and not hud._frame.draw_center and hud._frame.get_parent() == hud.overlay
+		and hud.overlay.get_child(0) == hud._frame)
+	hud.close()
+	hud.show_class_list()
+	chk("the item slot is put away on any screen that is not the buy list", not hud._slot.visible)
+	hud.close()
+	hud.open_catalogue()
 	# The catalogue renders into `rich`, not `body` -- _render_catalogue()
 	# explicitly sets body.visible = false. This assertion checked body,
 	# which the shop never touches, so it was passing on STALE leftover

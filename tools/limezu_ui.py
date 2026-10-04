@@ -46,7 +46,7 @@ def stamp(im, glyph, x0, y0, colour):
                 im.putpixel((x0 + dx, y0 + dy), colour)
 
 
-def bubble_q(interiors):
+def bubble_q(interiors, ui):
     """LimeZu's blank speech bubble (12x14: a 12x10 body and a 4px tail) + a '?'."""
     sheet = interiors.image(UI_SHEET)
     bubble = sheet.crop((66, 11, 78, 25))
@@ -55,8 +55,22 @@ def bubble_q(interiors):
     return limezu.up2(bubble)
 
 
+# Modern UI (its own pack): Style 1 is the warm bamboo-and-cream set that sits with
+# the game's palette (Style 2 is a cold lavender). The frame is the 32x31 bordered
+# panel at the sheet's top-left; the HUD draws it as a 9-slice, with its centre
+# either left empty (a border round a dark screen) or filled (a cream slot that a
+# shop item's picture sits in).
+UI_STYLE_1 = "16x16/Modern_UI_Style_1.png"
+FRAME_BOX = (8, 8, 40, 39)
+
+
+def ui_frame(interiors, ui):
+    return limezu.up2(ui.image(UI_STYLE_1).crop(FRAME_BOX))
+
+
 BUILDERS = {
     "bubble_q": bubble_q,
+    "ui_frame": ui_frame,
 }
 OUTPUTS = sorted(BUILDERS)
 
@@ -68,9 +82,10 @@ def owned_names():
 def main(argv):
     check = "--check" in argv
     interiors = limezu.need_pack("interiors")
+    ui = limezu.need_pack("ui")
     wrote = bad = 0
     for name in OUTPUTS:
-        img = BUILDERS[name](interiors)
+        img = BUILDERS[name](interiors, ui)
         path = os.path.join(ART, name + ".png")
         have = Image.open(path).convert("RGBA") if os.path.exists(path) else None
         if have is not None and limezu.same_pixels(have, img):

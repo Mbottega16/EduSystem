@@ -122,6 +122,11 @@ var mode: int = Mode.NONE
 var _player: Node = null
 var _sel: int = 0
 var _shop: int = Shop.BUY
+
+const UI_FRAME := preload("res://art/ui_frame.png")
+const UI_FRAME_MARGIN := 12
+var _frame: NinePatchRect = null     ## the bamboo border round the overlay
+var _slot: NinePatchRect = null      ## the cream slot behind a shop item's picture
 ## What the highlighted item is for, shown on the hint bar.
 var _shop_blurb: String = ""
 ## Which category tab the buy list is showing. 29 items in one flat
@@ -243,6 +248,16 @@ const WATCH_FRAME_SECONDS := 0.12
 
 
 func _ready() -> void:
+	# LimeZu's bamboo frame round every full-screen panel, and (in the shop) as a
+	# cream slot the item's picture sits in. Children of the overlay, so they
+	# show and hide with it; added FIRST so they draw behind everything else.
+	_frame = _nine_patch(UI_FRAME, Rect2(2, 2, 636, 348), false)
+	overlay.add_child(_frame)
+	overlay.move_child(_frame, 0)
+	_slot = _nine_patch(UI_FRAME, Rect2(488, 40, 120, 168), true)
+	overlay.add_child(_slot)
+	overlay.move_child(_slot, 1)
+	_slot.visible = false
 	# A new run must not inherit the last one's screen.
 	Game.run_started.connect(func() -> void:
 		if mode != Mode.TITLE:
@@ -250,6 +265,38 @@ func _ready() -> void:
 	# Trace an X or a check with the mouse instead of pressing a key -- see
 	# homework_sheet.gd's own comment for why stroke COUNT is the signal.
 	sheet.gesture_verdict.connect(_verdict)
+
+
+## A LimeZu UI frame stretched to `rect` as a 9-slice: the 12px bamboo border
+## (6 art pixels doubled) never stretches, only the middle does. `centre` fills
+## the middle with the frame's cream; false leaves it clear so the dark panel
+## shows through.
+func _nine_patch(tex: Texture2D, rect: Rect2, centre: bool) -> NinePatchRect:
+	var n := NinePatchRect.new()
+	n.texture = tex
+	n.position = rect.position
+	n.size = rect.size
+	n.patch_margin_left = UI_FRAME_MARGIN
+	n.patch_margin_top = UI_FRAME_MARGIN
+	n.patch_margin_right = UI_FRAME_MARGIN
+	n.patch_margin_bottom = UI_FRAME_MARGIN
+	n.draw_center = centre
+	n.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return n
+
+
+## `tex` enlarged by the biggest WHOLE number that still fits `w` x `h`
+## (nearest-neighbour), never shrunk below 1. Pixel art keeps its square pixels.
+func _scaled_whole(tex: Texture2D, w: int, h: int) -> Texture2D:
+	if tex == null:
+		return null
+	var k := maxi(1, mini(w / maxi(1, tex.get_width()), h / maxi(1, tex.get_height())))
+	if k == 1:
+		return tex
+	var img := tex.get_image()
+	img.resize(tex.get_width() * k, tex.get_height() * k, Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(img)
 
 
 ## Display only. Every INPUT read lives on the physics tick below.
@@ -723,7 +770,10 @@ func _open(m: int) -> void:
 	# every mode that wants a portrait turns it back on; this is the
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait_bg.visible = false
+	if _slot != null:
+		_slot.visible = false
 	mood_icon.visible = false
 	# ...and the book, for the same reason.
 	_book(false)
@@ -4230,8 +4280,13 @@ func _render_catalogue() -> void:
 	if _shop == Shop.BUY and not rows.is_empty():
 		var art := String(Items.get_def(String(rows[_sel])).get("art", ""))
 		if art != "" and ResourceLoader.exists("res://art/%s.png" % art):
-			portrait.texture = load("res://art/%s.png" % art)
+			# A whole-number scale, centred, so the pixels stay square: fitting
+			# a 30x38 sprite to a 96x140 box by stretching gave uneven pixels.
+			portrait.texture = _scaled_whole(load("res://art/%s.png" % art), 96, 140)
+			portrait.set_meta("art", art)     # which item this is (the texture may be a scaled copy)
+			portrait.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 			portrait.visible = true
+	_slot.visible = portrait.visible
 
 	var lines: Array[String] = []
 	if _shop == Shop.BUY and tabs != "":

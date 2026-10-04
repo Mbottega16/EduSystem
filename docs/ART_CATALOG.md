@@ -10,7 +10,7 @@ trusting it's still accurate.
 > `make_art.py` / `make_items.py` is now **LimeZu's art**, imported by
 > `tools/import_limezu.py` (props/hats, `limezu_manifest.json`), `limezu_room.py`
 > (the 18 `tile_*`), `limezu_chars.py` (the 17 character sheets and 16 busts,
-> `limezu_cast.json`) and `limezu_ui.py` (`bubble_q`). `python tools/import_limezu.py
+> `limezu_cast.json`) and `limezu_ui.py` (`bubble_q`, `ui_frame`). `python tools/import_limezu.py
 > --list` prints every owned sprite and where it came from. The generators below
 > stand down for those names and still draw everything else: **still procedural** --
 > the book and its page turns, the logo and title backdrop, the exterior backdrop tile,
@@ -184,7 +184,7 @@ so it touches nothing the balance contract measures.
 | `logo.png` | title screen wordmark: filled chalk letters, an outline, a drop shadow, and a small chalk-apple motif *(Sept 2026)* |
 | `title_bg.png` | title screen backdrop: the chalkboard the menu sits on (unchanged, for text contrast) plus a dusk classroom scene down the left margin the menu text never reaches -- a curtained window, a wood dado and floor, and the game's own `desk.png`/`chair.png` pasted in as dusk silhouettes *(Sept 2026)* |
 | `bubble_q.png` | the "stuck" speech bubble over a student's head |
-| `paper.png` | the carried-work icon |
+| `ui_frame.png` | LimeZu Modern UI Style 1 bamboo frame; the HUD draws it as a 9-slice round every overlay panel (centre clear) and as the cream item slot in the shop (centre filled) || `paper.png` | the carried-work icon |
 | `poster_abc.png` | one hand-drawn one-off (`tools/sprites/poster_abc.txt`) — the exception to "everything is generated"; edited by hand in `Draw a Sprite.bat` / `Browse Art.bat`, not `make_art.py` |
 | `shadow.png` | the shared runtime contact shadow every actor and placed item sits on |
 | `dust.png` | a 2&times;2 particle |

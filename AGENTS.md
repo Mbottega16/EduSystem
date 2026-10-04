@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2326 assertions — must pass, count must not drop
+Run Tests.bat            2330 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -269,7 +269,7 @@ still looks armed is how the last one got missed.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 2326 assertions, 124 sections |
+| `tests/run.gd` | The suite — 2330 assertions, 124 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -332,7 +332,7 @@ machine for these tools, and only the finished sprites live in `art/`):
 | `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
 | `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
 | `tools/limezu_chars.py` | the 17 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
-| `tools/limezu_ui.py` | UI pieces that need LimeZu's frame and our glyph (`bubble_q`) |
+| `tools/limezu_ui.py` | UI pieces: `bubble_q` (LimeZu frame + our glyph) and `ui_frame` (the bamboo border the HUD 9-slices round every full-screen panel, and the cream slot behind a shop item) |
 | `tools/limezu_catalog.py` | browse the packs as labelled contact sheets (`props <theme>`, `kids`, `adults`, `animated`, `ui`, `room` ...) into `shots/catalog/`; the ids are the ones the JSON files take |
 | `tools/shot_all.py` | screenshot every named screen (deterministic: it clears the scratch save per shot) and `compare` two runs side by side -- Windows/Mac/Linux |
 | `tools/lz_conform.py` | snap ANY image to LimeZu's real palette + the #3a3a50 keyline (`--build-palette` once; `tools/limezu_palette.json` is colours only) |
