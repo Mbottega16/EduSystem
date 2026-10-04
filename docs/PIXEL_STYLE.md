@@ -1,5 +1,12 @@
 # Pixel-art style — the target, in one page
 
+> **Superseded in part, 2026-10-02.** The owner chose LimeZu's *Modern Interiors* look
+> over the "GBA/Pokémon" rules below, and most art is now LimeZu's own (see
+> `docs/ART_STYLE_REFERENCE.md`). Where this page and that one disagree, that one wins:
+> keyline **#3a3a50** (not `#241A12`), 3-4 tones per material (not 2-3), a mouthless
+> chibi with two-pixel eyes, per-surface shading with visible grain. The rules below
+> still describe the procedural generators' output, i.e. the art the packs do not cover.
+
 What "the EduSystem look" means concretely, so a person drawing in the art
 forge (`Browse Art.bat`) or writing a generator has one place to check
 against. This is the same direction `docs/AI_ART_PROMPTS.md` gives to an

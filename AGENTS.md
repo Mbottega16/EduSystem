@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2280 assertions — must pass, count must not drop
+Run Tests.bat            2303 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -269,7 +269,7 @@ still looks armed is how the last one got missed.
 | `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `tests/run.gd` | The suite — 2269 assertions, 122 sections |
+| `tests/run.gd` | The suite — 2303 assertions, 124 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -321,6 +321,30 @@ free, rather than each character needing its own redraw.
 | `Browse Art.bat` | Every sprite at once; flags unreferenced and missing art; select one and press Enter to EDIT it in place. Tools: brush / eraser / line / rect / ellipse (`1`-`7`), a 1-16 square or round nib (`[` `]`), Filled toggle, Fill, Eyedrop; wheel zooms to the cursor, MMB pans, `M` cycles mirror off/X/Y/XY (across the character cell on a sheet); interpolated strokes, per-stroke undo. Runs `--import` before it opens. Saving writes a `tools/sprites/<name>.txt` source + the PNG -- it does NOT re-import (a `--import` child of the running Godot has hung and frozen the tool). |
 | `Reimport Art.bat` | Runs `--import` from a console. Use it to make the GAME pick up a `Browse Art` edit -- Save no longer does. |
 | `tools/forge_art.py` | **CLI art forge** -- regenerate ONE sprite into `art/` with tweaks, no GUI. `python tools/forge_art.py list` \| `... <name> key=value`. Characters take palette keys (`hair=#hex hair_style=curly glasses=1 skin=tan pattern=stripes`) and rewrite the sheet + portrait. Furniture/items take shared palette-colour keys plus `tint=#hex strength=0..1` and `swap=#from:#to`. `tiles floor_a=#hex …` rewrites the tile set. A sprite with a `tools/sprites/*.txt` hand source is refused (edit it in Browse Art) unless `--force`. Sibling of `tools/forge_audio.py`. |
+
+**LimeZu art (Oct 2026) -- the owner's chosen look.** Most sprites now come from the
+LimeZu *Modern Interiors / Office / UI* packs, read in place from their zips (the
+licence forbids redistributing them, so they are never committed; they must be on the
+machine for these tools, and only the finished sprites live in `art/`):
+
+| | |
+|---|---|
+| `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
+| `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
+| `tools/limezu_chars.py` | the 13 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
+| `tools/limezu_ui.py` | UI pieces that need LimeZu's frame and our glyph (`bubble_q`) |
+| `tools/limezu_catalog.py` | browse the packs as labelled contact sheets (`props <theme>`, `kids`, `adults`, `animated`, `ui`, `room` ...) into `shots/catalog/`; the ids are the ones the JSON files take |
+| `tools/shot_all.py` | screenshot every named screen (deterministic: it clears the scratch save per shot) and `compare` two runs side by side -- Windows/Mac/Linux |
+| `tools/lz_conform.py` | snap ANY image to LimeZu's real palette + the #3a3a50 keyline (`--build-palette` once; `tools/limezu_palette.json` is colours only) |
+
+Rules: a LimeZu-owned name is protected -- `make_art.hand_edited()` includes it, so the
+generators and all three forges (`forge_art.py`, `forge_items.py`, `forge_ui.py` -- the
+Master Forge's tabs shell out to them) stand down. To change one, edit its manifest/cast entry and
+re-run the importer, **not** the PNG. The suite's `LIMEZU ART` section guards the credit
+to limezu.itch.io on the credits page (a licence condition), that every owned PNG loads at
+the doubled scale, and that none has a hand source fighting it. The **FREE** Modern
+Interiors edition is non-commercial -- never use it. Compare images with
+`limezu.same_pixels`, not `ImageChops...getbbox()` (alpha-only on RGBA).
 
 **The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
 write PNGs but do not import them, and Godot cannot load an unimported

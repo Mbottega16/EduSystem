@@ -1,0 +1,50 @@
+{
+  "_about": "The room's shell, from LimeZu's Room Builder (limezu_room.py builds the 18 art/tile_*.png from this). floor.block = top-left tile of a 3x2 block in the Floors sheet; wall.set = top-left tile of a 3x2 wall set in the Walls sheet (its middle column tiles seamlessly); door/window rects are [x, y, w, h] in the Generic sheet, in 16x16 art pixels. To try another floor or wall colour, change two coordinates and run `python tools/limezu_room.py --preview room.png`.",
+  "room_builder": {
+    "floors": "1_Interiors/16x16/Room_Builder_subfiles/Room_Builder_Floors_16x16.png",
+    "walls": "1_Interiors/16x16/Room_Builder_subfiles/Room_Builder_Walls_16x16.png"
+  },
+  "generic": "1_Interiors/16x16/Theme_Sorter_Shadowless/1_Generic_Shadowless.png",
+  "keyline": "#3a3a50",
+  "floor": {
+    "block": [
+      0,
+      20
+    ],
+    "a": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "b": [
+      4,
+      5,
+      0,
+      1
+    ]
+  },
+  "wall": {
+    "set": [
+      0,
+      22
+    ]
+  },
+  "door": {
+    "rect": [
+      17,
+      651,
+      14,
+      21
+    ]
+  },
+  "window": {
+    "rect": [
+      195,
+      695,
+      25,
+      20
+    ],
+    "top": 9
+  }
+}

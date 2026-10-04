@@ -80,7 +80,11 @@ const DRESSING := [
 const PUPIL_ART := ["student_b", "student_d", "student_e", "student_g"]
 ## Where a pupil sits relative to their desk's anchor -- on the chair behind
 ## it -- and where a teacher stands to answer them, in front of it.
-const PUPIL_OFFSET := Vector2(0.0, -10.0)
+## One tile behind the desk, the same as the classroom proper (Layout.DESK_OFFSET):
+## the desk then hides a child's lap and not their face. It was -10 when the art
+## was the old, shorter-headed cast and a desk 4px taller; with the LimeZu cast
+## that sank the pupils right behind their desks, hair only.
+const PUPIL_OFFSET := Vector2(0.0, -34.0)
 const ANSWER_SPOT := Vector2(0.0, 20.0)
 const MENTOR_HOME := Vector2(ROOM_W * 0.5, 80.0)
 
@@ -152,8 +156,9 @@ func _build() -> void:
 		var chair := Sprite2D.new()
 		chair.texture = PROP_CHAIR
 		chair.centered = false
-		chair.position = spot - Vector2(PROP_CHAIR.get_width() * 0.5,
-			PROP_CHAIR.get_height() + 6.0)
+		# the chair stands where the pupil sits, not where the desk does
+		chair.position = spot + PUPIL_OFFSET - Vector2(PROP_CHAIR.get_width() * 0.5,
+			PROP_CHAIR.get_height())
 		chair.z_index = int(spot.y) - 1
 		add_child(chair)
 

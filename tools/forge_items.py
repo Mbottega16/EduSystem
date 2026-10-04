@@ -24,11 +24,29 @@ def _hand_owned(name):
                                        "sprites", name + ".txt"))
 
 
+def _limezu_owned(name):
+    """A sprite imported from the LimeZu packs (tools/limezu_*.json) belongs to its importer."""
+    try:
+        import limezu
+        return name in limezu.owned_names()
+    except ImportError:
+        return False
+
+
 def _hand_guard(name, force):
-    """Refuse to overwrite a hand-drawn sprite, the same way forge_art.py
-    does. Added after this tool silently flattened art/stool.png back to
-    its generator output -- tools/sprites/stool.txt had owned that sprite
-    for weeks and nothing here was looking."""
+    """Refuse to overwrite a hand-drawn OR a LimeZu-imported sprite, the same
+    way forge_art.py does. Added after this tool silently flattened
+    art/stool.png back to its generator output -- tools/sprites/stool.txt had
+    owned that sprite for weeks and nothing here was looking; and extended when
+    LimeZu art arrived, because this tool would otherwise paint straight over an
+    imported prop with no hand source to warn it off."""
+    if _limezu_owned(name) and not _hand_owned(name):
+        if not force:
+            sys.exit("%s comes from the LimeZu packs (tools/limezu_manifest.json). Change which "
+                     "sprite it uses there and run import_limezu.py, or pass --force for a "
+                     "throwaway override." % name)
+        print("  NOTE: %s is LimeZu-owned. The next import_limezu.py run reverts what you just wrote." % name)
+        return
     if not _hand_owned(name):
         return
     if not force:

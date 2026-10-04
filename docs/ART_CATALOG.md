@@ -6,6 +6,20 @@ by hand against the live `art/` folder on 2026-08-20 — if this drifts,
 numeric claim), so re-sweep it by eye after an art pass rather than
 trusting it's still accurate.
 
+> **Provenance, 2026-10-02.** Most of what this catalog describes as drawn by
+> `make_art.py` / `make_items.py` is now **LimeZu's art**, imported by
+> `tools/import_limezu.py` (props/hats, `limezu_manifest.json`), `limezu_room.py`
+> (the 18 `tile_*`), `limezu_chars.py` (the 13 character sheets and 12 busts,
+> `limezu_cast.json`) and `limezu_ui.py` (`bubble_q`). `python tools/import_limezu.py
+> --list` prints every owned sprite and where it came from. The generators below
+> stand down for those names and still draw everything else: **still procedural** --
+> the book and its page turns, the logo and title backdrop, the exterior backdrop tile,
+> `shadow`, `dust`, `paper`, the bell, `ad_poster`, the two floor-mess sprites, the bow
+> and mortarboard hats, and 19 shop items (maths_tiles, abacus, microscope, pot_of_pens,
+> rocking_chair, window_seat, low_shelf, sand_timer, terrarium, sound_cards, number_line,
+> rock_tray, hammock_chair, desk_fan, chalk_border, state_flag, vote_box, winners_flag,
+> season_wheel). Credit to limezu.itch.io is a licence condition and is on the credits page.
+
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 
 One 288&times;192 PNG per character: 9 columns &times; 4 rows of

@@ -2193,10 +2193,20 @@ def hand_edited():
     and nothing arbitrated between them, so hand-editing a generated sprite
     was silently undone by the next run of this script.
     """
-    if not os.path.isdir(SPRITE_SRC):
-        return set()
-    return {os.path.splitext(f)[0] for f in os.listdir(SPRITE_SRC)
-            if f.endswith(".txt")}
+    names = set()
+    if os.path.isdir(SPRITE_SRC):
+        names = {os.path.splitext(f)[0] for f in os.listdir(SPRITE_SRC)
+                 if f.endswith(".txt")}
+    # A LimeZu sprite (tools/limezu_manifest.json, tools/limezu_cast.json) is
+    # owned by its importer the same way a hand source owns its PNG: the
+    # procedural drawing stands down so the next run cannot undo the import.
+    # Read from the JSON alone, so this works on a machine without the packs.
+    try:
+        import limezu
+        names |= limezu.owned_names()
+    except ImportError:
+        pass
+    return names
 
 
 _HAND = set()
@@ -2638,7 +2648,10 @@ if __name__ == "__main__":
         print("  %d sprite(s) have a hand-edited source and were NOT redrawn:"
               % len(_STOOD_DOWN))
         for f in sorted(_STOOD_DOWN):
-            print("      %-20s <- tools/sprites/%s.txt" % (f, f))
+            if os.path.exists(os.path.join(SPRITE_SRC, f + ".txt")):
+                print("      %-20s <- tools/sprites/%s.txt" % (f, f))
+            else:
+                print("      %-20s <- LimeZu (tools/limezu_manifest.json / limezu_cast.json)" % f)
 
     # A PNG on disk is NOT yet a texture Godot can load. Anything new needs
     # importing, and until it is, load() returns null in the running game

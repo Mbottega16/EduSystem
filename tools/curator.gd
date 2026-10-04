@@ -250,6 +250,10 @@ func _scan_references() -> void:
 		var art := String(Items.get_def(id).get("art", ""))
 		if art != "":
 			_note(art, "balance.json (%s)" % id)
+		# an animated item names its strip too (room_builder.gd plays it)
+		var anim: Variant = Items.get_def(id).get("anim", null)
+		if anim is Dictionary and String((anim as Dictionary).get("art", "")) != "":
+			_note(String((anim as Dictionary)["art"]), "balance.json (%s anim)" % id)
 	for a: String in Names.ART:
 		_note(a, "names.gd (student)")
 	for h: Dictionary in Cosmetics.HATS:

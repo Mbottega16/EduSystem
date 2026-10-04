@@ -5,6 +5,17 @@ reference pack, the `integrate-art-pack` skill (`.claude/skills/`) reads
 this file first, studies the new pack, and comes back and UPDATES it —
 so understanding compounds across packs instead of resetting each time.
 
+> **Status, 2026-10-02 -- read this first.** The owner then bought the full
+> LimeZu *Modern Interiors*, *Modern Office* and *Modern UI* packs and asked for
+> "as much as possible" of them in the game. The decision below ("characters are
+> style reference only") was therefore REVERSED for everything those packs
+> actually contain: the props, the room shell, the whole cast and their HUD
+> faces now come straight from the packs through `tools/import_limezu.py`,
+> `limezu_room.py`, `limezu_chars.py` and `limezu_ui.py` (see "How the game uses
+> the packs"). The procedural generators are kept, and what is left of this file's
+> technique findings is now the spec for the pieces the packs do NOT have --
+> 19 shop items, the bell, the book/UI, the logo and the backdrop.
+
 **The goal, in the user's own words:** "I want the art style to be what
 limezu uses here. I like this art. I want it exactly like this... WE
 have to be the ones to adapt to conform the art style."
@@ -213,11 +224,92 @@ EduSystem's HUD already has a credits screen, so satisfying a
 "required" credit is a one-line addition whenever it's actually needed
 — not done yet since nothing has been used directly yet.
 
+## How the game uses the packs (Oct 2026)
+
+Nothing from a pack is committed except the finished sprites the game uses. The
+packs are read **in place out of their zips** (`tools/limezu.py` finds them in
+`$LIMEZU_DIR`, `tools/limezu_path.txt`, `~/Desktop`, `~/Downloads`); the licence
+forbids redistributing them.
+
+| Importer | Owns | Driven by |
+|---|---|---|
+| `tools/import_limezu.py` | props, fixtures, hats -- one PNG each in `art/` | `tools/limezu_manifest.json` (`props`): a ref like `classroom#6` = the numbered *shadowless* single #6 of that theme, or a `sheet`+`rect` cut, or a `join` |
+| `tools/limezu_room.py` | the 18 `tile_*.png` the room is stamped from | `tools/limezu_room.json` (which floor block, which wall set, which door/window) |
+| `tools/limezu_chars.py` | the 13 character sheets (9x4 cells of 32x48) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
+| `tools/limezu_ui.py` | UI pieces that need "their frame, our glyph" (the stuck "?" bubble) | the builders in the file |
+
+* **The generators stand down.** `make_art.hand_edited()` unions in
+  `limezu.owned_names()`, so `make_art.py`, `make_items.py` and `forge_art.py`
+  skip every owned name exactly as they skip a hand-drawn `tools/sprites/*.txt`.
+  To take the old procedural art for a sprite back: delete its manifest/cast entry,
+  move its archived `.txt` out of `tools/sprites/_replaced_by_limezu/` if it had one,
+  and run the generator.
+* **Scale.** Everything is taken from the `16x16` folders and doubled with NEAREST --
+  checked byte-for-byte equal to LimeZu's own `32x32` folders. Use the **Shadowless**
+  singles: the game casts its own contact shadow, and the "shadowed" ones are just a
+  1px translucent row anyway.
+* **Anchoring.** A prop sits by its BOTTOM edge, so a single is trimmed top and bottom
+  (not sideways -- LimeZu objects are drawn tile-aligned, so the canvas width keeps
+  them centred); narrow things use `"trim": "xy"` so the shadow width is right.
+* **People.** A LimeZu chibi is 16 wide, ~22 tall (a kid ~19), bottom-aligned in a
+  16x32 cell -- the bottom 24 rows doubled ARE the game's 32x48 cell. Only the idle and
+  walk rows are used; the pack has no front-facing seated pose, no mouths, and no kid
+  poses beyond idle/walk/sleep, so sit / handoff / chat / jump / sad are derived from
+  the idle frame by small deterministic edits (same for kids and adults).
+* **Credit is a licence condition** (limezu.itch.io): the credits page names LimeZu and a
+  suite section (`LIMEZU ART`) fails if it stops doing so.
+
+### Measured facts about LimeZu's art (what the generators should conform to)
+
+* Keyline **#3a3a50** (cool slate); a second dark **#46465e**, a lighter line
+  **#565972**, a purple accent **#6c5981**. Never pure black, never warm brown.
+* A material is **3-4 flat tones plus the keyline** (hair: 3 fills; kid skin: 3 + a
+  pink accent), not 2. The soft shadow a fringe casts on a forehead is
+  `rgba(0,0,0,0.12)` / `0.31` overlay pixels, not a colour.
+* Faces: two dark pixels for eyes, no mouth, a rosy blush, a 16 px-wide head; a kid is
+  head-dominant (head 14 of 19 rows).
+* Sheets: four directions x six frames in the order **right, up, left, down**; rows =
+  header(32px), idle, walk, sleep, sit (side-on), phone, ... A walk's "steps" are frames
+  1 and 4 (the figure bobs up 1px).
+* The pack's own furniture shading is per surface, with a light top edge and visible
+  grain; see findings 1-5 above.
+
+### Pitfalls this work found (do not re-learn them)
+
+* **`ImageChops.difference(a, b).getbbox() is None` is NOT "identical" for RGBA** -- `getbbox()`
+  looks at alpha only, so a recolour that leaves the silhouette alone passes as "no
+  change". Compare `a.convert("RGBa").tobytes()` (`limezu.same_pixels`). The
+  `integrate-art-pack` skill used to recommend the broken check.
+* **A GDScript runtime error inside a suite section aborts that section and the suite
+  still prints PASSED** -- only the COUNT falls. After every run grep the log for
+  `SCRIPT ERROR` and read the count.
+* The old mentor room, hats and the "?" bubble all carried constants tuned to the old
+  art's heights; swapping art can break a position that no test asserts. Screenshot
+  every screen before and after (`tools/shot.gd`; delete
+  `user://edusystem_SHOT_save.json` between shots or the day drifts).
+* `bubble_q` is TINTED at runtime per reason, so any replacement must be a neutral
+  bubble with a dark mark.
+
+## License (per pack — re-check every new one)
+
+| Pack | Commercial use | Edit | Redistribute / resell | Credit |
+|---|---|---|---|---|
+| Modern Farm | yes | yes | **no** | appreciated |
+| **Modern Interiors (full)** | yes | yes | **no** | **required** (limezu.itch.io) |
+| **Modern Office (Revamped)** | yes | yes | **no** | appreciated |
+| **Modern UI** | yes (not NFT minting) | yes | **no** | **required** |
+| Modern Interiors **FREE** | **NO -- non-commercial only** | no for commercial | no | -- |
+| Modern Interiors RPG Maker version | not read in full; not used | | | |
+
+The **FREE** edition of Modern Interiors is non-commercial: EduSystem is headed for Steam,
+so nothing from it is used (the full pack contains all of it anyway). Record each new
+pack's licence here when it is added; terms differ pack to pack.
+
 ## Packs studied so far
 
 | Pack | Studied | Verdict |
 |---|---|---|
 | limezu "Modern Farm" (`artgen.zip`) | 2026-10-02 | Characters: inspiration only (proportions/poses/architecture mismatch). Props: ~20 direct-use candidates out of 1102 files. Technique findings #1-5 above. |
-| limezu "Modern Office Revamped" | 2026-10-03 | Items: ~55-60/339 classroom-relevant (~17%, 9-10x the farm pack's hit rate). Best pack so far for NEW item ideas (tech category EduSystem has zero of). |
-| limezu "Modern Interiors" (+ RPG Maker variant, Free variant) | 2026-10-03 | Free variant is a pure subset of the full pack, skip it. Items: best pack so far for DIRECT matches to EXISTING items (actual "Classroom and Library" + "Art" theme categories). Characters: inspiration only, same verdict as Modern Farm, but closer proportions and two useful pose analogs ("gift" ≈ POSE_HANDOFF, "phone" ≈ POSE_CHAT). |
-| limezu "Modern UI" | 2026-10-03 | Style-reference only. Two concrete gaps found: non-numeric mood icons, non-numeric progress bars. Neither built yet. |
+| limezu **Modern Interiors** (full, `moderninteriors-win.zip`) | 2026-10-02 | Used directly: 38 shop items, 6 fixtures (desk, chair, teacher's desk, lectern, noticeboard, cabinet) and 2 hats, the room shell, the whole cast (Character Generator, baked), the "?" bubble frame. A themed *Classroom & Library* set of 75 singles, kid bodies/hair/outfits, 29 hair styles x ~7 colours, 33 outfit groups. |
+| limezu **Modern Office Revamped** (`Modern_Office_Revamped_v1.2.zip`) | 2026-10-02 | Used (6 shop items): whiteboard, water cooler, ream of paper, filing unit, rota, sticker board. 339 singles, mostly modular desks and computers. |
+| limezu **Modern UI** (`modernuserinterface-win.zip`) | 2026-10-02 | Used: the Portrait Generator (32x32 head portraits in a 10x3 expression grid) for the 12 HUD busts. **Not yet used:** the Style 1/2 panel frames, gamepad glyphs, animated buttons. |

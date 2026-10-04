@@ -1,0 +1,349 @@
+{
+  "_about": "The people in the game, as LimeZu Character Generator layers (limezu_chars.py bakes them into the 9x4 sheets). kind 'kid' uses the Kids parts, 'adult' the adult ones. Each part is an id or {id, ramp, hue}; a ramp (see 'ramps') re-maps skin/hair onto a colour ramp, dark to light. 'tune' nudges the derived poses: sit_up / jump_up are rows of art pixels.",
+  "ramps": {
+    "skin_deep": [
+      "#46302a",
+      "#5e3f33",
+      "#775040",
+      "#8f6350"
+    ],
+    "skin_brown": [
+      "#6e4632",
+      "#8a5a3c",
+      "#a86f4a",
+      "#c38860"
+    ],
+    "hair_black": [
+      "#1c1a22",
+      "#2a2733",
+      "#3b3748"
+    ],
+    "hair_dark": [
+      "#34241f",
+      "#4a342b",
+      "#624638"
+    ],
+    "hair_brown": [
+      "#5e3f2a",
+      "#7a5436",
+      "#98703f"
+    ],
+    "hair_auburn": [
+      "#8a4526",
+      "#a85b2e",
+      "#c47a3e"
+    ],
+    "hair_blond": [
+      "#b08a3e",
+      "#d6b25e",
+      "#f0d78c"
+    ],
+    "hair_silver": [
+      "#7a7c8c",
+      "#a4a6b4",
+      "#cfd1da"
+    ],
+    "hair_white": [
+      "#a8a6ae",
+      "#cecbd2",
+      "#ecebee"
+    ],
+    "skin_dark": [
+      "#5a3a2e",
+      "#744a39",
+      "#8f5f48",
+      "#a8745a"
+    ]
+  },
+  "characters": {
+    "student_a": {
+      "kind": "kid",
+      "body": {
+        "id": "4"
+      },
+      "eyes": "5",
+      "outfit": {
+        "id": "1"
+      },
+      "hair": {
+        "id": "1_3",
+        "ramp": "hair_dark"
+      },
+      "portrait": {
+        "skin": "4",
+        "eyes": "05",
+        "hair": {
+          "id": "02_4",
+          "ramp": "hair_dark"
+        }
+      },
+      "why": "tan skin, dark spiky hair, green top"
+    },
+    "student_b": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "4",
+      "outfit": {
+        "id": "1",
+        "hue": 200
+      },
+      "hair": {
+        "id": "4_2",
+        "ramp": "hair_auburn"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "04",
+        "hair": {
+          "id": "09_2",
+          "ramp": "hair_auburn"
+        }
+      },
+      "why": "light skin, auburn bob, pink top"
+    },
+    "student_c": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "6",
+      "outfit": {
+        "id": "2"
+      },
+      "hair": {
+        "id": "5_2",
+        "ramp": "hair_blond"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "06",
+        "hair": {
+          "id": "12_2",
+          "ramp": "hair_blond"
+        }
+      },
+      "why": "fair skin, blond short hair, yellow top"
+    },
+    "student_d": {
+      "kind": "kid",
+      "body": {
+        "id": "4",
+        "ramp": "skin_brown"
+      },
+      "eyes": "1",
+      "outfit": {
+        "id": "3",
+        "hue": 70
+      },
+      "hair": {
+        "id": "4_3",
+        "ramp": "hair_dark"
+      },
+      "portrait": {
+        "skin": {
+          "id": "4",
+          "ramp": "skin_brown"
+        },
+        "eyes": "01",
+        "hair": {
+          "id": "04_4",
+          "ramp": "hair_dark"
+        }
+      },
+      "why": "brown skin, long dark hair, purple top"
+    },
+    "student_e": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "3",
+      "outfit": {
+        "id": "2",
+        "hue": -25
+      },
+      "hair": {
+        "id": "2_1"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "03",
+        "hair": "21_1"
+      },
+      "why": "light skin, curly orange hair, orange top"
+    },
+    "student_f": {
+      "kind": "kid",
+      "body": {
+        "id": "4",
+        "ramp": "skin_dark"
+      },
+      "eyes": "1",
+      "outfit": {
+        "id": "3",
+        "hue": -35
+      },
+      "hair": {
+        "id": "1_5",
+        "ramp": "hair_black"
+      },
+      "portrait": {
+        "skin": {
+          "id": "4",
+          "ramp": "skin_dark"
+        },
+        "eyes": "01",
+        "hair": {
+          "id": "10_4",
+          "ramp": "hair_black"
+        }
+      },
+      "why": "dark skin, black hair, teal top"
+    },
+    "student_g": {
+      "kind": "kid",
+      "body": {
+        "id": "4",
+        "ramp": "skin_brown"
+      },
+      "eyes": "2",
+      "outfit": {
+        "id": "1",
+        "hue": 220
+      },
+      "hair": {
+        "id": "6_2",
+        "ramp": "hair_dark"
+      },
+      "portrait": {
+        "skin": {
+          "id": "4",
+          "ramp": "skin_brown"
+        },
+        "eyes": "02",
+        "hair": {
+          "id": "14_3",
+          "ramp": "hair_dark"
+        }
+      },
+      "why": "brown skin, cropped light-brown hair, red top"
+    },
+    "student_h": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "6",
+      "outfit": {
+        "id": "1",
+        "hue": 10
+      },
+      "hair": {
+        "id": "2_4",
+        "ramp": "hair_white"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "06",
+        "hair": {
+          "id": "21_5",
+          "ramp": "hair_white"
+        }
+      },
+      "why": "fair skin, white hair, mint top"
+    },
+    "player": {
+      "kind": "adult",
+      "body": "03",
+      "eyes": "06",
+      "outfit": "13_01",
+      "hair": {
+        "id": "16_03",
+        "ramp": "hair_brown"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "06",
+        "hair": {
+          "id": "16_3",
+          "ramp": "hair_brown"
+        }
+      },
+      "why": "the teacher: peach skin, short brown hair, blue shirt"
+    },
+    "inspector": {
+      "kind": "adult",
+      "body": "02",
+      "eyes": "07",
+      "outfit": "06_01",
+      "hair": {
+        "id": "18_03",
+        "ramp": "hair_silver"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "07",
+        "hair": {
+          "id": "18_5",
+          "ramp": "hair_silver"
+        }
+      },
+      "why": "grey hair, dark suit with a red tie"
+    },
+    "principal": {
+      "kind": "adult",
+      "body": "04",
+      "eyes": "05",
+      "outfit": "01_01",
+      "hair": {
+        "id": "12_03",
+        "ramp": "hair_white"
+      },
+      "portrait": {
+        "skin": "4",
+        "eyes": "05",
+        "hair": {
+          "id": "12_5",
+          "ramp": "hair_white"
+        }
+      },
+      "why": "white hair, brown skin, purple jacket"
+    },
+    "mentor": {
+      "kind": "adult",
+      "body": "03",
+      "eyes": "05",
+      "outfit": "07_02",
+      "hair": {
+        "id": "27_05",
+        "ramp": "hair_silver"
+      },
+      "accessory": "15_Glasses_01",
+      "portrait": {
+        "skin": "3",
+        "eyes": "05",
+        "hair": {
+          "id": "27_5",
+          "ramp": "hair_silver"
+        },
+        "accessory": "15_Glasses_1"
+      },
+      "why": "an older teacher: grey long hair, glasses, rust cardigan"
+    },
+    "examiner": {
+      "kind": "adult",
+      "body": "02",
+      "eyes": "07",
+      "outfit": "05_02",
+      "hair": {
+        "id": "11_03",
+        "ramp": "hair_silver"
+      },
+      "accessory": "15_Glasses_02",
+      "portrait": false,
+      "why": "silver hair in a knot, glasses, navy suit"
+    }
+  }
+}

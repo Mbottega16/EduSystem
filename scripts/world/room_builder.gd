@@ -40,6 +40,7 @@ const HALL_DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
 const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 const MESS_SCRIPT := preload("res://scripts/interact/mess.gd")
 const SPEECH_BUBBLE_SCENE := preload("res://scenes/actors/speech_bubble.tscn")
+const PROP_ANIM_SCRIPT := preload("res://scripts/world/prop_anim.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -457,6 +458,29 @@ static func build_hall_door(parent: Node2D, _grid: Grid) -> Interactable:
 	return it
 
 
+## An item whose def carries an `anim` block plays an animation strip once it is
+## standing in the room (the shop's ghost keeps the still first frame). Only the
+## prop's own sprite is swapped, AFTER add_prop() sized the shadow and the
+## collider from the still art, so an animated item occupies exactly the space
+## its still one did.
+static func _animate_if_it_moves(body: Node2D, def: Dictionary, tile: Vector2i) -> void:
+	var anim: Variant = def.get("anim", null)
+	if not (anim is Dictionary):
+		return
+	var strip: Texture2D = load("res://art/%s.png" % String((anim as Dictionary).get("art", "")))
+	var spr: Sprite2D = null
+	for c: Node in body.get_children():
+		if c is Sprite2D and (c as Sprite2D).texture != SHADOW_TEX:
+			spr = c as Sprite2D
+	if spr == null or strip == null:
+		return
+	var driver := Node.new()
+	driver.set_script(PROP_ANIM_SCRIPT)
+	body.add_child(driver)
+	driver.setup(spr, strip, anim as Dictionary, float(tile.x * 7 + tile.y * 3) * 0.37)
+	driver.name = "PropAnim"
+
+
 ## Everything the player has bought. Rebuilt from Game.room_items whenever
 ## the room changes, so a save reload reconstructs it exactly.
 static func build_purchased(parent: Node2D, grid: Grid) -> Array:
@@ -473,6 +497,7 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 			Vector2(Items.width(id) * Grid.TILE - 4, 16), 0.0,   # was * 16 - 2, 8
 			not Items.is_flat(id))
 		body.add_to_group("purchased")
+		_animate_if_it_moves(body, def, placed["tile"])
 
 		# every bought item can be picked up again
 		var it := Interactable.new()
