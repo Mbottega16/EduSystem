@@ -258,7 +258,7 @@
       "kind": "adult",
       "body": "03",
       "eyes": "06",
-      "outfit": "13_01",
+      "outfit": "07_03",
       "hair": {
         "id": "16_03",
         "ramp": "hair_brown"
@@ -271,7 +271,7 @@
           "ramp": "hair_brown"
         }
       },
-      "why": "the teacher: peach skin, short brown hair, blue shirt"
+      "why": "the teacher: peach skin, short brown hair, teal cardigan over a cream shirt"
     },
     "inspector": {
       "kind": "adult",
@@ -288,15 +288,20 @@
         "hair": {
           "id": "18_5",
           "ramp": "hair_silver"
-        }
+        },
+        "accessory": "08_Detective_Hat_3"
       },
-      "why": "grey hair, dark suit with a red tie"
+      "why": "grey hair, dark suit with a red tie, tan detective hat",
+      "accessory": "08_Detective_Hat_03"
     },
     "principal": {
       "kind": "adult",
       "body": "04",
       "eyes": "05",
-      "outfit": "01_01",
+      "outfit": {
+        "id": "26_01",
+        "hue": 60
+      },
       "hair": {
         "id": "12_03",
         "ramp": "hair_white"
@@ -309,7 +314,7 @@
           "ramp": "hair_white"
         }
       },
-      "why": "white hair, brown skin, purple jacket"
+      "why": "white hair, brown skin, plum waistcoat under a dark jacket"
     },
     "mentor": {
       "kind": "adult",
@@ -336,14 +341,14 @@
       "kind": "adult",
       "body": "02",
       "eyes": "07",
-      "outfit": "05_02",
+      "outfit": "26_03",
       "hair": {
-        "id": "11_03",
+        "id": "12_05",
         "ramp": "hair_silver"
       },
       "accessory": "15_Glasses_02",
       "portrait": false,
-      "why": "silver hair in a knot, glasses, navy suit"
+      "why": "tidy silver side-part, red-framed glasses, navy suit"
     },
     "student_i": {
       "kind": "kid",

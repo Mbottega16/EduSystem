@@ -71,12 +71,20 @@ func _process(delta: float) -> void:
 	_walk_x += 44.0 * delta   # doubled Aug 2026
 	if _walk_x > 680.0:
 		_walk_x = -40.0
+	# The walker is a character sheet like any other: a 15-wide one carries the
+	# pack's six-frame walk (Actor.WALK_CYCLE_FULL), a 9-wide one the old four.
+	var cols := int(walker.texture.get_width() / Actor.CELL_W)
+	var full: bool = cols >= Actor.FULL_SHEET_COLS
+	if walker.hframes != cols:
+		walker.hframes = cols
 	_walk_timer += delta
-	if _walk_timer >= 0.14:
+	var step_time: float = Actor.FRAME_TIME_FULL if full else Actor.FRAME_TIME
+	if _walk_timer >= step_time:
 		_walk_timer = 0.0
-		_walk_frame = (_walk_frame + 1) % 4
+		_walk_frame = (_walk_frame + 1) % (Actor.WALK_CYCLE_FULL.size() if full else 4)
 	walker.position.x = round(_walk_x)
-	walker.frame_coords = Vector2i(_walk_frame, 2)   # facing right
+	var col: int = Actor.WALK_CYCLE_FULL[_walk_frame] if full else _walk_frame
+	walker.frame_coords = Vector2i(col, 2)   # facing right
 
 
 # ----------------------------------------------------------------- input

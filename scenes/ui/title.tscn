@@ -19,7 +19,7 @@ texture = ExtResource("3_logo")
 [node name="Walker" type="Sprite2D" parent="."]
 position = Vector2(-40, 312)
 texture = ExtResource("4_walk")
-hframes = 9
+hframes = 15
 vframes = 4
 frame = 10
 

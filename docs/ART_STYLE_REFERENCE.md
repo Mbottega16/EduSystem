@@ -240,7 +240,7 @@ forbids redistributing them.
 |---|---|---|
 | `tools/import_limezu.py` | props, fixtures, hats -- one PNG each in `art/` | `tools/limezu_manifest.json` (`props`): a ref like `classroom#6` = the numbered *shadowless* single #6 of that theme, or a `sheet`+`rect` cut, or a `join` |
 | `tools/limezu_room.py` | the 18 `tile_*.png` the room is stamped from | `tools/limezu_room.json` (which floor block, which wall set, which door/window) |
-| `tools/limezu_chars.py` | the 17 character sheets (9x4 cells of 32x48) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
+| `tools/limezu_chars.py` | the 17 character sheets (15x4 cells of 32x48: 9 poses + the 6-frame walk) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
 | `tools/limezu_ui.py` | UI pieces that need "their frame, our glyph" (the stuck "?" bubble) | the builders in the file |
 
 * **The generators stand down.** `make_art.hand_edited()` unions in

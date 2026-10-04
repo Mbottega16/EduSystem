@@ -705,6 +705,60 @@ func test_movement() -> void:
 		"moved %.1f" % (p.global_position.x - x0))
 	chk("facing is RIGHT after walking right", p.facing == Actor.DIR_RIGHT)
 
+	# --- the walk cycle itself (Oct 2026) ---
+	# The walk used to be stand / step / stand / other-step: two real poses with
+	# a repeated standing frame between, which read as two animations flicking
+	# over. A LimeZu sheet now carries the pack's own six walk frames.
+	chk("the player's sheet carries the full six-frame walk", p.has_full_walk(),
+		[p.sprite.hframes, p.sprite.texture.get_width()])
+	p.global_position = Grid.tile_to_world(Vector2i(2, 3))
+	await step(1)
+	p.set_idle()
+	var seen: Array[int] = []
+	Input.action_press("move_right")
+	for _i in 60:
+		await step(1)
+		var col: int = p.sprite.frame_coords.x
+		if seen.is_empty() or seen[seen.size() - 1] != col:
+			seen.append(col)
+	Input.action_release("move_right")
+	await step(1)
+	var in_cycle := true
+	for col: int in seen:
+		if not Actor.WALK_CYCLE_FULL.has(col):
+			in_cycle = false
+	chk("while walking the player only ever shows the six walk frames", in_cycle, seen)
+	var distinct: Dictionary = {}
+	for col: int in seen:
+		distinct[col] = true
+	chk("and shows all six of them, not two", distinct.size() == Actor.WALK_CYCLE_FULL.size(), seen)
+	var ordered := true
+	for i in range(1, seen.size()):
+		var a: int = Actor.WALK_CYCLE_FULL.find(seen[i - 1])
+		var b: int = Actor.WALK_CYCLE_FULL.find(seen[i])
+		if b != (a + 1) % Actor.WALK_CYCLE_FULL.size():
+			ordered = false
+	chk("in stride order, no frame skipped or repeated back to back", ordered, seen)
+	chk("stopping returns to the standing frame", p.sprite.frame_coords.x == 0, p.sprite.frame_coords)
+
+	# an older 9-wide sheet (anything make_art.py draws) must still walk
+	var old_actor: Actor = load("res://scenes/actors/student.tscn").instantiate()
+	world.add_child(old_actor)
+	old_actor.set_physics_process(false)
+	old_actor.sprite.texture = ImageTexture.create_from_image(Image.create(288, 192, false, Image.FORMAT_RGBA8))
+	var old_seen: Array[int] = []
+	for _i in 40:
+		old_actor.walk(Vector2.RIGHT, 1.0 / 60.0)
+		old_seen.append(old_actor.sprite.frame_coords.x)
+	var old_ok := not old_actor.has_full_walk() and old_actor.sprite.hframes == 9
+	for col: int in old_seen:
+		if col > 3:
+			old_ok = false
+	chk("a 9-wide sheet still plays the old four-frame walk, sliced as 9", old_ok,
+		[old_actor.sprite.hframes, old_seen])
+	world.remove_child(old_actor)
+	old_actor.free()
+
 	# and the converse: furniture DOES stop you, which is what the bad
 	# version of the test above was accidentally proving
 	p.global_position = Grid.tile_to_world(Vector2i(9, 5))
@@ -934,7 +988,8 @@ func test_seating() -> void:
 	chk("a seated student uses the seated sprite frame",
 		st.sprite.frame_coords.x == Actor.SIT_FRAME, st.sprite.frame_coords)
 	chk("the sprite sheet actually has a seated column and the pose columns",
-		st.sprite.hframes == 9, st.sprite.hframes)
+		st.sprite.hframes >= 9 and st.sprite.hframes == int(st.sprite.texture.get_width() / Actor.CELL_W),
+		[st.sprite.hframes, st.sprite.texture.get_width()])
 
 	# A seated body would let the teacher wedge into a 16px aisle.
 	var has_live_collision := false
@@ -12529,9 +12584,9 @@ func test_limezu_art() -> void:
 	var wrong: Array[String] = []
 	for n: String in sheets:
 		var tex: Texture2D = load("res://art/%s.png" % n) if ResourceLoader.exists("res://art/%s.png" % n) else null
-		if tex == null or tex.get_width() != 288 or tex.get_height() != 192:
+		if tex == null or tex.get_width() != 480 or tex.get_height() != 192:
 			wrong.append(n)
-	chk("every baked person is a 9x4 sheet of 32x48 cells", wrong.is_empty(), wrong)
+	chk("every baked person is a 15x4 sheet of 32x48 cells (9 poses + the 6-frame walk)", wrong.is_empty(), wrong)
 	var wrong_bust: Array[String] = []
 	for n: String in busts:
 		var tex: Texture2D = load("res://art/portrait_%s.png" % n) if ResourceLoader.exists("res://art/portrait_%s.png" % n) else null

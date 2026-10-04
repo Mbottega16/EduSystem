@@ -74,7 +74,7 @@ Check the three things that decide whether a pack's characters can be used:
    (handoff, chat, jump, sad). A pack rarely has them; derive the missing ones from the idle
    frame (`limezu_chars.py` does: sit raised, paper held out, turned head, raised, sunk head).
 3. **Architecture** -- a layered paper-doll pack is fine: stack the layers offline and save
-   ONE flat 9x4 sheet. The game never composites at runtime.
+   ONE flat sheet (15x4 for LimeZu: 9 poses + the pack's 6 walk frames). The game never composites at runtime.
 
 Skin/hair that the pack lacks (black hair, deep skin) come from a colour **ramp**: rank the
 layer's fill colours by brightness and re-map them onto a target ramp, keyline untouched.

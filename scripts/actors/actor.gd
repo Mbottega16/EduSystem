@@ -27,9 +27,24 @@ const DIR_UP := 3
 
 ## Frames 0 and 2 are the standing pose, 1 and 3 the two steps. Cycling
 ## stand-step-stand-otherstep is what reads as walking rather than a flick
-## between two poses.
+## between two poses. This is the OLD four-frame cycle, still what a 9-wide
+## sheet (anything drawn by tools/make_art.py) plays.
 const WALK_CYCLE := [0, 1, 2, 3]
 const SIT_FRAME := 4
+
+## A 15-wide sheet (every LimeZu character, tools/limezu_chars.py) carries the
+## pack's own six-frame walk in columns 9-14. Played in order that is a real
+## stride -- the two big steps are cycle positions 1 and 4, and the four frames
+## between them are the passing poses that give the body its bob. The old cycle
+## repeated one standing frame and flicked between two steps, which read as two
+## poses, not a walk.
+const WALK_CYCLE_FULL := [9, 10, 11, 12, 13, 14]
+const FULL_SHEET_COLS := 15
+const FULL_STRIDES := [1, 4]            ## cycle positions where a foot lands
+## Six frames in 0.6s is a stride about every 1.2 tiles at SPEED -- the same
+## ground the old 0.56s four-frame cycle covered, so pacing is unchanged.
+const FRAME_TIME_FULL := 0.1
+const CELL_W := 32
 
 ## One-shot poses, columns 5-8 of every character sheet (tools/make_art.py).
 ## Not part of the walk cycle -- played for a fixed beat by play_pose() and
@@ -97,15 +112,26 @@ func walk(dir: Vector2, delta: float) -> void:
 	elif dir.y < 0.0:
 		facing = DIR_UP
 
+	_fit_sheet()
+	var full := has_full_walk()
+	var cycle: Array = WALK_CYCLE_FULL if full else WALK_CYCLE
+	var step_time := FRAME_TIME_FULL if full else FRAME_TIME
 	_frame_timer += delta
-	if _frame_timer >= FRAME_TIME:
-		_frame_timer -= FRAME_TIME
-		_cycle_pos = (_cycle_pos + 1) % WALK_CYCLE.size()
-		# a footfall on each of the two stepping frames
-		if WALK_CYCLE[_cycle_pos] % 2 == 1:
+	if _frame_timer >= step_time:
+		_frame_timer -= step_time
+		_cycle_pos = (_cycle_pos + 1) % cycle.size()
+		# a footfall each time a foot lands: the two big strides of the six-frame
+		# walk, or the two stepping frames of the old four-frame one
+		var lands: bool = (_cycle_pos in FULL_STRIDES) if full else (cycle[_cycle_pos] % 2 == 1)
+		if lands:
 			_step_side = not _step_side
 			on_step()
-	_set_frame(WALK_CYCLE[_cycle_pos])
+	_set_frame(cycle[_cycle_pos])
+
+
+## True when this actor's sheet carries LimeZu's six-frame walk.
+func has_full_walk() -> bool:
+	return sprite != null and sprite.hframes >= FULL_SHEET_COLS
 
 
 ## Stop on a standing frame rather than mid-step.
@@ -166,8 +192,21 @@ func idle_bob(delta: float) -> void:
 	sprite.position.y = lift
 
 
+## The scenes say 15 columns, but a texture can be swapped in at runtime (a
+## student's own sheet, the mentor's) and an older sheet is 9 wide. Cells are
+## always 32px, so the column count is simply the texture's width over that --
+## otherwise a 9-wide sheet read at 15 would show every frame sliced wrong.
+func _fit_sheet() -> void:
+	if sprite == null or sprite.texture == null:
+		return
+	var cols := int(sprite.texture.get_width() / CELL_W)
+	if cols > 0 and sprite.hframes != cols:
+		sprite.hframes = cols
+
+
 func _set_frame(f: int, force: bool = false) -> void:
 	if not force and _pose_timer > 0.0:
 		return
 	if sprite != null:
+		_fit_sheet()
 		sprite.frame_coords = Vector2i(f, facing)

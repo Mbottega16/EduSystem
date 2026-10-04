@@ -22,10 +22,12 @@ trusting it's still accurate.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 
-One 288&times;192 PNG per character: 9 columns &times; 4 rows of
-32&times;48 cells (`Sprite2D(hframes=9, vframes=4)`), same layout for
-everyone because a character is a palette through one shared
-`draw_char()`, not separate artwork.
+One PNG per character, 4 rows of 32&times;48 cells. Procedural characters
+(`make_art.py`) are 288&times;192: 9 columns (`hframes=9`). LimeZu characters
+(`limezu_chars.py`) are 480&times;192: the same 9 columns plus the pack's own
+six-frame walk in columns 9-14 (`hframes=15`). `Actor` reads the column count
+off the texture width, so both play. Same layout for everyone because a
+character is a palette through one shared `draw_char()`, not separate artwork.
 
 *(Sept 2026, the pixel-grid pass.)* Each frame is BUILT at 32&times;48
 for the facial detail, then quantised to 16&times;24 and `scale2x`'d back

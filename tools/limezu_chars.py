@@ -1,4 +1,4 @@
-"""Bake LimeZu people into the game's 9x4 character sheets -- Pillow only.
+"""Bake LimeZu people into the game's 15x4 character sheets -- Pillow only.
 
     python tools/limezu_chars.py                 bake every character in limezu_cast.json
     python tools/limezu_chars.py student_a       just that one
@@ -10,7 +10,7 @@ This is LimeZu's "Character Generator" done in Python instead of Piskel: the
 pack ships bodies, eyes, outfits, hairstyles and accessories as separate
 transparent sheets that share one layout, to be stacked in a fixed order
 (BODY, EYES, OUTFIT, HAIRSTYLE, ACCESSORY). The game, though, loads ONE flat
-PNG per character (a 9x4 grid of 32x48 cells -- see Actor.WALK_CYCLE /
+PNG per character (a 15x4 grid of 32x48 cells -- see Actor.WALK_CYCLE /
 SIT_FRAME / POSE_*), so the layers are stacked and baked here, offline. No
 engine-side compositing code is involved.
 
@@ -30,6 +30,12 @@ WHAT MAPS TO WHAT (LimeZu row, direction order right/up/left/down, 6 frames each
     col 6  chat             a different facing: turned to talk to a neighbour
     col 7  jump             idle, raised (the contact shadow stays on the floor)
     col 8  sad              idle with the head sunk onto the shoulders
+    cols 9-14  walk         LimeZu's own six walk frames, in order (the real cycle:
+                            the two big strides are frames 1 and 4, the other four
+                            are the passing poses that give the body its bob).
+                            Cols 0-8 are unchanged, so a 9-column sheet from before
+                            this still plays: Actor falls back to the old 4-step
+                            cycle when a sheet is only 9 wide.
   Rows are the game's: down, left, right, up. The pack has no front-facing seated
   pose, no mouths and no kid poses beyond idle/walk/sleep, so cols 4-8 are derived
   from the idle frames by small, deterministic edits -- the same approach for kids
@@ -67,7 +73,8 @@ GAME_ROWS = ("down", "left", "right", "up")     # Actor.DIR_DOWN / LEFT / RIGHT 
 ROW_IDLE, ROW_WALK = 1, 2                       # row 0 is a 32px header of previews
 CELL_H = 32
 FRAME_W, FRAME_H = 16, 24                       # the game's cell, in art pixels
-COLS = 9
+COLS = 15
+WALK_FRAMES = 6                                 # LimeZu's walk row: 6 frames per direction
 
 # LimeZu's keyline family. These (and fully transparent / soft-black shadow pixels)
 # are never recoloured.
@@ -232,7 +239,7 @@ def held_paper(frame, row_name):
 
 
 def build_frames(sheet, tuning):
-    """-> {row_name: [9 frames of 16x24]} in the game's column order."""
+    """-> {row_name: [15 frames of 16x24]} in the game's column order."""
     sit_up = tuning.get("sit_up", 3)
     jump_up = tuning.get("jump_up", 3)
     out = {}
@@ -247,7 +254,8 @@ def build_frames(sheet, tuning):
         chat = to_frame(lz_cell(sheet, ROW_IDLE, DIRS.index(turned), 0))
         jump = to_frame(lz_cell(sheet, ROW_IDLE, d, 0), up=jump_up)
         sad = droop(stand)
-        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad]
+        walk = [to_frame(lz_cell(sheet, ROW_WALK, d, k)) for k in range(WALK_FRAMES)]
+        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad] + walk
     return out
 
 
