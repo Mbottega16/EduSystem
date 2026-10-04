@@ -2851,7 +2851,7 @@ func room_score(seat_index: int) -> float:
 		# distance to the NEAREST tile of the item, so a wide item helps from
 		# either end rather than only from its anchor
 		var best := 9999
-		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+		for t: Vector2i in Items.reach_footprint(String(placed["id"]), placed["tile"]):
 			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))
 		if best <= int(def.get("range", 0)):
 			total += float(def.get("bonus", 0.0))

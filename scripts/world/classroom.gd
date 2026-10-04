@@ -1280,8 +1280,16 @@ func _rebuild_purchased() -> void:
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
 	for placed: Dictionary in Game.room_items:
+		if Items.is_wall(String(placed["id"])):
+			continue      # hung on the wall: it never marked a floor tile, so there is none to give back
 		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
 			_purchased_tiles.append(t)
+	# The room's starting decor gives way to a bought wall piece (and returns
+	# when that comes down), so it is rebuilt whenever the furniture changes.
+	for n: Node in get_tree().get_nodes_in_group("seeded_decor"):
+		n.get_parent().remove_child(n)
+		n.queue_free()
+	RoomBuilder.build_decor(self, grid)
 
 
 ## Flare-ups: a random, catchable warning that ONE calm child is about to

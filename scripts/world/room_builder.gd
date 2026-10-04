@@ -121,10 +121,11 @@ static func _tile_img(name: String) -> Image:
 	return tex.get_image() if tex != null else null
 
 
-## Paint the room at its current size, piece by piece.
-static func compose_room() -> ImageTexture:
-	var w := Grid.W
-	var h := Grid.H
+## Paint the room at its current size, piece by piece. `w_in`/`h_in` paint a
+## different size instead (the room-ideas preview always shows the opening 20x11).
+static func compose_room(w_in: int = -1, h_in: int = -1) -> ImageTexture:
+	var w := Grid.W if w_in < 0 else w_in
+	var h := Grid.H if h_in < 0 else h_in
 	var t := Grid.TILE
 	var im := Image.create(w * t, h * t, false, Image.FORMAT_RGBA8)
 
@@ -181,9 +182,10 @@ static func compose_room() -> ImageTexture:
 const WINDOW_FIRST := 5
 const WINDOW_EVERY := 7
 
-## True when something hung at this column would cover a window.
-static func is_window_col(tx: int) -> bool:
-	return _window_col(tx, Grid.W) >= 0
+## True when something hung at this column would cover a window (in a room `w`
+## tiles wide; the current room when omitted).
+static func is_window_col(tx: int, w: int = -1) -> bool:
+	return _window_col(tx, Grid.W if w < 0 else w) >= 0
 
 
 static func _window_col(tx: int, w: int) -> int:
@@ -434,9 +436,35 @@ const DECOR_SEED := [
 	["alphabet_frieze", Vector2i(14, 1)],
 ]
 
+## The wall columns the player has hung something on.
+static func hung_cols() -> Array[int]:
+	var out: Array[int] = []
+	for placed: Dictionary in Game.room_items:
+		var pid := String(placed.get("id", ""))
+		if Items.is_wall(pid):
+			for t: Vector2i in Items.footprint(pid, placed["tile"]):
+				out.append(t.x)
+	return out
+
+
+## The starting decor that is still showing: a seeded piece gives way as soon
+## as a bought one is hung over any column of it, and comes back when that is
+## taken down. `hung` is the columns in use (see hung_cols()).
+static func visible_seeds(hung: Array[int]) -> Array:
+	var out: Array = []
+	for row: Array in DECOR_SEED:
+		var covered := false
+		for t: Vector2i in Items.footprint(String(row[0]), row[1] as Vector2i):
+			if hung.has(t.x):
+				covered = true
+		if not covered:
+			out.append(row)
+	return out
+
+
 static func build_decor(parent: Node2D, _grid: Grid) -> Array:
 	var nodes: Array = []
-	for row: Array in DECOR_SEED:
+	for row: Array in visible_seeds(hung_cols()):
 		var id := String(row[0])
 		var def := Items.get_def(id)
 		if def.is_empty():

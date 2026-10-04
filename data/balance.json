@@ -251,7 +251,8 @@
       "range": 4,
       "bonus": 0.04,
       "blurb": "Small thing. Fewer arguments.",
-      "flat": true
+      "flat": true,
+      "wall": true
     },
     "water_cooler": {
       "name": "Water Cooler",
@@ -335,7 +336,8 @@
       "w": 2,
       "range": 5,
       "bonus": 0.04,
-      "blurb": "Every country they'll never visit, right there."
+      "blurb": "Every country they'll never visit, right there.",
+      "wall": true
     },
     "alphabet_frieze": {
       "name": "Letter Frieze",
@@ -699,7 +701,8 @@
       "bonus": 0.06,
       "strand": "social",
       "strand_bonus": 0.05,
-      "blurb": "The wider world, pinned where they can reach it."
+      "blurb": "The wider world, pinned where they can reach it.",
+      "wall": true
     },
     "timeline_wall": {
       "name": "Timeline",
@@ -803,7 +806,8 @@
       "w": 1,
       "range": 5,
       "bonus": 0.04,
-      "blurb": "Something to point at when they ask what you did."
+      "blurb": "Something to point at when they ask what you did.",
+      "wall": true
     },
     "vote_box": {
       "name": "Vote Box",
@@ -847,7 +851,8 @@
       "range": 4,
       "bonus": 0.04,
       "blurb": "Somebody is always in charge of something.",
-      "needs": "community_roles.identify"
+      "needs": "community_roles.identify",
+      "wall": true
     }
   },
   "item_order": [

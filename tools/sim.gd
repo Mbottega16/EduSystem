@@ -355,9 +355,13 @@ func _shop() -> bool:
 	# put it where it reaches the most students who are not yet capped
 	var best_spot := Vector2i(-1, -1)
 	var best_reach := 0
-	for ty in range(2, 10):
+	# a hung piece can only go on the wall row, in a slot the wall rules allow
+	var rows_to_try: Array = [Layout.WALL_ROW] if Items.is_wall(best) else range(2, 10)
+	for ty: int in rows_to_try:
 		for tx in range(1, 19):
 			var spot := Vector2i(tx, ty)
+			if Items.is_wall(best) and not (Layout.wall_slot_ok(best, spot) and Game.item_fits(best, spot)):
+				continue
 			if not Game.item_at(spot).is_empty():
 				continue
 			var reach := 0

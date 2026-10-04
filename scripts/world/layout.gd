@@ -170,20 +170,18 @@ static func wall_anchor(tiles: Array[Vector2i]) -> Vector2:
 	return Vector2(span_anchor(tiles).x, WALL_HANG_Y)
 
 
-## Wall columns already spoken for: the things that stand against the back wall
-## and cover it (the cabinet, the podium, the catalogue board, the bell), and
-## whatever the room starts with hung on it (RoomBuilder.DECOR_SEED).
+## Wall columns that can never hold a hung piece: the things that stand against
+## the back wall and cover it (the cabinet, the podium, the catalogue board, the
+## bell). The pieces the room STARTS with (RoomBuilder.DECOR_SEED) are not in
+## this list on purpose: hang something on their spot and they give way.
 static func wall_taken_cols() -> Array[int]:
-	var out: Array[int] = [CABINET.x, PODIUM.x, BOARD.x, BOARD.x + 1, BELL.x]
-	for row: Array in RoomBuilder.DECOR_SEED:
-		for t: Vector2i in Items.footprint(String(row[0]), row[1] as Vector2i):
-			out.append(t.x)
-	return out
+	return [CABINET.x, PODIUM.x, BOARD.x, BOARD.x + 1, BELL.x]
 
 
 ## Can this hung piece go here? On the wall row, inside the side walls, not over
-## a window and not over something already on the wall. (Overlap with another
-## BOUGHT piece is Game.item_fits(), the same check every item gets.)
+## a window and not over a fixture. (Overlap with another BOUGHT piece is
+## Game.item_fits(), the same check every item gets; the starting decor simply
+## gives way.)
 static func wall_slot_ok(id: String, tile: Vector2i) -> bool:
 	if tile.y != WALL_ROW:
 		return false

@@ -135,6 +135,16 @@ static func footprint(id: String, origin: Vector2i) -> Array[Vector2i]:
 	return out
 
 
+## The tiles an item reaches desks FROM. A floor piece reaches from where it
+## stands; a hung piece from the floor at the foot of its wall, so hanging
+## something up costs it nothing a floor piece standing there would not.
+static func reach_footprint(id: String, origin: Vector2i) -> Array[Vector2i]:
+	var from := origin
+	if is_wall(id):
+		from = origin + Vector2i(0, Layout.TOP_WALL - Layout.WALL_ROW)
+	return footprint(id, from)
+
+
 ## Which seats an item at `origin` would actually help — the thing the
 ## player could never see while placing.
 static func seats_in_range(id: String, origin: Vector2i) -> Array[int]:
@@ -146,7 +156,7 @@ static func seats_in_range(id: String, origin: Vector2i) -> Array[int]:
 	for i in Layout.seat_count():
 		var seat: Vector2i = Layout.seat(i)
 		var best := 9999
-		for t: Vector2i in footprint(id, origin):
+		for t: Vector2i in reach_footprint(id, origin):
 			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))
 		if best <= reach:
 			out.append(i)
