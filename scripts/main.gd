@@ -441,6 +441,9 @@ func _enter_hallway(_kind: String, _room_index: int) -> void:
 		world.camera.reset_smoothing()
 	world.visible = false
 	hallway.visible = true
+	# The corridor lights up as you step into it; the room you left is dim
+	# behind you (hidden, in its case) -- RoomLight's rule for the whole school.
+	RoomLight.phase_in(hallway)
 	hud.principal_says("hallway_first_visit",
 		"Every room you hold has a door here now.")
 
@@ -461,6 +464,7 @@ func _return_home() -> void:
 		world.camera.reset_smoothing()
 	hallway.visible = false
 	world.visible = true
+	RoomLight.phase_in(world)
 
 
 ## The morning's narration line, or "" for a day that gets none. Built
@@ -495,6 +499,7 @@ func _enter_mentor() -> void:
 		world.camera.reset_smoothing()
 	hallway.visible = false
 	world.visible = false
+	RoomLight.phase_in(mentor_room)
 	# Locked here rather than left to hud._open()'s own best-effort lock,
 	# which goes through a _player reference hud only discovers lazily in
 	# _process() -- the same reason the intro locks the player in _ready().
@@ -525,6 +530,7 @@ func _leave_mentor() -> void:
 	mentor_room.visible = false
 	world.visible = false
 	hallway.visible = true
+	RoomLight.phase_in(hallway)
 
 
 func _on_hallway_door(kind: String, room_index: int) -> void:
