@@ -78,6 +78,7 @@ def discover_sources():
 
 
 DEFAULT_SOURCES = discover_sources()
+DEFAULT_SOURCE_ID = DEFAULT_SOURCES[0]["id"] if DEFAULT_SOURCES else "custom_items"
 
 
 def safe_join(base, rel):
@@ -203,7 +204,7 @@ class SpriteCatalog:
             exclude_zips = src.get("exclude_zips", False)
             for root, dirs, files in os.walk(source_path):
                 # Don't index My_Custom_Items if scanning main folder to avoid double counting
-                if source_id == "office_extracted" and os.path.abspath(root).startswith(os.path.abspath(CUSTOM_ITEMS_DIR)):
+                if source_id != "custom_items" and os.path.abspath(root).startswith(os.path.abspath(CUSTOM_ITEMS_DIR)):
                     continue
                 # Skip hidden folders
                 dirs[:] = [d for d in dirs if not d.startswith('.')]
@@ -356,11 +357,11 @@ class HubRequestHandler(SimpleHTTPRequestHandler):
         elif path == "/api/generators":
             self._send_json(studio.list_generators())
         elif path == "/api/tree":
-            source_id = query.get("source_id", ["office_extracted"])[0]
+            source_id = query.get("source_id", [DEFAULT_SOURCE_ID])[0]
             tree = catalog.tree_cache.get(source_id, [])
             self._send_json(tree)
         elif path == "/api/sprites":
-            source_id = query.get("source_id", ["office_extracted"])[0]
+            source_id = query.get("source_id", [DEFAULT_SOURCE_ID])[0]
             folder = query.get("folder", [None])[0]
             search = query.get("search", [None])[0]
             res_filter = query.get("res", ["all"])[0]

@@ -638,6 +638,116 @@
       background: #ef4444;
     }
 
+    /* Forge: generators on the left, colour/texture/shape on the right */
+    .forge-view {
+      display: grid;
+      grid-template-columns: 260px 1fr 300px;
+      gap: 14px;
+      height: 100%;
+      min-height: 0;
+      /* .modal-body is a flex row, so the grid needs this to fill it. */
+      flex: 1;
+      width: 100%;
+    }
+    @media (max-width: 1100px) {
+      .forge-view { grid-template-columns: 1fr; height: auto; }
+    }
+    .forge-pane {
+      background: var(--bg-darker);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .forge-gen-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 6px;
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .forge-gen-btn:hover { background: var(--bg-card-hover); }
+    .forge-gen-btn.active { border-color: var(--primary); background: var(--bg-card-hover); }
+    .forge-gen-btn .g-blurb {
+      display: block;
+      color: var(--text-muted);
+      font-size: 10px;
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+    .forge-log {
+      background: #0a0c12;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 240px;
+      overflow-y: auto;
+      margin: 0;
+    }
+    .forge-log.ok { color: var(--accent); }
+    .forge-log.bad { color: #f87171; }
+    .forge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .forge-row input[type="range"] { flex: 1; accent-color: var(--primary); min-width: 0; }
+    .forge-row .val {
+      min-width: 38px;
+      text-align: right;
+      color: var(--text-main);
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 11px;
+    }
+    .forge-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .forge-check input { accent-color: var(--primary); cursor: pointer; }
+    .forge-group-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin: 12px 0 7px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .forge-group-title:first-child { margin-top: 0; }
+    .forge-preview-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: auto;
+    }
+    .forge-preview-wrap img { max-width: 100%; image-rendering: pixelated; }
+
     /* Scrollbars */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg-darker); }
@@ -686,6 +796,11 @@
     <!-- Studio / Action Button -->
     <button class="btn-action" onclick="openStudioModal()">
       <span>🎨</span> Item Studio
+    </button>
+
+    <!-- Forge: every generator, plus colour/texture/shape -->
+    <button class="btn-action" style="background:var(--accent);" onclick="openForgeModal()">
+      <span>⚒️</span> Forge
     </button>
   </header>
 
@@ -882,6 +997,134 @@
     </div>
   </div>
 
+  <!-- Forge Modal: generators + colour/texture/shape -->
+  <div class="modal-backdrop" id="forgeModal">
+    <div class="modal-window large">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>⚒️</span>
+          <span>Forge — Generators, Colour, Texture, Shape</span>
+        </div>
+        <button class="modal-close" onclick="closeForgeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="forge-view">
+
+          <!-- Left: the generators -->
+          <div class="forge-pane">
+            <div class="forge-group-title">Generators</div>
+            <div id="forgeGenList"></div>
+            <div class="control-label" style="margin-top:10px;">Arguments</div>
+            <input type="text" id="forgeGenArgs" class="custom-select"
+                   placeholder="--list" style="margin-bottom:8px;">
+            <div id="forgeGenExamples" style="font-size:10px; color:var(--text-muted); line-height:1.7; margin-bottom:10px;"></div>
+            <button class="action-btn-sm" style="padding:10px; font-size:12px; width:100%; background:var(--primary);"
+                    onclick="runForgeGenerator()">▶ Run generator</button>
+            <div class="control-label" style="margin-top:12px;">Output</div>
+            <pre class="forge-log" id="forgeGenLog">No generator run yet.</pre>
+          </div>
+
+          <!-- Middle: the sprite being worked on -->
+          <div class="forge-pane" style="display:flex; flex-direction:column;">
+            <div class="forge-group-title">Preview</div>
+            <div class="forge-preview-wrap checkerboard" id="forgePreviewWrap">
+              <span style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">
+                Pick a sprite in the grid and press <strong>⚒️ Forge</strong> on it,
+                or run a generator on the left.
+              </span>
+            </div>
+            <div id="forgeSpriteName" style="font-size:12px; color:var(--text-main); margin-bottom:4px; word-break:break-all;"></div>
+            <div id="forgeSpriteDims" style="font-size:11px; color:var(--text-muted); margin-bottom:10px;"></div>
+            <div style="margin-top:auto; display:flex; flex-direction:column; gap:8px;">
+              <input type="text" id="forgeSaveName" class="custom-select" placeholder="forged_sprite.png">
+              <button class="action-btn-sm btn-copy" style="padding:10px; font-size:12px;"
+                      onclick="copyForgeImage()">📋 Copy to Clipboard</button>
+              <button class="action-btn-sm" style="padding:10px; font-size:12px; background:var(--primary);"
+                      onclick="saveForgeToDisk()">💾 Save to "My Custom Items"</button>
+              <button class="btn-secondary" style="font-size:12px;" onclick="downloadForgePNG()">⬇️ Export PNG</button>
+            </div>
+          </div>
+
+          <!-- Right: the controls -->
+          <div class="forge-pane">
+            <div class="forge-group-title">Colour</div>
+            <div class="forge-row">
+              <span>Hue</span>
+              <input type="range" id="fxHue" min="-180" max="180" step="5" value="0" oninput="onForgeControlChange()">
+              <span class="val" id="fxHueVal">0°</span>
+            </div>
+            <div class="forge-row">
+              <span>Saturation</span>
+              <input type="range" id="fxSat" min="0" max="200" step="5" value="100" oninput="onForgeControlChange()">
+              <span class="val" id="fxSatVal">1.00</span>
+            </div>
+            <div class="forge-row">
+              <span>Brightness</span>
+              <input type="range" id="fxBright" min="20" max="200" step="5" value="100" oninput="onForgeControlChange()">
+              <span class="val" id="fxBrightVal">1.00</span>
+            </div>
+            <label class="forge-check">
+              <input type="checkbox" id="fxSnap" onchange="onForgeControlChange()">
+              Snap to LimeZu palette
+            </label>
+
+            <div class="forge-group-title">Texture</div>
+            <div class="forge-row">
+              <span>Shading bands</span>
+              <input type="range" id="fxPosterize" min="0" max="8" step="1" value="0" oninput="onForgeControlChange()">
+              <span class="val" id="fxPosterizeVal">off</span>
+            </div>
+            <div class="forge-row">
+              <span>Dither</span>
+              <input type="range" id="fxDither" min="0" max="100" step="5" value="0" oninput="onForgeControlChange()">
+              <span class="val" id="fxDitherVal">0.00</span>
+            </div>
+            <label class="forge-check">
+              <input type="checkbox" id="fxKeyline" onchange="onForgeControlChange()">
+              Add keyline outline
+            </label>
+            <label class="forge-check">
+              <input type="checkbox" id="fxOutline" onchange="onForgeControlChange()">
+              Recolour existing outline
+            </label>
+
+            <div class="forge-group-title">Shape</div>
+            <div class="forge-row">
+              <span>Scale</span>
+              <input type="range" id="fxScale" min="1" max="8" step="1" value="1" oninput="onForgeControlChange()">
+              <span class="val" id="fxScaleVal">1×</span>
+            </div>
+            <div class="forge-row">
+              <span>Pad</span>
+              <input type="range" id="fxPad" min="0" max="32" step="1" value="0" oninput="onForgeControlChange()">
+              <span class="val" id="fxPadVal">0px</span>
+            </div>
+            <div class="control-label">Rotate</div>
+            <div class="preset-buttons" style="margin-bottom:8px;">
+              <button class="preset-btn active" data-rot="0" onclick="setForgeRotate(0)">0°</button>
+              <button class="preset-btn" data-rot="90" onclick="setForgeRotate(90)">90°</button>
+              <button class="preset-btn" data-rot="180" onclick="setForgeRotate(180)">180°</button>
+              <button class="preset-btn" data-rot="270" onclick="setForgeRotate(270)">270°</button>
+            </div>
+            <label class="forge-check">
+              <input type="checkbox" id="fxFlipH" onchange="onForgeControlChange()"> Flip horizontally
+            </label>
+            <label class="forge-check">
+              <input type="checkbox" id="fxFlipV" onchange="onForgeControlChange()"> Flip vertically
+            </label>
+            <label class="forge-check">
+              <input type="checkbox" id="fxTrim" onchange="onForgeControlChange()"> Trim empty edges
+            </label>
+
+            <button class="btn-secondary" style="font-size:12px; width:100%; margin-top:12px;"
+                    onclick="resetForgeControls()">↺ Reset all controls</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast">
     <span id="toastIcon">✅</span>
@@ -890,7 +1133,9 @@
 
   <script>
     // State
-    let currentSourceId = 'office_extracted';
+    // Set from /api/sources on load; packs are discovered per-machine, so no
+    // source id can be assumed to exist here.
+    let currentSourceId = '';
     let currentFolder = '';
     let currentSearch = '';
     let currentRes = 'all';
@@ -924,6 +1169,7 @@
       initPalette();
       setupStudioEvents();
       setupSlicerEvents();
+      loadForgeGenerators();
     });
 
     // Toast Helper
@@ -1089,6 +1335,9 @@
               </button>
               <button class="action-btn-sm" onclick="duplicateToCustom('${it.source_id}', '${it.rel_path}', event)">
                 📄 Duplicate
+              </button>
+              <button class="action-btn-sm" style="background:var(--accent);" onclick="openForgeModal('${it.source_id}', '${it.rel_path}', '${it.name}', event)">
+                ⚒️ Forge
               </button>
             </div>
           </div>
@@ -1796,6 +2045,229 @@
         };
         container.appendChild(swatch);
       });
+    }
+
+    /* ---------------------------------------------------------------- Forge */
+
+    let forgeGenerators = [];
+    let forgeGenKey = null;
+    let forgeSource = null;      // { source_id, path, name } of the sprite being worked on
+    let forgeResult = null;      // data URL of the last transform
+    let forgeRotate = 0;
+    let forgeDebounce = null;
+
+    async function loadForgeGenerators() {
+      try {
+        const res = await fetch('/api/generators');
+        forgeGenerators = await res.json();
+        const list = document.getElementById('forgeGenList');
+        list.innerHTML = '';
+        forgeGenerators.forEach(g => {
+          const btn = document.createElement('button');
+          btn.className = 'forge-gen-btn';
+          btn.dataset.key = g.key;
+          btn.disabled = !g.available;
+          btn.innerHTML = `<strong>${g.label}</strong>` +
+            `<span class="g-blurb">${g.blurb}<br>→ ${g.writes}</span>`;
+          btn.onclick = () => selectForgeGenerator(g.key);
+          list.appendChild(btn);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function selectForgeGenerator(key) {
+      forgeGenKey = key;
+      document.querySelectorAll('#forgeGenList .forge-gen-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.key === key);
+      });
+      const g = forgeGenerators.find(x => x.key === key);
+      const ex = document.getElementById('forgeGenExamples');
+      if (g && g.examples && g.examples.length) {
+        ex.innerHTML = 'Try: ' + g.examples
+          .map(a => `<code style="color:var(--accent); cursor:pointer;"
+                      onclick="document.getElementById('forgeGenArgs').value='${a}'">${a}</code>`)
+          .join(' · ');
+        document.getElementById('forgeGenArgs').placeholder = g.examples[0];
+      } else {
+        ex.innerHTML = '';
+      }
+    }
+
+    async function runForgeGenerator() {
+      const log = document.getElementById('forgeGenLog');
+      if (!forgeGenKey) {
+        showToast('Pick a generator first', true);
+        return;
+      }
+      const raw = document.getElementById('forgeGenArgs').value.trim();
+      const args = raw ? raw.split(/\s+/) : [];
+      log.className = 'forge-log';
+      log.textContent = 'Running…';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ generator: forgeGenKey, args })
+        });
+        const data = await res.json();
+        log.className = 'forge-log ' + (data.ok ? 'ok' : 'bad');
+        log.textContent = [
+          data.command ? '$ ' + data.command : '',
+          data.stdout || '',
+          data.stderr ? '\n[stderr]\n' + data.stderr : '',
+          data.error ? '\n[error] ' + data.error : ''
+        ].filter(Boolean).join('\n') || (data.ok ? 'Done.' : 'Failed.');
+        showToast(data.ok ? 'Generator finished' : 'Generator failed', !data.ok);
+      } catch (e) {
+        log.className = 'forge-log bad';
+        log.textContent = String(e);
+        showToast('Generator failed', true);
+      }
+    }
+
+    function openForgeModal(sourceId, path, name, event) {
+      if (event) event.stopPropagation();
+      document.getElementById('forgeModal').classList.add('active');
+      if (!forgeGenerators.length) loadForgeGenerators();
+      if (sourceId && path) {
+        forgeSource = { source_id: sourceId, path: path, name: name || 'sprite.png' };
+        document.getElementById('forgeSpriteName').textContent = forgeSource.name;
+        const base = forgeSource.name.replace(/\.[^.]+$/, '');
+        document.getElementById('forgeSaveName').value = `${base}_forged.png`;
+        applyForgeTransform();
+      }
+    }
+
+    function closeForgeModal() {
+      document.getElementById('forgeModal').classList.remove('active');
+    }
+
+    function collectForgeOptions() {
+      const num = id => Number(document.getElementById(id).value);
+      const on = id => document.getElementById(id).checked;
+      return {
+        color: {
+          hue: num('fxHue'),
+          saturation: num('fxSat') / 100,
+          brightness: num('fxBright') / 100,
+          snap_palette: on('fxSnap')
+        },
+        texture: {
+          posterize: num('fxPosterize'),
+          dither: num('fxDither') / 100,
+          keyline: on('fxKeyline'),
+          recolor_outline: on('fxOutline')
+        },
+        shape: {
+          scale: num('fxScale'),
+          pad: num('fxPad'),
+          rotate: forgeRotate,
+          flip_h: on('fxFlipH'),
+          flip_v: on('fxFlipV'),
+          trim: on('fxTrim')
+        }
+      };
+    }
+
+    function onForgeControlChange() {
+      const num = id => Number(document.getElementById(id).value);
+      document.getElementById('fxHueVal').textContent = num('fxHue') + '°';
+      document.getElementById('fxSatVal').textContent = (num('fxSat') / 100).toFixed(2);
+      document.getElementById('fxBrightVal').textContent = (num('fxBright') / 100).toFixed(2);
+      const p = num('fxPosterize');
+      document.getElementById('fxPosterizeVal').textContent = p < 2 ? 'off' : p;
+      document.getElementById('fxDitherVal').textContent = (num('fxDither') / 100).toFixed(2);
+      document.getElementById('fxScaleVal').textContent = num('fxScale') + '×';
+      document.getElementById('fxPadVal').textContent = num('fxPad') + 'px';
+      // Dragging a slider fires continuously; only the last position is worth a round trip.
+      clearTimeout(forgeDebounce);
+      forgeDebounce = setTimeout(applyForgeTransform, 180);
+    }
+
+    function setForgeRotate(deg) {
+      forgeRotate = deg;
+      document.querySelectorAll('[data-rot]').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.rot) === deg);
+      });
+      onForgeControlChange();
+    }
+
+    function resetForgeControls() {
+      const set = (id, v) => { document.getElementById(id).value = v; };
+      set('fxHue', 0); set('fxSat', 100); set('fxBright', 100);
+      set('fxPosterize', 0); set('fxDither', 0);
+      set('fxScale', 1); set('fxPad', 0);
+      ['fxSnap', 'fxKeyline', 'fxOutline', 'fxFlipH', 'fxFlipV', 'fxTrim']
+        .forEach(id => { document.getElementById(id).checked = false; });
+      setForgeRotate(0);
+    }
+
+    async function applyForgeTransform() {
+      if (!forgeSource) return;
+      const wrap = document.getElementById('forgePreviewWrap');
+      try {
+        const res = await fetch('/api/transform', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({
+            source_id: forgeSource.source_id,
+            path: forgeSource.path
+          }, collectForgeOptions()))
+        });
+        const data = await res.json();
+        if (!data.success) {
+          showToast(data.error || 'Transform failed', true);
+          return;
+        }
+        forgeResult = data.data;
+        wrap.innerHTML = `<img src="${data.data}" class="pixelated" alt="forged">`;
+        document.getElementById('forgeSpriteDims').textContent =
+          `${data.width} × ${data.height} px`;
+      } catch (e) {
+        showToast('Transform failed', true);
+      }
+    }
+
+    async function copyForgeImage() {
+      if (!forgeResult) { showToast('Nothing forged yet', true); return; }
+      try {
+        const blob = await (await fetch(forgeResult)).blob();
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        showToast('Copied to clipboard');
+      } catch (e) {
+        showToast('Clipboard blocked by the browser', true);
+      }
+    }
+
+    async function saveForgeToDisk() {
+      if (!forgeResult) { showToast('Nothing forged yet', true); return; }
+      const name = document.getElementById('forgeSaveName').value.trim() || 'forged_sprite.png';
+      try {
+        const res = await fetch('/api/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, data: forgeResult })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Saved ${data.filename}`);
+          await loadSources();
+        } else {
+          showToast(data.error || 'Save failed', true);
+        }
+      } catch (e) {
+        showToast('Save failed', true);
+      }
+    }
+
+    function downloadForgePNG() {
+      if (!forgeResult) { showToast('Nothing forged yet', true); return; }
+      const a = document.createElement('a');
+      a.href = forgeResult;
+      a.download = document.getElementById('forgeSaveName').value.trim() || 'forged_sprite.png';
+      a.click();
     }
   </script>
 </body>
