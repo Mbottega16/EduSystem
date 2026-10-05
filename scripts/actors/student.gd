@@ -67,12 +67,46 @@ func is_walking() -> bool:
 	return not _path.is_empty()
 
 
-## `tint` distinguishes WHY the bubble is up: the ordinary amber one means
-## stuck right now, a cooler one means the quiz caught them out. Same shape
-## on purpose — it is the same instruction either way, go to that desk.
-func set_bubble(on: bool, tint: Color = Color.WHITE) -> void:
+## The marks a bubble can carry. The shape says WHAT, the tint says how
+## urgent — before Oct 2026 the tint was carrying both, so four different
+## problems were the same "?" in four colours. That is unreadable at a
+## glance across thirty tiles and invisible to a colour-blind player.
+##
+## Every one of these is LimeZu's own blank bubble with a hand-set mark
+## (tools/limezu_ui.py), because the sprite is multiplied by `tint` at
+## runtime and his coloured emote sheet would come out as mud.
+const MARK_STUCK := "stuck"
+const MARK_FLARE := "flare"
+const MARK_NOISE := "noise"
+const MARK_BEHIND := "behind"
+const MARK_NERVES := "nerves"
+const MARK_HELPED := "helped"
+const MARK_DRIFT := "drift"
+
+const MARK_ART := {
+	MARK_STUCK: preload("res://art/bubble_q.png"),
+	MARK_FLARE: preload("res://art/bubble_excl.png"),
+	MARK_NOISE: preload("res://art/bubble_note.png"),
+	MARK_BEHIND: preload("res://art/bubble_dots.png"),
+	MARK_NERVES: preload("res://art/bubble_drop.png"),
+	MARK_HELPED: preload("res://art/bubble_heart.png"),
+	MARK_DRIFT: preload("res://art/bubble_zzz.png"),
+}
+
+
+## `mark` is what the bubble shows and `tint` is how loud it is: "?" stuck,
+## "!" flaring, a note for messing about, "..." behind but still working, a
+## drop for exam nerves. Same position and same size on purpose — it is the
+## same instruction either way, go to that desk.
+##
+## The texture is set even when the bubble is already up, so a child whose
+## problem CHANGES while you watch changes mark without popping again.
+func set_bubble(on: bool, tint: Color = Color.WHITE, mark: String = MARK_STUCK) -> void:
 	if bubble != null:
 		bubble.modulate = tint
+		var art: Texture2D = MARK_ART.get(mark, MARK_ART[MARK_STUCK])
+		if bubble.texture != art:
+			bubble.texture = art
 	if bubble == null or bubble.visible == on:
 		return
 	bubble.visible = on

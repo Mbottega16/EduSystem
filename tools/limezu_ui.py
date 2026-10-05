@@ -38,6 +38,70 @@ QUESTION = [
     "..#..",
 ]
 
+## The rest of the family, added Oct 2026. Same bubble, same 5x6 box, same
+## keyline -- only the mark changes, so a room of children reads as a row of
+## DIFFERENT problems instead of a row of identical "?" in four tints. Colour
+## alone was carrying that distinction, which is both a colour-blindness
+## problem and hard to read at a glance across thirty tiles.
+##
+## Why hand-set pixels and not LimeZu's own emote sheet (which has all of
+## these): the bubble is TINTED per reason at runtime and his emotes are
+## already coloured -- amber multiplied over a yellow "!" is mud. Same reason
+## bubble_q exists. His sheet stays the source for anything drawn untinted.
+EXCLAIM = [
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#..",
+    ".....",
+    "..#..",
+]
+
+DOTS = [
+    ".....",
+    ".....",
+    "#.#.#",
+    ".....",
+    ".....",
+    ".....",
+]
+
+HEART = [
+    ".#.#.",
+    "#####",
+    "#####",
+    ".###.",
+    "..#..",
+    ".....",
+]
+
+ZED = [
+    "#####",
+    "...#.",
+    "..#..",
+    ".#...",
+    "#####",
+    ".....",
+]
+
+DROP = [
+    "..#..",
+    ".###.",
+    ".###.",
+    "#####",
+    "#####",
+    ".###.",
+]
+
+NOTE = [
+    "...##",
+    "..#.#",
+    "..#..",
+    "..#..",
+    ".##..",
+    ".##..",
+]
+
 
 def stamp(im, glyph, x0, y0, colour):
     for dy, row in enumerate(glyph):
@@ -46,13 +110,22 @@ def stamp(im, glyph, x0, y0, colour):
                 im.putpixel((x0 + dx, y0 + dy), colour)
 
 
-def bubble_q(interiors, ui):
-    """LimeZu's blank speech bubble (12x14: a 12x10 body and a 4px tail) + a '?'."""
-    sheet = interiors.image(UI_SHEET)
-    bubble = sheet.crop((66, 11, 78, 25))
-    # the body's interior is rows 2..9 of the cropped icon, columns 1..10
-    stamp(bubble, QUESTION, 3, 3, KEYLINE)
-    return limezu.up2(bubble)
+def _bubble(glyph):
+    """LimeZu's blank speech bubble (12x14: a 12x10 body and a 4px tail) + a mark.
+
+    The body's interior is rows 2..9 of the cropped icon, columns 1..10, so a
+    5x6 mark stamped at (3, 3) sits inside it with a pixel to spare.
+    """
+
+    def build(interiors, ui):
+        bubble = interiors.image(UI_SHEET).crop((66, 11, 78, 25))
+        stamp(bubble, glyph, 3, 3, KEYLINE)
+        return limezu.up2(bubble)
+
+    return build
+
+
+bubble_q = _bubble(QUESTION)
 
 
 # Modern UI (its own pack): Style 1 is the warm bamboo-and-cream set that sits with
@@ -70,6 +143,12 @@ def ui_frame(interiors, ui):
 
 BUILDERS = {
     "bubble_q": bubble_q,
+    "bubble_excl": _bubble(EXCLAIM),
+    "bubble_dots": _bubble(DOTS),
+    "bubble_heart": _bubble(HEART),
+    "bubble_zzz": _bubble(ZED),
+    "bubble_drop": _bubble(DROP),
+    "bubble_note": _bubble(NOTE),
     "ui_frame": ui_frame,
 }
 OUTPUTS = sorted(BUILDERS)

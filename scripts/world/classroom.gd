@@ -9,6 +9,10 @@ extends Node2D
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const STUDENT_SCENE := preload("res://scenes/actors/student.tscn")
+## For the bubble-mark constants alone (STUDENT_SCRIPT.MARK_*). student.gd has no
+## class_name, and the loop below walks `Array[Actor]`, so the names have to
+## come off the script resource rather than off a typed node.
+const STUDENT_SCRIPT := preload("res://scripts/actors/student.gd")
 
 ## Where the teacher starts the day: front of the room, beside the podium.
 const TEACHER_START := Vector2i(9, 3)
@@ -707,16 +711,23 @@ func _refresh_bubbles() -> void:
 		var stuck: bool = n.seated and n.data.is_visibly_struggling()
 		var flagged: bool = n.seated and n.data.quiz_flagged
 		var presenting: bool = n.seated and Game.fight != null 			and Game.fight.presenting == n.data.id
+		# The mark says which of the three it is; the tint says how loud.
+		# Both, not the tint alone -- see STUDENT_SCRIPT.MARK_ART.
 		var tint := QUIZ_BUBBLE_TINT
+		var mark: String = STUDENT_SCRIPT.MARK_BEHIND
 		if flaring:
 			tint = FLARE_BUBBLE_TINT
+			mark = STUDENT_SCRIPT.MARK_FLARE
 		elif noisy:
 			tint = NOISE_BUBBLE_TINT
+			mark = STUDENT_SCRIPT.MARK_NOISE
 		elif stuck:
 			tint = Color.WHITE
+			mark = STUDENT_SCRIPT.MARK_STUCK
 		elif presenting:
 			tint = PRESENT_BUBBLE_TINT
-		n.set_bubble(flaring or noisy or stuck or flagged or presenting, tint)
+			mark = STUDENT_SCRIPT.MARK_NERVES
+		n.set_bubble(flaring or noisy or stuck or flagged or presenting, tint, mark)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
