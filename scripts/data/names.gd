@@ -39,11 +39,21 @@ const LAST := [
 	"King", "Lane",
 ]
 
-## Eight generated sprite sheets — see CHARACTERS in tools/make_art.py.
+## The child sprite sheets, handed out in order by Game (`s.art = ART[(id-1)
+## % ART.size()]`). Baked from LimeZu's Character Generator — the cast is
+## tools/limezu_cast.json, and `python tools/limezu_chars.py <name>` rebuilds
+## one. Twelve more were added in Oct 2026: a school of 24 desks and the
+## delegated rooms were cycling eight faces, so two children on screen could
+## be the same picture with different names, which is the one thing a class
+## must never do.
 const ART := [
 	"student_a", "student_b", "student_c", "student_d",
 	"student_e", "student_f", "student_g", "student_h",
 	"student_i", "student_j", "student_k", "student_l",
+	# --- LimeZu batch, October 2026 ---
+	"student_m", "student_n", "student_o", "student_p",
+	"student_q", "student_r", "student_s", "student_t",
+	"student_u", "student_v", "student_w", "student_x",
 ]
 
 

@@ -442,6 +442,288 @@
         }
       },
       "why": "fair skin, silver hair, green top (the pack has no kid glasses)"
+    },
+    "student_m": {
+      "kind": "kid",
+      "body": {
+        "id": "1"
+      },
+      "eyes": "3",
+      "outfit": {
+        "id": "4"
+      },
+      "hair": {
+        "id": "3_1"
+      },
+      "portrait": {
+        "skin": "1",
+        "eyes": "03",
+        "hair": "05_3"
+      },
+      "why": "medium-brown skin, mid-brown hair, the pack's fourth kid outfit"
+    },
+    "student_n": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "5",
+      "outfit": {
+        "id": "4",
+        "hue": 140
+      },
+      "hair": {
+        "id": "6_1",
+        "ramp": "hair_brown"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "05",
+        "hair": {
+          "id": "07_3",
+          "ramp": "hair_brown"
+        }
+      },
+      "why": "fair skin, cropped brown hair, teal-shifted fourth outfit"
+    },
+    "student_o": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "1",
+      "outfit": {
+        "id": "5"
+      },
+      "hair": {
+        "id": "2_3",
+        "ramp": "hair_black"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "01",
+        "hair": {
+          "id": "03_2",
+          "ramp": "hair_black"
+        }
+      },
+      "why": "light skin, black bunches, the pack's fifth kid outfit"
+    },
+    "student_p": {
+      "kind": "kid",
+      "body": {
+        "id": "4",
+        "ramp": "skin_brown"
+      },
+      "eyes": "4",
+      "outfit": {
+        "id": "5",
+        "hue": 300
+      },
+      "hair": {
+        "id": "3_4"
+      },
+      "portrait": {
+        "skin": {
+          "id": "4",
+          "ramp": "skin_brown"
+        },
+        "eyes": "04",
+        "hair": "06_4"
+      },
+      "why": "brown skin, sandy hair, violet-shifted fifth outfit"
+    },
+    "student_q": {
+      "kind": "kid",
+      "body": {
+        "id": "1",
+        "ramp": "skin_deep"
+      },
+      "eyes": "6",
+      "outfit": {
+        "id": "4",
+        "hue": -60
+      },
+      "hair": {
+        "id": "1_1",
+        "ramp": "hair_black"
+      },
+      "portrait": {
+        "skin": {
+          "id": "1",
+          "ramp": "skin_deep"
+        },
+        "eyes": "06",
+        "hair": {
+          "id": "02_1",
+          "ramp": "hair_black"
+        }
+      },
+      "why": "deep brown skin, black spiky hair, russet-shifted fourth outfit"
+    },
+    "student_r": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "2",
+      "outfit": {
+        "id": "2",
+        "hue": 120
+      },
+      "hair": {
+        "id": "4_5",
+        "ramp": "hair_auburn"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "02",
+        "hair": {
+          "id": "09_4",
+          "ramp": "hair_auburn"
+        }
+      },
+      "why": "fair skin, auburn long hair, green-shifted second outfit"
+    },
+    "student_s": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "3",
+      "outfit": {
+        "id": "1",
+        "hue": -80
+      },
+      "hair": {
+        "id": "5_1"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "03",
+        "hair": "12_3"
+      },
+      "why": "light skin, short dark-brown hair, plum-shifted first outfit"
+    },
+    "student_t": {
+      "kind": "kid",
+      "body": {
+        "id": "4"
+      },
+      "eyes": "5",
+      "outfit": {
+        "id": "3",
+        "hue": 180
+      },
+      "hair": {
+        "id": "6_3",
+        "ramp": "hair_silver"
+      },
+      "portrait": {
+        "skin": "4",
+        "eyes": "05",
+        "hair": {
+          "id": "14_5",
+          "ramp": "hair_silver"
+        }
+      },
+      "why": "tan skin, pale cropped hair, blue-shifted third outfit"
+    },
+    "student_u": {
+      "kind": "kid",
+      "body": {
+        "id": "1"
+      },
+      "eyes": "4",
+      "outfit": {
+        "id": "5",
+        "hue": 40
+      },
+      "hair": {
+        "id": "3_2",
+        "ramp": "hair_blond"
+      },
+      "portrait": {
+        "skin": "1",
+        "eyes": "04",
+        "hair": {
+          "id": "06_2",
+          "ramp": "hair_blond"
+        }
+      },
+      "why": "medium-brown skin, blond hair, amber-shifted fifth outfit"
+    },
+    "student_v": {
+      "kind": "kid",
+      "body": {
+        "id": "2"
+      },
+      "eyes": "1",
+      "outfit": {
+        "id": "4",
+        "hue": 220
+      },
+      "hair": {
+        "id": "1_4"
+      },
+      "portrait": {
+        "skin": "2",
+        "eyes": "01",
+        "hair": "02_5"
+      },
+      "why": "fair skin, light spiky hair, indigo-shifted fourth outfit"
+    },
+    "student_w": {
+      "kind": "kid",
+      "body": {
+        "id": "3"
+      },
+      "eyes": "6",
+      "outfit": {
+        "id": "2",
+        "hue": 300
+      },
+      "hair": {
+        "id": "5_5",
+        "ramp": "hair_dark"
+      },
+      "portrait": {
+        "skin": "3",
+        "eyes": "06",
+        "hair": {
+          "id": "12_4",
+          "ramp": "hair_dark"
+        }
+      },
+      "why": "light skin, dark short hair, magenta-shifted second outfit"
+    },
+    "student_x": {
+      "kind": "kid",
+      "body": {
+        "id": "4",
+        "ramp": "skin_brown"
+      },
+      "eyes": "3",
+      "outfit": {
+        "id": "1",
+        "hue": 160
+      },
+      "hair": {
+        "id": "4_1",
+        "ramp": "hair_white"
+      },
+      "portrait": {
+        "skin": {
+          "id": "4",
+          "ramp": "skin_brown"
+        },
+        "eyes": "03",
+        "hair": {
+          "id": "09_5",
+          "ramp": "hair_white"
+        }
+      },
+      "why": "brown skin, white long hair, sky-shifted first outfit"
     }
   }
 }
