@@ -28,12 +28,23 @@ static func category_label(cat: String) -> String:
 	return cat.capitalize()
 
 
+## False for a piece the room simply HAS. Such a thing still needs a full item
+## def -- art, a width, a footprint, an `anim` block -- because
+## RoomBuilder.DECOR_SEED reads it exactly as it reads a bought piece. What it
+## does not need is a price, and no shop tab lists it. Added Oct 2026 so
+## animated decor and themed event dressing can exist without inventing a
+## cost, a bonus and a range for something that was never for sale.
+static func in_shop(id: String) -> bool:
+	return bool(get_def(id).get("shop", true))
+
+
 ## Every item in one category, cheapest first (item_order is already sorted
-## by category then cost, so this preserves that).
+## by category then cost, so this preserves that). Pieces the room simply has
+## are filtered out here, which is the one funnel every shop tab goes through.
 static func in_category(cat: String) -> Array:
 	var out: Array = []
 	for id: String in order():
-		if String(get_def(id).get("cat", "")) == cat:
+		if String(get_def(id).get("cat", "")) == cat and in_shop(id):
 			out.append(id)
 	return out
 

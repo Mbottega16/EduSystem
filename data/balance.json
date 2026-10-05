@@ -24,7 +24,7 @@
     "e": 0.3
   },
   "lesson": {
-    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes \u2014 that is the whole pressure.",
+    "_note": "work_seconds is how much UNSTUCK time a student needs to finish. lesson_seconds is the clock you are racing. A stalled student's timer freezes, so an unreached student simply never finishes — that is the whole pressure.",
     "work_seconds": 20.0,
     "lesson_seconds": 45.0,
     "stall_chance_per_second": 0.14,
@@ -367,7 +367,11 @@
       "cat": "decor",
       "cost": 240,
       "art": "fish_tank",
-      "anim": { "art": "fish_tank_anim", "frames": 8, "fps": 5 },
+      "anim": {
+        "art": "fish_tank_anim",
+        "frames": 8,
+        "fps": 5
+      },
       "w": 2,
       "range": 6,
       "bonus": 0.07,
@@ -852,6 +856,24 @@
       "bonus": 0.04,
       "blurb": "Somebody is always in charge of something.",
       "needs": "community_roles.identify",
+      "wall": true
+    },
+    "window_butterfly": {
+      "name": "Butterfly",
+      "cat": "decor",
+      "shop": false,
+      "cost": 0,
+      "art": "window_butterfly",
+      "anim": {
+        "art": "window_butterfly_anim",
+        "frames": 4,
+        "fps": 6
+      },
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "blurb": "It found its way in through the window.",
+      "flat": true,
       "wall": true
     }
   },
@@ -1526,7 +1548,14 @@
         "strand": "ela",
         "target": 0.7,
         "trophy_id": "boss_ela",
-        "moves": ["freeze", "freeze", "chain", "freeze", "noise", "freeze"],
+        "moves": [
+          "freeze",
+          "freeze",
+          "chain",
+          "freeze",
+          "noise",
+          "freeze"
+        ],
         "tactic": "They freeze on the long passages. Stay near whoever reads slowest, and steady them the moment the bubble goes up.",
         "weight": 20,
         "blurb": "The paper the district sends round. One morning, the whole class.",
@@ -1541,7 +1570,14 @@
         "strand": "math",
         "target": 0.7,
         "trophy_id": "boss_math",
-        "moves": ["freeze", "chain", "freeze", "chain", "chain", "freeze"],
+        "moves": [
+          "freeze",
+          "chain",
+          "freeze",
+          "chain",
+          "chain",
+          "freeze"
+        ],
         "tactic": "One frozen child freezes the next desk along. Spread the desks out before the morning, and break a chain at its first link.",
         "weight": 20,
         "blurb": "Every child, every fact, against the clock. Nobody may freeze.",
@@ -1556,7 +1592,14 @@
         "strand": "science",
         "target": 0.7,
         "trophy_id": "boss_science",
-        "moves": ["present", "present", "noise", "present", "present", "present"],
+        "moves": [
+          "present",
+          "present",
+          "noise",
+          "present",
+          "present",
+          "present"
+        ],
         "tactic": "One child at a time presents. Stand with them -- within a desk or two -- and settle the audience when it gets restless.",
         "weight": 20,
         "blurb": "They explain their own experiments to a room of strangers.",
@@ -1571,7 +1614,14 @@
         "strand": "social",
         "target": 0.7,
         "trophy_id": "boss_social",
-        "moves": ["noise", "noise", "freeze", "noise", "chain", "noise"],
+        "moves": [
+          "noise",
+          "noise",
+          "freeze",
+          "noise",
+          "chain",
+          "noise"
+        ],
         "tactic": "They argue. Your voice reaches the desks near you; be in the middle of the room, not at the front.",
         "weight": 20,
         "blurb": "Both sides argued, and the votes counted out in the open.",
@@ -1586,7 +1636,15 @@
         "strand": "gauntlet",
         "target": 0.74,
         "trophy_id": "boss_gauntlet",
-        "moves": ["freeze", "noise", "present", "chain", "noise", "freeze", "present"],
+        "moves": [
+          "freeze",
+          "noise",
+          "present",
+          "chain",
+          "noise",
+          "freeze",
+          "present"
+        ],
         "tactic": "Everything at once, in turn. There is no one answer; it is the whole term's teaching, tested on one evening.",
         "weight": 20,
         "blurb": "Parents, inspectors, the lot. The room has to hold up under it.",
@@ -1601,7 +1659,14 @@
         "strand": "inspection",
         "target": 0.72,
         "trophy_id": "boss_inspection",
-        "moves": ["noise", "noise", "freeze", "noise", "present", "noise"],
+        "moves": [
+          "noise",
+          "noise",
+          "freeze",
+          "noise",
+          "present",
+          "noise"
+        ],
         "tactic": "The visitor watches the whole room, not just the front row. Keep the noise from spreading before it reaches every desk.",
         "weight": 15,
         "blurb": "The visit nobody can quite prepare for. Every desk, at once.",

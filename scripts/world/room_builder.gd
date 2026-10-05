@@ -430,9 +430,14 @@ static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interact
 ## asserts they agree), in the wall's own band, not on the first row of floor
 ## where they used to stand like furniture. The frieze sits at 14-15 because
 ## the second window covers 12-13.
+## The butterfly is the first of these that MOVES, and the first that was
+## never for sale (`"shop": false` -- see Items.in_shop()). It sits on the
+## window columns, which no bought piece may cover, so it is the one seed
+## that can never be hung over.
 const DECOR_SEED := [
 	["wall_clock", Vector2i(8, 1)],
 	["class_banner", Vector2i(10, 1)],
+	["window_butterfly", Vector2i(13, 1)],
 	["alphabet_frieze", Vector2i(14, 1)],
 ]
 
@@ -478,6 +483,9 @@ static func build_decor(parent: Node2D, _grid: Grid) -> Array:
 		var body := add_prop(parent, tex, Layout.wall_anchor(tiles),
 			Vector2.ZERO, 0.0, false)
 		body.add_to_group("seeded_decor")
+		# Seeded decor animates on the same hook a bought piece does, so the
+		# room's own pieces are not second-class: one `anim` block and it moves.
+		_animate_if_it_moves(body, def, row[1] as Vector2i)
 		nodes.append(body)
 	return nodes
 

@@ -416,6 +416,21 @@
       "trim": "xy",
       "hue": 35,
       "why": "the pack's only world-map poster, hue-rotated to an aged-map tone so it is not Map Corner twice"
+    },
+    "window_butterfly": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_butterfly_idle.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "anim": {
+        "frames": 4,
+        "fps": 6
+      },
+      "why": "the pack's idle butterfly, four frames: the first animated piece of decor the room simply has, at the window"
     }
   },
   "tiles": {}
