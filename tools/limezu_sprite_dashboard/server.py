@@ -15,46 +15,82 @@ import zipfile
 import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
+# Windows consoles default to cp1252, which cannot encode the emoji in this
+# tool's own banner and source names -- printing one raises UnicodeEncodeError
+# and kills the server before it binds.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 PORT = 5050
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
-CUSTOM_ITEMS_DIR = "/Users/michaelbottega/Desktop/Modern_Office_Revamped_v1.2/My_Custom_Items"
+TOOLS_DIR = os.path.dirname(DASHBOARD_DIR)
+REPO_ROOT = os.path.dirname(TOOLS_DIR)
+
+# Pack locations are never hardcoded. limezu.find_pack() already resolves them
+# per-machine from $LIMEZU_DIR, tools/limezu_path.txt, then Desktop/Downloads.
+sys.path.insert(0, TOOLS_DIR)
+import limezu
+import studio
+
+CUSTOM_ITEMS_DIR = os.path.join(DASHBOARD_DIR, "custom_items")
 os.makedirs(CUSTOM_ITEMS_DIR, exist_ok=True)
 
-# Default sources configuration
-DEFAULT_SOURCES = [
-    {
-        "id": "office_extracted",
-        "name": "🏢 Modern Office (Revamped v1.2)",
-        "type": "dir",
-        "path": "/Users/michaelbottega/Desktop/Modern_Office_Revamped_v1.2",
-        "exclude_zips": True
-    },
-    {
-        "id": "interiors_full",
-        "name": "🏠 Modern Interiors (Complete 50,000+ Sprites)",
-        "type": "zip",
-        "path": "/Users/michaelbottega/Desktop/Modern_Office_Revamped_v1.2/moderninteriors-win.zip"
-    },
-    {
-        "id": "modern_ui",
-        "name": "🖥️ Modern User Interface (1,000+ UI)",
-        "type": "zip",
-        "path": "/Users/michaelbottega/Desktop/Modern_Office_Revamped_v1.2/modernuserinterface-win.zip"
-    },
-    {
-        "id": "interiors_free",
-        "name": "🆓 Modern Interiors Free v2.2",
-        "type": "zip",
-        "path": "/Users/michaelbottega/Desktop/Modern_Office_Revamped_v1.2/Modern_Interiors_Free_v2.2.zip"
-    },
-    {
+# Modern Interiors Free v2.2 is deliberately NOT a source: its licence is
+# non-commercial and EduSystem ships on Steam. The full pack replaces it.
+PACK_SOURCES = [
+    ("interiors", "🏠 Modern Interiors (full)"),
+    ("office", "🏢 Modern Office (Revamped)"),
+    ("ui", "🖥️ Modern User Interface"),
+]
+
+
+def discover_sources():
+    """Build the source list from whatever packs this machine actually has."""
+    found = []
+    for key, label in PACK_SOURCES:
+        try:
+            pack = limezu.find_pack(key)
+        except SystemExit:
+            print(f"  pack not found, skipping: {key}", file=sys.stderr)
+            continue
+        except Exception as exc:
+            print(f"  pack {key} failed to open: {exc}", file=sys.stderr)
+            continue
+        found.append({
+            "id": key,
+            "name": label,
+            "type": "zip" if pack.where.lower().endswith(".zip") else "dir",
+            "path": pack.where,
+            "exclude_zips": True,
+        })
+        print(f"  {key}: {pack.where}")
+    found.append({
         "id": "custom_items",
         "name": "⭐ My Custom & Created Items",
         "type": "dir",
         "path": CUSTOM_ITEMS_DIR,
-        "is_custom": True
-    }
-]
+        "is_custom": True,
+    })
+    return found
+
+
+DEFAULT_SOURCES = discover_sources()
+
+
+def safe_join(base, rel):
+    """Join rel onto base, returning None for anything that escapes base.
+
+    /api/delete and the dir-backed image reads take a client-supplied path.
+    Without this, '../../..' reaches any file the server process can touch.
+    """
+    base_abs = os.path.abspath(base)
+    target = os.path.abspath(os.path.join(base_abs, rel.replace("\\", "/").lstrip("/")))
+    if target != base_abs and not target.startswith(base_abs + os.sep):
+        return None
+    return target
 
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.ase', '.aseprite'}
 
@@ -274,8 +310,8 @@ class SpriteCatalog:
             except KeyError:
                 return None, None
         else:
-            full_path = os.path.join(src["path"], rel_path)
-            if os.path.exists(full_path) and os.path.isfile(full_path):
+            full_path = safe_join(src["path"], rel_path)
+            if full_path and os.path.exists(full_path) and os.path.isfile(full_path):
                 with open(full_path, 'rb') as f:
                     data = f.read()
                 mime = mimetypes.guess_type(full_path)[0] or 'image/png'
@@ -317,6 +353,8 @@ class HubRequestHandler(SimpleHTTPRequestHandler):
 
         if path == "/api/sources":
             self._send_json(catalog.get_sources_meta())
+        elif path == "/api/generators":
+            self._send_json(studio.list_generators())
         elif path == "/api/tree":
             source_id = query.get("source_id", ["office_extracted"])[0]
             tree = catalog.tree_cache.get(source_id, [])
@@ -428,9 +466,10 @@ class HubRequestHandler(SimpleHTTPRequestHandler):
 
         elif path == "/api/delete":
             # Delete an item from custom items
-            rel_path = payload.get("path")
-            target = os.path.join(CUSTOM_ITEMS_DIR, rel_path)
-            if os.path.exists(target) and os.path.isfile(target):
+            target = safe_join(CUSTOM_ITEMS_DIR, payload.get("path") or "")
+            if target is None:
+                self._send_json({"success": False, "error": "Path refused"}, status=400)
+            elif os.path.exists(target) and os.path.isfile(target):
                 os.remove(target)
                 catalog.refresh_source("custom_items")
                 self._send_json({"success": True})
@@ -454,6 +493,38 @@ class HubRequestHandler(SimpleHTTPRequestHandler):
                 self._send_json({"success": True, "sources": catalog.get_sources_meta()})
             else:
                 self._send_json({"success": False, "error": "Path does not exist"}, status=400)
+
+        elif path == "/api/generate":
+            # Run one of the repo's generator CLIs and hand back its output.
+            result = studio.run_generator(
+                payload.get("generator", ""), payload.get("args") or [])
+            self._send_json(result, status=200 if result.get("ok") else 400)
+
+        elif path == "/api/transform":
+            # Colour / texture / shape pass over one sprite. Source is either a
+            # catalogued sprite (source_id + path) or inline base64 data.
+            try:
+                if payload.get("data"):
+                    raw = payload["data"]
+                    if "," in raw:
+                        raw = raw.split(",", 1)[1]
+                    png = base64.b64decode(raw)
+                else:
+                    png, _ = catalog.get_image_data(
+                        payload.get("source_id", ""), payload.get("path", ""))
+                if not png:
+                    self._send_json({"success": False, "error": "Sprite not found"}, status=404)
+                    return
+                out, size = studio.transform(png, payload)
+                self._send_json({
+                    "success": True,
+                    "width": size[0],
+                    "height": size[1],
+                    "data": "data:image/png;base64," + base64.b64encode(out).decode("ascii"),
+                })
+            except Exception as exc:
+                self._send_json({"success": False, "error": str(exc)}, status=400)
+
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -467,8 +538,11 @@ class HubRequestHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
 def run():
-    print(f"🎮 Limezu Sprite Hub Server starting on http://localhost:{PORT}")
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), HubRequestHandler)
+    print(f"🎮 Limezu Sprite Hub Server starting on http://127.0.0.1:{PORT}")
+    # Loopback only, never 0.0.0.0: this host's firewall permits inbound on the
+    # Public profile and home Wi-Fi is Public, so a wildcard bind publishes the
+    # sprite packs and the delete endpoint to the whole network.
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), HubRequestHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
