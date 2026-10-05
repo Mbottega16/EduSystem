@@ -30,12 +30,22 @@ WHAT MAPS TO WHAT (LimeZu row, direction order right/up/left/down, 6 frames each
     col 6  chat             a different facing: turned to talk to a neighbour
     col 7  jump             idle, raised (the contact shadow stays on the floor)
     col 8  sad              idle with the head sunk onto the shoulders
+    col 15 slump            head down on the desk. A kid's sheet carries LimeZu's OWN
+                            sleep row (row 3: head and shoulders, nothing below, six
+                            frames, one direction) -- drawn for a child in bed, and
+                            exactly right for a head laid on a desk, because the desk
+                            hides what the row leaves out. Sunk `slump_down` rows
+                            below the seated frame so the head rests ON the desk
+                            instead of floating at sitting height. Adults have no such
+                            row at index 3 (their sheets are 20 rows), so theirs is
+                            derived: the seated frame with the head drooped.
     cols 9-14  walk         LimeZu's own six walk frames, in order (the real cycle:
                             the two big strides are frames 1 and 4, the other four
                             are the passing poses that give the body its bob).
                             Cols 0-8 are unchanged, so a 9-column sheet from before
                             this still plays: Actor falls back to the old 4-step
-                            cycle when a sheet is only 9 wide.
+                            cycle when a sheet is only 9 wide, and to the seated
+                            frame when a sheet has no column 15.
   Rows are the game's: down, left, right, up. The pack has no front-facing seated
   pose, no mouths and no kid poses beyond idle/walk/sleep, so cols 4-8 are derived
   from the idle frames by small, deterministic edits -- the same approach for kids
@@ -71,9 +81,10 @@ CG = "2_Characters/Character_Generator/"
 DIRS = ("right", "up", "left", "down")          # LimeZu's group order
 GAME_ROWS = ("down", "left", "right", "up")     # Actor.DIR_DOWN / LEFT / RIGHT / UP
 ROW_IDLE, ROW_WALK = 1, 2                       # row 0 is a 32px header of previews
+ROW_SLEEP = 3                                   # kid sheets only: 6 frames, one direction
 CELL_H = 32
 FRAME_W, FRAME_H = 16, 24                       # the game's cell, in art pixels
-COLS = 15
+COLS = 16
 WALK_FRAMES = 6                                 # LimeZu's walk row: 6 frames per direction
 
 # LimeZu's keyline family. These (and fully transparent / soft-black shadow pixels)
@@ -204,6 +215,20 @@ def to_frame(cell, up=0):
     return padded.crop((0, top_row, 16, top_row + FRAME_H))
 
 
+def sink(frame, rows):
+    """Move a whole frame `rows` art pixels DOWN; anything past the bottom is cut.
+
+    The sleep row is composed from four layers whose figures do not sit at the
+    same height in the cell as the idle row's, so the slumped head is placed by
+    measuring both frames rather than by a fixed `up` -- see build_frames().
+    Whatever falls off the bottom is behind the desk anyway.
+    """
+    pad = Image.new("RGBA", (FRAME_W, FRAME_H * 3), (0, 0, 0, 0))
+    pad.alpha_composite(frame, (0, FRAME_H))
+    top = FRAME_H - rows
+    return pad.crop((0, top, FRAME_W, top + FRAME_H))
+
+
 def droop(frame, rows=1):
     """Head sunk onto the shoulders: the top 14 figure-rows slide down `rows`."""
     bb = frame.getbbox()
@@ -238,10 +263,14 @@ def held_paper(frame, row_name):
     return f
 
 
-def build_frames(sheet, tuning):
-    """-> {row_name: [15 frames of 16x24]} in the game's column order."""
+def build_frames(sheet, tuning, kind="kid"):
+    """-> {row_name: [16 frames of 16x24]} in the game's column order."""
     sit_up = tuning.get("sit_up", 3)
     jump_up = tuning.get("jump_up", 3)
+    # How far below the SEATED head the slumped head rests. Four art pixels
+    # keeps it on the desk's top edge; much more and the desk swallows it.
+    slump_down = tuning.get("slump_down", 4)
+    kid_sheet = kind == "kid" and sheet.height // CELL_H > ROW_SLEEP
     out = {}
     for row_name in GAME_ROWS:
         d = DIRS.index(row_name)
@@ -255,13 +284,25 @@ def build_frames(sheet, tuning):
         jump = to_frame(lz_cell(sheet, ROW_IDLE, d, 0), up=jump_up)
         sad = droop(stand)
         walk = [to_frame(lz_cell(sheet, ROW_WALK, d, k)) for k in range(WALK_FRAMES)]
-        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad] + walk
+        if kid_sheet:
+            # Measured, not assumed: drop the sleep frame until its head sits
+            # `slump_down` rows below where the seated head sits. The two rows
+            # are composed from different layers and do not share a baseline.
+            head = to_frame(lz_cell(sheet, ROW_SLEEP, 0, 0))
+            hb, sb = head.getbbox(), sit.getbbox()
+            if hb and sb:
+                slump = sink(head, (sb[1] + slump_down) - hb[1])
+            else:
+                slump = droop(sit, rows=3)
+        else:
+            slump = droop(sit, rows=3)
+        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad]             + walk + [slump]
     return out
 
 
 def bake(name, spec, cast, pack):
     sheet = compose(spec, cast, pack)
-    frames = build_frames(sheet, spec.get("tune", {}))
+    frames = build_frames(sheet, spec.get("tune", {}), spec.get("kind", "kid"))
     out = Image.new("RGBA", (COLS * FRAME_W * 2, 4 * FRAME_H * 2), (0, 0, 0, 0))
     for r, row_name in enumerate(GAME_ROWS):
         for c, fr in enumerate(frames[row_name]):

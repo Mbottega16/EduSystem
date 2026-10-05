@@ -55,6 +55,15 @@ const POSE_JUMP := 7      # jumping for joy
 const POSE_SAD := 8       # head down
 const POSE_HOLD_TIME := 0.6
 
+## Column 15, and not a one-shot: a child who has stopped getting anything
+## out of the lesson puts their head on the desk and LEAVES it there, so this
+## is a held state and not a played pose. LimeZu's own sleep row supplies it
+## for the kids (tools/limezu_chars.py); a 15-wide or 9-wide sheet has no such
+## column, so `seated_frame()` falls back to sitting up.
+const POSE_SLUMP := 15
+
+var slumped := false
+
 @onready var sprite: Sprite2D = $Sprite2D
 
 var facing := DIR_DOWN
@@ -84,7 +93,7 @@ func tick_pose(delta: float) -> void:
 		return
 	_pose_timer -= delta
 	if _pose_timer <= 0.0:
-		_set_frame(SIT_FRAME if seated else 0)
+		_set_frame(seated_frame() if seated else 0)
 
 
 ## Move in `dir` (unnormalised is fine) and animate accordingly.
@@ -145,12 +154,33 @@ func sit(face := DIR_DOWN) -> void:
 	seated = true
 	facing = face
 	velocity = Vector2.ZERO
-	_set_frame(SIT_FRAME)
+	_set_frame(seated_frame())
 
 
 func stand() -> void:
 	seated = false
+	slumped = false
 	set_idle()
+
+
+## Which frame a seated actor rests on: head up, or head down on the desk.
+## Guarded on the sheet's own width so an older sheet cannot land on a column
+## it does not have and show a slice of nothing.
+func seated_frame() -> int:
+	if slumped and sprite != null and sprite.hframes > POSE_SLUMP:
+		return POSE_SLUMP
+	return SIT_FRAME
+
+
+## Put the head down, or lift it. Re-frames at once while seated, so the room
+## changes as the lesson does rather than at the next time something else
+## happens to call sit().
+func set_slumped(on: bool) -> void:
+	if slumped == on:
+		return
+	slumped = on
+	if seated:
+		_set_frame(seated_frame(), true)
 
 
 func face_towards(point: Vector2) -> void:
@@ -159,7 +189,7 @@ func face_towards(point: Vector2) -> void:
 		facing = DIR_RIGHT if d.x > 0.0 else DIR_LEFT
 	else:
 		facing = DIR_DOWN if d.y > 0.0 else DIR_UP
-	_set_frame(SIT_FRAME if seated else 0)
+	_set_frame(seated_frame() if seated else 0)
 
 
 ## 1.0 normally. The player overrides this to sprint; students never do.

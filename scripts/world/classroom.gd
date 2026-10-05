@@ -728,6 +728,12 @@ func _refresh_bubbles() -> void:
 			tint = PRESENT_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_NERVES
 		n.set_bubble(flaring or noisy or stuck or flagged or presenting, tint, mark)
+		# Head down on the desk, held: a child who has stopped getting anything
+		# out of this class, with no louder problem to show instead. Art only --
+		# the bubble decision above is untouched and nothing here is a grade
+		# input. The pose IS the read, which is why it raises no second bubble.
+		var loud: bool = flaring or noisy or stuck or flagged or presenting
+		n.set_slumped(n.seated and n.data.is_capped() and not loud)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
