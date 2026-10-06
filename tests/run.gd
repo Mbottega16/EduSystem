@@ -629,9 +629,16 @@ func test_scene() -> void:
 		return get_tree().get_nodes_in_group("seeded_decor").size() >= 3).call(),
 		get_tree().get_nodes_in_group("seeded_decor").map(func(n: Node) -> float: return (n as Node2D).position.y))
 	chk("no seeded piece covers a window or another fixture", (func() -> bool:
+		# A window ornament belongs on the glass -- that is the whole point
+		# of it, and the rule here is about decor that blots a window out,
+		# not about one that is part of it. Named one at a time rather than
+		# matched on a prefix, so a second one is a decision somebody makes
+		# on purpose rather than a name that quietly lets itself through.
+		var on_the_glass: Array[String] = ["window_butterfly"]
 		for row: Array in RoomBuilder.DECOR_SEED:
-			for t: Vector2i in Items.footprint(String(row[0]), row[1] as Vector2i):
-				if RoomBuilder.is_window_col(t.x):
+			var seed_id := String(row[0])
+			for t: Vector2i in Items.footprint(seed_id, row[1] as Vector2i):
+				if RoomBuilder.is_window_col(t.x) and not on_the_glass.has(seed_id):
 					return false
 				if [Layout.CABINET.x, Layout.PODIUM.x, Layout.BOARD.x, Layout.BOARD.x + 1, Layout.BELL.x].has(t.x):
 					return false
@@ -12825,9 +12832,9 @@ func test_limezu_art() -> void:
 	var wrong: Array[String] = []
 	for n: String in sheets:
 		var tex: Texture2D = load("res://art/%s.png" % n) if ResourceLoader.exists("res://art/%s.png" % n) else null
-		if tex == null or tex.get_width() != 480 or tex.get_height() != 192:
+		if tex == null or tex.get_width() != 512 or tex.get_height() != 192:
 			wrong.append(n)
-	chk("every baked person is a 15x4 sheet of 32x48 cells (9 poses + the 6-frame walk)", wrong.is_empty(), wrong)
+	chk("every baked person is a 16x4 sheet of 32x48 cells (9 poses, the 6-frame walk, the slump)", wrong.is_empty(), wrong)
 	var wrong_bust: Array[String] = []
 	for n: String in busts:
 		var tex: Texture2D = load("res://art/portrait_%s.png" % n) if ResourceLoader.exists("res://art/portrait_%s.png" % n) else null
