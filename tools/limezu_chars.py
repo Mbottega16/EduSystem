@@ -70,7 +70,7 @@ import json
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 import limezu
 
@@ -335,8 +335,8 @@ def portrait_layer(ui, part, entry, cast):
     return im
 
 
-def bake_portrait(spec, cast, ui, col=0, row=0):
-    """The 96x96 face: expression (col,row) of a 10x3 portrait sheet, cropped and x4."""
+def portrait_sheet(spec, cast, ui):
+    """The character's whole 10x3 expression sheet, all layers composited."""
     p = spec["portrait"]
     sheet = None
     for part in PG_ORDER:
@@ -346,13 +346,81 @@ def bake_portrait(spec, cast, ui, col=0, row=0):
         sheet = layer.copy() if sheet is None else sheet
         if layer is not sheet:
             sheet.alpha_composite(layer)
+    return sheet
+
+
+def bust(sheet, col, row, box=None):
+    """One expression, cropped to the 96px bust. Returns (image, box).
+
+    Pass the box back in to crop another expression at EXACTLY the same
+    offset. Expressions do not share a bounding box -- a turned head is
+    narrower than a front-facing one -- so letting every frame find its
+    own makes the head jump about between frames of one strip.
+    """
     face = sheet.crop((col * 32, row * 32, col * 32 + 32, row * 32 + 32))
-    bb = face.getbbox()
-    cx = (bb[0] + bb[2]) // 2
-    x0 = max(0, min(32 - BUST, cx - BUST // 2))
-    y0 = max(0, min(32 - BUST, bb[1] - 1))     # head top ~4px down, where the old busts had theirs
-    out = face.crop((x0, y0, x0 + BUST, y0 + BUST))
-    return out.resize((BUST * 4, BUST * 4), Image.NEAREST)
+    if box is None:
+        bb = face.getbbox()
+        cx = (bb[0] + bb[2]) // 2
+        x0 = max(0, min(32 - BUST, cx - BUST // 2))
+        y0 = max(0, min(32 - BUST, bb[1] - 1))  # head top ~4px down, where the old busts had theirs
+        box = (x0, y0)
+    out = face.crop((box[0], box[1], box[0] + BUST, box[1] + BUST))
+    return out.resize((BUST * 4, BUST * 4), Image.NEAREST), box
+
+
+def bake_portrait(spec, cast, ui, col=0, row=0):
+    """The 96x96 face: expression (col,row) of a 10x3 portrait sheet, cropped and x4."""
+    return bust(portrait_sheet(spec, cast, ui), col, row)[0]
+
+
+# The dialogue strip is a BLINK, and deliberately not a mouth-flap.
+#
+# The Portrait Generator's 10x3 grid was measured cell by cell against the
+# resting face (row 0 col 0). Every cell that opens the mouth also redraws
+# the jaw a pixel or more off, so cycling to one lurches the whole head
+# instead of moving a mouth; the cells that hold the head perfectly still
+# turn out to be pixel-identical to rest, which animates nothing. So this
+# pack cannot talk, and pretending otherwise would ship a twitch.
+#
+# Row 0 col 2 is the same face with the eyes shut, and that does work --
+# for most of the cast. Frame 0 is the resting face, so a strip's first
+# frame and the still portrait beside it are the same picture.
+REST_CELL = (0, 0)
+BLINK_CELL = (2, 0)
+EYE_BAND = 16        # art px; anything below this row is nose, mouth, jaw
+
+
+def blink_is_safe(sheet, col, row):
+    """True when that cell differs from rest ONLY around the eyes.
+
+    The grid is not uniform across characters: for five of the cast the
+    blink cell also moves the mouth or the jawline, which reads as a
+    flinch rather than a blink. Measured per character rather than
+    assumed -- the sheet looks regular and is not.
+    """
+    rest = sheet.crop((0, 0, 32, 32)).convert("RGBA")
+    cell = sheet.crop((col * 32, row * 32, col * 32 + 32, row * 32 + 32)).convert("RGBA")
+    box = ImageChops.difference(rest, cell).getbbox()
+    return box is not None and box[3] <= EYE_BAND
+
+
+def bake_portrait_strip(spec, cast, ui):
+    """Rest, then a blink where the face can take one, on one shared crop.
+
+    A character whose blink is unsafe gets a one-frame strip: the HUD
+    reads the frame count off the texture width and simply never blinks
+    them, rather than being told which names to special-case.
+    """
+    sheet = portrait_sheet(spec, cast, ui)
+    first, box = bust(sheet, REST_CELL[0], REST_CELL[1])
+    frames = [first]
+    if blink_is_safe(sheet, BLINK_CELL[0], BLINK_CELL[1]):
+        frames.append(bust(sheet, BLINK_CELL[0], BLINK_CELL[1], box)[0])
+    w, h = frames[0].size
+    strip = Image.new("RGBA", (w * len(frames), h), (0, 0, 0, 0))
+    for i, f in enumerate(frames):
+        strip.alpha_composite(f, (i * w, 0))
+    return strip
 
 
 # --------------------------------------------------------------------- CLI --
@@ -404,6 +472,11 @@ def main(argv):
         outputs = [(n, bake(n, chars[n], cast, pack))]
         if isinstance(chars[n].get("portrait"), dict):
             outputs.append(("portrait_" + n, bake_portrait(chars[n], cast, ui)))
+            # ...and the four-frame strip the dialogue box blinks and talks
+            # with. A separate file, so everything still reading the plain
+            # 96x96 portrait keeps the picture it expects.
+            outputs.append(("portrait_" + n + "_talk",
+                            bake_portrait_strip(chars[n], cast, ui)))
         for out_name, img in outputs:
             path = os.path.join(ART, out_name + ".png")
             have = Image.open(path).convert("RGBA") if os.path.exists(path) else None

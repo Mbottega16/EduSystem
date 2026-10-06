@@ -205,6 +205,7 @@ def owned_names():
         names.add(name)
         if isinstance(spec.get("portrait"), dict):
             names.add("portrait_" + name)
+            names.add("portrait_" + name + "_talk")
     return names
 
 
