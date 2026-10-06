@@ -161,7 +161,7 @@ once produced 22 items at half the correct strength.)*
 - Optional `teaches` (a concept id it unlocks outright) or `needs` (a
   concept id that must be known before it is on sale).
 - `blurb` ≤ 60 characters. See the voice rule below.
-- Currently 69 items.
+- Currently 70 items.
 - *(Aug 2026)* The shop also sells 4 **consumables** — `cat: "consumable"`,
   no `range`/`bonus`, an `effect` dict instead (the same hook vocabulary
   day events use: `stall_mult`, `lesson_mult`, `coin_mult`, `bonus_coins`,

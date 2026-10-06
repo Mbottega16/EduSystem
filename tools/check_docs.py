@@ -129,6 +129,13 @@ for iid, v in items.items():
     # furniture specifically, so they are outside what this check covers.
     if v.get("cat") == "consumable":
         continue
+    # Free ambient decor is the same case arriving from the other side: it
+    # is not bought and it teaches nobody, so it has no cost, no bonus and
+    # no range, and a placement-value ratio over it is 0/0 rather than a
+    # claim that could be false. window_butterfly was the first of these
+    # and divided by zero here the day it landed.
+    if not v.get("bonus") or not v.get("range"):
+        continue
     checks += 1
     d = v["cost"] / (v["bonus"] * v["range"])
     if not (lo <= d <= hi):
