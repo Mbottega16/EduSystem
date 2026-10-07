@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/homework_sheet.gd" id="2_sheet"]
+[ext_resource type="Texture2D" path="res://art/ui_speech.png" id="3_speech"]
+[ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="4_font"]
 
 ; A CENTRED 640x352 box, not the whole viewport.
 ;
@@ -56,6 +58,23 @@ offset_bottom = 352.0
 mouse_filter = 2
 color = Color(0.07, 0.05, 0.09, 0.82)
 
+; Someone talking in the corner -- a principal's tip, the day's own beat.
+; White paper, black ink, a pixel font: a 16-bit RPG's text box rather
+; than the key-prompt bar's dark strip. hud.gd _speech_style() swaps the
+; Prompt label onto it and sizes it to the line.
+[node name="SpeechBox" type="NinePatchRect" parent="."]
+visible = false
+offset_left = 88.0
+offset_top = 298.0
+offset_right = 636.0
+offset_bottom = 348.0
+mouse_filter = 2
+texture = ExtResource("3_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
+
 [node name="Prompt" type="Label" parent="."]
 visible = false
 offset_top = 316.0
@@ -81,22 +100,29 @@ theme_override_font_sizes/font_size = 22
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MascotBox" type="ColorRect" parent="."]
+; The speaker's face, square, beside the speech box. 72px is the 24-pixel
+; bust at exactly 3x -- any other size smears its pixels unevenly.
+[node name="MascotBox" type="NinePatchRect" parent="."]
 visible = false
 offset_left = 4.0
-offset_top = 236.0
-offset_right = 76.0
-offset_bottom = 312.0
+offset_top = 268.0
+offset_right = 84.0
+offset_bottom = 348.0
 mouse_filter = 2
-color = Color(0.07, 0.05, 0.09, 0.9)
+texture = ExtResource("3_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="MascotPortrait" type="TextureRect" parent="."]
 visible = false
 offset_left = 8.0
-offset_top = 240.0
-offset_right = 72.0
-offset_bottom = 308.0
+offset_top = 272.0
+offset_right = 80.0
+offset_bottom = 344.0
 mouse_filter = 2
+expand_mode = 1
 stretch_mode = 5
 
 [node name="Overlay" type="ColorRect" parent="."]
@@ -214,133 +240,116 @@ theme_override_colors/font_color = Color(0.7, 0.68, 0.6, 1)
 theme_override_font_sizes/font_size = 18
 horizontal_alignment = 1
 
+; The cutscene's text box. Same paper as SpeechBox: white, black ink, the
+; pixel font, the speaker's face square in its own frame on the left.
 [node name="DialogueBox" type="Control" parent="."]
 visible = false
 offset_left = 16.0
-offset_top = 232.0
+offset_top = 220.0
 offset_right = 624.0
 offset_bottom = 344.0
 mouse_filter = 2
 
-[node name="Tail" type="Polygon2D" parent="DialogueBox"]
-color = Color(0.06, 0.05, 0.08, 1)
-polygon = PackedVector2Array(48, 0, 68, 0, 40, -10)
-
-[node name="OuterBorder" type="ColorRect" parent="DialogueBox"]
+[node name="Panel" type="NinePatchRect" parent="DialogueBox"]
 offset_right = 608.0
-offset_bottom = 112.0
+offset_bottom = 124.0
 mouse_filter = 2
-color = Color(0.06, 0.05, 0.08, 1)
+texture = ExtResource("3_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
-[node name="InnerBorder" type="ColorRect" parent="DialogueBox"]
-offset_left = 2.0
-offset_top = 2.0
-offset_right = 606.0
-offset_bottom = 110.0
-mouse_filter = 2
-color = Color(0.88, 0.78, 0.52, 1)
-
-[node name="Bg" type="ColorRect" parent="DialogueBox"]
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 604.0
-offset_bottom = 108.0
-mouse_filter = 2
-color = Color(0.08, 0.06, 0.12, 0.95)
-
-[node name="NameTagBorder" type="ColorRect" parent="DialogueBox"]
+[node name="NameTag" type="NinePatchRect" parent="DialogueBox"]
 offset_left = 12.0
-offset_top = -14.0
-offset_right = 148.0
+offset_top = -20.0
+offset_right = 136.0
 offset_bottom = 10.0
 mouse_filter = 2
-color = Color(0.06, 0.05, 0.08, 1)
-
-[node name="NameTagInner" type="ColorRect" parent="DialogueBox"]
-offset_left = 14.0
-offset_top = -12.0
-offset_right = 146.0
-offset_bottom = 8.0
-mouse_filter = 2
-color = Color(0.88, 0.78, 0.52, 1)
-
-[node name="NameTagBg" type="ColorRect" parent="DialogueBox"]
-offset_left = 15.0
-offset_top = -11.0
-offset_right = 145.0
-offset_bottom = 7.0
-mouse_filter = 2
-color = Color(0.14, 0.1, 0.2, 1)
+texture = ExtResource("3_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="SpeakerLabel" type="Label" parent="DialogueBox"]
-offset_left = 16.0
-offset_top = -12.0
-offset_right = 144.0
+offset_left = 12.0
+offset_top = -20.0
+offset_right = 136.0
 offset_bottom = 8.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(1, 0.88, 0.42, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.13, 0.12, 0.17, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 20
 text = "Ms. Clara"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="PortraitBorder" type="ColorRect" parent="DialogueBox"]
+[node name="PortraitBorder" type="NinePatchRect" parent="DialogueBox"]
 offset_left = 12.0
-offset_top = 16.0
-offset_right = 88.0
-offset_bottom = 92.0
+offset_top = 22.0
+offset_right = 92.0
+offset_bottom = 102.0
 mouse_filter = 2
-color = Color(0.88, 0.78, 0.52, 1)
+texture = ExtResource("3_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="PortraitBg" type="ColorRect" parent="DialogueBox"]
-offset_left = 14.0
-offset_top = 18.0
+offset_left = 18.0
+offset_top = 28.0
 offset_right = 86.0
-offset_bottom = 90.0
+offset_bottom = 96.0
 mouse_filter = 2
-color = Color(0.12, 0.09, 0.16, 1)
+color = Color(0.85, 0.82, 0.9, 1)
 
 [node name="SpeakerPortrait" type="TextureRect" parent="DialogueBox"]
-offset_left = 14.0
-offset_top = 18.0
-offset_right = 86.0
-offset_bottom = 90.0
+offset_left = 16.0
+offset_top = 26.0
+offset_right = 88.0
+offset_bottom = 98.0
 mouse_filter = 2
+expand_mode = 1
 stretch_mode = 5
 
 [node name="TextBody" type="Label" parent="DialogueBox"]
-offset_left = 98.0
-offset_top = 14.0
-offset_right = 588.0
-offset_bottom = 96.0
+offset_left = 104.0
+offset_top = 12.0
+offset_right = 592.0
+offset_bottom = 110.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
-theme_override_font_sizes/font_size = 16
-theme_override_constants/line_spacing = 4
+theme_override_colors/font_color = Color(0.13, 0.12, 0.17, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 20
+theme_override_constants/line_spacing = 2
 autowrap_mode = 3
 
 [node name="AdvanceIndicator" type="Control" parent="DialogueBox"]
-offset_left = 520.0
-offset_top = 84.0
-offset_right = 596.0
-offset_bottom = 104.0
+offset_left = 548.0
+offset_top = 98.0
+offset_right = 600.0
+offset_bottom = 118.0
 mouse_filter = 2
 
 [node name="Arrow" type="Label" parent="DialogueBox/AdvanceIndicator"]
-offset_right = 20.0
+offset_right = 14.0
 offset_bottom = 20.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.13, 0.12, 0.17, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_fonts/font = ExtResource("4_font")
 text = "▼"
 horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="DialogueBox/AdvanceIndicator"]
-offset_left = 22.0
-offset_right = 72.0
+offset_left = 24.0
+offset_right = 56.0
 offset_bottom = 20.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.85, 0.8, 0.65, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.42, 0.4, 0.52, 1)
+theme_override_fonts/font = ExtResource("4_font")
+theme_override_font_sizes/font_size = 20
 text = "[E]"
 vertical_alignment = 1

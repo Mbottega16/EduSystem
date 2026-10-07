@@ -141,6 +141,20 @@ def ui_frame(interiors, ui):
     return limezu.up2(ui.image(UI_STYLE_1).crop(FRAME_BOX))
 
 
+# The speech panel: what someone SAYS is printed on paper-white, black ink, the
+# way a 16-bit RPG's text box is -- the owner's ask, over the old dark box with
+# yellow text. Style 2's rounded white panel (keyline, a grey inner rim, a soft
+# lower edge) is that box already. The HUD 9-slices it with a 4-art-pixel (8px)
+# margin, round the dialogue box, its name tag, the face beside a line, and the
+# room's own speech bubbles.
+UI_STYLE_2 = "16x16/Modern_UI_Style_2.png"
+SPEECH_BOX = (60, 235, 84, 260)
+
+
+def ui_speech(interiors, ui):
+    return limezu.up2(ui.image(UI_STYLE_2).crop(SPEECH_BOX))
+
+
 BUILDERS = {
     "bubble_q": bubble_q,
     "bubble_excl": _bubble(EXCLAIM),
@@ -150,6 +164,7 @@ BUILDERS = {
     "bubble_drop": _bubble(DROP),
     "bubble_note": _bubble(NOTE),
     "ui_frame": ui_frame,
+    "ui_speech": ui_speech,
 }
 OUTPUTS = sorted(BUILDERS)
 

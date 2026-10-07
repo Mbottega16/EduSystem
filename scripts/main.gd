@@ -126,12 +126,15 @@ func _ready() -> void:
 
 	# The storyline cutscene. hud.gd owns the WORDS and their paging; this is
 	# the wiring that turns "the slate was dismissed" into an actual teacher
-	# walking across an actual room, and "a page turned" into a line above
-	# their own head instead of hud reaching into world.player directly.
+	# walking across an actual room.
+	#
+	# A page used to be said twice: in a bubble over the teacher's head AND
+	# in the dialogue box under her face, word for word, one above the other.
+	# The box (face, name, the typing) is the one that reads as her talking,
+	# so it is the only one now; intro_line_changed still fires for anything
+	# that wants the line without drawing it.
 	hud.intro_walk_requested.connect(_start_intro_cutscene)
 	hud.intro_desk_pull_requested.connect(_intro_pull_desk)
-	hud.intro_line_changed.connect(func(t: String) -> void:
-		world.player.say(t))
 	hud.intro_finished.connect(func() -> void:
 		Game.desks_in_store = 0
 		world.player.input_locked = false

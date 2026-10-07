@@ -92,8 +92,11 @@ var _reveal: Tween = null
 ## $Overlay. Overlay is hidden whenever mode == NONE (close()), which is
 ## exactly when a tip needs to fire: nobody has a screen open, they are
 ## mid-room and about to do the thing the tip is about.
-@onready var mascot_box: ColorRect = $MascotBox
+@onready var mascot_box: NinePatchRect = $MascotBox
 @onready var mascot_portrait: TextureRect = $MascotPortrait
+## The paper the corner's words are printed on while someone is talking --
+## see _speech_style(). The plain key-prompt bar keeps its dark strip.
+@onready var speech_box: NinePatchRect = $SpeechBox
 ## The dedicated 96x96 busts the Sept 2026 art pass drew (tools/make_art.py
 ## make_portrait()) -- a face at corner/panel size, not a walk-cycle frame
 ## stretched up to it. Preloaded like the sheets above rather than loaded
@@ -105,11 +108,34 @@ const PLAYER_PORTRAIT := preload("res://art/portrait_player.png")
 @onready var dialogue_box: Control = $DialogueBox
 @onready var dialogue_speaker: Label = $DialogueBox/SpeakerLabel
 @onready var dialogue_portrait: TextureRect = $DialogueBox/SpeakerPortrait
-@onready var dialogue_portrait_border: ColorRect = $DialogueBox/PortraitBorder
+@onready var dialogue_portrait_border: NinePatchRect = $DialogueBox/PortraitBorder
 @onready var dialogue_portrait_bg: ColorRect = $DialogueBox/PortraitBg
 @onready var dialogue_text: Label = $DialogueBox/TextBody
 @onready var dialogue_advance: Control = $DialogueBox/AdvanceIndicator
 @onready var dialogue_arrow: Label = $DialogueBox/AdvanceIndicator/Arrow
+
+## Speech is set in a pixel font, black on white, like a Pokemon text box
+## (the owner's ask, Oct 2026: "the same font as Pokemon"). Nintendo's own
+## font is theirs and cannot ship in this game; Galmuri9 is an SIL OFL font
+## drawn after the Nintendo DS text it imitates, which is as close as a font
+## this game may legally carry gets. It is drawn on a 10px em, so at 20 one of
+## its pixels is two screen pixels -- the same size as one pixel of the
+## room's art, which is the whole reason for that size. Subset to Latin
+## (tools: fontTools.subset); the licence sits beside it in fonts/.
+const SPEECH_FONT := preload("res://fonts/Galmuri9.ttf")
+const SPEECH_SIZE := 20
+const INK := Color(0.13, 0.12, 0.17)
+## Where the key-prompt bar's label lives when nobody is talking...
+const PROMPT_HOME := Rect2(0, 316, 640, 32)
+## ...and the speech box beside the speaker's face when somebody is: its
+## right and bottom edges are fixed, its top rises to fit the line.
+const SPEECH_RIGHT := 636.0
+const SPEECH_LEFT := 88.0
+const SPEECH_BOTTOM := 348.0
+const SPEECH_PAD := Vector2(12, 7)
+const SPEECH_MIN_H := 50.0
+const SPEECH_LINE_GAP := 2
+var _speaking: bool = false
 
 var _dialogue_full_text: String = ""
 var _dialogue_visible_chars: int = 0
@@ -403,6 +429,77 @@ func _process(_delta: float) -> void:
 			_arrow_bob += _delta * 6.0
 			dialogue_arrow.position.y = sin(_arrow_bob) * 3.0
 
+	# Every face on screen blinks now and then. Real play only: the suite and
+	# the screenshot tools must see the face they asked for, not whichever
+	# frame the clock happened to land on -- the same carve-out the dialogue
+	# box's typing already makes.
+	if Game.save_path == Game.SAVE_PATH:
+		_blink_clock += _delta
+		if _blink_shut and _blink_clock >= BLINK_SHUT_SECONDS:
+			_blink(false)
+		elif not _blink_shut and _blink_clock >= BLINK_EVERY_SECONDS:
+			_blink(true)
+
+
+## THE BLINK. tools/limezu_chars.py bakes portrait_<art>_talk.png beside each
+## bust: the resting face, then -- where the face can take it without the
+## mouth twitching -- the same face with its eyes shut, on the same crop. A
+## one-frame strip is a face that never blinks; nothing here needs its name.
+const BLINK_EVERY_SECONDS := 3.4
+const BLINK_SHUT_SECONDS := 0.14
+var _blink_clock: float = 0.0
+var _blink_shut: bool = false
+## TextureRect -> the open-eyed texture it goes back to.
+var _blink_open: Dictionary = {}
+var _blink_frames: Dictionary = {}
+
+
+## Shut (or open) the eyes of every face currently showing. Only a texture
+## that IS a plain bust (res://art/portrait_<art>.png) is touched, so a hat
+## preview or an item picture in the same TextureRect is left alone.
+func _blink(shut: bool) -> void:
+	_blink_clock = 0.0
+	_blink_shut = shut
+	if not shut:
+		for r: TextureRect in _blink_open.keys():
+			if is_instance_valid(r) and r.texture == _blink_frames.get(r):
+				r.texture = _blink_open[r]
+		_blink_open.clear()
+		return
+	for r: TextureRect in [mascot_portrait, dialogue_portrait, portrait]:
+		if r == null or not r.is_visible_in_tree() or r.texture == null:
+			continue
+		var path := r.texture.resource_path
+		if not (path.begins_with("res://art/portrait_") and path.ends_with(".png")) \
+				or path.ends_with("_talk.png"):
+			continue
+		var shut_tex := _shut_eyes(path.get_file().get_basename().trim_prefix("portrait_"))
+		if shut_tex == null:
+			continue
+		_blink_open[r] = r.texture
+		_blink_frames[r] = shut_tex
+		r.texture = shut_tex
+
+
+var _shut_cache: Dictionary = {}
+
+## The eyes-shut frame for one character, or null for a face that cannot
+## blink (a one-frame strip) or has no strip at all.
+func _shut_eyes(art: String) -> Texture2D:
+	if _shut_cache.has(art):
+		return _shut_cache[art]
+	var path := "res://art/portrait_%s_talk.png" % art
+	var out: Texture2D = null
+	if ResourceLoader.exists(path):
+		var strip: Texture2D = load(path)
+		if strip.get_width() >= strip.get_height() * 2:
+			var a := AtlasTexture.new()
+			a.atlas = strip
+			a.region = Rect2(strip.get_height(), 0, strip.get_height(), strip.get_height())
+			out = a
+	_shut_cache[art] = out
+	return out
+
 
 ## ALL input, on ONE clock.
 ##
@@ -611,6 +708,7 @@ func _update_prompt() -> void:
 	if mode != Mode.NONE:
 		prompt.visible = false
 		prompt_box.visible = false
+		speech_box.visible = false
 		mascot_box.visible = false
 		mascot_portrait.visible = false
 		return
@@ -622,6 +720,7 @@ func _update_prompt() -> void:
 		return
 	mascot_box.visible = false
 	mascot_portrait.visible = false
+	_speech_style(false)
 	if _player == null or not is_instance_valid(_player):
 		prompt.visible = false
 		prompt_box.visible = false
@@ -1047,6 +1146,45 @@ func _handle_help_input() -> void:
 		show_help()
 
 
+## Move the corner's words between the dark key-prompt bar and the white
+## speech box. `text` sizes the box: it grows upward a line at a time, so a
+## long tip wraps onto the paper instead of running off the screen's edge --
+## which the old single-line bar did with anything past ~47 characters.
+func _speech_style(on: bool, text: String = "") -> void:
+	speech_box.visible = on
+	if on:
+		prompt_box.visible = false
+		var w := SPEECH_RIGHT - SPEECH_LEFT - SPEECH_PAD.x * 2.0
+		var line_h := SPEECH_FONT.get_height(SPEECH_SIZE)
+		var lines := maxi(1, roundi(SPEECH_FONT.get_multiline_string_size(text,
+			HORIZONTAL_ALIGNMENT_LEFT, w, SPEECH_SIZE).y / line_h))
+		var need := lines * line_h + (lines - 1) * SPEECH_LINE_GAP
+		var h := maxf(SPEECH_MIN_H, ceilf(need) + SPEECH_PAD.y * 2.0)
+		speech_box.position = Vector2(SPEECH_LEFT, SPEECH_BOTTOM - h)
+		speech_box.size = Vector2(SPEECH_RIGHT - SPEECH_LEFT, h)
+		prompt.position = speech_box.position + SPEECH_PAD
+		prompt.size = Vector2(w, h - SPEECH_PAD.y * 2.0)
+	if on == _speaking:
+		return
+	_speaking = on
+	if on:
+		prompt.add_theme_font_override("font", SPEECH_FONT)
+		prompt.add_theme_font_size_override("font_size", SPEECH_SIZE)
+		prompt.add_theme_color_override("font_color", INK)
+		prompt.add_theme_constant_override("line_spacing", SPEECH_LINE_GAP)
+		prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		prompt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	else:
+		prompt.remove_theme_font_override("font")
+		prompt.remove_theme_font_size_override("font_size")
+		prompt.remove_theme_color_override("font_color")
+		prompt.remove_theme_constant_override("line_spacing")
+		prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		prompt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		prompt.position = PROMPT_HOME.position
+		prompt.size = PROMPT_HOME.size
+
+
 ## A one-off nudge, shown once per run. Silence is the worst teacher.
 ##
 ## Kept as the plain text-only version -- nothing currently calls it
@@ -1071,8 +1209,8 @@ func principal_says(id: String, text: String) -> void:
 	if _shown_hints.has(id) or mode != Mode.NONE or not Settings.show_hints:
 		return
 	_shown_hints[id] = true
+	_speech_style(true, text)
 	prompt.visible = true
-	prompt_box.visible = true
 	prompt.text = text
 	# The dedicated bust (Sept 2026 art pass), not a cropped sheet frame --
 	# a real face at the corner's own size instead of a desk-distance
@@ -1129,9 +1267,9 @@ func show_day_beat(text: String) -> void:
 		return
 	_beat_full = text
 	_beat_chars = 0
+	_speech_style(true, text)
 	prompt.text = ""
 	prompt.visible = true
-	prompt_box.visible = true
 	mascot_portrait.texture = PLAYER_PORTRAIT
 	mascot_portrait.visible = true
 	mascot_box.visible = true
@@ -1168,14 +1306,14 @@ func say_dialogue(speaker: String, portrait_tex: Texture2D, text: String, instan
 		dialogue_portrait.visible = true
 		dialogue_portrait_border.visible = true
 		dialogue_portrait_bg.visible = true
-		dialogue_text.offset_left = 98.0
-		dialogue_text.offset_right = 588.0
+		dialogue_text.offset_left = 104.0
+		dialogue_text.offset_right = 592.0
 	else:
 		dialogue_portrait.visible = false
 		dialogue_portrait_border.visible = false
 		dialogue_portrait_bg.visible = false
 		dialogue_text.offset_left = 20.0
-		dialogue_text.offset_right = 588.0
+		dialogue_text.offset_right = 592.0
 
 	dialogue_box.visible = true
 

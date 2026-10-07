@@ -359,11 +359,14 @@ def bust(sheet, col, row, box=None):
     """
     face = sheet.crop((col * 32, row * 32, col * 32 + 32, row * 32 + 32))
     if box is None:
+        # The head's own middle on the crop's middle, both ways. The old crop
+        # hung the head from its top edge (one pixel of headroom), so every
+        # bust sat high in its frame with a third of the square empty under
+        # the chin -- the close-up the owner saw "not centred with the
+        # square". Heads run 15-21px tall in a 24px crop, so it always fits;
+        # a crop past the cell's edge would come back transparent, not wrap.
         bb = face.getbbox()
-        cx = (bb[0] + bb[2]) // 2
-        x0 = max(0, min(32 - BUST, cx - BUST // 2))
-        y0 = max(0, min(32 - BUST, bb[1] - 1))  # head top ~4px down, where the old busts had theirs
-        box = (x0, y0)
+        box = ((bb[0] + bb[2]) // 2 - BUST // 2, (bb[1] + bb[3]) // 2 - BUST // 2)
     out = face.crop((box[0], box[1], box[0] + BUST, box[1] + BUST))
     return out.resize((BUST * 4, BUST * 4), Image.NEAREST), box
 

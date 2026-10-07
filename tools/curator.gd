@@ -278,6 +278,10 @@ func _scan_references() -> void:
 	# regex the same way the tiles above are.
 	for n: String in Names.ART:
 		_note("portrait_%s" % n, "hud.gd (show_student)")
+	# ...and each face's blink strip, which hud.gd's _shut_eyes() builds the
+	# path to from whichever bust is on screen.
+	for n: String in Names.ART + ["player", "principal", "mentor"]:
+		_note("portrait_%s_talk" % n, "hud.gd (_shut_eyes)")
 	# Same reasoning again: _render_dash_overview() loads
 	# "res://art/mood_%s.png" % mood_state, one call site covering all
 	# three grade-band faces.

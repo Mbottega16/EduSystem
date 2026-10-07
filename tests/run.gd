@@ -11595,6 +11595,42 @@ func test_day_beats() -> void:
 	await step(120)
 	chk("and settles on the whole line", hud.prompt.text == line, hud.prompt.text)
 
+	# --- spoken words are printed on paper (Oct 2026) ---
+	# The owner's ask: white box, black text, a Pokemon-style pixel font,
+	# instead of the key-prompt bar's dark strip and yellow letters.
+	chk("a spoken line sits in the white speech box, not the prompt bar",
+		hud.speech_box.visible and not hud.prompt_box.visible)
+	chk("in the speech font, in ink",
+		hud.prompt.get_theme_font("font") == hud.SPEECH_FONT
+		and hud.prompt.get_theme_color("font_color") == hud.INK)
+	chk("the face blinks: its eyes shut on the strip's second frame", (func() -> bool:
+		hud._blink(true)
+		var shut := hud.mascot_portrait.texture is AtlasTexture \
+			and (hud.mascot_portrait.texture as AtlasTexture).atlas.resource_path.ends_with("portrait_player_talk.png")
+		hud._blink(false)
+		return shut and hud.mascot_portrait.texture.resource_path.ends_with("portrait_player.png")).call())
+	var one_line_h: float = hud.speech_box.size.y
+	hud._hint_until = 0.0
+	hud._beat_full = ""
+	await step(2)
+	chk("and once it is said, the bar goes back to being a bar",
+		not hud.speech_box.visible
+		and hud.prompt.get_theme_font("font") != hud.SPEECH_FONT)
+	hud._shown_hints.erase("speech_wrap_test")
+	var long_tip := "You went round the whole room at once. That is most of the lesson's " \
+		+ "time gone, and it is a while before you can do it again."
+	hud.principal_says("speech_wrap_test", long_tip)
+	chk("a long line WRAPS onto a taller box instead of running off the screen",
+		hud.speech_box.size.y > one_line_h and hud.prompt.autowrap_mode != TextServer.AUTOWRAP_OFF,
+		[hud.speech_box.size.y, one_line_h])
+	chk("and the box still ends on the screen",
+		hud.speech_box.position.y >= 0.0
+		and hud.speech_box.position.y + hud.speech_box.size.y <= 352.0
+		and hud.speech_box.position.x + hud.speech_box.size.x <= 640.0,
+		Rect2(hud.speech_box.position, hud.speech_box.size))
+	hud._hint_until = 0.0
+	await step(2)
+
 	# --- queued, then surfaced when the player is back in free roam ---
 	hud.close()
 	hud._queued_beat = ""
@@ -12928,8 +12964,8 @@ func test_curator() -> void:
 	# is worth nothing.
 	chk("and about the room tiles, which no regex could find",
 		c._referenced.has("tile_floor_a0") and c._referenced.has("tile_wall_side"))
-	# Nothing on disk should be unexplained. Four exceptions, each named
-	# here so a FIFTH orphan is a real failure rather than something that
+	# Nothing on disk should be unexplained. Five exceptions, each named
+	# here so a SIXTH orphan is a real failure rather than something that
 	# blends into an accepted list:
 	#   table, poster_abc     sample art for the text-grid sprite pipeline,
 	#                         which exists to demonstrate it, not to be used
@@ -12942,7 +12978,10 @@ func test_curator() -> void:
 	#                         of consistency, but the inspector has no bio
 	#                         screen to show a bust on -- only the room
 	#                         sprite (inspector.png) is ever displayed
-	const ART_SAMPLES := ["table", "poster_abc", "principal", "portrait_inspector"]
+	#   portrait_inspector_talk  its blink strip, baked beside it for the
+	#                         same reason and shown nowhere for the same one
+	const ART_SAMPLES := ["table", "poster_abc", "principal", "portrait_inspector",
+		"portrait_inspector_talk"]
 	chk("nothing on disk is left unexplained", (func() -> bool:
 		for f: String in c._files:
 			if not c._referenced.has(f) and not ART_SAMPLES.has(f):
@@ -13290,6 +13329,48 @@ func test_portraits() -> void:
 			wrong_size.append(n)
 	chk("every character has a portrait bust", missing.is_empty(), missing)
 	chk("and each one is a 96x96 image", wrong_size.is_empty(), wrong_size)
+
+	# THE CLOSE-UP THE OWNER CAUGHT (Oct 2026): every bust was cropped from
+	# the top of the head down, so the face sat high in its square with a
+	# third of it empty under the chin. Measured off the pixels, not the
+	# baker's maths: the head's own middle is within one art pixel (4px) of
+	# the square's middle, both ways, for every face.
+	var off_centre: Array = []
+	for n: String in names:
+		var path := "res://art/portrait_%s.png" % n
+		if not ResourceLoader.exists(path):
+			continue
+		var used: Rect2i = (load(path) as Texture2D).get_image().get_used_rect()
+		var mid := Vector2(used.position) + Vector2(used.size) / 2.0
+		if absf(mid.x - 48.0) > 4.0 or absf(mid.y - 48.0) > 4.0:
+			off_centre.append("%s %s" % [n, mid])
+	chk("every face sits in the middle of its square", off_centre.is_empty(), off_centre)
+	# ...and is SHOWN square: the speech corner and the dialogue box draw it
+	# at 72px, the 24-pixel bust at exactly 3x, inside a rect that does not
+	# grow back to the texture's 96 (the default expand mode did, which is
+	# how the old face also hung off the bottom-right of its frame).
+	var hud_scene: PackedScene = load("res://scenes/ui/hud.tscn")
+	var h: Node = hud_scene.instantiate()
+	var faces_ok := true
+	for p: String in ["MascotPortrait", "DialogueBox/SpeakerPortrait"]:
+		var r: TextureRect = h.get_node(p)
+		var sz := Vector2(r.offset_right - r.offset_left, r.offset_bottom - r.offset_top)
+		if sz != Vector2(72, 72) or r.expand_mode != TextureRect.EXPAND_IGNORE_SIZE:
+			faces_ok = false
+	h.free()
+	chk("speech faces are drawn square, at a whole-number scale", faces_ok)
+
+	# The blink strip: frame 0 is the resting face, so a strip and the still
+	# bust beside it are the same picture until the eyes shut.
+	var strip: Texture2D = load("res://art/portrait_player_talk.png")
+	var bust: Texture2D = load("res://art/portrait_player.png")
+	chk("the teacher has a two-frame blink strip",
+		strip.get_width() == 192 and strip.get_height() == 96, strip.get_size())
+	chk("whose first frame is the bust itself", (func() -> bool:
+		var a := strip.get_image().get_region(Rect2i(0, 0, 96, 96))
+		var b := bust.get_image()
+		b.convert(a.get_format())
+		return a.get_data() == b.get_data()).call())
 
 
 ## The walkthrough tools: ONE walk_to, and a verdict a machine can read.

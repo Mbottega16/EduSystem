@@ -1,34 +1,52 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/speech_bubble.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://art/ui_speech.png" id="2_speech"]
+[ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="3_font"]
 
+; White paper, black ink, the pixel font -- the same speech look as the
+; HUD's dialogue box (hud.tscn), so a line said in the room and a line said
+; in a box read as one voice.
 [node name="SpeechBubble" type="Node2D"]
 z_index = 5
 script = ExtResource("1_script")
 
-[node name="Tail" type="Polygon2D" parent="."]
-color = Color(0.07, 0.05, 0.09, 0.94)
-polygon = PackedVector2Array(-8, -10, 8, -10, 0, -2)
-
-[node name="Box" type="ColorRect" parent="."]
+[node name="Box" type="NinePatchRect" parent="."]
 clip_contents = true
-offset_left = -96.0
+offset_left = -112.0
 offset_top = -78.0
-offset_right = 96.0
+offset_right = 112.0
 offset_bottom = -10.0
 mouse_filter = 2
-color = Color(0.07, 0.05, 0.09, 0.94)
+texture = ExtResource("2_speech")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="Label" type="Label" parent="Box"]
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 6.0
-offset_top = 4.0
-offset_right = -6.0
-offset_bottom = -4.0
+offset_left = 8.0
+offset_top = 5.0
+offset_right = -8.0
+offset_bottom = -7.0
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.95, 0.91, 0.77, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.13, 0.12, 0.17, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 20
+theme_override_constants/line_spacing = 2
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
+
+; Drawn AFTER the box so its paper covers the box's bottom edge where the
+; two meet -- the tail opens out of the bubble instead of hanging under a
+; closed border.
+[node name="Tail" type="Polygon2D" parent="."]
+color = Color(0.227, 0.227, 0.314, 1)
+polygon = PackedVector2Array(-8, -14, 8, -14, 0, -4)
+
+[node name="TailPaper" type="Polygon2D" parent="."]
+color = Color(0.922, 0.894, 0.949, 1)
+polygon = PackedVector2Array(-5, -16, 5, -16, 0, -8)
