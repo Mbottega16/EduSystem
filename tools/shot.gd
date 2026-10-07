@@ -43,7 +43,12 @@ func _ready() -> void:
 		var w := int(args[2])
 		var h := int(args[3])
 		get_window().content_scale_size = Vector2i(w, h)
-		get_window().size = Vector2i(w * 3, h * 3)
+		# The image comes off the viewport at (w, h) whatever the window's
+		# size, so the window stays 1x and out of the way: a 3x window on a
+		# 1080p screen filled it every few seconds through a shot_all run,
+		# which the owner, working beside it, could not focus through.
+		get_window().size = Vector2i(w, h)
+		_tuck_away()
 
 	# Deferred: the root is still setting up its own children while _ready()
 	# runs here, and a direct add_child() is refused outright.
@@ -104,6 +109,15 @@ func _ready() -> void:
 	print("shot: %s  %dx%d  err=%d  (%d frames)" % [
 		out, img.get_width(), img.get_height(), err, frames])
 	get_tree().quit(0 if err == OK else 1)
+
+
+## Off the visible desktop: a screenshot needs a real window to render
+## into, not anyone looking at it. shot_all.py also launches with
+## --position, so the window is off-screen from its first frame.
+func _tuck_away() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	get_window().position = Vector2i(-get_window().size.x - 4000, -get_window().size.y - 4000)
 
 
 ## Drive the HUD straight to a screen, rather than trying to walk the teacher
@@ -521,6 +535,19 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
+		"move_bar":
+			# The three moves, bottom right, mid-lesson: answer-all half way
+			# back, the call short of voice, the dash ready.
+			Game.intro_seen = true
+			hud.close()
+			Game.dash_taught = true
+			Game.answer_all_taught = true
+			Game.call_response_taught = true
+			world.start_lesson()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.PODIUM + Vector2i(0, 1))
+			Game.answer_all_cooldown = Balance.answer_all_cooldown_seconds * 0.5
+			Game.voice = Balance.call_voice_cost * 0.6
 		"answer_all_burst", "call_response", "call_response_answer":
 			# The two room-wide verbs, photographed MID-ANIMATION: the verb
 			# fires on a timer so the shot (70 physics frames, ~1.17s, after

@@ -22,7 +22,11 @@ func _ready() -> void:
 	var page_name: String = args[1] if args.size() > 1 else "main"
 
 	get_window().content_scale_size = Vector2i(640, 352)
-	get_window().size = Vector2i(1920, 1056)
+	# 1x and off-screen -- see tools/shot.gd _tuck_away(). The image is the
+	# viewport's, not the window's.
+	get_window().size = Vector2i(640, 352)
+	if DisplayServer.get_name() != "headless":
+		get_window().position = Vector2i(-5000, -5000)
 
 	# Untyped on purpose: title.gd has no class_name, so a Node-typed
 	# reference cannot see its Page enum or _go() at parse time.

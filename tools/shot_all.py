@@ -72,7 +72,11 @@ def shoot(label, screens):
         if os.path.exists(save):
             os.remove(save)
         path = os.path.join(out, s + ".png")
-        cmd = [exe, "--path", ROOT, "res://tools/shot.tscn", "--", path, "90", "640", "352", "0", s]
+        # Small and off-screen from the first frame (--position/--resolution
+        # are read before the window opens), so a 70-screen run does not
+        # throw a full-screen window in front of whoever is working nearby.
+        cmd = [exe, "--position", "-6000,-6000", "--resolution", "640x352",
+               "--path", ROOT, "res://tools/shot.tscn", "--", path, "90", "640", "352", "0", s]
         r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         ok = os.path.exists(path)
         if not ok:
