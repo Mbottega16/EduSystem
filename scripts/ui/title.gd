@@ -501,7 +501,7 @@ func _render() -> void:
 				"Modern Interiors, Modern Office, Modern UI",
 				"The rest is drawn by tools/make_art.py",
 				"Every sound is synthesised by make_audio.py",
-				"Speech in Galmuri by Lee Minseo (SIL OFL)",
+				"Text in Galmuri by Lee Minseo (SIL OFL)",
 				"",
 				"Built with Godot 4.",
 			]

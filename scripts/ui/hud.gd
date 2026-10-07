@@ -124,6 +124,12 @@ const PLAYER_PORTRAIT := preload("res://art/portrait_player.png")
 ## (tools: fontTools.subset); the licence sits beside it in fonts/.
 const SPEECH_FONT := preload("res://fonts/Galmuri9.ttf")
 const SPEECH_SIZE := 20
+## ...and since Oct 2026 every other word the HUD prints is in it too
+## (fonts/ui_theme.tres on the HUD's root), on the owner's call. Two sizes
+## only, both whole multiples of the 10px em: UI_SIZE for text, UI_SMALL for
+## the odd tiny label. Anything else would smear its pixels.
+const UI_SIZE := 20
+const UI_SMALL := 10
 const INK := Color(0.13, 0.12, 0.17)
 ## Where the key-prompt bar's label lives when nobody is talking...
 const PROMPT_HOME := Rect2(0, 316, 640, 32)
@@ -298,11 +304,11 @@ func _ready() -> void:
 	_info.bbcode_enabled = true
 	_info.scroll_active = false
 	_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info.position = Vector2(32, 241)
-	_info.size = Vector2(576, 72)
+	_info.position = Vector2(32, 244)
+	_info.size = Vector2(576, 70)
 	_info.add_theme_color_override("default_color", Color(0.95, 0.91, 0.77))
-	_info.add_theme_font_size_override("normal_font_size", 16)
-	_info.add_theme_constant_override("line_separation", 2)
+	_info.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_info.add_theme_constant_override("line_separation", 0)
 	overlay.add_child(_info)
 	_set_ideas_ui(false)
 	# A new run must not inherit the last one's screen.
@@ -312,6 +318,7 @@ func _ready() -> void:
 	# Trace an X or a check with the mouse instead of pressing a key -- see
 	# homework_sheet.gd's own comment for why stroke COUNT is the signal.
 	sheet.gesture_verdict.connect(_verdict)
+	_build_move_bar()
 
 
 ## A LimeZu UI frame stretched to `rect` as a 9-slice: the 12px bamboo border
@@ -358,12 +365,73 @@ func _scaled_whole(tex: Texture2D, w: int, h: int) -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+## `text` cut at a word so it fits `width` px in the pixel font, with "..."
+## when anything went. Plain text only (measure the words, then colour them).
+func _fit_px(text: String, width: float, size: int = UI_SIZE) -> String:
+	if SPEECH_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x <= width:
+		return text
+	var words := text.split(" ")
+	while words.size() > 1:
+		words.remove_at(words.size() - 1)
+		var cut := " ".join(words).rstrip(",.;:") + "…"
+		if SPEECH_FONT.get_string_size(cut, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x <= width:
+			return cut
+	return text.substr(0, 4) + "…"
+
+
+## The hint bar's own cut: at a word, to the bar's width in the pixel font.
+## It used to be _clip() -- 47 CHARACTERS, a budget measured for the panel
+## body -- which cut "Tab - craft a lesson" to "Tab - craft a les".
+func _hint_clip(text: String) -> String:
+	return _fit_px(text, 616.0)
+
+
+## A footnote line (a perk's blurb, a room idea's description) that would
+## wrap at UI_SIZE is set at UI_SMALL instead, whole -- these are the lines
+## where every word is the information, so cutting one is worse than small.
+## Returns BBCode.
+func _fit_or_small(text: String, width: float) -> String:
+	if SPEECH_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UI_SIZE).x <= width:
+		return text
+	return "[font_size=%d]%s[/font_size]" % [UI_SMALL, text]
+
+
+## A one-line label (the hint bar, a screen's title) whose words would run
+## past its own width at UI_SIZE drops to UI_SMALL rather than being cut off
+## at the frame. Checked every frame, because a dozen screens write these.
+func _fit_line(l: Label) -> void:
+	if l == null or not l.is_visible_in_tree():
+		return
+	var wide := SPEECH_FONT.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		UI_SIZE).x > l.size.x - 8.0
+	var want := UI_SMALL if wide else UI_SIZE
+	if l.get_theme_font_size("font_size") != want:
+		l.add_theme_font_size_override("font_size", want)
+
+
+## Where the overlay's face/item picture normally sits, top right.
+const PORTRAIT_HOME := Rect2(500, 52, 96, 144)
+## A child's file: the bust at 2x in the top-right corner, beside the title
+## and the file's short first line. At the full 96px it sat across the
+## first six rows, and the pixel font's longer lines ran under it.
+const PORTRAIT_FILE := Rect2(556, 6, 48, 48)
+
+func _portrait_at(r: Rect2) -> void:
+	portrait.offset_left = r.position.x
+	portrait.offset_top = r.position.y
+	portrait.offset_right = r.position.x + r.size.x
+	portrait.offset_bottom = r.position.y + r.size.y
+
+
 ## Display only. Every INPUT read lives on the physics tick below.
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("carrier")
 	_update_status()
 	_update_prompt()
+	_update_move_bar()
+	_fit_line(hint)
+	_fit_line(title)
 	if mode == Mode.WATCH and _watch_i < _watch_frames.size() - 1:
 		_watch_clock += _delta
 		if _watch_clock >= WATCH_FRAME_SECONDS:
@@ -680,23 +748,9 @@ func _update_status() -> void:
 	if paper != "":
 		bits.append(paper)
 
-	# Lowest priority on purpose -- the first thing _fit_status() drops when
-	# the line is full. Silent otherwise: dash is ready almost all the time,
-	# so a bar that is only shown while cooling down is the informative
-	# state, not a pip that reads "full" on every frame that matters less.
-	if _player != null and is_instance_valid(_player):
-		var dash_cd: float = _player.dash_cooldown_fraction()
-		if dash_cd > 0.0:
-			var ready_pips := int(round((1.0 - dash_cd) * 4.0))
-			bits.append("dash %s%s" % ["|".repeat(ready_pips), ".".repeat(4 - ready_pips)])
-
-	# The mass-help skill's own cooldown, same rules: shown only mid-lesson
-	# and only while it is actually recharging.
-	if teaching and Balance.answer_all_cooldown_seconds > 0.0 and Game.answer_all_cooldown > 0.0:
-		var aa_ready := int(round(
-			(1.0 - Game.answer_all_cooldown / Balance.answer_all_cooldown_seconds) * 4.0))
-		aa_ready = clampi(aa_ready, 0, 4)
-		bits.append("answer-all %s%s" % ["|".repeat(aa_ready), ".".repeat(4 - aa_ready)])
+	# The dash's and answer-all's recharge pips used to sit here, last on
+	# the line and so the first thing it dropped. They are the move bar's
+	# job now (bottom right, _update_move_bar()), with the call beside them.
 
 	status.text = _fit_status(bits)
 
@@ -760,95 +814,151 @@ func _update_prompt() -> void:
 	mascot_box.visible = false
 	mascot_portrait.visible = false
 	_speech_style(false)
-	if _player == null or not is_instance_valid(_player):
-		prompt.visible = false
-		prompt_box.visible = false
-		return
+	# The OFFERS -- both buttons, always, every verb live where you stand --
+	# are the coloured badges over the teacher's head (player.gd
+	# _update_key_prompts()), with a hold meter on a held one. This bar used
+	# to say the same thing again a screen away, word for word, clipped to
+	# fit ("hold L ."). The owner agreed it should stop (Oct 2026 critique):
+	# it is the speech box now and nothing else, so when nobody is talking
+	# the bottom of the room is the room.
+	#
+	# What the badges inherited from the bar, and must keep: both buttons
+	# named, never one target (stand at the noticeboard and the SHOP on F
+	# must show beside the curriculum on E); and offers() rather than targets
+	# directly, since a freed node read into a typed variable once killed
+	# every button in the game.
+	prompt.visible = false
+	prompt_box.visible = false
 
-	# BOTH buttons, always.
-	#
-	# This used to show one target -- whichever the picker preferred, which
-	# was always E. Stand at the noticeboard and it said "Curriculum", so the
-	# SHOP, sitting right there on F, was invisible; the game looked like it
-	# had lost a feature. Stand by the bell and it said "Curriculum" again
-	# while "Ring the bell" went unmentioned on F, which is how the day
-	# became impossible to end.
-	#
-	# One target per button was already true. The bar simply was not saying so.
-	# Through offers(), NOT by reading targets directly. Reading a freed node
-	# into a typed variable throws "Trying to assign invalid previously freed
-	# instance" -- the same fault that once killed every button in the game,
-	# reappearing here the moment build mode started selling furniture out
-	# from under the cursor. It threw every single frame and buried the test
-	# log. offers() is the player's own safe accessor; there is no reason for
-	# anything else to reach into targets.
-	var parts: Array[String] = []
-	for t: Interactable in _player.offers():
-		if not t.can_interact():
+
+# ------------------------------------------------------------- the move bar
+## The mentor's three moves, bottom right: each one's icon, its key, and how
+## soon it is back (Oct 2026, the owner's pick from that month's critique).
+## Readiness used to be the LAST pips on the status strip -- the first thing
+## the strip drops when it is full -- and a move you cannot see is ready is a
+## move you do not use.
+##
+## Hide, don't grey: a slot is only there while its move can be used at all
+## (taught, and for the two lesson moves, mid-lesson). What a slot shows is
+## TIME: a shade over the icon that drains as the move comes back, and a
+## flash the moment it is ready. Out of the way while someone is talking --
+## the speech box owns the bottom of the screen for its few seconds.
+const UI_SPEECH := preload("res://art/ui_speech.png")
+const MOVE_SLOT := 40.0
+const MOVE_ICON := 32.0
+const MOVE_GAP := 4.0
+const MOVES := [
+	{"id": "dash", "action": "dash", "icon": preload("res://art/ui_move_dash.png")},
+	{"id": "answer_all", "action": "answer_all", "icon": preload("res://art/ui_move_answer.png")},
+	{"id": "call", "action": "call_response", "icon": preload("res://art/ui_move_call.png")},
+]
+## id -> {"root", "shade", "key", "was"}
+var _move_slots: Dictionary = {}
+
+
+func _build_move_bar() -> void:
+	var pad := (MOVE_SLOT - MOVE_ICON) / 2.0
+	for m: Dictionary in MOVES:
+		var root := Control.new()
+		root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.size = Vector2(MOVE_SLOT, MOVE_SLOT)
+		root.visible = false
+		var frame := NinePatchRect.new()
+		frame.texture = UI_SPEECH
+		frame.size = root.size
+		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+			frame.set_patch_margin(side, 8)
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(frame)
+		var icon := TextureRect.new()
+		icon.texture = m["icon"]
+		icon.position = Vector2(pad, pad)
+		icon.size = Vector2(MOVE_ICON, MOVE_ICON)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(icon)
+		# The recharge: ink over the icon, from the top, as tall as the wait
+		# still left.
+		var shade := ColorRect.new()
+		shade.color = Color(INK.r, INK.g, INK.b, 0.6)
+		shade.position = Vector2(pad, pad)
+		shade.size = Vector2(MOVE_ICON, 0)
+		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(shade)
+		var key := Label.new()
+		key.add_theme_font_override("font", SPEECH_FONT)
+		key.add_theme_font_size_override("font_size", UI_SMALL)
+		key.add_theme_color_override("font_color", INK)
+		key.add_theme_color_override("font_outline_color", Color(0.92, 0.89, 0.95))
+		key.add_theme_constant_override("outline_size", 4)
+		key.position = Vector2(2, MOVE_SLOT - 15)
+		key.size = Vector2(MOVE_SLOT - 5, 12)
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(key)
+		add_child(root)
+		_move_slots[m["id"]] = {"root": root, "shade": shade, "key": key, "was": 0.0}
+
+
+## Can this move be used at all right now? (Not "is it recharged" -- that is
+## the shade's job, not the slot's.)
+func _move_usable(id: String) -> bool:
+	match id:
+		"dash":
+			return Game.dash_taught
+		"answer_all":
+			return Game.answer_all_taught and Game.phase == Game.Phase.LESSON \
+				and not Game.test_active
+		"call":
+			return Game.call_response_taught and Game.phase == Game.Phase.LESSON \
+				and not Game.test_active and Game.fight == null
+	return false
+
+
+## How much of the wait is left, 0 (ready) .. 1 (just used). The call waits
+## on two things -- its cooldown and enough voice -- and shows whichever is
+## further off.
+func _move_wait(id: String) -> float:
+	match id:
+		"dash":
+			if _player != null and is_instance_valid(_player):
+				return clampf(_player.dash_cooldown_fraction(), 0.0, 1.0)
+		"answer_all":
+			return clampf(Game.answer_all_cooldown
+				/ maxf(0.01, Balance.answer_all_cooldown_seconds), 0.0, 1.0)
+		"call":
+			var cd := Game.call_cooldown / maxf(0.01, Balance.call_cooldown_seconds)
+			var short := 1.0 - Game.voice / maxf(0.01, Balance.call_voice_cost)
+			return clampf(maxf(cd, short), 0.0, 1.0)
+	return 0.0
+
+
+func _update_move_bar() -> void:
+	var bar_on := mode == Mode.NONE and not speech_box.visible \
+		and _player != null and is_instance_valid(_player)
+	var shown: Array[String] = []
+	for m: Dictionary in MOVES:
+		var on := bar_on and _move_usable(String(m["id"]))
+		(_move_slots[m["id"]]["root"] as Control).visible = on
+		if on:
+			shown.append(String(m["id"]))
+	var x := SPEECH_RIGHT - shown.size() * (MOVE_SLOT + MOVE_GAP) + MOVE_GAP
+	for m: Dictionary in MOVES:
+		var id := String(m["id"])
+		if not shown.has(id):
 			continue
-		var action: String = t.action_name()
-		var key: String = t.key_hint()
-		if t.hold_time > 0.0:
-			var held: float = _player.hold_progress if _player._holding == action else 0.0
-			var filled := int(round(held * 6.0))
-			parts.append("hold %s [%s%s] %s" % [
-				key, "#".repeat(filled), ".".repeat(6 - filled), t.prompt_text()])
-		else:
-			parts.append("%s - %s" % [key, t.prompt_text()])
-
-	var showing := not parts.is_empty()
-	prompt.visible = showing
-	prompt_box.visible = showing
-	if showing:
-		# Fit every live part, taking the room from whichever is longest.
-		#
-		# Clipping the joined line lopped the tail off the last prompt, so
-		# a hold meter could appear with no words after it. Splitting the
-		# budget evenly then over-clipped: "E - Quick quiz" needs 14 of its
-		# 22 and "hold F [......] End the lesson early" needs 36, and an
-		# even split turned the second into "End t.". So the short one keeps
-		# what it needs and the long one gets the rest.
-		if parts.size() > 1:
-			# THE BUG THIS FIXES: budget reserved space for exactly ONE
-			# "   " joiner, which was correct back when only two things
-			# could ever be live at once (E and F). The key remap made a
-			# 3-way collision (E, F and Q at once, say) an ordinary thing,
-			# and two joiners need 6 characters, not 3 -- the shortfall
-			# was silently eaten by the OUTER _clip() below with no
-			# ellipsis, landing wherever the tail happened to fall. Caught
-			# by screenshot: "Q - Quick quiz" rendered as "Q - Quick q".
-			var budget: int = PROMPT_CHARS - 3 * (parts.size() - 1)
-			var total := 0
-			for part: String in parts:
-				total += part.length()
-			while total > budget:
-				var longest := 0
-				for i in parts.size():
-					if parts[i].length() > parts[longest].length():
-						longest = i
-				var over: int = total - budget
-				var trim: int = mini(over, parts[longest].length() - 8)
-				if trim <= 0:
-					break
-				parts[longest] = parts[longest].substr(
-					0, parts[longest].length() - trim - 1) + "."
-				total -= trim
-		# Belt and braces: the fitting above should always land inside
-		# LINE_CHARS now, but if a future case ever slips past it, make
-		# the cut visible rather than silent -- same fix as the status
-		# strip's own _clip_visibly() already uses, and the same reason.
-		var joined := "   ".join(parts)
-		prompt.text = joined if joined.length() <= PROMPT_CHARS \
-			else joined.substr(0, PROMPT_CHARS - 1) + "…"
-
-
-## The key-prompt bar's own budget. Like the status strip it used to borrow
-## LINE_CHARS (47, measured for the 288px panel body) and so cut three
-## offers on a 640px bar down to "E - Take Ivy's hom.   Q - Quick quiz
-## hold L ." -- a hold meter with its words cut off. Font 20 averages ~9.6px
-## a character (measured, Oct 2026), ~66 to the bar; 64 holds three offers
-## and a hold meter and still lands inside the bar.
-const PROMPT_CHARS := 64
+		var slot: Dictionary = _move_slots[id]
+		var root := slot["root"] as Control
+		root.position = Vector2(x, SPEECH_BOTTOM - MOVE_SLOT)
+		x += MOVE_SLOT + MOVE_GAP
+		var wait := _move_wait(id)
+		(slot["shade"] as ColorRect).size.y = round(MOVE_ICON * wait)
+		if wait <= 0.0 and float(slot["was"]) > 0.0:
+			Fx.flash(root, Color(1.8, 1.8, 1.5), 0.3)
+		slot["was"] = wait
+		(slot["key"] as Label).text = Settings.binding_text(
+			String(m["action"])).split(",")[0].strip_edges()
 
 
 # ---------------------------------------------------------------- overlays
@@ -862,7 +972,9 @@ const PROMPT_CHARS := 64
 # and the gutter ends 12px off the spine, so the page had margin the text
 # was not using.
 const BOOK_RIGHT := Rect2(334, 64, 256, 228)
-const BOOK_RICH_HOME := Rect2(32, 48, 576, 256)
+## (40..314 since the pixel font, Oct 2026: its title line is shorter than
+## the old font's at 24, and the hint sits lower, so the body gained a row.)
+const BOOK_RICH_HOME := Rect2(32, 40, 576, 274)
 ## Preloaded, not load()ed by name: the art audit scans the source for
 ## literal paths, and a frame built by string interpolation is invisible to
 ## it -- which is exactly the sort of orphan that scan exists to catch.
@@ -947,12 +1059,14 @@ func _open(m: int) -> void:
 	if m != Mode.INTRO:
 		hide_dialogue()
 	mode = m
-	body.add_theme_font_size_override("font_size", 20)
-	body.add_theme_constant_override("line_spacing", 8)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 6)
 	# every mode that wants a portrait turns it back on; this is the
 	# single line that stops one screen leaking into the next
 	portrait.visible = false
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait_at(PORTRAIT_HOME)
+	portrait.expand_mode = TextureRect.EXPAND_KEEP_SIZE
 	portrait_bg.visible = false
 	if _slot != null:
 		_slot.visible = false
@@ -1006,16 +1120,16 @@ func close() -> void:
 ## bottom and overlapped the hint bar.
 func show_title() -> void:
 	_open(Mode.TITLE)
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_constant_override("line_spacing", 2)
-	title.text = "P I X E L R O O M"
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 0)
+	title.text = "E D U S Y S T E M"
 	# This screen had gone stale. It still described only the original loop,
 	# so a player who had just been given traits, disruption, a voice and
 	# three assessments was told about none of them and quite reasonably
 	# concluded that nothing had changed.
 	body.text = "\n".join([
-		"You are the teacher. WASD walks. E is the prompt at",
-		"the bottom, F the one beside it. Tab: your class.",
+		"You are the teacher. WASD walks. What you can do",
+		"floats over your head: E, F, and the rest. Tab: class.",
 		"Teach at the PODIUM, then walk the room:",
 		"  amber ? stuck     red ! playing up (it SPREADS)",
 		"  blue ? behind     C settles who can hear you",
@@ -1161,8 +1275,8 @@ func show_help() -> void:
 	_open(Mode.HELP)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	var acts: Array = Settings.ACTIONS
 	_sel = clampi(_sel, 0, maxi(0, acts.size() - 1))
 	var lo := _window_start(acts.size(), HELP_ROWS)
@@ -1439,8 +1553,8 @@ func show_dashboard() -> void:
 	title.text = "YOUR DASHBOARD"
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	_render_dashboard()
 
 
@@ -1661,7 +1775,7 @@ func _render_class_list() -> void:
 	title.text = "YOUR CLASS"
 	# eight students plus a three-line lesson header does not fit at the
 	# default size; the panel is 128px and this needs about 13 rows
-	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
 	body.add_theme_constant_override("line_spacing", 0)
 	var lines: Array[String] = []
 	# The objective is the source document's own wording, so a player can
@@ -1716,8 +1830,8 @@ func show_student(s: StudentData) -> void:
 		_bio_page = BIO_FILE      # a file just opened always starts on page one
 	_bio = s
 	_open(Mode.STUDENT)
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_constant_override("line_spacing", 2)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 0)
 
 	title.text = s.display_name
 	if title.text.length() > 22:
@@ -1726,6 +1840,8 @@ func show_student(s: StudentData) -> void:
 	# The dedicated bust (Sept 2026 art pass) -- a face, not a walk-cycle
 	# frame stretched up to portrait size.
 	portrait.texture = load("res://art/portrait_%s.png" % s.art)
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait_at(PORTRAIT_FILE)
 	portrait.visible = true
 
 	if _bio_page == BIO_STORY:
@@ -2030,8 +2146,8 @@ func show_exam(result: Dictionary) -> void:
 	Sfx.play("grade")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	var boss_term: bool = String(Game.term_path.get("kind", "")) == "boss"
 	title.text = "%s  -  %s" % [
@@ -2082,7 +2198,7 @@ func show_exam(result: Dictionary) -> void:
 	lines.append("[color=#%s]%s[/color]" % [DIM, _term_legacy()])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.6)
-	hint.text = _clip("E - begin term %d%s" % [Game.term + 1,
+	hint.text = _hint_clip("E - begin term %d%s" % [Game.term + 1,
 		"   (cheats were used)" if Game.cheated else ""])
 
 
@@ -2143,8 +2259,8 @@ func show_fight_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "%s  -  %s" % [String(report.get("boss", "THE PAPER")).to_upper(),
 		String(report.get("composure", "")).to_upper()]
 	var rows: Array = report.get("rows", [])
@@ -2221,7 +2337,7 @@ func show_inspection(report: Dictionary) -> void:
 ".join(lines)
 	# The average and the citation ride on the hint bar. Four verdict lines
 	# is already the whole panel, and the fifth was landing under it.
-	hint.text = _clip("E - close.   %s today.   %s" % [
+	hint.text = _hint_clip("E - close.   %s today.   %s" % [
 		Game.grade_letter(Game.class_average()),
 		String(report.get("standard", ""))])
 
@@ -2318,7 +2434,7 @@ func _show_yearbook(on_finished: Callable) -> void:
 
 	var header := Label.new()
 	header.text = "CLASS OF TERM %d" % Game.term
-	header.add_theme_font_size_override("font_size", 20)
+	header.add_theme_font_size_override("font_size", UI_SIZE)
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(header)
 
@@ -2336,7 +2452,7 @@ func _show_yearbook(on_finished: Callable) -> void:
 
 		var name_label := Label.new()
 		name_label.text = "  %s" % String(entry["name"])
-		name_label.add_theme_font_size_override("font_size", 16)
+		name_label.add_theme_font_size_override("font_size", UI_SIZE)
 		row.add_child(name_label)
 
 		col.add_child(row)
@@ -2383,8 +2499,8 @@ func show_run_over(info: Dictionary) -> void:
 
 func _show_run_over_report() -> void:
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	title.text = "THAT IS THE END OF IT"
 	var lines: Array[String] = []
@@ -2434,8 +2550,8 @@ func show_hand(fresh: bool = false) -> void:
 	body.visible = false
 	rich.visible = true
 	_book(true)
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	if Game.hand.is_empty():
 		close()
@@ -2473,7 +2589,7 @@ func _shuffle_frame(n: int, i: int) -> void:
 		# row visibly ripples rather than just fading in
 		var lit := (c + i) % 2 == 0
 		row += "[color=#%s]%s[/color]" % [
-			"e8dcc2" if lit else DIM, BAR_FULL if lit else BAR_EMPTY]
+			"e8dcc2" if lit else DIM, _cells(BAR_FULL if lit else BAR_EMPTY, 1)]
 	rich.text = "
 
       %s
@@ -2502,7 +2618,8 @@ func _render_hand() -> void:
 	# title stops being the string anything can match on.
 	left.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
 	left.append("")
-	left.append("[color=#%s]%s[/color]" % [hue, Assignments.rarity_name(rid)])
+	left.append("[color=#%s]%s[/color]  [color=#%s]pays x%.2f[/color]" % [
+		hue, Assignments.rarity_name(rid), C_COIN, Assignments.pay(rid)])
 	left.append("[color=#%s]%s[/color]" % [INK_DIM,
 		String(lesson.get("standard", "")) if String(lesson.get("standard", "")) != ""
 			else "no citation"])
@@ -2511,9 +2628,11 @@ func _render_hand() -> void:
 
 	var lines: Array[String] = []
 	# what it actually asks of them
-	lines.append("[color=#%s]Length[/color]  %s   [color=#%s]pays x%.2f[/color]" % [
-		INK_DIM, _difficulty_bar(int(card.get("difficulty", 1))),
-		C_COIN, Assignments.pay(rid)])
+	# The pay moved to the left page beside the rarity it comes from: on
+	# this 256px page in the pixel font it wrapped, and pushed the page edge
+	# off the bottom.
+	lines.append("[color=#%s]Length[/color]  %s" % [
+		INK_DIM, _difficulty_bar(int(card.get("difficulty", 1)))])
 	var obj := String(lesson.get("objective", ""))
 	if obj != "":
 		# Autowrapped by the label to the page, not hand-broken to a count:
@@ -2525,7 +2644,7 @@ func _render_hand() -> void:
 	for i in n:
 		edge += "[color=#%s]%s[/color]" % [
 			Assignments.rarity_colour(String(Game.hand[i].get("rarity", "common"))),
-			BAR_FULL if i == _sel else BAR_EMPTY]
+			_cells(BAR_FULL if i == _sel else BAR_EMPTY, 1)]
 	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, INK_DIM])
 
 	rich.text = "\n".join(lines)
@@ -2546,8 +2665,8 @@ func show_term_paths(fresh: bool = false) -> void:
 	_open(Mode.PATHS)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	if Game.term_path_hand.is_empty():
 		close()
@@ -2597,12 +2716,12 @@ func _render_term_paths() -> void:
 	var edge := ""
 	for i in n:
 		edge += "[color=#%s]%s[/color]" % [
-			C_ROOM if i == _sel else DIM, BAR_FULL if i == _sel else BAR_EMPTY]
+			C_ROOM if i == _sel else DIM, _cells(BAR_FULL if i == _sel else BAR_EMPTY, 1)]
 	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, DIM])
 
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.22)
-	hint.text = "Scroll / click / Up-Down to turn    E - start the term this way"
+	hint.text = "Scroll / Up-Down to turn    E - start this term"
 
 
 ## THE SCHOOL: every room, and how it did.
@@ -2626,8 +2745,8 @@ func show_school() -> void:
 	_sel = clampi(_sel, 0, maxi(0, Game.rooms.size() - 1))
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "THE SCHOOL  -  %d room%s" % [
 		Game.rooms.size() + 1, "" if Game.rooms.is_empty() else "s"]
 
@@ -2684,7 +2803,7 @@ func show_school() -> void:
 	# left unstated to make room. Found by screenshotting the actual
 	# result, not by counting characters -- the truncation was silent.
 	var staff_hint := "G fire" if sel_staffed else "E hire"
-	hint.text = _clip("%s  F furnish  %sB new(%d)" % [
+	hint.text = _hint_clip("%s  F furnish  %sB new(%d)" % [
 		staff_hint, watch_hint, Game.room_cost()])
 
 
@@ -2714,8 +2833,8 @@ func show_watch(i: int) -> void:
 	_open(Mode.WATCH)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "WATCHING  -  %s" % String(r.get("name", "Room"))
 	_render_watch_frame()
 
@@ -2735,8 +2854,8 @@ func show_own_watch(history: Array, results: Array) -> void:
 	_open(Mode.WATCH)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "WATCHING  -  Auto-teach"
 	_render_watch_frame()
 
@@ -2798,15 +2917,15 @@ func _render_watch_frame() -> void:
 func _watch_bar(frac: float) -> String:
 	var n := clampi(int(round(frac * 20.0)), 0, 20)
 	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
-		C_ROOM, BAR_FULL.repeat(n), BAR_EMPTY.repeat(20 - n)]
+		C_ROOM, _cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n)]
 
 
 func _furniture_bar(level: int) -> String:
 	Balance.ensure_loaded()
 	var n: int = clampi(level, 0, Balance.furniture_steps)
 	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
-		C_ROOM, BAR_FULL.repeat(n),
-		BAR_EMPTY.repeat(Balance.furniture_steps - n)]
+		C_ROOM, _cells(BAR_FULL, n),
+		_cells(BAR_EMPTY, Balance.furniture_steps - n)]
 
 
 ## Who is going. Prose, never numbers -- the same rule the rest of the game
@@ -2816,8 +2935,8 @@ func show_hiring() -> void:
 	_hiring = true
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "WHO WILL TEACH IT?"
 
 	if Game.applicants.is_empty():
@@ -2829,13 +2948,13 @@ func show_hiring() -> void:
 		lines.append("%s [color=#%s]%-15s[/color] [color=#%s]%d/day[/color]" % [
 			">" if i == _sel else " ", C_LESSON, String(t.get("name", "")),
 			C_COIN, int(t.get("wage", 0))])
-		lines.append("    [color=#%s]%s[/color]" % [
+		lines.append("  [color=#%s]%s[/color]" % [
 			DIM, String(t.get("blurb", ""))])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.25)
 	var sel: Dictionary = Game.applicants[_sel] if _sel < Game.applicants.size() else {}
-	hint.text = _clip("E hire   Esc back.   %s, but %s" % [
-		Staff.strengths(sel), Staff.weakness(sel)])
+	hint.text = "E hire   Esc back.   " + _fit_px("%s, but %s" % [
+		Staff.strengths(sel), Staff.weakness(sel)], 340.0)
 
 
 ## YOUR CAREER: every milestone, earned and unearned.
@@ -2862,8 +2981,8 @@ func show_career() -> void:
 	_open(Mode.CAREER)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	title.text = "YOUR CAREER  %d/%d   trophies %d/%d" % [
 		Game.milestones.size(), Milestones.count(),
@@ -2888,7 +3007,7 @@ func show_career() -> void:
 	_reveal_rich(0.25)
 
 	var sel: Dictionary = rows[_sel] if _sel < rows.size() else {}
-	hint.text = _clip("Esc - close.   Tab - the ones who left.   %s%s" % [
+	hint.text = _hint_clip("Esc - close.   Tab - the ones who left.   %s%s" % [
 		"" if bool(sel.get("won", false)) else "Not yet: ", String(sel.get("blurb", ""))])
 
 
@@ -3071,8 +3190,8 @@ func _render_intro() -> void:
 		title.text = "MONDAY"
 		# Font 16 / spacing 2, the same panel budget every other screen is
 		# fit to (CLAUDE.md: 11 rows at font 16). The slate runs to ten.
-		body.add_theme_font_size_override("font_size", 16)
-		body.add_theme_constant_override("line_spacing", 2)
+		body.add_theme_font_size_override("font_size", UI_SIZE)
+		body.add_theme_constant_override("line_spacing", 0)
 		body.text = "\n".join(INTRO_SLATE)
 		hint.text = "E - go on"
 		overlay.color = Color(0.04, 0.03, 0.06, 0.45)
@@ -3360,8 +3479,8 @@ func _render_caller() -> void:
 	overlay.visible = true
 	body.visible = true
 	rich.visible = false
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_constant_override("line_spacing", 2)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 0)
 	# The same busts every other screen showing a face already uses.
 	if String(_caller_row.get("speaker", "")) == "student" and _caller_who != null:
 		portrait.texture = load("res://art/portrait_%s.png" % _caller_who.art)
@@ -3425,8 +3544,8 @@ func _render_mentor() -> void:
 	overlay.visible = true
 	body.visible = true
 	rich.visible = false
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_constant_override("line_spacing", 2)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 0)
 	# The mentor's own bust -- a recolour of the one character model, same
 	# as show_student() does for a child.
 	portrait.texture = load("res://art/portrait_mentor.png")
@@ -3592,8 +3711,8 @@ func show_office() -> void:
 	_open(Mode.OFFICE)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "THE PRINCIPAL'S OFFICE"
 	# No portrait here, on purpose -- Rich runs the full body height in
 	# this screen (a list this long has nowhere else to go), and the
@@ -3612,7 +3731,7 @@ func show_office() -> void:
 	lines.append("[color=#%s]The school is %s, and that is because of you.[/color]" % [
 		DIM, Game.reputation_words()])
 	lines.append("[color=#%s]Milestones[/color]  [color=#%s]%s[/color][color=#3a3a42]%s[/color]  %d/%d" % [
-		C_COIN, C_COIN, BAR_FULL.repeat(n), BAR_EMPTY.repeat(20 - n), earned, all.size()])
+		C_COIN, C_COIN, _cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n), earned, all.size()])
 	lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
 		DIM, Game.term_history.size(), Game.graduated.size()])
 	lines.append("")
@@ -3629,9 +3748,13 @@ func show_office() -> void:
 	var lo := _window_start(TUTORIALS.size(), shown)
 	lines.append("[color=#%s]TUTORIALS[/color]  [color=#%s]%d-%d of %d[/color]" % [
 		C_COIN, DIM, lo + 1, mini(TUTORIALS.size(), lo + shown), TUTORIALS.size()])
+	# The tip under the cursor is printed whole; the others are one line each,
+	# cut at a word, so the list keeps its shape in the pixel font.
 	for i in range(lo, mini(TUTORIALS.size(), lo + shown)):
+		var tip := String(TUTORIALS[i]) if i == _sel \
+			else _fit_px(String(TUTORIALS[i]), rich.size.x - 16.0)
 		lines.append("[color=#%s]%s%s[/color]" % [
-			DIM, ">" if i == _sel else " ", TUTORIALS[i]])
+			C_LESSON if i == _sel else DIM, ">" if i == _sel else " ", tip])
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.3)
 	hint.text = "Up/Down more tips   E - full career list   Esc - close"
@@ -3667,8 +3790,8 @@ func show_specialism() -> void:
 	_open(Mode.SPECIALISM)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 6)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 4)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "WHAT DO YOU TEACH?"
 
 	var strands := Curriculum.strands()
@@ -3706,8 +3829,8 @@ func show_new_term(info: Dictionary) -> void:
 	Sfx.play("start")
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	var prev: Dictionary = info.get("previous", {})
 	title.text = "TERM %d" % int(info.get("term", Game.term))
@@ -3842,10 +3965,10 @@ func show_curriculum() -> void:
 	body.visible = false
 	rich.visible = true
 	_book(true)
-	rich.add_theme_constant_override("line_separation", 3)
+	rich.add_theme_constant_override("line_separation", 1)
 	# 11, not the 12 every other book screen uses: this is the one with four
 	# columns on a row. Confirmed by screenshot, not by counting characters.
-	rich.add_theme_font_size_override("normal_font_size", 11)
+	rich.add_theme_font_size_override("normal_font_size", UI_SMALL)
 
 	var lessons := Curriculum.lessons
 	if lessons.is_empty():
@@ -3949,7 +4072,7 @@ func show_curriculum() -> void:
 	# the next concept is worth more than restating the objective: it is the
 	# thing the player is deciding about.
 	var std := String(lessons[_sel].get("standard", ""))
-	hint.text = _clip("%s%s   E - teach this next%s" % [
+	hint.text = _hint_clip("%s%s   E - teach this next%s" % [
 		std, "" if std == "" else "  ",
 		"   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else ""])
 
@@ -4002,7 +4125,7 @@ func show_skip() -> void:
 	for i in most:
 		pips += "[color=#%s]%s[/color]" % [
 			C_LESSON if i < _skip_days else BAR_TRACK,
-			BAR_FULL if i < _skip_days else BAR_EMPTY]
+			_cells(BAR_FULL if i < _skip_days else BAR_EMPTY, 1)]
 	lines.append("   %s   [color=#%s]%s[/color]" % [pips, C_LESSON,
 		"1 day" if _skip_days == 1 else "%d days" % _skip_days])
 	lines.append("")
@@ -4015,7 +4138,7 @@ func show_skip() -> void:
 		lines.append("[color=#%s]That is as far as you can go before the exam.[/color]"
 			% C_HOMEWORK)
 	rich.text = "\n".join(lines)
-	hint.text = _clip("Left/Right - days   E - hand it over")
+	hint.text = _hint_clip("Left/Right - days   E - hand it over")
 
 
 ## Run the days the player just agreed to, then show what happened.
@@ -4056,7 +4179,7 @@ func show_skip_report(rows: Array) -> void:
 	lines.append("")
 	lines.append("[color=#%s]You are back in the room.[/color]" % DIM)
 	rich.text = "\n".join(lines)
-	hint.text = _clip("E - back to it")
+	hint.text = _hint_clip("E - back to it")
 
 ## How many of a subject's concepts you already have.
 func _known_of(l: Dictionary) -> int:
@@ -4091,7 +4214,7 @@ func _difficulty_bar(level: int) -> String:
 	elif level == 3:
 		hue = C_HOMEWORK
 	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
-		hue, BAR_FULL.repeat(level), BAR_TRACK, BAR_EMPTY.repeat(5 - level)]
+		hue, _cells(BAR_FULL, level), BAR_TRACK, _cells(BAR_EMPTY, 5 - level)]
 
 
 ## How well you know a subject, as a ladder of states that actually differ.
@@ -4120,7 +4243,7 @@ func _mastery_bar(got: int, total: int, hue: String) -> String:
 	var width := 5
 	var n := int(round(float(got) / float(total) * float(width)))
 	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
-		hue, BAR_FULL.repeat(n), BAR_TRACK, BAR_EMPTY.repeat(width - n)]
+		hue, _cells(BAR_FULL, n), BAR_TRACK, _cells(BAR_EMPTY, width - n)]
 
 
 ## Wipe the rich body on, left to right.
@@ -4153,7 +4276,7 @@ func _worth_bar(bonus: float) -> String:
 		best = maxf(best, float(Items.get_def(id).get("bonus", 0.0)))
 	var n := clampi(int(round(bonus / best * 5.0)), 1, 5)
 	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
-		C_LESSON, BAR_FULL.repeat(n), BAR_TRACK, BAR_EMPTY.repeat(5 - n)]
+		C_LESSON, _cells(BAR_FULL, n), BAR_TRACK, _cells(BAR_EMPTY, 5 - n)]
 
 
 
@@ -4284,6 +4407,16 @@ const BAR_FULL := "█"
 const BAR_EMPTY := "░"
 
 
+## A run of bar cells, at the pixel font's SMALL size. Its block glyphs are a
+## full 20px em wide at UI_SIZE, so a 30-cell bar was 600px and wrapped the
+## line it sat on; at UI_SMALL a cell is 10px, about what the old font drew.
+## RichText only -- every bar in this file is built into BBCode.
+func _cells(ch: String, n: int) -> String:
+	if n <= 0:
+		return ""
+	return "[font_size=%d]%s[/font_size]" % [UI_SMALL, ch.repeat(n)]
+
+
 ## One stacked bar, in segments, each in its own colour.
 ## `parts` is [[amount 0..1, colour], ...]; the remainder is drawn empty.
 func _stacked_bar(parts: Array, width: int = 30) -> String:
@@ -4294,10 +4427,10 @@ func _stacked_bar(parts: Array, width: int = 30) -> String:
 			width - used)
 		if n > 0:
 			out += "[color=#%s]%s[/color]" % [String(part[1]),
-				BAR_FULL.repeat(n)]
+				_cells(BAR_FULL, n)]
 			used += n
 	if used < width:
-		out += "[color=#%s]%s[/color]" % [BAR_TRACK, BAR_EMPTY.repeat(width - used)]
+		out += "[color=#%s]%s[/color]" % [BAR_TRACK, _cells(BAR_EMPTY, width - used)]
 	return out
 
 
@@ -4399,8 +4532,13 @@ func show_day_report(report: Dictionary) -> void:
 	_open(Mode.REPORT)
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	# The frame's whole inner width: its sentences ("Weakest: the lesson.
+	# Teach for longer, and collect the work.") are the screen's point, and
+	# at 576px the pixel font wrapped most of them.
+	rich.offset_left = 22.0
+	rich.offset_right = 618.0
 
 	var avg := float(report.get("average", 0.0))
 	title.text = "DAY %d  -  %s  -  %d LEFT" % [
@@ -4517,12 +4655,12 @@ func _render_catalogue() -> void:
 	# exactly what colour is for, and a Label is one colour by definition.
 	body.visible = false
 	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 4)
-	rich.add_theme_font_size_override("normal_font_size", 16)
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	# The shop grew a blurb line and the staff room lists five perks, so the
 	# default font 10 (about 6 lines in a 128px body) ran under the hint bar.
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_constant_override("line_spacing", 2)
+	body.add_theme_font_size_override("font_size", UI_SIZE)
+	body.add_theme_constant_override("line_spacing", 0)
 	var rows := _shop_rows()
 	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
 	_set_ideas_ui(_shop == Shop.IDEAS)
@@ -4610,7 +4748,9 @@ func _render_catalogue() -> void:
 					String(d["name"]).substr(0, 13),
 					C_GOOD if afford else C_BAD, price,
 					_worth_bar(float(d["bonus"])),
-					"[color=#%s]%s[/color]" % [DIM,
+					# Small print beside the bar: at full size the row ran
+					# under the item's picture on the right.
+					"[font_size=%d][color=#%s]%s[/color][/font_size]" % [UI_SMALL, DIM,
 						_reach_words(int(d["range"]), float(d["bonus"]))]])
 		if lo + LIST_ROWS < rows.size():
 			lines.append("   ...")
@@ -4646,7 +4786,7 @@ func _render_catalogue() -> void:
 		hint.text = "Up/Down browse   Tab buy list   Esc close"
 		return
 	if _shop == Shop.BUY:
-		hint.text = _clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E buy to cabinet   Esc close"
+		hint.text = _hint_clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E buy to cabinet   Esc close"
 		return
 	if _shop == Shop.CABINET:
 		hint.text = "Up/Down choose   E place   Left sell   Tab staff room   Esc close"
@@ -4695,9 +4835,11 @@ func _render_ideas(rows: Array) -> Array[String]:
 	var total := RoomTemplates.entries(cur).size()
 	var owned := RoomTemplates.owned_count(cur)
 	var left := RoomTemplates.missing_cost(cur)
-	_info.text = "%s\n[color=#%s]%s[/color]\nYou have %d of its %d pieces. %s" % [
-		String(cur.get("blurb", "")), DIM, shown, owned, total,
-		"You have all of it." if left == 0 else "The rest would cost [color=#%s]%d[/color] coins." % [C_COIN, left]]
+	# One line each, fitted: three lines is all the space under the picture.
+	_info.text = "%s\n[color=#%s]%s[/color]\nYou own %d of its %d pieces. %s" % [
+		_fit_or_small(String(cur.get("blurb", "")), _info.size.x), DIM,
+		_fit_or_small(shown, _info.size.x), owned, total,
+		"That is all of it." if left == 0 else "The rest: [color=#%s]%d[/color] coins." % [C_COIN, left]]
 	return lines
 
 
@@ -4764,7 +4906,7 @@ func _staff_row(idx: int, label: String, hired: bool, level: int,
 		status = "hired, %d/day, next %d" % [wage, Game.staff_level_cost(level)]
 	var dots := ""
 	if hired:
-		dots = " " + BAR_FULL.repeat(level) + BAR_EMPTY.repeat(Balance.staff_level_max - level)
+		dots = " " + _cells(BAR_FULL, level) + _cells(BAR_EMPTY, Balance.staff_level_max - level)
 	return "%s [color=#%s]%-17s[/color]%s [color=#%s]%s[/color]" % [
 		">" if _sel == idx else " ", C_ROOM, label, dots,
 		C_GOOD if hired else C_COIN, status]
@@ -4832,7 +4974,7 @@ func _render_craft(rows: Array) -> Array[String]:
 			">" if i == _sel else " ", C_LESSON,
 			String(d.get("name", lesson_id)).substr(0, 13),
 			craft_style_colour(style) if level > 0 else DIM,
-			BAR_FULL.repeat(mini(level, cap)) + BAR_EMPTY.repeat(maxi(0, cap - level)),
+			_cells(BAR_FULL, mini(level, cap)) + _cells(BAR_EMPTY, maxi(0, cap - level)),
 			C_GOOD if afford else C_BAD, cost])
 	if lo + LIST_ROWS < rows.size():
 		lines.append("   ...")
@@ -4874,7 +5016,7 @@ func _render_staff() -> Array[String]:
 		lines.append("%s %-17s [color=#%s]%s[/color]" % [
 			">" if i + 2 == _sel else " ", String(d.get("name", id)),
 			C_LESSON if have > 0 else DIM,
-			BAR_FULL.repeat(have) + BAR_EMPTY.repeat(cap - have)])
+			_cells(BAR_FULL, have) + _cells(BAR_EMPTY, cap - have)])
 	if perk_lo + STAFF_PERK_ROWS < order.size():
 		lines.append("   ...")
 	lines.append("")
@@ -4884,13 +5026,13 @@ func _render_staff() -> Array[String]:
 			>= Balance.staff_level_max
 		var blurb := "They collect finished work so you can stay at the front." \
 			if _sel == 0 else "They clean the room's mess for you, any time of day."
-		lines.append("[color=#%s]%s[/color]" % [DIM,
+		lines.append("[color=#%s]%s[/color]" % [DIM, _fit_or_small(
 			blurb if not hired
 			else ("Fully trained." if maxed else "E again to train them up a level.")
-			+ ("" if not hired else "  Left arrow to let them go.")])
+			+ ("" if not hired else "  Left arrow to let them go."), rich.size.x)])
 	elif not order.is_empty():
-		lines.append("[color=#%s]%s[/color]" % [DIM,
-			String(Progress.perk_def(order[_sel - 2]).get("blurb", ""))])
+		lines.append("[color=#%s]%s[/color]" % [DIM, _fit_or_small(
+			String(Progress.perk_def(order[_sel - 2]).get("blurb", "")), rich.size.x)])
 	return lines
 
 
@@ -4965,7 +5107,7 @@ func _render_sheet() -> void:
 	var s: StudentData = _marking[0]
 	title.text = "%s  —  %d left" % [s.display_name, _marking.size()]
 	sheet.show_sheet(s.hw_sheet)
-	hint.text = "Trace a check or an X on the page          Left/Right also work"
+	hint.text = "Trace a check or an X    or Left/Right"
 
 
 ## Ignoring input while a stamp is still up (rather than queuing it) is

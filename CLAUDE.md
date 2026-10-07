@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2398 assertions — must pass, count must not drop
+Run Tests.bat            2415 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -270,7 +270,7 @@ still looks armed is how the last one got missed.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2398 assertions, 125 sections |
+| `tests/run.gd` | The suite — 2415 assertions, 126 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -357,9 +357,22 @@ cannot ship in a Steam game, and Galmuri is an OFL font drawn after the
 Nintendo DS text. 20px is its 10px em doubled, so one of its pixels is one
 pixel of the room's art -- keep it on a multiple of 10. Faces beside speech are
 drawn at 72px (the 24px bust at exactly 3x, `expand_mode` IGNORE_SIZE so the
-rect cannot grow back to 96), and blink from `portrait_<art>_talk.png`. The
-rest of the UI is still the default font; moving it over means re-fitting every
-panel against the 11-row budget, so it has not been done silently.
+rect cannot grow back to 96), and blink from `portrait_<art>_talk.png`.
+
+**The whole player-facing UI is in that font too** (owner's call, Oct 2026):
+`fonts/ui_theme.tres` sits on the HUD's root, and the title screen, the floaters
+and the overhead key badges set it themselves. Two sizes only -- `UI_SIZE` (20)
+and `UI_SMALL` (10) in `hud.gd` -- and a test fails on any size that is not a
+multiple of 10. Galmuri's line is ~2px taller than the old font's, so every
+line spacing came down by 2 to keep the 11-row budget. The dev tools (Master
+Forge, Browse Art) keep the default font.
+
+**The verbs on offer are the coloured badges over the teacher's head, and
+nothing else.** The bar along the bottom used to repeat them word for word,
+clipped; it is now only ever the speech box. A held verb's badge says "hold"
+and fills as you hold. **The mentor's three moves** (dash, answer all, the
+call) sit bottom right as icons with their keys, each shown only while it can
+be used, shaded while it recharges (`_update_move_bar()`).
 
 **The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
 write PNGs but do not import them, and Godot cannot load an unimported

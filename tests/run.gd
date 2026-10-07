@@ -205,6 +205,7 @@ func _main() -> void:
 	await test_dash_upgrade_and_display()
 	await test_chain_dash()
 	await test_call_response()
+	await test_move_bar()
 	test_relay()
 	await test_subjects_and_skip()
 	test_graduation()
@@ -3009,13 +3010,14 @@ func test_two_buttons_one_landmark() -> void:
 	world.messes.append(_mess)
 	await step(3)
 	chk("all four are live at once", p.offers().size() == 4, p.offers().size())
-	hud._update_prompt()
-	chk("the quiz prompt is not silently cut off",
-		hud.prompt.text.contains("Quick quiz") or hud.prompt.text.ends_with("."),
-		hud.prompt.text)
-	chk("nothing in the bar is a bare truncated fragment with no marker",
-		not hud.prompt.text.contains("[.") or hud.prompt.text.contains("[......]"),
-		hud.prompt.text)
+	p._update_key_prompts()
+	chk("each live verb gets its own badge over the teacher",
+		p.badge_texts().size() == 4, p.badge_texts())
+	chk("the quiz is named in full -- a badge is never cut down",
+		p.badge_texts().any(func(t: String) -> bool: return t.ends_with("Quick quiz")),
+		p.badge_texts())
+	chk("and the whole row still fits across the screen",
+		p.badge_row_width() <= 640.0, p.badge_row_width())
 
 	Game.new_run(SEED)             # fully isolated from whatever follows
 	await step(2)
@@ -3487,27 +3489,56 @@ func test_panels_fit() -> void:
 	# printing the (by-then-correct) facing afterwards never catches. Force
 	# one clean re-pick against the facing actually asked for.
 	world.player._repick()
-	hud._update_prompt()
-	chk("both buttons are named at the noticeboard",
-		hud.prompt.text.contains("Curriculum") and hud.prompt.text.contains("shop"),
-		hud.prompt.text)
-	# Both keys must still be NAMED when the line is tight -- clipping the
-	# joined line used to leave a hold bar with no words after it.
-	Game.set_phase(Game.Phase.LESSON)
+	world.player._update_key_prompts()
+	chk("both buttons are named at the noticeboard", (func() -> bool:
+		var all := " ".join(world.player.badge_texts())
+		return all.contains("Curriculum") and all.contains("shop")).call(),
+		world.player.badge_texts())
+	# Both keys must still be NAMED at a crowded spot, and a held one must
+	# keep its words -- the bar used to leave a hold meter with none.
+	# A real lesson, not a raw phase-set: with no clock behind it the room
+	# ends a bare LESSON phase on its next tick, and the podium has nothing
+	# left to offer by the time anyone looks.
+	world.start_lesson()
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
-	hud._update_prompt()
-	chk("a crowded prompt bar still names both buttons",
-		hud.prompt.text.contains("E") and hud.prompt.text.contains("F"),
-		hud.prompt.text)
-	chk("and neither half is left as a bare progress bar",
-		not hud.prompt.text.ends_with("]"), hud.prompt.text)
+	world.player._repick()        # the same stale-cache reason as above
+	world.player._update_key_prompts()
+	chk("a crowded spot still gets a badge per button",
+		world.player.badge_texts().size() >= 2,
+		world.player.badge_texts())
+	chk("a held verb's badge says hold, and keeps its words", (func() -> bool:
+		var seen := false
+		for t: String in world.player.badge_texts():
+			if t.begins_with("hold "):
+				seen = true
+				if t.split("  ").size() < 2 or t.split("  ")[1].strip_edges() == "":
+					return false
+		return seen).call(), world.player.badge_texts())
+	chk("and fills as you hold it", (func() -> bool:
+		var pl = world.player
+		var held_action := ""
+		for t: Interactable in pl.offers():
+			if t.hold_time > 0.0 and t.can_interact():
+				held_action = t.action_name()
+		if held_action == "":
+			return false
+		pl._holding = held_action
+		pl.hold_progress = 0.5
+		pl._update_key_prompts()
+		var b: Dictionary = pl._key_prompt_badges[held_action]
+		var half := is_equal_approx((b["fill"] as ColorRect).size.x,
+			round((b["box"] as ColorRect).size.x * 0.5))
+		pl._holding = ""
+		pl.hold_progress = 0.0
+		pl._update_key_prompts()
+		return half and (b["fill"] as ColorRect).size.x == 0.0).call())
+	world.end_lesson()
 	Game.set_phase(Game.Phase.AFTERNOON)
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
+	hud._hint_until = 0.0
 	hud._update_prompt()
-
-	chk("and the prompt bar fits on its line",
-		hud.prompt.text.length() <= hud.PROMPT_CHARS,
-		"%d: %s" % [hud.prompt.text.length(), hud.prompt.text])
+	chk("and the bar under the room no longer repeats them",
+		not hud.prompt_box.visible and not hud.prompt.visible)
 
 	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
 	# Area2D overlap updates a physics frame behind a teleport, so the
@@ -10395,6 +10426,97 @@ func test_call_response() -> void:
 	await step(2)
 
 
+## THE MOVE BAR (Oct 2026): the mentor's three moves, bottom right, each one
+## shown only while it can be used, with how soon it is back.
+func test_move_bar() -> void:
+	section("THE MOVE BAR")
+	var hud := _hud()
+	Game.new_run(SEED)
+	var guard := 0
+	while not world.everyone_seated() and guard < 900:
+		await step(1)
+		guard += 1
+	hud.close()
+	hud._queued_hint.clear()
+	hud._queued_beat = ""
+	hud._beat_full = ""
+	hud._hint_until = 0.0
+	await step(2)
+	hud._update_prompt()
+	var slot := func(id: String) -> Control: return hud._move_slots[id]["root"]
+	var shade := func(id: String) -> float: return (hud._move_slots[id]["shade"] as ColorRect).size.y
+	hud._update_move_bar()
+	chk("a new career shows no moves -- nothing is taught yet",
+		not slot.call("dash").visible and not slot.call("answer_all").visible
+		and not slot.call("call").visible)
+
+	Game.dash_taught = true
+	Game.answer_all_taught = true
+	Game.call_response_taught = true
+	hud._update_move_bar()
+	chk("the dash shows once taught, lesson or not", slot.call("dash").visible)
+	chk("the two lesson moves stay away outside a lesson -- hidden, not greyed",
+		not slot.call("answer_all").visible and not slot.call("call").visible)
+
+	world.start_lesson()
+	await step(2)
+	Game.voice = 1.0
+	Game.answer_all_cooldown = 0.0
+	Game.call_cooldown = 0.0
+	hud._update_move_bar()
+	chk("mid-lesson all three are there", slot.call("dash").visible
+		and slot.call("answer_all").visible and slot.call("call").visible)
+	chk("in a row, left to right, inside the bottom-right of the screen", (func() -> bool:
+		var xs: Array = []
+		for id: String in ["dash", "answer_all", "call"]:
+			var r: Control = slot.call(id)
+			if r.position.x < 0.0 or r.position.x + r.size.x > 640.0 \
+					or r.position.y + r.size.y > 352.0:
+				return false
+			xs.append(r.position.x)
+		return xs[0] < xs[1] and xs[1] < xs[2]).call())
+	chk("a ready move is not shaded", shade.call("answer_all") == 0.0 and shade.call("call") == 0.0)
+	chk("each slot names its own key",
+		(hud._move_slots["answer_all"]["key"] as Label).text
+			== Settings.binding_text("answer_all").split(",")[0].strip_edges()
+		and (hud._move_slots["call"]["key"] as Label).text
+			== Settings.binding_text("call_response").split(",")[0].strip_edges())
+
+	Game.answer_all_cooldown = Balance.answer_all_cooldown_seconds * 0.5
+	hud._update_move_bar()
+	chk("half the wait left is half the icon shaded",
+		is_equal_approx(shade.call("answer_all"), round(hud.MOVE_ICON * 0.5)), shade.call("answer_all"))
+	Game.answer_all_cooldown = 0.0
+	Game.voice = 0.0
+	hud._update_move_bar()
+	chk("the call waits on voice as well as its cooldown",
+		is_equal_approx(shade.call("call"), hud.MOVE_ICON), shade.call("call"))
+	Game.voice = 1.0
+	hud._update_move_bar()
+
+	hud._shown_hints.erase("move_bar_test")
+	hud.principal_says("move_bar_test", "A line, so the speech box is up.")
+	hud._update_move_bar()
+	chk("out of the way while someone is talking", not slot.call("dash").visible)
+	hud._hint_until = 0.0
+	hud._update_prompt()
+	hud._update_move_bar()
+	chk("and back when they have finished", slot.call("dash").visible)
+	hud.show_pause()
+	hud._update_move_bar()
+	chk("and gone under any screen", not slot.call("dash").visible)
+	hud.close()
+	chk("the strip no longer carries the recharge pips the bar replaced", (func() -> bool:
+		Game.answer_all_cooldown = Balance.answer_all_cooldown_seconds
+		hud._update_status()
+		Game.answer_all_cooldown = 0.0
+		return not hud.status.text.contains("answer-all")).call(), hud.status.text)
+	world.end_lesson()
+	await step(2)
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_chain_dash() -> void:
 	section("THE CHAIN DASH")
 	Balance.ensure_loaded()
@@ -11768,9 +11890,26 @@ func test_day_beats() -> void:
 	hud._hint_until = 0.0
 	hud._beat_full = ""
 	await step(2)
-	chk("and once it is said, the bar goes back to being a bar",
+	chk("and once it is said, the speech box is put away and the label let go",
 		not hud.speech_box.visible
-		and hud.prompt.get_theme_font("font") != hud.SPEECH_FONT)
+		and not hud.prompt.has_theme_font_size_override("font_size")
+		and not hud.prompt.has_theme_color_override("font_color"))
+
+	# --- and every other word the player reads (Oct 2026, the owner's call) ---
+	chk("the HUD's own words are in the pixel font too",
+		hud.status.get_theme_font("font") == hud.SPEECH_FONT
+		and hud.body.get_theme_font("font") == hud.SPEECH_FONT
+		and hud.title.get_theme_font("font") == hud.SPEECH_FONT)
+	chk("only at whole multiples of its 10px em -- nothing in between smears", (func() -> bool:
+		var rx := RegEx.new()
+		rx.compile("font_size(?:_override\\(\"[a-z_]+\", |[a-z_/]* = )(\\d+)")
+		for path: String in ["res://scripts/ui/hud.gd", "res://scenes/ui/hud.tscn",
+				"res://scenes/ui/title.tscn", "res://scripts/ui/floater.gd",
+				"res://scripts/actors/player.gd", "res://scenes/actors/speech_bubble.tscn"]:
+			for m in rx.search_all(FileAccess.get_file_as_string(path)):
+				if int(m.get_string(1)) % 10 != 0:
+					return false
+		return true).call())
 	hud._shown_hints.erase("speech_wrap_test")
 	var long_tip := "You went round the whole room at once. That is most of the lesson's " \
 		+ "time gone, and it is a while before you can do it again."

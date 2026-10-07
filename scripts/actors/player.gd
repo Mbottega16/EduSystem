@@ -105,8 +105,9 @@ const _KEY_PROMPT_COLORS := {
 	"homework": Color(0.6, 1.0, 0.65), "move_desk": Color(0.85, 0.85, 0.6),
 	"respond": Color(1.0, 0.55, 0.4), "answer_all": Color(0.55, 0.8, 0.85),
 }
+const _BADGE_FONT := preload("res://fonts/Galmuri9.ttf")
 var _key_prompts_root: Node2D = null
-var _key_prompt_badges: Dictionary = {}   ## action -> {"box": ColorRect, "label": Label, "tween": Tween}
+var _key_prompt_badges: Dictionary = {}   ## action -> {"box", "fill", "label", "tween"}
 
 
 func _build_key_prompts_root() -> void:
@@ -151,9 +152,16 @@ func _update_key_prompts() -> void:
 		var badge: Dictionary = _key_prompt_badges[action]
 		var box := badge["box"] as ColorRect
 		var label := badge["label"] as Label
-		label.text = "%s  %s" % [t.key_hint(), t.prompt_text()]
+		# A held verb says so, and fills as you hold it. The bar under the
+		# room used to be the only place a hold meter showed; it no longer
+		# repeats these badges, so the meter lives where the eye already is.
+		var hold := t.hold_time > 0.0
+		label.text = ("hold %s  %s" if hold else "%s  %s") % [t.key_hint(), t.prompt_text()]
 		box.size = label.get_minimum_size() + Vector2(10, 6)
 		box.position = Vector2(x, 0)
+		var held: float = hold_progress if hold and _holding == action else 0.0
+		var fill := badge["fill"] as ColorRect
+		fill.size = Vector2(round(box.size.x * clampf(held, 0.0, 1.0)), box.size.y)
 		x += box.size.x + 6.0
 
 	# Keep the row on screen. It grows rightward from above the player's
@@ -178,8 +186,16 @@ func _update_key_prompts() -> void:
 func _spawn_key_badge(action: String) -> Dictionary:
 	var box := ColorRect.new()
 	box.color = _KEY_PROMPT_COLORS.get(action, Color(0.8, 0.8, 0.8))
+	# The hold meter: a darker band growing left to right under the words.
+	var fill := ColorRect.new()
+	fill.color = Color(0, 0, 0, 0.3)
+	fill.size = Vector2.ZERO
+	box.add_child(fill)
 	var label := Label.new()
-	label.add_theme_font_size_override("font_size", 12)
+	# The pixel font at its 1x size (Oct 2026): small enough for a row of
+	# badges over one head, and still whole pixels.
+	label.add_theme_font_override("font", _BADGE_FONT)
+	label.add_theme_font_size_override("font_size", 10)
 	label.add_theme_color_override("font_color", Color.BLACK)
 	label.position = Vector2(5, 3)
 	box.add_child(label)
@@ -192,7 +208,25 @@ func _spawn_key_badge(action: String) -> Dictionary:
 	tw.tween_property(box, "modulate:a", 0.55, 0.6).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(box, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
 
-	return {"box": box, "label": label, "tween": tw}
+	return {"box": box, "fill": fill, "label": label, "tween": tw}
+
+
+## What the badges over the teacher's head say right now, left to right.
+## For tests, and for anything that wants the offers without drawing them.
+func badge_texts() -> Array[String]:
+	var out: Array[String] = []
+	for action: String in Interactable.KEY_ACTIONS:
+		if _key_prompt_badges.has(action):
+			out.append((_key_prompt_badges[action]["label"] as Label).text)
+	return out
+
+
+## How wide the badge row is, in screen pixels.
+func badge_row_width() -> float:
+	var w := 0.0
+	for b: Dictionary in _key_prompt_badges.values():
+		w += (b["box"] as ColorRect).size.x + 6.0
+	return maxf(0.0, w - 6.0)
 
 
 ## The desk that most needs the teacher, by the same priority the desk

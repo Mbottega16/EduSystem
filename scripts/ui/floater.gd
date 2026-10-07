@@ -17,6 +17,8 @@ static func pop(parent: Node2D, at: Vector2, text: String,
 	parent.add_child(f)
 	f._go()
 
+const FONT := preload("res://fonts/Galmuri9.ttf")
+
 var _text: String = ""
 var _colour := Color.WHITE
 var _label: Label = null
@@ -31,7 +33,10 @@ func current_text() -> String:
 func _go() -> void:
 	_label = Label.new()
 	_label.text = _text
-	_label.add_theme_font_size_override("font_size", 18)   # doubled Aug 2026
+	# The game's pixel font (Oct 2026), at 20: one of its pixels is one of
+	# the room's. Was the default font at 18.
+	_label.add_theme_font_override("font", FONT)
+	_label.add_theme_font_size_override("font_size", 20)
 	_label.add_theme_color_override("font_color", _colour)
 	_label.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.08))
 	_label.add_theme_constant_override("outline_size", 6)   # doubled Aug 2026

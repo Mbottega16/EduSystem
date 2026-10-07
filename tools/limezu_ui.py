@@ -155,6 +155,34 @@ def ui_speech(interiors, ui):
     return limezu.up2(ui.image(UI_STYLE_2).crop(SPEECH_BOX))
 
 
+# The move bar's three icons (the HUD's bottom-right slots: dash, answer
+# all, the call-and-response), straight off Style 1's loose 16x16 icons: the
+# lightning bolt, the light bulb ("got it"), and the speaker. The speaker is
+# a two-tone brown glyph made to sit on a cream button; recoloured to the
+# keyline and the call's own cool blue so it reads on the white slot and
+# matches the rings the call draws (Fx.CALL_COLOUR).
+MOVE_ICONS = {
+    "ui_move_dash": (160, 160, 176, 176),
+    "ui_move_answer": (192, 0, 208, 16),
+    "ui_move_call": (336, 0, 352, 16),
+}
+CALL_RECOLOUR = {(107, 80, 82): KEYLINE[:3], (195, 172, 144): (0x6c, 0xb4, 0xe8)}
+
+
+def _move_icon(name):
+    def build(interiors, ui):
+        icon = ui.image(UI_STYLE_1).crop(MOVE_ICONS[name]).convert("RGBA")
+        if name == "ui_move_call":
+            px = icon.load()
+            for y in range(icon.height):
+                for x in range(icon.width):
+                    r, g, b, a = px[x, y]
+                    if a and (r, g, b) in CALL_RECOLOUR:
+                        px[x, y] = CALL_RECOLOUR[(r, g, b)] + (a,)
+        return limezu.up2(icon)
+    return build
+
+
 BUILDERS = {
     "bubble_q": bubble_q,
     "bubble_excl": _bubble(EXCLAIM),
@@ -165,6 +193,9 @@ BUILDERS = {
     "bubble_note": _bubble(NOTE),
     "ui_frame": ui_frame,
     "ui_speech": ui_speech,
+    "ui_move_dash": _move_icon("ui_move_dash"),
+    "ui_move_answer": _move_icon("ui_move_answer"),
+    "ui_move_call": _move_icon("ui_move_call"),
 }
 OUTPUTS = sorted(BUILDERS)
 

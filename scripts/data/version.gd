@@ -17,7 +17,7 @@ const BUILD := "b45"
 const DATED := "2026-10-07"
 
 ## The headline of what went in, short enough for one line on the title.
-const HEADLINE := "Class, class! -- Yes, yes!"
+const HEADLINE := "Class, class!"
 
 
 static func stamp() -> String:
