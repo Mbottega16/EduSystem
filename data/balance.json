@@ -1062,6 +1062,12 @@
     "seconds_cost": 16.0,
     "cooldown_seconds": 75.0
   },
+  "call_response": {
+    "_note": "The call-and-response, key Y, the mentor's third move (taught on the visit after the chain dash). 'Class, class!' from wherever you stand; the room answers 'Yes, yes!' and attention snaps to full and does not decay for hold_seconds, wherever you then walk -- one trip to the desks bought back from the clock. It costs voice_cost of the voice meter that settling the room also spends, so the two compete, and cooldown_seconds stops a full meter buying two holds back to back. Pace only: attention scales how fast work moves and nothing else; it pays no grade and no coins, and tests/run.gd guards that tools/sim.gd never calls it, so the three contract rows cannot move. Re-armed by classroom.start_lesson(); silent during a unit test and the boss paper.",
+    "voice_cost": 0.5,
+    "hold_seconds": 5.0,
+    "cooldown_seconds": 20.0
+  },
   "graduation": {
     "_note": "What sending a child up is worth. Scaled by readiness, so graduating someone the moment they qualify pays less than seeing them through.",
     "base_coins": 90,

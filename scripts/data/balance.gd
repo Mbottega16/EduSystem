@@ -345,6 +345,14 @@ static var quiz_focus_mult: float = 0.6
 static var answer_all_seconds_cost: float = 16.0
 static var answer_all_cooldown_seconds: float = 75.0
 
+## The call-and-response ("Class, class!" -- "Yes, yes!"), the mentor's
+## third move. Attention snaps to full and holds for hold_seconds wherever
+## you walk; it costs voice_cost of the voice meter settling also spends,
+## and cannot be called again for cooldown_seconds. Pace only.
+static var call_voice_cost: float = 0.5
+static var call_hold_seconds: float = 5.0
+static var call_cooldown_seconds: float = 20.0
+
 # --- graduation & coaching ----------------------------------------------
 static var grad_base_coins: int = 90
 static var grad_coins_per_level: int = 45
@@ -704,6 +712,11 @@ static func apply(d: Dictionary) -> void:
 	var aa: Dictionary = d.get("answer_all", {})
 	answer_all_seconds_cost = float(aa.get("seconds_cost", answer_all_seconds_cost))
 	answer_all_cooldown_seconds = float(aa.get("cooldown_seconds", answer_all_cooldown_seconds))
+
+	var cr: Dictionary = d.get("call_response", {})
+	call_voice_cost = float(cr.get("voice_cost", call_voice_cost))
+	call_hold_seconds = float(cr.get("hold_seconds", call_hold_seconds))
+	call_cooldown_seconds = float(cr.get("cooldown_seconds", call_cooldown_seconds))
 
 	var gr: Dictionary = d.get("graduation", {})
 	grad_base_coins = int(gr.get("base_coins", grad_base_coins))

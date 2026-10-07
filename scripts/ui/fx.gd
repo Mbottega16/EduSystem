@@ -131,6 +131,193 @@ static func afterimage_count(parent: Node) -> int:
 	return n
 
 
+## A ring of light bursting out of `at` -- "answer all", the teacher's one
+## move that reaches the whole room at once, drawn as what it is: a wave
+## leaving the teacher and washing over every desk. Two rings (a bright edge,
+## a soft one trailing it), a flash of a disc at the centre, and a scatter of
+## chalk flung outward. Seeded from the engine, never Game.rng -- see puff().
+##
+## Returns how long the leading ring takes to reach `radius`, so a caller can
+## time something to the moment the wave arrives somewhere: distance / radius
+## * that.
+static func shockwave(parent: Node2D, at: Vector2, radius: float = 420.0,
+		colour := Color(1.0, 0.93, 0.62), seconds: float = 0.7) -> float:
+	if parent == null or not is_instance_valid(parent):
+		return seconds
+	# The flash: a filled disc that blooms and is gone before the ring is far.
+	var core := Ring.new()
+	core.position = at
+	core.fill = true
+	core.colour = Color(colour.r, colour.g, colour.b, 0.55)
+	core.z_index = 61
+	parent.add_child(core)
+	var tc := core.create_tween().set_parallel(true)
+	tc.tween_property(core, "radius", 46.0, 0.22) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tc.tween_property(core, "modulate:a", 0.0, 0.3)
+	tc.chain().tween_callback(core.queue_free)
+	# The rings. Cubic-out: it leaves hard and slows as it spreads, the
+	# shape of a shout rather than of a radar sweep.
+	for i in 2:
+		var r := Ring.new()
+		r.position = at
+		r.width = 6.0 if i == 0 else 3.0
+		r.colour = colour if i == 0 else Color(1, 1, 1, 0.6)
+		r.z_index = 61
+		parent.add_child(r)
+		var t := r.create_tween().set_parallel(true)
+		t.tween_property(r, "radius", radius * (1.0 if i == 0 else 0.82), seconds) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).set_delay(0.06 * i)
+		t.tween_property(r, "modulate:a", 0.0, seconds * 0.55) \
+			.set_delay(seconds * 0.45 + 0.06 * i)
+		t.chain().tween_callback(r.queue_free)
+	# Chalk flung outward all the way round, riding the ring.
+	for i in 18:
+		var s := Sprite2D.new()
+		s.texture = DUST
+		s.position = at
+		s.scale = Vector2.ONE * randf_range(1.6, 3.0)
+		s.modulate = Color(colour.r, colour.g, colour.b, 0.9)
+		s.z_index = 60
+		parent.add_child(s)
+		var ang := TAU * float(i) / 18.0 + randf_range(-0.12, 0.12)
+		var to := at + Vector2(cos(ang), sin(ang)) * randf_range(0.35, 0.6) * radius
+		var tw := s.create_tween().set_parallel(true)
+		tw.tween_property(s, "position", to, seconds) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(s, "modulate:a", 0.0, seconds * 0.6).set_delay(seconds * 0.35)
+		tw.chain().tween_callback(s.queue_free)
+	return seconds
+
+
+## When a ring tweened by shockwave() reaches distance `d` out of `radius`:
+## the inverse of its cubic-out ease, so a desk is touched as the bright edge
+## actually passes over it rather than on a straight-line guess.
+static func wave_arrival(d: float, radius: float, seconds: float) -> float:
+	var x := clampf(d / maxf(1.0, radius), 0.0, 1.0)
+	# cubic-out: p = 1 - (1 - t)^3  ->  t = 1 - (1 - p)^(1/3)
+	return seconds * (1.0 - pow(1.0 - x, 1.0 / 3.0))
+
+
+const SPEECH := preload("res://scenes/actors/speech_bubble.tscn")
+const MARK_HEARD := preload("res://art/bubble_excl.png")
+const CALL_COLOUR := Color(0.62, 0.86, 1.0)
+## Above everything in the room, however it sorts its own depth -- the
+## mentor's room sets z_index from y by hand, which put a bubble at 64 under
+## anyone standing below row 64.
+const OVER_ALL := 3000
+
+## "Class, class!" -- "Yes, yes!" The call-and-response, drawn: the caller's
+## line in a speech bubble, three thin rings of sound going out from them
+## (cool, thin and quick -- answer-all's burst is warm and heavy; the two must
+## not read as the same move), and each child it reaches looking up with a
+## "!" and a little bounce as the sound gets there, then the whole room's
+## answer in one bubble over the middle of the class. Used by the classroom
+## for the real thing and by the mentor's room for her demonstration.
+## `kids` are the Node2Ds that answer (a child busy playing up does not).
+## Decoration only -- engine randomness, never Game.rng.
+static func call_and_response(parent: Node2D, caller: Node2D, kids: Array,
+		radius: float = 360.0, seconds: float = 0.9) -> void:
+	if parent == null or not is_instance_valid(parent) \
+			or caller == null or not is_instance_valid(caller):
+		return
+	var from := parent.to_local(caller.global_position) + Vector2(0, -16)
+	_say_for(parent, from + Vector2(0, -14), "Class, class!", 1.0)
+	for i in 3:
+		var r := Ring.new()
+		r.position = from
+		r.width = 2.0
+		r.colour = CALL_COLOUR
+		r.z_index = OVER_ALL
+		parent.add_child(r)
+		var t := r.create_tween().set_parallel(true)
+		t.tween_property(r, "radius", radius, seconds) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.14 * i)
+		t.tween_property(r, "modulate:a", 0.0, seconds * 0.5) \
+			.set_delay(seconds * 0.5 + 0.14 * i)
+		t.chain().tween_callback(r.queue_free)
+	var mid := Vector2.ZERO
+	var top := INF
+	var last := 0.0
+	var answering := 0
+	for k in kids:
+		if not (k is Node2D) or not is_instance_valid(k):
+			continue
+		var kid := k as Node2D
+		var at := parent.to_local(kid.global_position)
+		mid += at
+		top = minf(top, at.y)
+		answering += 1
+		# Sine-out reaches distance d at asin(d / radius) / (PI / 2) of the
+		# way through; a quarter-second after that they react.
+		var x := clampf(from.distance_to(at) / radius, 0.0, 1.0)
+		var when := seconds * asin(x) / (PI * 0.5) + 0.25
+		last = maxf(last, when)
+		kid.get_tree().create_timer(when).timeout.connect(func() -> void:
+			if not is_instance_valid(kid) or not is_instance_valid(parent):
+				return
+			land(kid)
+			# A child already showing a mark (a stuck "?") keeps it: their
+			# answer is the bounce, not a second bubble stacked on the first.
+			var own: Variant = kid.get("bubble")
+			if own is CanvasItem and (own as CanvasItem).visible:
+				return
+			var m := Sprite2D.new()
+			m.texture = MARK_HEARD
+			m.position = at + Vector2(0, -58)
+			m.modulate = CALL_COLOUR.lerp(Color.WHITE, 0.5)
+			m.z_index = OVER_ALL
+			m.scale = Vector2(0.4, 0.4)
+			parent.add_child(m)
+			var mt := m.create_tween()
+			mt.tween_property(m, "scale", Vector2.ONE, 0.16) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			mt.tween_interval(0.5)
+			mt.tween_property(m, "modulate:a", 0.0, 0.25)
+			mt.tween_callback(m.queue_free))
+	if answering == 0:
+		return
+	mid /= float(answering)
+	parent.get_tree().create_timer(last + 0.1).timeout.connect(func() -> void:
+		if not is_instance_valid(parent):
+			return
+		Sfx.play_varied("confirm")
+		_say_for(parent, Vector2(mid.x, top - 62.0), "Yes, yes!", 1.2))
+
+
+## A speech bubble that is not anybody's: dropped into `parent` at `at`,
+## saying `text`, gone after `seconds`.
+static func _say_for(parent: Node2D, at: Vector2, text: String, seconds: float) -> void:
+	var b: Node2D = SPEECH.instantiate()
+	b.position = at
+	b.z_index = OVER_ALL + 1
+	parent.add_child(b)
+	b.say(text)
+	b.fit_width()
+	b.get_tree().create_timer(seconds).timeout.connect(func() -> void:
+		if is_instance_valid(b):
+			b.queue_free())
+
+
+## A drawn circle -- an outline of `width`, or filled. Pixel-hard (no
+## antialiasing), redrawn whenever a tween moves its radius.
+class Ring extends Node2D:
+	var colour := Color.WHITE
+	var width := 4.0
+	var fill := false
+	var radius := 1.0:
+		set(v):
+			radius = v
+			queue_redraw()
+
+	func _draw() -> void:
+		if fill:
+			draw_circle(Vector2.ZERO, radius, colour, true, -1.0, false)
+		else:
+			draw_arc(Vector2.ZERO, radius, 0.0, TAU, maxi(24, int(radius * 0.6)),
+				colour, width, false)
+
+
 ## A quick squash-and-settle, for something that has just landed.
 static func land(node: Node2D) -> void:
 	if node == null or not is_instance_valid(node):

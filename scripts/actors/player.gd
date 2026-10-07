@@ -298,6 +298,12 @@ func _physics_process(delta: float) -> void:
 			var room := get_tree().get_first_node_in_group("classroom")
 			if room != null and room.has_method("raise_voice"):
 				room.raise_voice()
+		# The other voice verb, and the same rule: not a landmark, said from
+		# wherever you stand -- but this one reaches the whole room.
+		if Game.claim_action("call_response"):
+			var room3 := get_tree().get_first_node_in_group("classroom")
+			if room3 != null and room3.has_method("call_the_class"):
+				room3.call_the_class()
 		if Game.claim_action("auto_teach"):
 			var m2 := get_tree().get_first_node_in_group("main_wiring")
 			if m2 != null and m2.has_method("_toggle_auto_teach"):

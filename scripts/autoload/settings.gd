@@ -23,6 +23,7 @@ const ACTIONS := [
 	{"action": "homework", "label": "Mark homework"},
 	{"action": "move_desk", "label": "Move a desk"},
 	{"action": "voice", "label": "Settle the room"},
+	{"action": "call_response", "label": "Class, class! (call them back)"},
 	{"action": "build", "label": "Rearrange the room"},
 	{"action": "autopilot", "label": "Go to whoever needs me"},
 	{"action": "auto_teach", "label": "Auto-teach the lesson"},
@@ -57,6 +58,9 @@ const DEFAULTS := {
 	"homework": [KEY_H],
 	"move_desk": [KEY_M],
 	"voice": [KEY_C],
+	# Y for "Yes, yes!" -- what the room shouts back. One of the few letters
+	# left that is not already a verb.
+	"call_response": [KEY_Y],
 	"build": [KEY_B],
 	"autopilot": [KEY_R],
 	"auto_teach": [KEY_T],

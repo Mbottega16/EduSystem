@@ -788,6 +788,8 @@ func start_lesson() -> int:
 	Game.quiz_done = false        # one quiz per lesson, so a new one re-arms it
 	Game.quiz_focus = false       # and the focus it bought goes with it
 	Game.answer_all_cooldown = 0.0  # the mass-help skill comes back fresh too
+	Game.call_cooldown = 0.0        # ...and so does the call-and-response
+	Game.call_hold = 0.0
 	lesson_left = Game.lesson_length()
 	# Auto-teach fully replaces the per-student setup below: RoomSim's own
 	# play_day() does its own reset_lesson()/assign_work() as part of
@@ -905,6 +907,28 @@ func raise_voice() -> int:
 	return n
 
 
+## "Class, class!" -- "Yes, yes!" From anywhere in the room, mid-lesson,
+## once the mentor has taught it: see Game.call_the_class() for the rule
+## and its price. Everyone at their desk who is not busy playing up answers.
+## A child messing about does NOT -- that is still the voice's job (C), and
+## the room not answering is how you see who needs it.
+signal class_called()
+
+func call_the_class() -> bool:
+	if player == null or not Game.call_the_class():
+		if Game.call_response_taught and Game.phase == Game.Phase.LESSON:
+			Sfx.play("blip")        # heard, but not now: no voice, or too soon
+		return false
+	Sfx.play("start")
+	var kids: Array = []
+	for n: Actor in students:
+		if n.data != null and n.seated and not n.data.disrupting:
+			kids.append(n)
+	Fx.call_and_response(self, player, kids)
+	class_called.emit()
+	return true
+
+
 ## Podium, mid-lesson. Stops the class, asks everyone a few questions, and
 ## charges the time to the lesson clock — which is the cost that makes it a
 ## decision rather than something you always do.
@@ -926,12 +950,53 @@ func run_quiz() -> Dictionary:
 ## cost that makes the quiz a decision rather than a reflex, only steeper.
 func run_answer_all() -> Dictionary:
 	Balance.ensure_loaded()
+	# Who the wave is about to reach: anyone stuck (a Quiet child sitting on
+	# it too -- they get answered, so they get the pop) or flagged by the quiz.
+	# Taken BEFORE the call, which clears all of it.
+	var reached: Array[Actor] = []
+	for n: Actor in students:
+		if n.data != null and n.seated \
+				and (n.data.is_struggling() or n.data.quiz_flagged):
+			reached.append(n)
 	var result := Game.run_answer_all()
 	lesson_left = maxf(0.0, lesson_left - Balance.answer_all_seconds_cost)
 	_refresh_bubbles()
+	_answer_all_wave(reached)
 	if lesson_left <= 0.0:
 		lesson_timed_out.emit()
 	return result
+
+
+## THE BURST. Answer-all used to be a key press and some bubbles vanishing --
+## nothing said "you just reached every desk at once". Now it leaves the
+## teacher as a ring of light (Fx.shockwave), and each child it answered
+## jumps, with a puff of chalk and a "got it", at the moment the edge of the
+## wave actually passes their desk. Decoration only: the state changed in
+## full above, before any of this draws.
+const ANSWER_WAVE_RADIUS := 420.0
+const ANSWER_WAVE_SECONDS := 0.85
+
+func _answer_all_wave(reached: Array[Actor]) -> void:
+	if player == null or not is_instance_valid(player) or not is_inside_tree():
+		return
+	var from := to_local(player.global_position) + Vector2(0, -16)
+	Sfx.play("confirm")
+	Fx.shockwave(self, from, ANSWER_WAVE_RADIUS, Color(1.0, 0.93, 0.62),
+		ANSWER_WAVE_SECONDS)
+	if player is Node2D:
+		Fx.flash(player, Color(1.7, 1.6, 1.1), 0.3)
+	Fx.shake(camera, 1.5, 0.2)
+	for n: Actor in reached:
+		var at := to_local(n.global_position) + Vector2(0, -30)
+		var wait := Fx.wave_arrival(from.distance_to(at), ANSWER_WAVE_RADIUS,
+			ANSWER_WAVE_SECONDS)
+		get_tree().create_timer(wait).timeout.connect(func() -> void:
+			if not is_instance_valid(n):
+				return
+			n.play_pose(Actor.POSE_JUMP)
+			Fx.puff(self, at, Color(1.0, 0.95, 0.7, 0.95), 7)
+			Floater.pop(self, at + Vector2(0, -10), "got it!", Color(1.0, 0.92, 0.55))
+			Sfx.play_varied("help"))
 
 
 ## The boss paper, from the podium on the last morning of a boss term.

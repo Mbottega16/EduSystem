@@ -185,6 +185,7 @@ func start_boss_fight() -> BossFight:
 	quiz_done = true            # no quizzing the paper
 	quiz_focus = false
 	answer_all_cooldown = 0.0   # the panic button comes in fresh
+	call_hold = 0.0             # nobody is being taught; there is nothing to hold
 	test_active = false
 	set_phase(Phase.LESSON)
 	fight_started.emit(term_path)
@@ -640,6 +641,12 @@ var answer_all_taught: bool = false
 ## lesson. from_dict() defaults it false, so the next walk down the hall
 ## plays it -- the day-end nudge in main.gd points there.
 var chain_dash_taught: bool = false
+## "Class, class!" -- "Yes, yes!" The call-and-response, the mentor's third
+## move (Oct 2026). Taught on the visit AFTER the chain dash, with her own
+## class answering her. NOT grandfathered, for the same reason as the chain:
+## the demonstration is the lesson, so an older save gets it on its next walk
+## down the hall.
+var call_response_taught: bool = false
 
 signal teacher_levelled(level: int)
 
@@ -771,6 +778,7 @@ func new_run(seed_value: int = 0) -> void:
 	dash_taught = false
 	answer_all_taught = false
 	chain_dash_taught = false
+	call_response_taught = false
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -794,6 +802,8 @@ func new_run(seed_value: int = 0) -> void:
 	# have had no quiz in it was quietly reading 0.69 -> 0.73.
 	quiz_focus = false
 	answer_all_cooldown = 0.0
+	call_cooldown = 0.0
+	call_hold = 0.0
 	owned_lessons.clear()
 	# One owned lesson per strand to start -- gives assignments.gd's
 	# draw() something to hand out from turn one instead of an empty
@@ -1397,6 +1407,8 @@ func next_term() -> Dictionary:
 	homework_out = false
 	quiz_done = false
 	answer_all_cooldown = 0.0
+	call_cooldown = 0.0
+	call_hold = 0.0
 	test_active = false
 	voice = 1.0
 	last_inspection = {}
@@ -2066,6 +2078,44 @@ var quiz_focus: bool = false
 ## lesson clock in classroom._physics_process; re-armed by start_lesson().
 var answer_all_cooldown: float = 0.0
 
+## THE CALL-AND-RESPONSE (key Y, taught by the mentor). "Class, class!" from
+## wherever you are standing, and the room answers "Yes, yes!" and turns back
+## to you: attention snaps to full and HOLDS -- no decay -- for call_hold
+## seconds, wherever you then walk. It is the one verb aimed at the game's
+## central squeeze: work only moves while the class is with you, and the
+## class is only with you while you are at the front, so every trip to a
+## desk costs the room. This buys one trip.
+##
+## Paid for in VOICE, the same meter settling the room spends ("Right --
+## settle down"), so the two compete: call them back, or quiet the noisy
+## ones. A cooldown on top stops a full meter buying two holds back to back.
+## Pace only: it touches attention, which only ever scales how fast work
+## moves -- never a grade term, never a coin -- and tools/sim.gd never calls
+## it (a guard in tests/run.gd), so the contract rows cannot see it.
+var call_cooldown: float = 0.0
+var call_hold: float = 0.0
+
+
+func can_call_class() -> bool:
+	Balance.ensure_loaded()
+	return call_response_taught and phase == Phase.LESSON and not test_active \
+		and fight == null and call_cooldown <= 0.0 \
+		and voice >= Balance.call_voice_cost and not roster.is_empty()
+
+
+## "Class, class!" Returns true if the room heard it.
+func call_the_class() -> bool:
+	if not can_call_class():
+		return false
+	voice = maxf(0.0, voice - Balance.call_voice_cost)
+	voice_changed.emit(voice)
+	call_cooldown = Balance.call_cooldown_seconds
+	call_hold = Balance.call_hold_seconds
+	if not is_equal_approx(attention, 1.0):
+		attention = 1.0
+		attention_changed.emit(attention)
+	return true
+
 # --- the class's attention -------------------------------------------
 ## 0..1. Filled by standing at the front and teaching, and it drains when
 ## you stop. Work advances in proportion to it.
@@ -2385,8 +2435,14 @@ func tick_attention(delta: float, at_front: bool) -> void:
 	Balance.ensure_loaded()
 	teaching = at_front and phase == Phase.LESSON and not test_active
 	var before := attention
+	# The call-and-response's hold runs down whether or not you go back to
+	# the front -- it is time bought, not a state you have to walk out of.
+	call_hold = maxf(0.0, call_hold - delta)
+	call_cooldown = maxf(0.0, call_cooldown - delta)
 	if teaching:
 		attention = minf(1.0, attention + Balance.teach_fill * delta)
+	elif call_hold > 0.0:
+		pass                    # they are still with you: no decay
 	else:
 		attention = maxf(0.0, attention - Balance.teach_decay * delta)
 	if not is_equal_approx(before, attention):
@@ -3195,6 +3251,7 @@ func to_dict() -> Dictionary:
 		"dash_taught": dash_taught,
 		"answer_all_taught": answer_all_taught,
 		"chain_dash_taught": chain_dash_taught,
+		"call_response_taught": call_response_taught,
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -3257,6 +3314,8 @@ func from_dict(d: Dictionary) -> void:
 	# NOT grandfathered -- see the var's own note. No key means the mentor
 	# has not shown it yet, whatever else this save already knows.
 	chain_dash_taught = bool(d.get("chain_dash_taught", false))
+	# Not grandfathered either -- see the var's own note.
+	call_response_taught = bool(d.get("call_response_taught", false))
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()

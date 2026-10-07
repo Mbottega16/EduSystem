@@ -53,6 +53,10 @@ func _ready() -> void:
 		hud.principal_says("uncollected",
 			"Finished work only counts once you collect it."))
 
+	world.class_called.connect(func() -> void:
+		hud.principal_says("call_response",
+			"They are with you for a few breaths, wherever you walk. Make the trip count."))
+
 	hud.item_chosen.connect(_start_placing)
 	hud.assignment_chosen.connect(_start_chosen_lesson)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
@@ -85,6 +89,12 @@ func _ready() -> void:
 		world.player.input_locked = true
 		hud.show_mentor_after_demo())
 	hud.mentor_chain_taught.connect(mentor_room.start_practice)
+	# The call-and-response: said, then shown with her own class.
+	hud.mentor_call_demo_requested.connect(func() -> void:
+		world.player.input_locked = true
+		mentor_room.play_call_demo())
+	mentor_room.call_demo_finished.connect(func() -> void:
+		world.player.input_locked = false)
 
 	# A one-line nudge toward the mentor, the first time a day ends before
 	# the player has been down the hall to meet them. Non-blocking: it rides
@@ -100,6 +110,11 @@ func _ready() -> void:
 			# not seen her show this one. Same once-per-run corner line.
 			hud.queue_hint("see_the_mentor_chain",
 				"The mentor down the hall has something to show you.")
+		elif not Game.call_response_taught:
+			# Her third move, one visit after the chain -- one new verb a
+			# visit, not three in a row on the first.
+			hud.queue_hint("see_the_mentor_call",
+				"The mentor has one more trick for you, down the hall.")
 		# Lesson crafting unlocks silently on this exact day (step 10 of the
 		# ten-commit queue) -- queue_hint, not principal_says(), since this
 		# fires while the day report is still on screen and principal_says()
@@ -394,7 +409,6 @@ func _run_quiz() -> void:
 ## hit. The principal explains it once, the first time.
 func _run_answer_all() -> void:
 	world.run_answer_all()
-	Sfx.play("blip")
 	hud.principal_says("answer_all",
 		"You went round the whole room at once. That is most of the lesson's "
 		+ "time gone, and it is a while before you can do it again.")

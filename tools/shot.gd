@@ -285,7 +285,7 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.intro_seen = true
 			hud.close()
 			hud.show_caller(Complication.by_id("trip_fund"), null)
-		"mentor", "mentor_demo", "mentor_chain":
+		"mentor", "mentor_demo", "mentor_chain", "mentor_call":
 			# The mentor's room, dressed. Reparent the same body in, park it
 			# by the door looking in, pin the camera -- the layout is what
 			# this shot is for.
@@ -312,6 +312,9 @@ func _open_screen(main: Node, screen: String) -> void:
 			# every hand up, and her mid-run between desks.
 			if screen == "mentor_demo":
 				mroom.play_chain_demo()
+			# mentor_call: her "Class, class!" and her four answering it.
+			if screen == "mentor_call":
+				mroom.play_call_demo()
 			# mentor_chain: what she says after it -- the longest page, which
 			# is the one that has to fit the panel.
 			if screen == "mentor_chain":
@@ -518,6 +521,36 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
+		"answer_all_burst", "call_response", "call_response_answer":
+			# The two room-wide verbs, photographed MID-ANIMATION: the verb
+			# fires on a timer so the shot (70 physics frames, ~1.17s, after
+			# this returns) lands with the wave still crossing the room.
+			# answer_all_burst: the ring a fifth of the way out. call_response:
+			# the sound rings and the first "!"s. call_response_answer: the
+			# room's "Yes, yes!" bubble.
+			Game.intro_seen = true
+			hud.close()
+			world.start_lesson()
+			Game.answer_all_taught = true
+			Game.call_response_taught = true
+			for i in Game.roster.size():
+				var s: StudentData = Game.roster[i]
+				s.confusion = 1.0 if i % 2 == 0 else 0.0
+				s._hidden_for = 99.0
+			world._refresh_bubbles()
+			if screen == "answer_all_burst":
+				world.player.global_position = Grid.tile_to_world(
+					Layout.PODIUM + Vector2i(0, 1))
+				get_tree().create_timer(0.95).timeout.connect(func() -> void:
+					world.run_answer_all())
+			else:
+				Game.roster[1].disrupting = true
+				world._refresh_bubbles()
+				world.player.global_position = Grid.tile_to_world(
+					Layout.desk_tile(Game.roster[3].seat_index) + Vector2i(1, 1))
+				Game.attention = 0.2
+				get_tree().create_timer(0.75 if screen == "call_response" else 0.1) \
+					.timeout.connect(func() -> void: world.call_the_class())
 		"hat", "hat_bow", "hat_wizard", "hat_mortarboard":
 			# refresh_hat() again on purpose: the player's own _ready()
 			# already ran, with hat_id still "", by the time this case

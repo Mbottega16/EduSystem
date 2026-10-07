@@ -204,6 +204,7 @@ func _main() -> void:
 	test_new_perks()
 	await test_dash_upgrade_and_display()
 	await test_chain_dash()
+	await test_call_response()
 	test_relay()
 	await test_subjects_and_skip()
 	test_graduation()
@@ -1185,6 +1186,11 @@ func test_balance() -> void:
 		not one_lesson_src.contains("cluster_rate_mult("))
 	chk("...nor run_answer_all() -- the mass-help skill pays no grade",
 		not one_lesson_src.contains("run_answer_all("))
+	# The call-and-response holds attention, and attention is what the
+	# contract's teaching rows idealise. The whole simulator, not just
+	# _one_lesson(): it must not be reachable from any row at all.
+	chk("...and tools/sim.gd never calls the call-and-response",
+		not sim_src.contains("call_the_class("))
 
 
 ## Run real lessons through the actual work model and return the MEAN grade.
@@ -7983,6 +7989,32 @@ func test_mentor() -> void:
 	hud.close()
 	Game.chain_dash_taught = true
 
+	# --- the third move: the call-and-response, one visit after the chain ---
+	Game.call_response_taught = false
+	hud.show_mentor()
+	chk("with the chain shown, the next visit opens on the call-and-response",
+		hud.mode == hud.Mode.MENTOR and hud._mentor_talk == hud.MentorTalk.CALL)
+	chk("every page of it fits the panel", (func() -> bool:
+		for page: Array in hud.MENTOR_CALL:
+			if page.size() > 11:
+				return false
+			for line: String in page:
+				if line.length() > hud.LINE_CHARS:
+					return false
+		return true).call())
+	var call_demo := [false]
+	var on_call_demo := func() -> void: call_demo[0] = true
+	hud.mentor_call_demo_requested.connect(on_call_demo)
+	for i in hud.MENTOR_CALL.size():
+		await tap("interact")
+	hud.mentor_call_demo_requested.disconnect(on_call_demo)
+	chk("closing the last page teaches it", Game.call_response_taught)
+	chk("and hands over to her own class answering her", call_demo[0])
+	chk("with the screen out of the way to watch it", hud.mode == hud.Mode.NONE)
+	chk("the player stands still while she shows it", world.player.input_locked)
+	await step(int(mentor_room.CALL_DEMO_SECONDS * 60.0) + 30)
+	chk("and gets their feet back after", not world.player.input_locked)
+
 	# --- a revisit outside a boss term is a plain idle line ---
 	Game.term = 1
 	Game.term_path = {}
@@ -10238,6 +10270,120 @@ func _chain_mid_dash(p: Node, fresh: bool = true) -> void:
 	p._dash_cool = 1.0
 	if fresh:
 		p._dash_answered = false
+
+
+## THE CALL-AND-RESPONSE (Oct 2026), the mentor's third move: "Class,
+## class!" -- "Yes, yes!" From anywhere, mid-lesson: attention snaps to full
+## and holds for a while wherever you walk. Paid in voice. Pace only.
+func test_call_response() -> void:
+	section("CLASS, CLASS! -- YES, YES!")
+	Balance.ensure_loaded()
+	var hud := _hud()
+	chk("its numbers live in balance.json",
+		Balance.call_voice_cost > 0.0 and Balance.call_hold_seconds > 0.0
+		and Balance.call_cooldown_seconds > 0.0)
+	chk("it is a real, rebindable action", InputMap.has_action("call_response"))
+	chk("offered in the controls screen, and on the help sheet", (func() -> bool:
+		for row: Dictionary in Settings.ACTIONS:
+			if String(row["action"]) == "call_response":
+				return hud.HELP_LINES.has("call_response")
+		return false).call())
+	chk("on a key no other verb uses", (func() -> bool:
+		var mine: Array = Settings.DEFAULTS["call_response"]
+		for k: String in Settings.DEFAULTS:
+			if k != "call_response":
+				for code in Settings.DEFAULTS[k]:
+					if mine.has(code):
+						return false
+		return true).call())
+
+	Game.new_run(SEED)
+	var guard := 0
+	while not world.everyone_seated() and guard < 900:
+		await step(1)
+		guard += 1
+	world.player.input_locked = false
+	chk("a new career has not been taught it", not Game.call_response_taught)
+	world.start_lesson()
+	await step(2)
+	Game.voice = 1.0
+	chk("untaught, the room does not answer", not world.call_the_class())
+
+	Game.call_response_taught = true
+	for s: StudentData in Game.roster:
+		s.disrupting = false
+	Game.attention = 0.1
+	var heard := [false]
+	var on_heard := func() -> void: heard[0] = true
+	world.class_called.connect(on_heard)
+	chk("taught, mid-lesson, it is ready", Game.can_call_class())
+	chk("and the room answers", world.call_the_class())
+	world.class_called.disconnect(on_heard)
+	chk("the room says so, for main.gd's one-time explainer", heard[0])
+	chk("attention snaps straight back to full", is_equal_approx(Game.attention, 1.0))
+	chk("it costs the table's slice of voice",
+		is_equal_approx(Game.voice, 1.0 - Balance.call_voice_cost), Game.voice)
+	chk("and it goes on cooldown", not Game.can_call_class()
+		and is_equal_approx(Game.call_cooldown, Balance.call_cooldown_seconds))
+
+	# --- the hold: away from the front, the room stays with you ---
+	Game.tick_attention(Balance.call_hold_seconds * 0.5, false)
+	chk("half the hold later, away from the front, they are still with you",
+		is_equal_approx(Game.attention, 1.0), Game.attention)
+	Game.tick_attention(Balance.call_hold_seconds, false)
+	Game.tick_attention(1.0, false)
+	chk("once it runs out they drift the way they always do",
+		Game.attention < 1.0 and Game.call_hold <= 0.0, Game.attention)
+
+	# --- the price: voice it shares with settling the room ---
+	Game.call_cooldown = 0.0
+	Game.voice = Balance.call_voice_cost * 0.5
+	chk("without the voice for it, it cannot be called", not Game.can_call_class())
+	Game.voice = 1.0
+	chk("with it back, it can", Game.can_call_class())
+
+	# --- where it is silent ---
+	Game.test_active = true
+	chk("silent during a unit test", not Game.can_call_class())
+	Game.test_active = false
+	Game.set_phase(Game.Phase.AFTERNOON)
+	chk("and outside a lesson", not Game.can_call_class())
+	Game.set_phase(Game.Phase.LESSON)
+
+	# --- no grade, no coins ---
+	var calm: StudentData = Game.roster[0]
+	var grade_before := Game.grade_for(calm)
+	var coins_before := Game.coins
+	Game.call_cooldown = 0.0
+	Game.call_the_class()
+	chk("it is worth no grade by itself, and no coins",
+		is_equal_approx(Game.grade_for(calm), grade_before) and Game.coins == coins_before)
+	chk("away from the front, the strip says the room is listening", (func() -> bool:
+		Game.teaching = false
+		hud._update_status()
+		return hud.status.text.contains("LISTENING")).call(), hud.status.text)
+
+	# --- the next lesson gives it back ---
+	world.end_lesson()
+	await step(2)
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_lesson()
+	await step(2)
+	chk("the next lesson re-arms it", is_equal_approx(Game.call_cooldown, 0.0)
+		and is_equal_approx(Game.call_hold, 0.0))
+	world.end_lesson()
+	await step(2)
+
+	# --- saved, and not grandfathered ---
+	Game.call_response_taught = true
+	var d := Game.to_dict()
+	chk("it is saved", bool(d.get("call_response_taught", false)))
+	d.erase("call_response_taught")
+	Game.from_dict(d)
+	chk("an older save has not seen it -- the mentor shows it next visit",
+		not Game.call_response_taught)
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_chain_dash() -> void:

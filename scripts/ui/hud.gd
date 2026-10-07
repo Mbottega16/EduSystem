@@ -608,7 +608,13 @@ func _update_status() -> void:
 			# happening and a lesson not happening, so it outranks the rest.
 			# The class in a word, not attention as pips: "is the room with
 			# me" was the one thing a new player had to add up from bars.
-			bits.append("%steaching" % ("" if Game.teaching else "NOT "))
+			# Away from the front but still held by a call-and-response:
+			# say THAT, not "NOT teaching" -- the room is with you, and the
+			# word should tell you why.
+			if not Game.teaching and Game.call_hold > 0.0:
+				bits.append("LISTENING")
+			else:
+				bits.append("%steaching" % ("" if Game.teaching else "NOT "))
 			bits.append("room: %s" % Game.class_mood())
 			var pips := int(round(Game.voice * 4.0))
 			bits.append("voice %s%s" % ["|".repeat(pips), ".".repeat(4 - pips)])
@@ -1084,6 +1090,7 @@ const HELP_LINES := {
 	"homework": "Mark the homework you collected, at your desk.",
 	"move_desk": "Move a desk. Spread them out; crowding slows them.",
 	"voice": "Settle the desks within earshot.",
+	"call_response": "Class, class! The room is with you a while, anywhere.",
 	"build": "Rearrange the room from a free cursor. Not mid-lesson.",
 	"autopilot": "Walk to whoever needs you. Never presses a button.",
 	"auto_teach": "Hand the lesson to the simulation. Toggle.",
@@ -3158,6 +3165,41 @@ const MENTOR_CHAIN_INTRO := [
 		"Watch what I do when the hands go up.",
 	],
 ]
+## The call-and-response ("Class, class!" -- "Yes, yes!"), the mentor's third
+## move, on the visit after the chain. Said, then shown: the last page hands
+## over to her own class answering her (mentor_room.play_call_demo()), and
+## the call is taught as that page closes.
+const MENTOR_CALL := [
+	[
+		"One more, and then I will leave you be.",
+		"",
+		"Every time you go to a desk the front goes",
+		"quiet -- and a quiet front is a drifting room.",
+		"You have felt it. Work slows behind your back.",
+	],
+	[
+		"So before you go, you call them.",
+		"",
+		"\"Class, class!\" And they answer: \"Yes, yes!\"",
+		"Every one of them turns round to you, wherever",
+		"you happen to be standing.",
+	],
+	[
+		"For a few breaths they stay with you, even with",
+		"your back to them. That is your trip to a desk,",
+		"paid for. Then they drift, the way they always",
+		"do, and you are back to the front.",
+	],
+	[
+		"It costs you voice, the same voice that settles",
+		"the noisy ones, so you cannot do both as often",
+		"as you would like. And a child playing up will",
+		"not answer. That is how you see who needs you.",
+		"",
+		"There is a key for it: the call. Watch my lot.",
+	],
+]
+
 const MENTOR_CHAIN_AFTER := [
 	[
 		"See that? I never walked. I ran at a hand,",
@@ -3197,7 +3239,7 @@ const _MENTOR_IDLE := [
 ## CHAIN_AFTER bracket the chain-dash demonstration -- a first visit runs
 ## straight on into them after TEACH, and a save that already had the dash
 ## gets them on its next walk down the hall.
-enum MentorTalk { TEACH, READ, IDLE, CHAIN_INTRO, CHAIN_AFTER }
+enum MentorTalk { TEACH, READ, IDLE, CHAIN_INTRO, CHAIN_AFTER, CALL }
 var _mentor_talk: int = MentorTalk.IDLE
 
 ## The chain-dash page is closed and the overlay is out of the way -- main.gd
@@ -3206,6 +3248,8 @@ signal mentor_demo_requested()
 ## The last CHAIN_AFTER page is closed: the chain is taught, and her class
 ## starts putting hands up for the player to try it on.
 signal mentor_chain_taught()
+## The last CALL page is closed: the call is taught, and she shows it.
+signal mentor_call_demo_requested()
 
 
 func show_mentor() -> void:
@@ -3215,6 +3259,9 @@ func show_mentor() -> void:
 		_sel = 0
 	elif not Game.chain_dash_taught:
 		_mentor_talk = MentorTalk.CHAIN_INTRO
+		_sel = 0
+	elif not Game.call_response_taught:
+		_mentor_talk = MentorTalk.CALL
 		_sel = 0
 	elif _boss_term_due():
 		_mentor_talk = MentorTalk.READ
@@ -3341,13 +3388,14 @@ func _render_mentor() -> void:
 	portrait.texture = load("res://art/portrait_mentor.png")
 	portrait.visible = true
 	match _mentor_talk:
-		MentorTalk.TEACH, MentorTalk.CHAIN_INTRO, MentorTalk.CHAIN_AFTER:
+		MentorTalk.TEACH, MentorTalk.CHAIN_INTRO, MentorTalk.CHAIN_AFTER, MentorTalk.CALL:
 			var pages := _mentor_pages()
 			_sel = clampi(_sel, 0, pages.size() - 1)
 			title.text = "THE MENTOR"
 			body.text = "\n".join(pages[_sel])
 			var last := _sel >= pages.size() - 1
-			if _mentor_talk == MentorTalk.CHAIN_INTRO and last:
+			if (_mentor_talk == MentorTalk.CHAIN_INTRO \
+					or _mentor_talk == MentorTalk.CALL) and last:
 				hint.text = "E - watch"
 			elif _mentor_talk == MentorTalk.TEACH and last \
 					and not Game.chain_dash_taught:
@@ -3422,6 +3470,8 @@ func _mentor_pages() -> Array:
 			return MENTOR_CHAIN_INTRO
 		MentorTalk.CHAIN_AFTER:
 			return MENTOR_CHAIN_AFTER
+		MentorTalk.CALL:
+			return MENTOR_CALL
 	return MENTOR_PAGES
 
 
@@ -3441,6 +3491,15 @@ func _handle_mentor_input() -> void:
 	if _mentor_talk == MentorTalk.CHAIN_INTRO \
 			or _mentor_talk == MentorTalk.CHAIN_AFTER:
 		_handle_chain_page()
+		return
+	if _mentor_talk == MentorTalk.CALL:
+		if _sel < MENTOR_CALL.size() - 1:
+			_sel += 1
+			_render_mentor()
+			return
+		Game.call_response_taught = true
+		close()
+		mentor_call_demo_requested.emit()
 		return
 	if _mentor_talk != MentorTalk.TEACH:
 		close()

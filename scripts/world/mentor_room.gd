@@ -19,6 +19,8 @@ signal exit_chosen()
 ## The mentor has finished showing the chain dash with her own class and is
 ## back at the front -- hud.gd picks the dialogue up from here.
 signal demo_finished()
+## Her call-and-response is over -- main.gd gives the player back their feet.
+signal call_demo_finished()
 
 const STUDENT_SCENE := preload("res://scenes/actors/student.tscn")
 const DOOR_SCRIPT := preload("res://scripts/interact/hall_door.gd")
@@ -406,6 +408,21 @@ func _next_lunge() -> void:
 ## After the lesson, her class keeps putting hands up while the player is in
 ## the room, so there is always something to try the chain on. All four go
 ## up together once every hand is down and the room has rested a moment.
+## "Class, class!" -- "Yes, yes!" Shown with her own four, the same drawing
+## the player's call gets in the classroom (Fx.call_and_response()). Pure
+## show: nothing about her pupils changes, and the hands stay where they were.
+const CALL_DEMO_SECONDS := 2.6
+
+func play_call_demo() -> void:
+	if mentor == null or not is_instance_valid(mentor):
+		call_demo_finished.emit()
+		return
+	Sfx.play("start")
+	Fx.call_and_response(self, mentor, pupils, 300.0)
+	get_tree().create_timer(CALL_DEMO_SECONDS).timeout.connect(func() -> void:
+		call_demo_finished.emit())
+
+
 func start_practice() -> void:
 	practising = true
 	_rest_t = PRACTICE_REST
