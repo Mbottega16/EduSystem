@@ -578,6 +578,7 @@ func _update_status() -> void:
 	# while the clock, your voice and who needs you are the whole job.
 	var left: int = maxi(0, Balance.term_days - Game.day + 1)
 	var teaching: bool = Game.phase == Game.Phase.LESSON
+	var paper := ""
 	var bits: Array[String] = ["%sDay %d/%d" % [
 		"T%d " % Game.term if Game.term > 1 else "",
 		Game.day, Balance.term_days]]
@@ -596,9 +597,12 @@ func _update_status() -> void:
 			bits.append("%ds" % int(ceil(room.lesson_left)))
 		# What paper is on the desks. In WORDS: the strip is a Label, so it
 		# cannot carry the rarity's colour the way the card screen does.
+		# Held back and added near the END: it was third on the line, ahead
+		# of the room's mood and your voice, and it is the one thing on the
+		# strip you can do nothing about mid-lesson.
 		if not Game.assignment.is_empty():
-			bits.append(Assignments.rarity_name(
-				String(Game.assignment.get("rarity", "common"))))
+			paper = Assignments.rarity_name(
+				String(Game.assignment.get("rarity", "common")))
 		# A mode you cannot see is a mode you forget is on.
 		if _player != null and is_instance_valid(_player) and _player.autopilot:
 			bits.append("AUTO%s" % ("" if _player.auto_target_name == ""
@@ -673,7 +677,10 @@ func _update_status() -> void:
 	if waiting > 0:
 		bits.append("%d ready" % waiting)
 
-	# Lowest priority on purpose -- the first thing _clip_visibly drops when
+	if paper != "":
+		bits.append(paper)
+
+	# Lowest priority on purpose -- the first thing _fit_status() drops when
 	# the line is full. Silent otherwise: dash is ready almost all the time,
 	# so a bar that is only shown while cooling down is the informative
 	# state, not a pip that reads "full" on every frame that matters less.
@@ -691,7 +698,33 @@ func _update_status() -> void:
 		aa_ready = clampi(aa_ready, 0, 4)
 		bits.append("answer-all %s%s" % ["|".repeat(aa_ready), ".".repeat(4 - aa_ready)])
 
-	status.text = _clip_visibly("   ".join(bits))
+	status.text = _fit_status(bits)
+
+
+## Fit the strip by MEASURING it. It used to borrow LINE_CHARS (47), a
+## character budget taken for the 288px PANEL body, and so clipped the
+## room's mood and your voice -- the two things the strip exists for -- off
+## a 624px line that was a third empty ("teaching   room: ..."). The font's
+## own metrics agree with the screen (checked against a screenshot, Oct
+## 2026: ~8.2px a character at 18), so the strip asks the font.
+func _fits_status(line: String) -> bool:
+	var f := status.get_theme_font("font")
+	var px := f.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		status.get_theme_font_size("font_size")).x
+	return px <= status.size.x - 4.0
+
+
+## Drop whole bits from the END -- they are added most-important first --
+## rather than cutting a word in half, and say "..." when anything went.
+func _fit_status(bits: Array[String]) -> String:
+	var shown: Array[String] = bits.duplicate()
+	var line := "   ".join(shown)
+	while not _fits_status(line) and shown.size() > 1:
+		shown.pop_back()
+		line = "   ".join(shown) + "   …"
+	while not _fits_status(line) and line.length() > 2:
+		line = line.substr(0, line.length() - 2) + "…"
+	return line
 
 
 ## The strip while the boss paper is being sat: which question, the
@@ -784,7 +817,7 @@ func _update_prompt() -> void:
 			# was silently eaten by the OUTER _clip() below with no
 			# ellipsis, landing wherever the tail happened to fall. Caught
 			# by screenshot: "Q - Quick quiz" rendered as "Q - Quick q".
-			var budget: int = LINE_CHARS - 3 * (parts.size() - 1)
+			var budget: int = PROMPT_CHARS - 3 * (parts.size() - 1)
 			var total := 0
 			for part: String in parts:
 				total += part.length()
@@ -804,7 +837,18 @@ func _update_prompt() -> void:
 		# LINE_CHARS now, but if a future case ever slips past it, make
 		# the cut visible rather than silent -- same fix as the status
 		# strip's own _clip_visibly() already uses, and the same reason.
-		prompt.text = _clip_visibly("   ".join(parts))
+		var joined := "   ".join(parts)
+		prompt.text = joined if joined.length() <= PROMPT_CHARS \
+			else joined.substr(0, PROMPT_CHARS - 1) + "…"
+
+
+## The key-prompt bar's own budget. Like the status strip it used to borrow
+## LINE_CHARS (47, measured for the 288px panel body) and so cut three
+## offers on a 640px bar down to "E - Take Ivy's hom.   Q - Quick quiz
+## hold L ." -- a hold meter with its words cut off. Font 20 averages ~9.6px
+## a character (measured, Oct 2026), ~66 to the bar; 64 holds three offers
+## and a hold meter and still lands inside the bar.
+const PROMPT_CHARS := 64
 
 
 # ---------------------------------------------------------------- overlays

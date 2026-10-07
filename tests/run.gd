@@ -3506,7 +3506,7 @@ func test_panels_fit() -> void:
 	hud._update_prompt()
 
 	chk("and the prompt bar fits on its line",
-		hud.prompt.text.length() <= hud.LINE_CHARS,
+		hud.prompt.text.length() <= hud.PROMPT_CHARS,
 		"%d: %s" % [hud.prompt.text.length(), hud.prompt.text])
 
 	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
@@ -3535,8 +3535,11 @@ func test_panels_fit() -> void:
 	world.player.carry_homework(2)
 	hud._update_status()
 	chk("the status strip fits on its one line",
-		hud.status.text.length() <= hud.LINE_CHARS,
+		hud._fits_status(hud.status.text),
 		"%d chars: %s" % [hud.status.text.length(), hud.status.text])
+	chk("and a full lesson still keeps the room's mood and your voice on it",
+		hud.status.text.contains("room:") and hud.status.text.contains("voice"),
+		hud.status.text)
 	for st: StudentData in Game.roster:
 		st.disrupting = false
 	world.player.drop_all_work()
@@ -5652,7 +5655,13 @@ func test_legibility() -> void:
 	Game.attention = 1.0
 	world.start_lesson()
 	await step(3)
-	chk("the strip reads the room in a word", hud.status.text.contains("room:"), hud.status.text)
+	# Asked for, not waited for: the strip is redrawn on the IDLE tick and
+	# step() counts PHYSICS ticks, and a slow frame (a font's first glyphs
+	# being cut, say) runs several physics ticks before one idle one -- so
+	# three steps could still be looking at this morning's strip.
+	hud._update_status()
+	chk("the strip reads the room in a word", hud.status.text.contains("room:"),
+		[hud.status.text, Game.phase])
 	chk("and no longer as pips of attention", not hud.status.text.contains("teaching |"),
 		hud.status.text)
 	world.end_lesson()

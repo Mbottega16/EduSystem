@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-02**, against build `b44`, with **2356 assertions
+> **Measured on 2026-10-07**, against build `b45`, with **2398 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -142,7 +142,7 @@ One seeded `RandomNumberGenerator` on `Game.rng`. Global `randi()`/`randf()`
 are banned project-wide. Without it, none of the balance testing could exist.
 
 ### Numbers do not live in code
-`data/balance.json` is the single table — **40 sections**, 194 tunables
+`data/balance.json` is the single table — **46 sections**, 243 tunables
 (counting numbers directly in a section, not the item and trait tables).
 Nothing tunable is a `const` in a `.gd` file.
 
@@ -274,7 +274,7 @@ assignment hand · specialism · difficulty · economy · homework · items ·
 input arbitration (`claim_action`) · save/load · the cheat flag.
 
 ### Data — `scripts/data/`
-`balance.gd` (194 tunables, static so it works with no SceneTree) ·
+`balance.gd` (243 tunables, static so it works with no SceneTree) ·
 `student_data.gd` (one child's whole record) · `curriculum.gd` ·
 `items.gd` · `assignments.gd` · `traits.gd` · `events.gd` · `progress.gd`
 (every perk effect funnelled through one place) · `questions.gd` (four
@@ -352,10 +352,10 @@ milestone and having taught it, not a number going up.
 | Teacher perks | **5** (10 rank purchases) |
 | Names | 96 first, 64 surnames, 8 sprite sheets |
 | Homework questions | 89, 3 to a sheet |
-| Art | 71 PNGs · Audio: 16 WAVs (11 SFX, 5 music/ambience) |
-| Screens | 17 modes |
-| Input actions | 20 (19 rebindable) |
-| Tests | **2356 assertions** across **124 sections** |
+| Art | 221 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
+| Screens | 23 modes |
+| Input actions | 27 (26 rebindable) |
+| Tests | **2398 assertions** across **125 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

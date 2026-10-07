@@ -41,7 +41,7 @@ repeatedly by edits that seemed obviously right:
   seeded. Global `randi()`/`randf()` are banned project-wide. Without this,
   none of the balance testing can exist.
 - **Numbers do not live in code.** Every tunable is in `data/balance.json`
-  (40 sections outside the item and trait tables, 194 `static var`
+  (46 sections outside the item and trait tables, 243 `static var`
   tunables in `balance.gd`). Nothing tunable may be a `const` in a `.gd`.
 - **The balance contract must hold.** Three rows, measured from *simulated*
   play, asserted by the suite:
@@ -117,7 +117,7 @@ repeatedly by edits that seemed obviously right:
        own dedicated action** rather than being folded back into E or
        F contextually. `Interactable.KEY_ACTIONS` is the single list;
        add to it rather than overloading an existing entry.
-  Tab/B/C/P/I/V remain dedicated global keys for verbs that were never
+  Tab/B/C/Y/P/I/V remain dedicated global keys for verbs that were never
   about a landmark at all (the class list, rearranging the room,
   settling it, pausing, your dashboard, watching a delegated room) --
   unaffected by this, and the precedent this whole scheme now follows.
@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2356 assertions — must pass, count must not drop
+Run Tests.bat            2398 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -266,11 +266,11 @@ still looks armed is how the last one got missed.
 | `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold) |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
-| `scripts/ui/hud.gd` | Every screen. 19 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
+| `scripts/ui/hud.gd` | Every screen. 23 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2356 assertions, 124 sections |
+| `tests/run.gd` | The suite — 2398 assertions, 125 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -346,6 +346,19 @@ to limezu.itch.io on the credits page (a licence condition), that every owned PN
 the doubled scale, and that none has a hand source fighting it. The **FREE** Modern
 Interiors edition is non-commercial -- never use it. Compare images with
 `limezu.same_pixels`, not `ImageChops...getbbox()` (alpha-only on RGBA).
+
+**Speech is printed on paper (Oct 2026, the owner's ask).** Anything a person
+SAYS -- the dialogue box, the corner tip and day beat, a bubble in the room --
+is black ink on LimeZu's white panel (`art/ui_speech.png`, from
+`tools/limezu_ui.py`) in **Galmuri9 at 20px** (`fonts/`, SIL OFL, subset to
+Latin). The owner asked for "the same font as Pokemon": Nintendo's own font
+cannot ship in a Steam game, and Galmuri is an OFL font drawn after the
+Nintendo DS text. 20px is its 10px em doubled, so one of its pixels is one
+pixel of the room's art -- keep it on a multiple of 10. Faces beside speech are
+drawn at 72px (the 24px bust at exactly 3x, `expand_mode` IGNORE_SIZE so the
+rect cannot grow back to 96), and blink from `portrait_<art>_talk.png`. The
+rest of the UI is still the default font; moving it over means re-fitting every
+panel against the 11-row budget, so it has not been done silently.
 
 **The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
 write PNGs but do not import them, and Godot cannot load an unimported
