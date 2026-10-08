@@ -32,6 +32,12 @@ trusting it's still accurate.
 > `computer` (a monitor and keyboard, its page scrolling), `paper_mobile` (drifts on its
 > hook), `telephone` (message light blinks) and `robot_kit` (its face light pulses).
 > Thirteen shop items now move; the suite checks every strip's frames really differ.
+> The room itself: sunlight lies on the floor under each window (drawn, not art --
+> `RoomBuilder.build_sunlight`, gone on wet and cold days) with dust drifting
+> through it, and on someone's birthday three of LimeZu's party balloons
+> (`balloon_red`, `balloon_blue`, `balloon_yellow`, + `_anim`) bob over the
+> teacher's desk. Everyone blinks: LimeZu's idle-row blink is baked into the
+> character sheets as columns 16-17.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

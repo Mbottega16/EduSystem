@@ -90,6 +90,12 @@ var lesson_left: float = 0.0
 ## id has no entry in WEATHER spawns nothing, which is deliberate — most
 ## days should still look like the plain room they have always been.
 var _weather_due: float = 0.0
+## The sunlight bands on the floor (RoomBuilder.build_sunlight) and when the
+## next mote of dust drifts through one. Rebuilt with the room.
+var _sunlight: Array = []
+var _sun_due: float = 0.0
+## Days with no sun to speak of: the light on the floor goes.
+const OVERCAST := ["wet_play", "cold_snap"]
 ## id -> [colour, falls-rather-than-rises, seconds to cross the room,
 ## seconds between motes]. Purely cosmetic, so unlike a balance number
 ## this is allowed to live in code -- nothing here is read by the model
@@ -156,6 +162,7 @@ func build() -> void:
 	# single room build regardless.
 	grid.rebuild()
 	RoomBuilder.build_floor(self)
+	_sunlight = RoomBuilder.build_sunlight(self)
 	RoomBuilder.build_walls(self, grid)
 	stations = RoomBuilder.build_desks(self, grid)
 	_connect_desk_movers()
@@ -422,6 +429,7 @@ func rebuild_room() -> void:
 
 	grid.rebuild()
 	RoomBuilder.build_floor(self)
+	_sunlight = RoomBuilder.build_sunlight(self)
 	RoomBuilder.build_walls(self, grid)
 	stations = RoomBuilder.build_desks(self, grid)
 	_connect_desk_movers()
@@ -494,6 +502,35 @@ func _spawn_students(walk_in: bool = true) -> void:
 			node.arrived.connect(func() -> void: _on_student_arrived(d))
 		students.append(node)
 		n += 1
+
+
+## The room's own small life, every frame and in every phase: the sun on the
+## floor (gone on an overcast day), dust drifting through it on a fair day
+## that has no weather of its own, and the birthday balloons. Pure decoration:
+## engine randf, never Game.rng, and nothing reads it back.
+func _process(delta: float) -> void:
+	_tick_ambient(delta)
+
+
+func _tick_ambient(delta: float) -> void:
+	var day := String(Game.event.get("id", "none"))
+	var sunny := not OVERCAST.has(day)
+	for b: Dictionary in _sunlight:
+		var n: Node2D = b["node"]
+		if is_instance_valid(n) and n.visible != sunny:
+			n.visible = sunny
+	for n in get_tree().get_nodes_in_group("birthday_balloons"):
+		if n is Node2D and (n as Node2D).visible != (day == "birthday"):
+			(n as Node2D).visible = day == "birthday"
+	if not sunny or _sunlight.is_empty() or not WEATHER.get(day, []).is_empty():
+		return
+	_sun_due -= delta
+	if _sun_due > 0.0:
+		return
+	_sun_due = randf_range(0.6, 1.4)
+	var pick: Dictionary = _sunlight[randi() % _sunlight.size()]
+	var r: Rect2 = pick["rect"]
+	Fx.sun_mote(self, r, randf_range(4.5, 7.0))
 
 
 ## Deliberately _physics_process, not _process. The physics tick is a fixed

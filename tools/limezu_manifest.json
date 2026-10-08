@@ -588,6 +588,54 @@
     "chalk_border": {
       "ref": "classroom#39",
       "why": "the pack's standing green chalkboard on its frame, two tiles wide"
+    },
+    "balloon_red": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_party_balloon_red.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 5,
+        "fps": 3
+      },
+      "trim": "xy",
+      "why": "a red party balloon bobbing on its string: tied to the teacher's desk on someone's birthday (a fixture, not an item)"
+    },
+    "balloon_blue": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_party_balloon_blue.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 5,
+        "fps": 3
+      },
+      "trim": "xy",
+      "why": "a blue party balloon bobbing on its string: tied to the teacher's desk on someone's birthday (a fixture, not an item)"
+    },
+    "balloon_yellow": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_party_balloon_yellow.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 5,
+        "fps": 3
+      },
+      "trim": "xy",
+      "why": "a yellow party balloon bobbing on its string: tied to the teacher's desk on someone's birthday (a fixture, not an item)"
     }
   },
   "tiles": {}

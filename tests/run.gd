@@ -29,6 +29,10 @@ func _ready() -> void:
 	# advances hundreds of days -- it was overwriting a real save file every
 	# time anybody ran the tests.
 	Game.save_path = "user://edusystem_TEST_save.json"
+	# Nor the player's SETTINGS: the suite rebinds keys, corrupts the file on
+	# purpose and resets it. Its own file, from defaults, every run.
+	Settings.path = "user://edusystem_TEST_settings.json"
+	Settings.reset_all()
 	# Blinking is random decoration: a frame assertion must never catch a
 	# child mid-blink. test_blinking() turns it on to test it, then off.
 	Actor.blinks = false
@@ -9284,9 +9288,11 @@ func test_settings() -> void:
 	chk("erasing the SAVE does not erase your settings",
 		Settings.window_scale == 5 and not Settings.show_hints)
 
+	chk("the suite writes its own settings file, never the player's",
+		Settings.path != Settings.PATH and Settings.path.contains("TEST"), Settings.path)
 	chk("a corrupt settings file falls back to defaults rather than crashing",
 		(func() -> bool:
-			var f := FileAccess.open(Settings.PATH, FileAccess.WRITE)
+			var f := FileAccess.open(Settings.path, FileAccess.WRITE)
 			f.store_string("{ not json at all")
 			f.close()
 			Settings.load_settings()
@@ -13301,6 +13307,42 @@ func test_free_art() -> void:
 		animated.size() >= 13, animated)
 	chk("the globe turns, the computer's page scrolls, the mobile drifts",
 		animated.has("globe") and animated.has("computer") and animated.has("paper_mobile"), animated)
+
+	# Sunlight on the floor under every window, gone on an overcast day; the
+	# birthday balloons out on that day only. Both driven by the day's event.
+	var windows := 0
+	for tx in Grid.W:
+		if RoomBuilder.is_window_col(tx) and not RoomBuilder.is_window_col(tx - 1):
+			windows += 1
+	var beams: Array = world._sunlight
+	chk("a band of sunlight lies under every window", beams.size() == windows and windows > 0,
+		[beams.size(), windows])
+	var saved_event: Dictionary = Game.event
+	Game.event = {"id": "none"}
+	world._tick_ambient(0.0)
+	var lit := beams.all(func(b: Dictionary) -> bool: return (b["node"] as Node2D).visible)
+	Game.event = {"id": "wet_play"}
+	world._tick_ambient(0.0)
+	var dark := beams.all(func(b: Dictionary) -> bool: return not (b["node"] as Node2D).visible)
+	chk("it is there on a fair day and gone on a wet one", lit and dark, [lit, dark])
+	var bunch: Node2D = null
+	for n in get_tree().get_nodes_in_group("birthday_balloons"):
+		bunch = n
+	Game.event = {"id": "none"}
+	world._tick_ambient(0.0)
+	var hidden_ordinary := bunch != null and not bunch.visible
+	Game.event = {"id": "birthday"}
+	world._tick_ambient(0.0)
+	var shown_birthday := bunch != null and bunch.visible
+	var sprites := 0
+	if bunch != null:
+		for c in bunch.get_children():
+			if c is Sprite2D and (c as Sprite2D).hframes == RoomBuilder.BALLOON_FRAMES:
+				sprites += 1
+	chk("on someone's birthday three balloons bob over the teacher's desk, and only then",
+		hidden_ordinary and shown_birthday and sprites == 3, [hidden_ordinary, shown_birthday, sprites])
+	Game.event = saved_event
+	world._tick_ambient(0.0)
 
 
 ## The LimeZu packs are NOT in the repo (the licence forbids redistributing

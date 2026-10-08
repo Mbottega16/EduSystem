@@ -19,6 +19,21 @@ const TEACHER_COFFEE := preload("res://art/teacher_coffee.png")
 const TEACHER_COFFEE_ANIM := preload("res://art/teacher_coffee_anim.png")
 const TEACHER_COFFEE_FRAMES := 6
 const TEACHER_COFFEE_FPS := 5.0
+## Someone's birthday (the day event): three of LimeZu's party balloons bob
+## over the teacher's desk, tied at its left corner. Built hidden with the
+## desk; classroom._tick_ambient() shows them on that day only, so they take
+## themselves away -- an event's decoration, never shop clutter.
+const BALLOONS := [
+	[preload("res://art/balloon_red.png"), preload("res://art/balloon_red_anim.png")],
+	[preload("res://art/balloon_blue.png"), preload("res://art/balloon_blue_anim.png")],
+	[preload("res://art/balloon_yellow.png"), preload("res://art/balloon_yellow_anim.png")],
+]
+const BALLOON_FRAMES := 5
+const BALLOON_FPS := 3.0
+## Sunlight through each window, lying on the floor below it (build_sunlight).
+const SUN_COLOUR := Color(1.0, 0.93, 0.72, 0.16)
+const SUN_DEPTH := 96            # px down the floor it reaches (3 tiles)
+const SUN_LEAN := 28             # px it slides right over that depth
 const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
@@ -347,9 +362,65 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	body.add_child(steam)
 	steam.setup(mug, TEACHER_COFFEE_ANIM,
 		{"frames": TEACHER_COFFEE_FRAMES, "fps": TEACHER_COFFEE_FPS}, 0.0)
+	var bunch := Node2D.new()
+	bunch.name = "Balloons"
+	bunch.visible = false
+	bunch.add_to_group("birthday_balloons")
+	body.add_child(bunch)
+	# Fanned out from one knot at the desk's left corner, the middle one
+	# highest, each a beat out of step so they do not bob in unison.
+	var spots := [Vector2(-34, -6), Vector2(-24, -16), Vector2(-14, -4)]
+	for i in BALLOONS.size():
+		var b := Sprite2D.new()
+		b.texture = BALLOONS[i][0]
+		b.position = Vector2(spots[i].x, -20 + spots[i].y - BALLOONS[i][0].get_height() / 2.0)
+		bunch.add_child(b)
+		var bob := Node.new()
+		bob.set_script(PROP_ANIM_SCRIPT)
+		bunch.add_child(bob)
+		bob.setup(b, BALLOONS[i][1], {"frames": BALLOON_FRAMES, "fps": BALLOON_FPS}, 0.45 * i)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it
+
+
+## Sunlight through each window, lying on the floor below it: a pale, warm
+## band that leans away from the light (the sun is up and to the left),
+## stepped on the room's 2px grid so its edge reads as pixel art, and fading
+## out in three steps at its far end. It sits at y = 0 in a y-sorted room,
+## added straight after the floor, so desks, people and props all stand IN it
+## rather than under a sheet of glass. Overcast days hide it and fair ones
+## send dust drifting through it (classroom._tick_ambient). Decoration only.
+## -> [{node, rect}] -- `rect` is the band's bounding box, where dust can float.
+static func build_sunlight(parent: Node2D) -> Array:
+	var out: Array = []
+	var w := Grid.W
+	var y0 := float(Layout.TOP_WALL * Grid.TILE)
+	for tx in w:
+		if _window_col(tx, w) != 0:
+			continue
+		var x0 := float(tx * Grid.TILE + 6)
+		var width := float(2 * Grid.TILE - 12)
+		var beam := Node2D.new()
+		beam.name = "Sunlight%d" % tx
+		beam.add_to_group("room_part")
+		beam.add_to_group("sunlight")
+		parent.add_child(beam)
+		beam.draw.connect(func() -> void:
+			var rows := SUN_DEPTH / 2
+			for i in rows:
+				var lean := floorf(float(SUN_LEAN) * i / rows / 2.0) * 2.0
+				var a := SUN_COLOUR.a
+				if i >= rows * 2 / 3:
+					a *= 0.35
+				elif i >= rows / 3:
+					a *= 0.7
+				beam.draw_rect(Rect2(x0 + lean, y0 + i * 2.0, width, 2.0),
+					Color(SUN_COLOUR, a)))
+		beam.queue_redraw()
+		out.append({"node": beam,
+			"rect": Rect2(x0, y0, width + SUN_LEAN, float(SUN_DEPTH))})
+	return out
 
 
 static func build_bell(parent: Node2D, grid: Grid) -> Interactable:

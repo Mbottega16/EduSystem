@@ -386,6 +386,29 @@ static func shake(camera: Camera2D, strength: float = 2.0,
 ## a raindrop's streak, a turning snowflake, a sparkle (Ninja Adventure's
 ## particles, tools/free_manifest.json) -- played across the mote's whole
 ## life at its own size. A day with no strip keeps the dust.
+## A speck of dust drifting through a band of sunlight (classroom's
+## _tick_ambient): one art pixel of warm white that fades in, drifts slowly
+## down and along the light's lean, and fades out. Engine randf, like every
+## other piece of decoration here -- never Game.rng.
+static func sun_mote(parent: Node2D, area: Rect2, seconds: float) -> void:
+	if parent == null or not is_instance_valid(parent):
+		return
+	var s := Sprite2D.new()
+	s.texture = DUST
+	s.modulate = Color(1.0, 0.97, 0.86, 0.0)
+	s.z_index = 55
+	var start := area.position + Vector2(randf() * area.size.x * 0.7,
+		randf() * area.size.y * 0.4)
+	s.position = start
+	parent.add_child(s)
+	var travel := Vector2(randf_range(4.0, 14.0), randf_range(20.0, area.size.y * 0.5))
+	var tw := s.create_tween().set_parallel(true)
+	tw.tween_property(s, "position", start + travel, seconds).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(s, "modulate:a", 0.85, seconds * 0.3)
+	tw.tween_property(s, "modulate:a", 0.0, seconds * 0.4).set_delay(seconds * 0.6)
+	tw.chain().tween_callback(s.queue_free)
+
+
 static func weather_mote(parent: Node2D, top_left: Vector2, size: Vector2,
 		colour: Color, fall: bool, seconds: float,
 		strip: Texture2D = null, frames: int = 1) -> void:

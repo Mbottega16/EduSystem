@@ -598,6 +598,12 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
 			Game.attention = 0.8
+		"birthday":
+			# the event decoration: balloons over the desk, sun on the floor
+			Game.event = DayEvent.by_id("birthday")
+			world.start_lesson()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.PODIUM + Vector2i(0, 1))
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance

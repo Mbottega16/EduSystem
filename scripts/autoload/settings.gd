@@ -7,6 +7,13 @@ extends Node
 ## sound back on.
 
 const PATH := "user://edusystem_settings.json"
+## Where settings are read and written: the player's file, except under the
+## test suite, which points this at its own (tests/run.gd). The suite rebinds
+## keys, writes a corrupt file on purpose and resets everything to defaults,
+## and until Oct 2026 it did all of that to the PLAYER's settings every time it
+## ran -- the save file was moved off the real one for exactly this reason
+## (Game.save_path); the settings never were.
+var path := PATH
 
 ## Every rebindable action, in the order the controls screen lists them.
 ## `label` is what the player is shown; the action name is what the code uses.
@@ -295,7 +302,7 @@ func from_dict(d: Dictionary) -> void:
 
 
 func save_settings() -> bool:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return false
 	f.store_string(JSON.stringify(to_dict()))
@@ -304,10 +311,10 @@ func save_settings() -> bool:
 
 
 func load_settings() -> bool:
-	if not FileAccess.file_exists(PATH):
+	if not FileAccess.file_exists(path):
 		from_dict({})
 		return false
-	var f := FileAccess.open(PATH, FileAccess.READ)
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		from_dict({})
 		return false
