@@ -37,9 +37,11 @@ trusting it's still accurate.
 
 One PNG per character, 4 rows of 32&times;48 cells. Procedural characters
 (`make_art.py`) are 288&times;192: 9 columns (`hframes=9`). LimeZu characters
-(`limezu_chars.py`) are 480&times;192: the same 9 columns plus the pack's own
-six-frame walk in columns 9-14 (`hframes=15`). `Actor` reads the column count
-off the texture width, so both play. Same layout for everyone because a
+(`limezu_chars.py`) are 576&times;192: the same 9 columns plus the pack's own
+six-frame walk in columns 9-14, the slump in 15, and (Oct 2026) the standing and
+seated frames with the eyes shut in 16-17 -- LimeZu's idle row blinks, and
+`Actor.tick_blink()` shows it for a beat every few seconds. `Actor` reads the
+column count off the texture width, so every width plays. Same layout for everyone because a
 character is a palette through one shared `draw_char()`, not separate artwork.
 
 *(Sept 2026, the pixel-grid pass.)* Each frame is BUILT at 32&times;48

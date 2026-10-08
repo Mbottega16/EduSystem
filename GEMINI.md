@@ -66,7 +66,7 @@ in `NEED FROM YOU` and stop rather than deciding it yourself.
 ## Verifying, always
 
 ```
-Run Tests.bat            2431 assertions — read the COUNT, not the word PASSED
+Run Tests.bat            2441 assertions — read the COUNT, not the word PASSED
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    prints WALKTHROUGH PASSED / FAILED and exits on it
 python tools/check_docs.py

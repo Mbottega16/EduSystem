@@ -64,6 +64,23 @@ const POSE_SLUMP := 15
 
 var slumped := false
 
+## Columns 16 and 17: the standing and the seated frame with the eyes shut.
+## LimeZu's own idle row blinks on its fifth frame, and tools/limezu_chars.py
+## bakes that in; a sheet without these columns (older, or make_art's 9-wide
+## one) never blinks. A blink is BLINK_TIME long and comes every BLINK_GAP
+## seconds, from the engine's randf -- this is decoration and must never draw
+## from Game.rng. Only a RESTING actor blinks: standing still or seated with the
+## head up, no one-shot pose held. Nothing waits on it and nothing reads it.
+const BLINK_COL := 16
+const SIT_BLINK_COL := 17
+const BLINK_TIME := 0.13
+const BLINK_GAP := Vector2(2.5, 6.5)
+## Off in the test suite, so a frame assertion can never catch someone
+## mid-blink; the BLINKING section turns it on to test it.
+static var blinks := true
+var _blink_wait := -1.0     # seconds to the next blink; <0 = not yet scheduled
+var _blink_left := 0.0      # >0 while the eyes are shut
+
 @onready var sprite: Sprite2D = $Sprite2D
 
 var facing := DIR_DOWN
@@ -93,7 +110,7 @@ func tick_pose(delta: float) -> void:
 		return
 	_pose_timer -= delta
 	if _pose_timer <= 0.0:
-		_set_frame(seated_frame() if seated else 0)
+		_set_frame(rest_frame())
 
 
 ## Move in `dir` (unnormalised is fine) and animate accordingly.
@@ -107,8 +124,10 @@ func walk(dir: Vector2, delta: float) -> void:
 	move_and_slide()
 
 	if dir == Vector2.ZERO:
+		tick_blink(delta)
 		set_idle()
 		return
+	_blink_left = 0.0          # eyes open on the move; the walk owns the frame
 
 	# Left/right wins over up/down when moving diagonally: a side-on sprite
 	# reads better than a front-on one sliding sideways.
@@ -147,7 +166,52 @@ func has_full_walk() -> bool:
 func set_idle() -> void:
 	_cycle_pos = 0
 	_frame_timer = 0.0
-	_set_frame(0)
+	_set_frame(BLINK_COL if is_blinking() else 0)
+
+
+## True when this sheet carries the eyes-shut columns.
+func has_blink() -> bool:
+	_fit_sheet()
+	return sprite != null and sprite.hframes > SIT_BLINK_COL
+
+
+func is_blinking() -> bool:
+	return _blink_left > 0.0 and has_blink()
+
+
+## The frame a resting actor shows: standing or seated, eyes open or shut,
+## or the head down on the desk.
+func rest_frame() -> int:
+	if seated:
+		if slumped:
+			return seated_frame()
+		return SIT_BLINK_COL if is_blinking() else SIT_FRAME
+	return BLINK_COL if is_blinking() else 0
+
+
+## Advance the blink. Called while resting (idle_bob() for the seated, walk()
+## standing still); re-frames only when the eyes shut or open, so it never
+## fights a pose, a slump or anything else that set the frame.
+func tick_blink(delta: float) -> void:
+	if not blinks or not has_blink():
+		return
+	if _blink_wait < 0.0:
+		_blink_wait = randf_range(BLINK_GAP.x, BLINK_GAP.y)
+	if _blink_left > 0.0:
+		_blink_left -= delta
+		if _blink_left <= 0.0:
+			_blink_left = 0.0
+			_blink_wait = randf_range(BLINK_GAP.x, BLINK_GAP.y)
+			_set_frame(rest_frame())
+		return
+	_blink_wait -= delta
+	if _blink_wait > 0.0 or _pose_timer > 0.0 or (seated and slumped):
+		return
+	if sprite != null and sprite.frame_coords.x != (SIT_FRAME if seated else 0):
+		_blink_wait = randf_range(0.4, 1.2)    # mid-something; try again shortly
+		return
+	_blink_left = BLINK_TIME
+	_set_frame(rest_frame())
 
 
 func sit(face := DIR_DOWN) -> void:
@@ -189,7 +253,7 @@ func face_towards(point: Vector2) -> void:
 		facing = DIR_RIGHT if d.x > 0.0 else DIR_LEFT
 	else:
 		facing = DIR_DOWN if d.y > 0.0 else DIR_UP
-	_set_frame(seated_frame() if seated else 0)
+	_set_frame(rest_frame())
 
 
 ## 1.0 normally. The player overrides this to sprint; students never do.
@@ -217,6 +281,7 @@ func on_step() -> void:
 func idle_bob(delta: float) -> void:
 	if not seated or sprite == null:
 		return
+	tick_blink(delta)
 	idle_phase += delta
 	var lift := -12.0 + sin(idle_phase * 1.9) * 0.6
 	sprite.position.y = lift

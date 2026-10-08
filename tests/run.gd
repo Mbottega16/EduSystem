@@ -29,6 +29,9 @@ func _ready() -> void:
 	# advances hundreds of days -- it was overwriting a real save file every
 	# time anybody ran the tests.
 	Game.save_path = "user://edusystem_TEST_save.json"
+	# Blinking is random decoration: a frame assertion must never catch a
+	# child mid-blink. test_blinking() turns it on to test it, then off.
+	Actor.blinks = false
 	var cmd_args := OS.get_cmdline_user_args()
 	if not cmd_args.is_empty():
 		_filter = cmd_args[0]
@@ -168,6 +171,7 @@ func _main() -> void:
 	await test_work_loop()
 	await test_seating()
 	test_poses()
+	test_blinking()
 	await test_day_cycle()
 	await test_confusion()
 	await test_placement()
@@ -1069,6 +1073,77 @@ func _body_near(p: Vector2) -> StaticBody2D:
 		if c is StaticBody2D and (c as StaticBody2D).global_position.distance_to(p) < 0.6:
 			return c
 	return null
+
+
+## LimeZu's idle row blinks, and the baked sheets carry it (columns 16-17).
+## Driven by hand here: the schedule is random, so it is forced, never waited on.
+func test_blinking() -> void:
+	section("BLINKING")
+	var st: Actor = world.student_node(0)
+	var was_seated := st.seated
+	Actor.blinks = true
+	chk("a LimeZu sheet carries the eyes-shut columns", st.has_blink(),
+		[st.sprite.hframes, st.sprite.texture.get_width()])
+	var shut_differs := false
+	var img := st.sprite.texture.get_image()
+	var open_cell := img.get_region(Rect2i(Actor.SIT_FRAME * Actor.CELL_W, 0, Actor.CELL_W, 48))
+	var shut_cell := img.get_region(Rect2i(Actor.SIT_BLINK_COL * Actor.CELL_W, 0, Actor.CELL_W, 48))
+	shut_differs = open_cell.get_data() != shut_cell.get_data()
+	chk("and the seated blink really closes the eyes (it is not the open frame again)", shut_differs)
+
+	st.sit(Actor.DIR_DOWN)
+	st.set_slumped(false)
+	st._blink_wait = 0.0
+	st.tick_blink(0.01)
+	chk("a seated child blinks on the seated eyes-shut column",
+		st.sprite.frame_coords.x == Actor.SIT_BLINK_COL, st.sprite.frame_coords)
+	st.tick_blink(Actor.BLINK_TIME + 0.01)
+	chk("...and opens them again on the seated frame",
+		st.sprite.frame_coords.x == Actor.SIT_FRAME, st.sprite.frame_coords)
+	chk("...with the next blink a few seconds off",
+		st._blink_wait >= Actor.BLINK_GAP.x and st._blink_wait <= Actor.BLINK_GAP.y, st._blink_wait)
+
+	st.set_slumped(true)
+	st._blink_wait = 0.0
+	st.tick_blink(0.01)
+	chk("a head down on the desk does not blink",
+		st.sprite.frame_coords.x == Actor.POSE_SLUMP, st.sprite.frame_coords)
+	st.set_slumped(false)
+
+	st.play_pose(Actor.POSE_JUMP)
+	st._blink_wait = 0.0
+	st.tick_blink(0.01)
+	chk("nor does a held pose get blinked over",
+		st.sprite.frame_coords.x == Actor.POSE_JUMP, st.sprite.frame_coords)
+	st.tick_pose(Actor.POSE_HOLD_TIME + 0.01)
+
+	st.stand()
+	st._blink_left = 0.0
+	st._blink_wait = 0.0
+	st.tick_blink(0.01)
+	chk("standing still, the blink is the standing eyes-shut column",
+		st.sprite.frame_coords.x == Actor.BLINK_COL, st.sprite.frame_coords)
+	var at := st.global_position
+	st.walk(Vector2.RIGHT, 0.016)
+	chk("walking opens the eyes and the walk owns the frame",
+		not st.is_blinking() and st.sprite.frame_coords.x in Actor.WALK_CYCLE_FULL, st.sprite.frame_coords)
+	st.global_position = at
+	st.velocity = Vector2.ZERO
+
+	var old_actor: Actor = load("res://scenes/actors/student.tscn").instantiate()
+	add_child(old_actor)
+	old_actor.sprite.texture = load("res://art/rock_tray.png")   # anything narrow
+	old_actor._blink_wait = 0.0
+	old_actor.tick_blink(0.01)
+	chk("a sheet without the columns never blinks", not old_actor.is_blinking())
+	old_actor.queue_free()
+
+	Actor.blinks = false
+	st._blink_left = 0.0
+	if was_seated:
+		st.sit(Actor.DIR_DOWN)
+	else:
+		st.stand()
 
 
 func test_poses() -> void:
@@ -13280,9 +13355,9 @@ func test_limezu_art() -> void:
 	var wrong: Array[String] = []
 	for n: String in sheets:
 		var tex: Texture2D = load("res://art/%s.png" % n) if ResourceLoader.exists("res://art/%s.png" % n) else null
-		if tex == null or tex.get_width() != 512 or tex.get_height() != 192:
+		if tex == null or tex.get_width() != 576 or tex.get_height() != 192:
 			wrong.append(n)
-	chk("every baked person is a 16x4 sheet of 32x48 cells (9 poses, the 6-frame walk, the slump)", wrong.is_empty(), wrong)
+	chk("every baked person is an 18x4 sheet of 32x48 cells (9 poses, the 6-frame walk, the slump, two blinks)", wrong.is_empty(), wrong)
 	var wrong_bust: Array[String] = []
 	for n: String in busts:
 		var tex: Texture2D = load("res://art/portrait_%s.png" % n) if ResourceLoader.exists("res://art/portrait_%s.png" % n) else null

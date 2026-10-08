@@ -39,6 +39,13 @@ WHAT MAPS TO WHAT (LimeZu row, direction order right/up/left/down, 6 frames each
                             instead of floating at sitting height. Adults have no such
                             row at index 3 (their sheets are 20 rows), so theirs is
                             derived: the seated frame with the head drooped.
+    col 16 blink            the standing frame with the eyes shut, and
+    col 17 sit blink        the seated one: LimeZu's idle row blinks on its fifth frame
+                            (frames 2-3 are a breath, 4-5 the blink), so this is HIS
+                            closed eye, not a drawn one. Taken only where frame 4 differs
+                            from frame 0 in a small box round the eyes (idle_blink());
+                            otherwise the open-eyed frame is repeated, and the game's
+                            blink simply shows no change.
     cols 9-14  walk         LimeZu's own six walk frames, in order (the real cycle:
                             the two big strides are frames 1 and 4, the other four
                             are the passing poses that give the body its bob).
@@ -84,7 +91,7 @@ ROW_IDLE, ROW_WALK = 1, 2                       # row 0 is a 32px header of prev
 ROW_SLEEP = 3                                   # kid sheets only: 6 frames, one direction
 CELL_H = 32
 FRAME_W, FRAME_H = 16, 24                       # the game's cell, in art pixels
-COLS = 16
+COLS = 18
 WALK_FRAMES = 6                                 # LimeZu's walk row: 6 frames per direction
 
 # LimeZu's keyline family. These (and fully transparent / soft-black shadow pixels)
@@ -263,8 +270,26 @@ def held_paper(frame, row_name):
     return f
 
 
+BLINK_FRAME = 4          # the idle row's frame with the eyes shut
+BLINK_BOX = (10, 4)      # art px: the most a blink may change, wide x tall
+
+
+def idle_blink(sheet, d):
+    """The idle row's eyes-shut cell for direction d, or the open one if that
+    frame changes more than a blink should (a breath, a shift) -- measured per
+    character, as the portrait blink is."""
+    rest = lz_cell(sheet, ROW_IDLE, d, 0)
+    shut = lz_cell(sheet, ROW_IDLE, d, BLINK_FRAME)
+    # alpha_only=False: an RGBA getbbox() looks at the alpha channel alone, and a
+    # blink changes colours, not the silhouette -- it would read as no change.
+    box = ImageChops.difference(rest.convert("RGBA"), shut.convert("RGBA")).getbbox(alpha_only=False)
+    if box is None or (box[2] - box[0]) > BLINK_BOX[0] or (box[3] - box[1]) > BLINK_BOX[1]:
+        return rest
+    return shut
+
+
 def build_frames(sheet, tuning, kind="kid"):
-    """-> {row_name: [16 frames of 16x24]} in the game's column order."""
+    """-> {row_name: [18 frames of 16x24]} in the game's column order."""
     sit_up = tuning.get("sit_up", 3)
     jump_up = tuning.get("jump_up", 3)
     # How far below the SEATED head the slumped head rests. Four art pixels
@@ -296,7 +321,11 @@ def build_frames(sheet, tuning, kind="kid"):
                 slump = droop(sit, rows=3)
         else:
             slump = droop(sit, rows=3)
-        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad]             + walk + [slump]
+        shut = idle_blink(sheet, d)
+        blink = to_frame(shut)
+        sit_blink = to_frame(shut, up=sit_up)
+        out[row_name] = [stand, step_a, stand, step_b, sit, handoff, chat, jump, sad] \
+            + walk + [slump, blink, sit_blink]
     return out
 
 
