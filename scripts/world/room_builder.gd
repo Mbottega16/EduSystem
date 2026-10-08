@@ -13,6 +13,12 @@ const PROP_CHAIR := preload("res://art/chair.png")
 const PROP_DESK := preload("res://art/desk.png")
 const PROP_PODIUM := preload("res://art/podium.png")
 const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
+## The mug on the teacher's desk, steaming (LimeZu's animated coffee, six
+## frames) -- part of the desk, not an item. See build_teacher_desk().
+const TEACHER_COFFEE := preload("res://art/teacher_coffee.png")
+const TEACHER_COFFEE_ANIM := preload("res://art/teacher_coffee_anim.png")
+const TEACHER_COFFEE_FRAMES := 6
+const TEACHER_COFFEE_FPS := 5.0
 const PROP_PAPER := preload("res://art/paper.png")
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
@@ -327,6 +333,20 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var rp := Interactable.new()
 	rp.set_script(DESK_INTERRUPTION_SCRIPT)
 	body.add_child(rp)
+	# A mug of coffee on the right of the desk, steaming. The room had
+	# nothing that moved on its own but a fish tank and a butterfly; a
+	# teacher's desk with a hot drink on it is lived in. Sits on the desk's
+	# top edge, in front of the pen pot.
+	var mug := Sprite2D.new()
+	mug.texture = TEACHER_COFFEE
+	mug.position = Vector2(17, -17 - TEACHER_COFFEE.get_height() / 2.0)
+	mug.name = "Coffee"
+	body.add_child(mug)
+	var steam := Node.new()
+	steam.set_script(PROP_ANIM_SCRIPT)
+	body.add_child(steam)
+	steam.setup(mug, TEACHER_COFFEE_ANIM,
+		{"frames": TEACHER_COFFEE_FRAMES, "fps": TEACHER_COFFEE_FPS}, 0.0)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it
@@ -434,8 +454,10 @@ static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interact
 ## never for sale (`"shop": false` -- see Items.in_shop()). It sits on the
 ## window columns, which no bought piece may cover, so it is the one seed
 ## that can never be hung over.
+## The clock is the second (Oct 2026): a cuckoo clock whose pendulum swings,
+## in place of the still square one -- which is still in the shop.
 const DECOR_SEED := [
-	["wall_clock", Vector2i(8, 1)],
+	["cuckoo_clock", Vector2i(8, 1)],
 	["class_banner", Vector2i(10, 1)],
 	["window_butterfly", Vector2i(13, 1)],
 	["alphabet_frieze", Vector2i(14, 1)],

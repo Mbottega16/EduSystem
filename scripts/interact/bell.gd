@@ -36,6 +36,14 @@ func interact(by: Node) -> void:
 	if room == null:
 		return
 	Sfx.play("bell")
+	# ...and it SWINGS. The bell was the loudest thing in the room and the
+	# one thing that never moved.
+	var body := get_parent()
+	if body != null:
+		for c: Node in body.get_children():
+			if c is Sprite2D and (c as Sprite2D).texture != null \
+					and (c as Sprite2D).texture.get_height() > 16:
+				Fx.wobble(c as Sprite2D)
 	var last := Game.day >= Balance.term_days
 	var report: Dictionary = room.end_day()
 	# Ten-commits.md step 3: coins and XP already land above every desk in

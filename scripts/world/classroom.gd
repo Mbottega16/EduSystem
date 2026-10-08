@@ -101,6 +101,13 @@ const WEATHER := {
 	"cold_snap": [Color(0.85, 0.93, 1.0, 0.95), true, 2.4, 0.4],
 	"cleaning": [Color(1.0, 1.0, 1.0, 0.85), false, 1.1, 0.35],
 }
+## The drawn particle a day's weather uses instead of a dust mote, where it
+## has one: [strip, frames]. Ninja Adventure's (tools/free_manifest.json).
+const WEATHER_ART := {
+	"wet_play": [preload("res://art/fx_rain_anim.png"), 3],
+	"cold_snap": [preload("res://art/fx_snow_anim.png"), 7],
+	"cleaning": [preload("res://art/fx_sparkle_anim.png"), 7],
+}
 var _purchased: Array = []
 ## Tiles the bought furniture is currently occupying, so they can be handed
 ## back when it moves or the room is cleared.
@@ -389,9 +396,10 @@ func _tick_weather(delta: float) -> void:
 	# Kept off the very top and bottom rows on purpose: the HUD's status
 	# line and hint bar sit over those in screen space, and a mote is not
 	# worth drawing where it will spawn already hidden under them.
+	var drawn: Array = WEATHER_ART.get(String(Game.event.get("id", "none")), [null, 1])
 	Fx.weather_mote(self, Vector2(0.0, 20.0),
 		Vector2(Grid.W * Grid.TILE, Grid.H * Grid.TILE - 40.0),
-		colour, fall, seconds)
+		colour, fall, seconds, drawn[0], int(drawn[1]))
 
 
 ## The room got bigger. Rebuild the geometry around the people in it.

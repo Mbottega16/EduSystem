@@ -318,6 +318,21 @@ class Ring extends Node2D:
 				colour, width, false)
 
 
+## A swing back and forth that dies away -- the bell, rung. Rotates the
+## node about its own origin, so a sprite whose origin is its centre rocks
+## in place. Decoration only.
+static func wobble(node: Node2D, swing: float = 0.35, seconds: float = 0.7) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var tw := node.create_tween()
+	var steps := 6
+	for i in steps:
+		var a: float = swing * (1.0 - float(i) / float(steps)) * (1.0 if i % 2 == 0 else -1.0)
+		tw.tween_property(node, "rotation", a, seconds / float(steps + 1)) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(node, "rotation", 0.0, seconds / float(steps + 1))
+
+
 ## A quick squash-and-settle, for something that has just landed.
 static func land(node: Node2D) -> void:
 	if node == null or not is_instance_valid(node):
@@ -367,9 +382,17 @@ static func shake(camera: Camera2D, strength: float = 2.0,
 ## Reuses the dust puff's own texture and z-index rather than new art: a
 ## mote is a puff that falls instead of scattering, and the room already
 ## knows how to draw one of those.
+## `strip` (with `frames`) swaps the dust mote for a drawn, animated one --
+## a raindrop's streak, a turning snowflake, a sparkle (Ninja Adventure's
+## particles, tools/free_manifest.json) -- played across the mote's whole
+## life at its own size. A day with no strip keeps the dust.
 static func weather_mote(parent: Node2D, top_left: Vector2, size: Vector2,
-		colour: Color, fall: bool, seconds: float) -> void:
+		colour: Color, fall: bool, seconds: float,
+		strip: Texture2D = null, frames: int = 1) -> void:
 	if parent == null or not is_instance_valid(parent):
+		return
+	if strip != null and frames > 1:
+		_drawn_mote(parent, top_left, size, colour, fall, seconds, strip, frames)
 		return
 	var s := Sprite2D.new()
 	s.texture = DUST
@@ -394,6 +417,30 @@ static func weather_mote(parent: Node2D, top_left: Vector2, size: Vector2,
 	tw.tween_property(s, "position",
 		start + Vector2(drift, travel), seconds).set_trans(Tween.TRANS_LINEAR)
 	tw.tween_property(s, "modulate:a", 0.0, seconds).set_delay(seconds * 0.6)
+	tw.chain().tween_callback(s.queue_free)
+
+
+static func _drawn_mote(parent: Node2D, top_left: Vector2, size: Vector2,
+		colour: Color, fall: bool, seconds: float, strip: Texture2D, frames: int) -> void:
+	var s := Sprite2D.new()
+	s.texture = strip
+	s.hframes = frames
+	s.modulate = colour
+	s.z_index = 55
+	var start := top_left + Vector2(randf() * size.x, 0.0 if fall else size.y)
+	s.position = start
+	parent.add_child(s)
+	var drift := randf_range(-10.0, 10.0)
+	var travel: float = size.y if fall else -size.y
+	var tw := s.create_tween().set_parallel(true)
+	tw.tween_property(s, "position", start + Vector2(drift, travel), seconds) \
+		.set_trans(Tween.TRANS_LINEAR)
+	# Its frames cycle the whole way down, a few times a second.
+	var cycles := maxf(1.0, seconds * 6.0 / float(frames))
+	tw.tween_method(func(t: float) -> void:
+		if is_instance_valid(s):
+			s.frame = int(t) % frames, 0.0, cycles * float(frames), seconds)
+	tw.tween_property(s, "modulate:a", 0.0, seconds * 0.4).set_delay(seconds * 0.6)
 	tw.chain().tween_callback(s.queue_free)
 
 

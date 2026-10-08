@@ -502,6 +502,7 @@ func _render() -> void:
 				"The rest is drawn by tools/make_art.py",
 				"Every sound is synthesised by make_audio.py",
 				"Text in Galmuri by Lee Minseo (SIL OFL)",
+				"Furniture: 0_mem0ry. Flags, weather: Pixel-boy",
 				"",
 				"Built with Godot 4.",
 			]

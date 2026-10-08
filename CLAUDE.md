@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2415 assertions — must pass, count must not drop
+Run Tests.bat            2428 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -270,7 +270,7 @@ still looks armed is how the last one got missed.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2415 assertions, 126 sections |
+| `tests/run.gd` | The suite — 2428 assertions, 128 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -332,6 +332,7 @@ machine for these tools, and only the finished sprites live in `art/`):
 | | |
 |---|---|
 | `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
+| `tools/import_free.py` | sprites from FREE packs that are not LimeZu's (Ninja Adventure, CC0; the Midcentury Modern Furniture set by 0_mem0ry), driven by `tools/free_manifest.json`, which records each pack's licence and credit. Same rules: packs found on the machine (`$FREE_ART_DIR`, `tools/free_art_path.txt`, Desktop/Downloads), never committed; every name it owns is protected like a LimeZu one. `--list`, `--check` |
 | `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
 | `tools/limezu_chars.py` | the 17 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
 | `tools/limezu_ui.py` | UI pieces: `bubble_q` (LimeZu frame + our glyph) and `ui_frame` (the bamboo border the HUD 9-slices round every full-screen panel, and the cream slot behind a shop item) |

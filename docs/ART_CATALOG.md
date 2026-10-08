@@ -15,10 +15,19 @@ trusting it's still accurate.
 > stand down for those names and still draw everything else: **still procedural** --
 > the book and its page turns, the logo and title backdrop, the exterior backdrop tile,
 > `shadow`, `dust`, `paper`, the bell, `ad_poster`, the two floor-mess sprites, the bow
-> and mortarboard hats, and 19 shop items (maths_tiles, abacus, microscope, pot_of_pens,
-> rocking_chair, window_seat, low_shelf, sand_timer, terrarium, sound_cards, number_line,
-> rock_tray, hammock_chair, desk_fan, chalk_border, state_flag, vote_box, winners_flag,
-> season_wheel). Credit to limezu.itch.io is a licence condition and is on the credits page.
+> and mortarboard hats, the subject icons and mood faces, and 8 shop items (maths_tiles,
+> abacus, microscope, sound_cards, number_line, rock_tray, vote_box, season_wheel).
+> Credit to limezu.itch.io is a licence condition and is on the credits page.
+>
+> **Free packs, 2026-10-08.** `tools/import_free.py` (`free_manifest.json`) owns the
+> sprites taken from free packs that are not LimeZu's: `rocking_chair`, `hammock_chair`,
+> `window_seat`, `low_shelf` (Midcentury Modern Furniture, 0_mem0ry), and `sand_timer`,
+> the waving `state_flag` (+ `_anim`, which `winners_flag` also plays) and the weather
+> particles `fx_rain_anim`, `fx_snow_anim`, `fx_sparkle_anim` (Ninja Adventure, CC0).
+> The same pass moved more onto LimeZu, much of it animated: `terrarium` (the pack's frog
+> in a mossy tank), `server_rack`, `cuckoo_clock` (seeded on the wall in place of the
+> plain clock), `teacher_coffee` (a steaming mug on the teacher's desk), `desk_fan` (a
+> pedestal fan whose grille flickers as it spins), `pot_of_pens` and `chalk_border`.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

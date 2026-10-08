@@ -217,6 +217,7 @@ func _main() -> void:
 	test_global_classes_registered()
 	test_every_asset_loads()
 	test_limezu_art()
+	test_free_art()
 	test_animated_props()
 	test_curator()
 	test_cheats()
@@ -13108,6 +13109,86 @@ func test_every_asset_loads() -> void:
 	chk("there is art to check", checked > 0, checked)
 	chk("and every single piece of it loads", broken.is_empty(),
 		"%d of %d fail to load: %s" % [broken.size(), checked, broken])
+
+
+## FREE ART (Oct 2026): sprites from free packs that are not LimeZu's --
+## tools/free_manifest.json, built by tools/import_free.py. The same promises as
+## LimeZu art (every sprite loads, at the doubled scale, with no hand source
+## fighting it), plus the two a free pack adds: every pack the game takes from
+## names its licence, and every one it takes from is credited.
+func test_free_art() -> void:
+	section("FREE ART")
+	var m: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tools/free_manifest.json"))
+	chk("the manifest of free-pack sprites parses", m is Dictionary)
+	if not (m is Dictionary):
+		return
+	var packs: Dictionary = m.get("packs", {})
+	var props: Dictionary = m.get("props", {})
+	chk("it owns some sprites", props.size() > 0, props.size())
+	var missing: Array = []
+	var odd: Array = []
+	var fought: Array = []
+	var used: Dictionary = {}
+	for n: String in props.keys():
+		used[String(props[n].get("pack", ""))] = true
+		var names: Array[String] = []
+		if not bool(props[n].get("strip_only", false)):
+			names.append(n)
+		if props[n].has("anim"):
+			names.append(n + "_anim")
+		for a: String in names:
+			var tex: Texture2D = load("res://art/%s.png" % a) if ResourceLoader.exists("res://art/%s.png" % a) else null
+			if tex == null:
+				missing.append(a)
+			elif tex.get_width() % 2 != 0 or tex.get_height() % 2 != 0:
+				odd.append(a)
+			if FileAccess.file_exists("res://tools/sprites/%s.txt" % a):
+				fought.append(a)
+	chk("every free-pack sprite exists and loads", missing.is_empty(), missing)
+	chk("each is at the doubled scale (even width and height)", odd.is_empty(), odd)
+	chk("none also has a hand-drawn source fighting it", fought.is_empty(), fought)
+	chk("every pack names its licence and the credit it asks for", (func() -> bool:
+		for k: String in packs.keys():
+			if String(packs[k].get("licence", "")) == "" or String(packs[k].get("credit", "")) == "":
+				return false
+		return true).call())
+	var credits := FileAccess.get_file_as_string("res://scripts/ui/title.gd")
+	var uncredited: Array = []
+	for k: String in used.keys():
+		var who := String(packs.get(k, {}).get("credit", "")).split(" by ")[-1].split(" (")[0]
+		if who == "" or not credits.contains(who.split(" and ")[0]):
+			uncredited.append(k)
+	chk("every pack the game takes from is credited on the credits page", uncredited.is_empty(), uncredited)
+	chk("an animated free sprite is played the way a LimeZu one is", (func() -> bool:
+		var a: Variant = Items.get_def("state_flag").get("anim", null)
+		return a is Dictionary and String((a as Dictionary).get("art", "")) == "state_flag_anim").call())
+
+	# --- the room moves more (Oct 2026) ---
+	chk("the clock the room starts with is the cuckoo clock, and it swings",
+		RoomBuilder.DECOR_SEED[0][0] == "cuckoo_clock"
+		and Items.get_def("cuckoo_clock").get("anim", null) is Dictionary
+		and not Items.in_shop("cuckoo_clock"))
+	chk("the teacher's desk has a mug on it that steams", (func() -> bool:
+		for n: Node in get_tree().get_nodes_in_group("room_part"):
+			var mug := n.get_node_or_null("Coffee")
+			if mug is Sprite2D and (mug as Sprite2D).hframes == RoomBuilder.TEACHER_COFFEE_FRAMES:
+				return true
+		return false).call())
+	chk("the server rack and the terrarium move too",
+		Items.get_def("server_rack").get("anim", null) is Dictionary
+		and Items.get_def("terrarium").get("anim", null) is Dictionary)
+	var fan: Variant = Items.get_def("desk_fan").get("anim", null)
+	chk("the fan spins: two frames, its grille's wires trading places",
+		fan is Dictionary and int((fan as Dictionary).get("frames", 0)) == 2
+		and ResourceLoader.exists("res://art/%s.png" % String((fan as Dictionary).get("art", ""))))
+	var drawn: Array = []
+	for w: String in ["wet_play", "cold_snap", "cleaning"]:
+		var d: Array = world.WEATHER_ART.get(w, [])
+		if d.size() == 2 and d[0] is Texture2D \
+				and (d[0] as Texture2D).get_width() % int(d[1]) == 0:
+			drawn.append(w)
+	chk("rain, snow and a cleaning day each fall as a drawn particle, its frames whole",
+		drawn.size() == 3, drawn)
 
 
 ## The LimeZu packs are NOT in the repo (the licence forbids redistributing

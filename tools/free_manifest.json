@@ -1,0 +1,165 @@
+{
+  "_about": "Sprites the game takes from FREE art packs (not LimeZu). Read by tools/import_free.py; every name under props is owned by that importer and the procedural generators stand down for it (limezu.owned_names() unions this file in). The packs are never committed -- they are found on the machine (see import_free.py) and only the finished sprites live in art/. Each pack records its licence and the credit it asks for; the credits page carries every one, required or not.",
+  "packs": {
+    "ninja": {
+      "find": "free_art/ninja-adventure-asset-pack/Ninja Adventure - Asset Pack.zip",
+      "root": "Ninja Adventure - Asset Pack/",
+      "density": 16,
+      "outline": "keyline",
+      "licence": "CC0 1.0 -- public domain, commercial use, no credit required",
+      "credit": "Ninja Adventure by Pixel-boy and AAA",
+      "url": "https://pixel-boy.itch.io/ninja-adventure-asset-pack"
+    },
+    "midcentury": {
+      "find": "free_art/midcentury-modern-furniture-set-free/midcentury_modern_furnitureset.png",
+      "density": 32,
+      "outline": "conform",
+      "licence": "free; commercial and non-commercial use; the pack may not be resold or redistributed; credit appreciated, not required",
+      "credit": "Midcentury Modern Furniture Set by 0_mem0ry",
+      "url": "https://0-mem0ry.itch.io/midcentury-modern-furniture-set-free"
+    },
+    "kenney_town": {
+      "find": "free_art/kenney_tiny-town.zip",
+      "density": 16,
+      "outline": "keyline",
+      "licence": "CC0 -- public domain, commercial use, no credit required",
+      "credit": "Kenney (kenney.nl)",
+      "url": "https://kenney.nl/assets/tiny-town",
+      "note": "downloaded for the schoolyard; nothing imported from it yet"
+    },
+    "kenney_urban": {
+      "find": "free_art/kenney_rpg-urban-pack.zip",
+      "density": 16,
+      "outline": "keyline",
+      "licence": "CC0 -- public domain, commercial use, no credit required",
+      "credit": "Kenney (kenney.nl)",
+      "url": "https://kenney.nl/assets/rpg-urban-pack",
+      "note": "downloaded for the schoolyard; nothing imported from it yet"
+    },
+    "lobit_city": {
+      "find": "free_art/lo-bit-city/LO BIT CITY.zip",
+      "density": 16,
+      "outline": "keyline",
+      "licence": "free to use and modify, including in commercial games; do not resell the tileset; credit required",
+      "credit": "Lo Bit City by Greywyrd (greywyrd.itch.io)",
+      "url": "https://greywyrd.itch.io/lo-bit-city",
+      "note": "downloaded for the schoolyard; nothing imported from it yet -- the credit becomes REQUIRED the day something is"
+    }
+  },
+  "props": {
+    "rocking_chair": {
+      "pack": "midcentury",
+      "rect": [
+        163,
+        27,
+        28,
+        36
+      ],
+      "why": "the brown wooden lounge chair, halved onto the room's 2px grid and snapped to LimeZu's palette"
+    },
+    "hammock_chair": {
+      "pack": "midcentury",
+      "rect": [
+        332,
+        76,
+        19,
+        51
+      ],
+      "why": "the tall brown egg chair: a hanging chair's shape without the frame"
+    },
+    "window_seat": {
+      "pack": "midcentury",
+      "rect": [
+        448,
+        384,
+        48,
+        32
+      ],
+      "why": "the blue bench sofa -- a cushioned seat, low back, the length of a window"
+    },
+    "low_shelf": {
+      "pack": "midcentury",
+      "rect": [
+        388,
+        433,
+        40,
+        46
+      ],
+      "why": "the low bookcase with its books and a plant on top"
+    },
+    "sand_timer": {
+      "pack": "ninja",
+      "member": "Items/Object/Hourglass.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "why": "the hourglass"
+    },
+    "state_flag": {
+      "pack": "ninja",
+      "member": "Backgrounds/Animated/Flag/FlagBlue16x16.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "anim": {
+        "frames": 4,
+        "fps": 6
+      },
+      "why": "a blue flag that waves: the first shop item from a free pack that moves"
+    },
+    "fx_rain": {
+      "pack": "ninja",
+      "member": "FX/Particle/Rain.png",
+      "rect": [
+        0,
+        0,
+        8,
+        8
+      ],
+      "anim": {
+        "frames": 3,
+        "fps": 10
+      },
+      "why": "a falling raindrop's streak, three frames: wet-play weather (classroom.gd WEATHER_ART)",
+      "strip_only": true
+    },
+    "fx_snow": {
+      "pack": "ninja",
+      "member": "FX/Particle/Snow.png",
+      "rect": [
+        0,
+        0,
+        8,
+        8
+      ],
+      "anim": {
+        "frames": 7,
+        "fps": 8
+      },
+      "why": "a snowflake that turns as it falls: cold-snap weather",
+      "strip_only": true
+    },
+    "fx_sparkle": {
+      "pack": "ninja",
+      "member": "FX/Particle/Spark.png",
+      "rect": [
+        0,
+        0,
+        10,
+        8
+      ],
+      "anim": {
+        "frames": 7,
+        "fps": 10
+      },
+      "why": "a sparkle that flares and fades: the cleaning day's air",
+      "strip_only": true
+    }
+  }
+}

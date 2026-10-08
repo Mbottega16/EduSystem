@@ -242,6 +242,7 @@ forbids redistributing them.
 | `tools/limezu_room.py` | the 18 `tile_*.png` the room is stamped from | `tools/limezu_room.json` (which floor block, which wall set, which door/window) |
 | `tools/limezu_chars.py` | the 17 character sheets (15x4 cells of 32x48: 9 poses + the 6-frame walk) and their 96x96 HUD busts | `tools/limezu_cast.json` (body/eyes/outfit/hair/accessory ids + colour ramps) |
 | `tools/limezu_ui.py` | UI pieces that need "their frame, our glyph" (the stuck "?" bubble) | the builders in the file |
+| `tools/import_free.py` | sprites from free packs that are not LimeZu's -- Midcentury furniture (a 32px pack: halved, then snapped to LimeZu's palette and keyline) and Ninja Adventure (16px: own colours, near-black recoloured to the keyline) | `tools/free_manifest.json` (`packs` with licence + credit, `props` with a `rect` cut; `anim` for a strip; `strip_only` for a particle that is only ever played) |
 
 * **The generators stand down.** `make_art.hand_edited()` unions in
   `limezu.owned_names()`, so `make_art.py`, `make_items.py` and `forge_art.py`

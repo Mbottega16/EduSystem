@@ -392,9 +392,19 @@
       "why": "a framed certificate with a ribbon (duty_roster uses the neighbouring #113)"
     },
     "server_rack": {
-      "ref": "office#176",
-      "trim": "xy",
-      "why": "a dark server rack"
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_control_room_server.png",
+      "rect": [
+        0,
+        0,
+        16,
+        48
+      ],
+      "anim": {
+        "frames": 3,
+        "fps": 3
+      },
+      "why": "the pack's control-room server, its lights blinking (3 frames) -- the same object as the old still office#176 rack, which the 2026-10-05 inventory had already matched to this sheet"
     },
     "backpack": {
       "ref": "office#329",
@@ -431,6 +441,85 @@
         "fps": 6
       },
       "why": "the pack's idle butterfly, four frames: the first animated piece of decor the room simply has, at the window"
+    },
+    "terrarium": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_frog_idle.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "anim": {
+        "frames": 6,
+        "fps": 4
+      },
+      "compose": {
+        "base": "fishing#53",
+        "at": [
+          9,
+          12
+        ]
+      },
+      "why": "fishing#53's mossy tank with the pack's idle frog sitting on the moss -- the generator plan's lead for the tank, and something alive inside it"
+    },
+    "cuckoo_clock": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_cuckoo_clock.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 10,
+        "fps": 8
+      },
+      "why": "the cuckoo clock, its pendulum swinging (10 frames): hangs where the starting wall clock did"
+    },
+    "teacher_coffee": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_coffee.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 6,
+        "fps": 5
+      },
+      "trim": "xy",
+      "why": "a mug of coffee, steaming, on the teacher's own desk (a fixture, not an item)"
+    },
+    "desk_fan": {
+      "ref": "kitchen#203",
+      "trim": "xy",
+      "anim": {
+        "frames": 2,
+        "fps": 8,
+        "swap_rows": [
+          11,
+          17
+        ],
+        "swap": {
+          "#b1bac8": "#9da3b7",
+          "#9da3b7": "#b1bac8"
+        }
+      },
+      "why": "a pedestal fan (the kitchen set's, no plug); its grille's light and dark wires trade places so it spins"
+    },
+    "pot_of_pens": {
+      "ref": "museum#387",
+      "trim": "xy",
+      "why": "a glass cup of coloured pencils (the museum souvenir stand's)"
+    },
+    "chalk_border": {
+      "ref": "classroom#39",
+      "why": "the pack's standing green chalkboard on its frame, two tiles wide"
     }
   },
   "tiles": {}

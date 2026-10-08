@@ -200,6 +200,15 @@ def owned_names():
     if os.path.exists(os.path.join(TOOLS, "limezu_ui.py")):
         import limezu_ui
         names.update(limezu_ui.OUTPUTS)
+    # The free packs' importer (tools/import_free.py) owns its names the same way.
+    free = os.path.join(TOOLS, "free_manifest.json")
+    if os.path.exists(free):
+        with io.open(free, encoding="utf-8") as fh:
+            fm = json.load(fh)
+        for pname, pspec in fm.get("props", {}).items():
+            names.add(pname)
+            if "anim" in pspec:
+                names.add(pname + "_anim")
     cast = load_cast()
     for name, spec in cast.get("characters", {}).items():
         names.add(name)
@@ -317,16 +326,47 @@ def build_anim(spec, manifest):
     """An animated prop -> (static first frame, horizontal strip of every frame), both at game scale.
 
     The spec is a "sheet"+"rect" prop (rect = FRAME 0: x, y, frame_w, frame_h) plus
-    "anim": {"frames": N, ...}; frames sit side by side in the pack's sheet. Every frame is
+    "anim": {"frames": N, ...}; frames sit side by side in the pack's sheet. Or it is a
+    "ref" single that the pack never animated, plus "anim": {"frames": 2, "swap_rows":
+    [y0, y1], "swap": {colour: colour}}: frame 2 is the single with those colours traded
+    in those art rows (a fan's grille swapping its light and dark wires reads as the
+    blades going round). Every frame is
     cropped by the UNION of their bounds, so the strip is aligned frame to frame and the
     static art (frame 0 with that same crop) lines up with it exactly -- the shop's ghost and
     the placed, animating sprite are the same size.
     """
-    pack = need_pack(spec["pack"])
-    sheet = pack.image(spec["sheet"])
-    x0, y0, w, h = spec["rect"]
     n = int(spec["anim"]["frames"])
-    frames = [sheet.crop((x0 + i * w, y0, x0 + (i + 1) * w, y0 + h)) for i in range(n)]
+    if "ref" in spec:
+        a = spec["anim"]
+        rpack, member = resolve(spec["ref"], manifest)
+        still = rpack.image(member)
+        w, h = still.size
+        ry0, ry1 = a["swap_rows"]
+        alt = still.copy()
+        alt.paste(recolor(alt.crop((0, ry0, w, ry1)), a["swap"]), (0, ry0))
+        frames = [still, alt]
+        if n != len(frames):
+            raise SystemExit("%s: a colour-swap animation is 2 frames, not %d" % (spec["ref"], n))
+    else:
+        pack = need_pack(spec["pack"])
+        sheet = pack.image(spec["sheet"])
+        x0, y0, w, h = spec["rect"]
+        frames = [sheet.crop((x0 + i * w, y0, x0 + (i + 1) * w, y0 + h)) for i in range(n)]
+    if "compose" in spec:
+        # A still single under every frame, the animated sheet pasted onto it at
+        # "at" (art px): the pack's idle frog sitting in its mossy tank, so a
+        # terrarium has something alive in it. The frame is the base's size.
+        comp = spec["compose"]
+        bpack, bmember = resolve(comp["base"], manifest)
+        base = bpack.image(bmember)
+        ax, ay = comp["at"]
+        framed = []
+        for f in frames:
+            b = base.copy()
+            b.alpha_composite(f, (ax, ay))
+            framed.append(b)
+        frames = framed
+        w, h = base.size
     boxes = [f.getbbox() for f in frames if f.getbbox()]
     ux0 = min(b[0] for b in boxes)
     uy0 = min(b[1] for b in boxes)

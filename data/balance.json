@@ -323,6 +323,11 @@
       "cat": "decor",
       "cost": 95,
       "art": "server_rack",
+      "anim": {
+        "art": "server_rack_anim",
+        "frames": 3,
+        "fps": 3
+      },
       "w": 1,
       "range": 4,
       "bonus": 0.04,
@@ -595,6 +600,11 @@
       "cat": "learning",
       "cost": 220,
       "art": "terrarium",
+      "anim": {
+        "art": "terrarium_anim",
+        "frames": 6,
+        "fps": 4
+      },
       "w": 1,
       "range": 3,
       "bonus": 0.11,
@@ -741,10 +751,15 @@
       "blurb": "Somewhere to put your feet up, briefly."
     },
     "desk_fan": {
-      "name": "Desk Fan",
+      "name": "Standing Fan",
       "cat": "comfort",
       "cost": 85,
       "art": "desk_fan",
+      "anim": {
+        "art": "desk_fan_anim",
+        "frames": 2,
+        "fps": 8
+      },
       "w": 1,
       "range": 3,
       "bonus": 0.05,
@@ -786,6 +801,11 @@
       "cat": "decor",
       "cost": 75,
       "art": "state_flag",
+      "anim": {
+        "art": "state_flag_anim",
+        "frames": 4,
+        "fps": 6
+      },
       "w": 1,
       "range": 5,
       "bonus": 0.03,
@@ -829,6 +849,11 @@
       "cat": "decor",
       "cost": 150,
       "art": "state_flag",
+      "anim": {
+        "art": "state_flag_anim",
+        "frames": 4,
+        "fps": 6
+      },
       "w": 1,
       "range": 6,
       "bonus": 0.06,
@@ -873,6 +898,24 @@
       "range": 0,
       "bonus": 0.0,
       "blurb": "It found its way in through the window.",
+      "flat": true,
+      "wall": true
+    },
+    "cuckoo_clock": {
+      "name": "Cuckoo Clock",
+      "cat": "decor",
+      "shop": false,
+      "cost": 0,
+      "art": "cuckoo_clock",
+      "anim": {
+        "art": "cuckoo_clock_anim",
+        "frames": 10,
+        "fps": 8
+      },
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "blurb": "It has kept this room's time for longer than anyone has taught in it.",
       "flat": true,
       "wall": true
     }
