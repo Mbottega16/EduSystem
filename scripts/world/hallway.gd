@@ -38,6 +38,27 @@ const HEIGHT := 128.0   # doubled Aug 2026, was 64.0
 ## the door it already is, not invent a second design.
 const DOOR_TOP := preload("res://art/tile_door_top.png")
 const DOOR_BOTTOM := preload("res://art/tile_door_bottom.png")
+const PROP_ANIM_SCRIPT := preload("res://scripts/world/prop_anim.gd")
+
+## The corridor's look (Oct 2026). It was a flat dark rectangle with the doors
+## standing on it. Now it is painted from the classroom's own LimeZu tiles --
+## a wall along the top, the same floor, a skirting wall along the bottom that
+## the doors stand against, the ends walled off -- and the top wall is lined
+## with what a school corridor has. All existing art, none of it collides, and
+## it is built once with the bounds (the corridor's width never changes).
+const WALL_H := 64.0            # two wall tiles above the floor
+## What lines the top wall, left to right, repeating: [art, "stand" on the
+## floor with its back to the wall, or "hang" on the wall's face].
+const LINING := [
+	["cabinet_body", "stand"], ["cabinet_body", "stand"], ["cabinet_body", "stand"],
+	["noticeboard", "hang"], ["plant", "stand"], ["wall_clock", "hang"],
+	["water_cooler", "stand"], ["coat_hooks", "hang"], ["fish_tank", "stand"],
+	["sticker_chart", "hang"], ["cabinet_body", "stand"], ["cabinet_body", "stand"],
+	["certificate", "hang"], ["plant", "stand"], ["world_map", "hang"],
+]
+const LINING_GAP := 10.0
+## The props along the wall, for the tests.
+var lining: Array = []
 
 var doors: Array = []
 var _door_art: Array = []
@@ -58,12 +79,23 @@ func _build_bounds() -> void:
 	_walls_built = true
 	var w := MARGIN * 2.0 + SPACING * float(Balance.max_rooms + 1)
 
-	var floor_rect := ColorRect.new()
-	floor_rect.color = Color(0.16, 0.14, 0.13)
-	floor_rect.position = Vector2(0.0, 0.0)
-	floor_rect.size = Vector2(w, HEIGHT)
-	floor_rect.z_index = -10
-	add_child(floor_rect)
+	# The dark beyond the corridor's walls -- the old floor's colour, now only
+	# what the camera sees past the building.
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0.16, 0.14, 0.13)
+	backdrop.position = Vector2(-MARGIN - 600.0, -WALL_H - 600.0)
+	backdrop.size = Vector2(w + MARGIN * 2.0 + 1200.0, HEIGHT + WALL_H + 1232.0)
+	backdrop.z_index = -11
+	add_child(backdrop)
+	var floor_spr := Sprite2D.new()
+	floor_spr.name = "HallFloor"
+	floor_spr.texture = _compose(w)
+	floor_spr.centered = false
+	floor_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	floor_spr.position = Vector2(-MARGIN, -WALL_H)
+	floor_spr.z_index = -10
+	add_child(floor_spr)
+	_line_the_wall(w)
 
 	for seg: Rect2 in [
 		Rect2(0.0, -16.0, w, 16.0),          # top
@@ -81,6 +113,80 @@ func _build_bounds() -> void:
 		shape.position = seg.position + seg.size * 0.5
 		body.add_child(shape)
 		add_child(body)
+
+
+## The corridor as one image, from the classroom's tiles: MARGIN of end wall
+## each side, two rows of wall, the floor, one row of skirting wall.
+func _compose(w: float) -> ImageTexture:
+	var t := Grid.TILE
+	var cols := int(ceil((w + MARGIN * 2.0) / float(t)))
+	var floor_rows := int(HEIGHT / float(t))
+	var rows := 2 + floor_rows + 1
+	var im := Image.create(cols * t, rows * t, false, Image.FORMAT_RGBA8)
+	var floors: Array[Image] = []
+	for i in RoomBuilder.FLOOR_VARIANTS:
+		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i))
+		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i))
+	var top0 := RoomBuilder._tile_img("tile_wall_top0")
+	var top1 := RoomBuilder._tile_img("tile_wall_top1")
+	var side := RoomBuilder._tile_img("tile_wall_side")
+	var bottom := RoomBuilder._tile_img("tile_wall_bottom")
+	var src := Rect2i(0, 0, t, t)
+	var end_cols := int(MARGIN / float(t))
+	for ty in rows:
+		for tx in cols:
+			var img: Image
+			var inside := tx >= end_cols and float((tx - end_cols) * t) < w
+			if not inside:
+				img = side
+			elif ty == 0:
+				img = top0
+			elif ty == 1:
+				img = top1
+			elif ty == rows - 1:
+				img = bottom
+			else:
+				# Hashed by position, as the classroom's floor is: stable
+				# between visits rather than reshuffled.
+				var v := absi(tx * 7919 + ty * 104729) % RoomBuilder.FLOOR_VARIANTS
+				img = floors[v * 2 + (tx + ty) % 2]
+			if img != null:
+				im.blit_rect(img, src, Vector2i(tx, ty) * t)
+	return ImageTexture.create_from_image(im)
+
+
+## Line the top wall with LINING, repeating, end to end. A "stand" prop's
+## bottom sits a few pixels onto the floor, back to the wall; a "hang" one is
+## centred on the wall's face. The fish tank plays its strip, as a bought one does.
+func _line_the_wall(w: float) -> void:
+	var x := 18.0
+	var i := 0
+	while true:
+		var row: Array = LINING[i % LINING.size()]
+		var tex: Texture2D = load("res://art/%s.png" % String(row[0]))
+		if tex == null:
+			i += 1
+			continue
+		if x + tex.get_width() > w - 18.0:
+			break
+		var spr := Sprite2D.new()
+		spr.texture = tex
+		spr.name = "Lining%d_%s" % [i, String(row[0])]
+		var cy := -WALL_H * 0.5 - 2.0 if String(row[1]) == "hang" else 8.0 - tex.get_height() / 2.0
+		spr.position = Vector2(x + tex.get_width() / 2.0, cy)
+		spr.z_index = -9
+		add_child(spr)
+		lining.append(spr)
+		var anim: Variant = Items.get_def(String(row[0])).get("anim", null)
+		if anim is Dictionary:
+			var strip: Texture2D = load("res://art/%s.png" % String((anim as Dictionary).get("art", "")))
+			var drive := Node.new()
+			drive.set_script(PROP_ANIM_SCRIPT)
+			drive.name = "PropAnim"
+			spr.add_child(drive)
+			drive.setup(spr, strip, anim, 0.3 * float(i))
+		x += tex.get_width() + LINING_GAP
+		i += 1
 
 
 ## Called on entry, and again any time Game.rooms changes shape (a room

@@ -7753,6 +7753,16 @@ func test_hallway() -> void:
 		world.player.get_parent() == hallway)
 	chk("and the room itself is hidden while you are away", not world.visible)
 	chk("the hallway is what's on screen instead", hallway.visible)
+	var hall_floor: Sprite2D = hallway.get_node_or_null("HallFloor")
+	chk("the corridor is painted from the room's own tiles, end to end",
+		hall_floor != null and hall_floor.texture != null
+		and hall_floor.texture.get_width() >= int(hallway.width()), hall_floor)
+	var swims := false
+	for p: Node in hallway.lining:
+		if p.get_node_or_null("PropAnim") != null:
+			swims = true
+	chk("and its wall is lined -- lockers, boards, a clock, a fish tank that swims",
+		hallway.lining.size() >= 8 and swims, hallway.lining.size())
 	chk("the principal greets you the first time, with a face on it",
 		hud.mascot_box.visible and hud.mascot_portrait.visible)
 	chk("and the same nudge does not repeat on a second visit", (func() -> bool:
@@ -8053,6 +8063,11 @@ func test_mentor() -> void:
 		return true).call())
 
 	# and it is dressed -- a designed classroom, which is the mentor's point
+	var room_art: Sprite2D = mentor_room.get_node_or_null("RoomArt")
+	chk("her room is painted from the school's own tiles: walls, floor, a door",
+		room_art != null and room_art.texture != null
+		and room_art.texture.get_width() >= int(mentor_room.ROOM_W)
+		and room_art.texture.get_height() >= int(mentor_room.ROOM_H), room_art)
 	var dressing: Array = get_tree().get_nodes_in_group("mentor_dressing")
 	chk("every piece of dressing was built",
 		dressing.size() == (mentor_room.DRESSING as Array).size(),

@@ -38,6 +38,11 @@ trusting it's still accurate.
 > (`balloon_red`, `balloon_blue`, `balloon_yellow`, + `_anim`) bob over the
 > teacher's desk. Everyone blinks: LimeZu's idle-row blink is baked into the
 > character sheets as columns 16-17.
+> The other spaces caught up: the hallway (`hallway.gd`) and the mentor's room
+> (`mentor_room.gd`) were flat dark rectangles with props on them. Both are now
+> painted from the classroom's own tiles -- walls, floor, skirting, the door --
+> and the corridor's top wall is lined with lockers, boards, a clock, a plant, a
+> water cooler, coat hooks and a fish tank that swims.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

@@ -31,6 +31,14 @@ const MENTOR_TEX := preload("res://art/mentor.png")
 
 const ROOM_W := 384.0
 const ROOM_H := 288.0
+## Where the back wall meets the floor (Oct 2026). The room was a flat dark
+## rectangle; now it is painted from the classroom's own LimeZu tiles, and
+## its back wall stands INSIDE the top of the room, not above it -- the camera
+## centres on the room, so a wall above y = 0 would be cut off by the screen's
+## top edge. The pieces DRESSING hangs "wall" already sit at y 6-50, so they
+## land on the wall's face, and the top collider moved down to this line so
+## nobody walks up the wall.
+const WALL_FOOT := 48.0
 ## Desk anchor points, well apart -- no two share an edge OR a corner. The
 ## room reads as "room to breathe" before the mentor says a word about it.
 const DESK_SPOTS := [
@@ -125,17 +133,19 @@ func _build() -> void:
 		return
 	_built = true
 
-	var floor_rect := ColorRect.new()
-	floor_rect.color = Color(0.19, 0.17, 0.15)
-	floor_rect.position = Vector2.ZERO
-	floor_rect.size = Vector2(ROOM_W, ROOM_H)
-	floor_rect.z_index = -20
-	add_child(floor_rect)
+	var room_art := Sprite2D.new()
+	room_art.name = "RoomArt"
+	room_art.texture = _compose()
+	room_art.centered = false
+	room_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	room_art.position = Vector2(-Grid.TILE, -16.0)
+	room_art.z_index = -20
+	add_child(room_art)
 
 	# Walls as segments, with a gap in the left wall for the way back --
 	# same construction as hallway._build_bounds().
 	for seg: Rect2 in [
-		Rect2(0.0, -16.0, ROOM_W, 16.0),                       # top
+		Rect2(0.0, WALL_FOOT - 16.0, ROOM_W, 16.0),            # top: the back wall's foot
 		Rect2(0.0, ROOM_H, ROOM_W, 16.0),                      # bottom
 		Rect2(-16.0, -16.0, 16.0, 104.0),                      # left, above the door
 		Rect2(-16.0, 168.0, 16.0, ROOM_H - 168.0 + 16.0),      # left, below the door
@@ -233,6 +243,48 @@ func _build() -> void:
 	door.set_pick_radius(28.0)
 	door.chosen.connect(func(_k: String, _i: int) -> void: exit_chosen.emit())
 	add_child(door)
+
+
+## The room as one image, from the classroom's tiles: a tile of side wall each
+## side, the back wall's two rows ending at WALL_FOOT, the floor, a skirting
+## row along the bottom, and the classroom's door in the left wall where the
+## way back is. Origin (-TILE, -16) in room space.
+func _compose() -> ImageTexture:
+	var t := Grid.TILE
+	var w := int(ROOM_W) + 2 * t
+	var h := int(ROOM_H) + 16 + t
+	var im := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var src := Rect2i(0, 0, t, t)
+	var floors: Array[Image] = []
+	for i in RoomBuilder.FLOOR_VARIANTS:
+		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i))
+		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i))
+	var top0 := RoomBuilder._tile_img("tile_wall_top0")
+	var top1 := RoomBuilder._tile_img("tile_wall_top1")
+	var side := RoomBuilder._tile_img("tile_wall_side")
+	var bottom := RoomBuilder._tile_img("tile_wall_bottom")
+	var foot := int(WALL_FOOT) + 16          # the wall's foot, in image rows
+	var y := foot
+	var row := 0
+	while y < 16 + int(ROOM_H):
+		for c in int(ROOM_W / t):
+			var v := absi(c * 7919 + row * 104729) % RoomBuilder.FLOOR_VARIANTS
+			im.blit_rect(floors[v * 2 + (c + row) % 2], src, Vector2i(t + c * t, y))
+		y += t
+		row += 1
+	for c in int(ROOM_W / t):
+		im.blit_rect(top0, src, Vector2i(t + c * t, foot - 2 * t))
+		im.blit_rect(top1, src, Vector2i(t + c * t, foot - t))
+		im.blit_rect(bottom, src, Vector2i(t + c * t, 16 + int(ROOM_H)))
+	var yy := 0
+	while yy < h:
+		im.blit_rect(side, src, Vector2i(0, yy))
+		im.blit_rect(side, src, Vector2i(w - t, yy))
+		yy += t
+	# The way back: the classroom's own door, in the left wall's gap.
+	im.blit_rect(RoomBuilder._tile_img("tile_door_top"), src, Vector2i(0, 16 + 104))
+	im.blit_rect(RoomBuilder._tile_img("tile_door_bottom"), src, Vector2i(0, 16 + 136))
+	return ImageTexture.create_from_image(im)
 
 
 ## One piece of dressing. Sprites are un-centred, like the desks above, so
