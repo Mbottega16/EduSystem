@@ -183,6 +183,11 @@
       "cat": "learning",
       "cost": 160,
       "art": "globe",
+      "anim": {
+        "art": "globe_anim",
+        "frames": 12,
+        "fps": 3
+      },
       "w": 1,
       "range": 3,
       "bonus": 0.09,
@@ -407,6 +412,11 @@
       "cat": "learning",
       "cost": 145,
       "art": "computer",
+      "anim": {
+        "art": "computer_anim",
+        "frames": 12,
+        "fps": 4
+      },
       "w": 1,
       "range": 3,
       "bonus": 0.07,
@@ -440,6 +450,11 @@
       "cat": "learning",
       "cost": 310,
       "art": "robot_kit",
+      "anim": {
+        "art": "robot_kit_anim",
+        "frames": 2,
+        "fps": 2
+      },
       "w": 1,
       "range": 4,
       "bonus": 0.1,
@@ -770,6 +785,11 @@
       "cat": "decor",
       "cost": 45,
       "art": "paper_mobile",
+      "anim": {
+        "art": "paper_mobile_anim",
+        "frames": 4,
+        "fps": 2
+      },
       "w": 1,
       "range": 4,
       "bonus": 0.03,
@@ -817,6 +837,11 @@
       "cat": "decor",
       "cost": 68,
       "art": "telephone",
+      "anim": {
+        "art": "telephone_anim",
+        "frames": 2,
+        "fps": 2
+      },
       "w": 1,
       "range": 4,
       "bonus": 0.03,

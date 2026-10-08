@@ -13190,6 +13190,43 @@ func test_free_art() -> void:
 	chk("rain, snow and a cleaning day each fall as a drawn particle, its frames whole",
 		drawn.size() == 3, drawn)
 
+	# Every animated item, not just the fish tank: its strip is whole frames of
+	# the still's size, and the frames really differ -- a strip whose frames
+	# all match would pass the size checks and sit there not moving.
+	var animated: Array = []
+	var broken: Array = []
+	for id: String in Items.catalogue().keys():
+		var an: Variant = Items.get_def(id).get("anim", null)
+		if not (an is Dictionary):
+			continue
+		animated.append(id)
+		var a := an as Dictionary
+		var n := int(a.get("frames", 0))
+		var still_tex: Texture2D = load("res://art/%s.png" % String(Items.get_def(id).get("art", id)))
+		var strip_tex: Texture2D = load("res://art/%s.png" % String(a.get("art", "")))
+		if still_tex == null or strip_tex == null or n < 2 \
+				or strip_tex.get_width() != n * still_tex.get_width() \
+				or strip_tex.get_height() != still_tex.get_height():
+			broken.append(id)
+			continue
+		var img := strip_tex.get_image()
+		var fw := still_tex.get_width()
+		var first := img.get_region(Rect2i(0, 0, fw, img.get_height()))
+		var moves := false
+		for f in range(1, n):
+			var other := img.get_region(Rect2i(f * fw, 0, fw, img.get_height()))
+			if other.get_data() != first.get_data():
+				moves = true
+				break
+		if not moves:
+			broken.append(id)
+	chk("every animated item's strip is whole frames, and its frames really differ",
+		broken.is_empty(), broken)
+	chk("a dozen-plus things in the shop move (Oct 2026: 2 -> 13)",
+		animated.size() >= 13, animated)
+	chk("the globe turns, the computer's page scrolls, the mobile drifts",
+		animated.has("globe") and animated.has("computer") and animated.has("paper_mobile"), animated)
+
 
 ## The LimeZu packs are NOT in the repo (the licence forbids redistributing
 ## them), so this reads only what IS: the two JSON files that say which sprites

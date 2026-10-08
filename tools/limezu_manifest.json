@@ -165,7 +165,23 @@
     },
     "globe": {
       "ref": "classroom#34",
-      "why": "desk globe on a gold stand"
+      "anim": {
+        "frames": 12,
+        "fps": 3,
+        "spin": {
+          "land": [
+            "#cdf48b",
+            "#a4dc77",
+            "#79ca65"
+          ],
+          "sea": [
+            "#9bd1ec",
+            "#53aedb",
+            "#447bce"
+          ]
+        }
+      },
+      "why": "desk globe on a gold stand; it turns slowly (the map rolls round, the light stays put)"
     },
     "art_easel": {
       "ref": "art#37",
@@ -200,6 +216,7 @@
     "water_cooler": {
       "ref": "office#173",
       "trim": "xy",
+      "drop_shadow": true,
       "why": "office water cooler"
     },
     "wall_clock": {
@@ -332,7 +349,20 @@
     "paper_mobile": {
       "ref": "bedroom#390",
       "trim": "xy",
-      "why": "a hanging glass ornament"
+      "anim": {
+        "frames": 4,
+        "fps": 2,
+        "sway": {
+          "from_row": 9,
+          "offsets": [
+            0,
+            1,
+            0,
+            -1
+          ]
+        }
+      },
+      "why": "a hanging glass ornament, drifting a pixel either way on its hook"
     },
     "reading_nook": {
       "join": [
@@ -372,9 +402,21 @@
       "why": "the pack's wooden library ladder"
     },
     "computer": {
-      "ref": "office#133",
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_control_room_facebook_scrolling.png",
+      "rect": [
+        0,
+        0,
+        16,
+        32
+      ],
+      "anim": {
+        "frames": 12,
+        "fps": 4
+      },
       "trim": "xy",
-      "why": "a flat desktop monitor with a blue screen"
+      "drop_shadow": true,
+      "why": "a desktop monitor, keyboard and mouse, the page on its screen scrolling (12 frames)"
     },
     "printer": {
       "ref": "office#148",
@@ -384,7 +426,19 @@
     "telephone": {
       "ref": "office#119",
       "trim": "xy",
-      "why": "an office desk phone"
+      "drop_shadow": true,
+      "anim": {
+        "frames": 2,
+        "fps": 2,
+        "swap_rows": [
+          42,
+          43
+        ],
+        "swap": {
+          "#cb2a2a": "#60637d"
+        }
+      },
+      "why": "an office desk phone; its red message light blinks"
     },
     "certificate": {
       "ref": "office#114",
@@ -404,6 +458,7 @@
         "frames": 3,
         "fps": 3
       },
+      "drop_shadow": true,
       "why": "the pack's control-room server, its lights blinking (3 frames) -- the same object as the old still office#176 rack, which the 2026-10-05 inventory had already matched to this sheet"
     },
     "backpack": {
@@ -419,7 +474,20 @@
     "robot_kit": {
       "ref": "office#320",
       "trim": "xy",
-      "why": "a small robot with tools and parts on a workbench"
+      "drop_shadow": true,
+      "anim": {
+        "frames": 2,
+        "fps": 2,
+        "swap_rows": [
+          7,
+          15
+        ],
+        "swap": {
+          "#95e3e3": "#50a7e8",
+          "#50a7e8": "#95e3e3"
+        }
+      },
+      "why": "a small robot with tools and parts on a workbench; the light on its screen face pulses"
     },
     "world_map": {
       "ref": "classroom#31",

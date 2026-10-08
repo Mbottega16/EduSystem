@@ -28,6 +28,10 @@ trusting it's still accurate.
 > in a mossy tank), `server_rack`, `cuckoo_clock` (seeded on the wall in place of the
 > plain clock), `teacher_coffee` (a steaming mug on the teacher's desk), `desk_fan` (a
 > pedestal fan whose grille flickers as it spins), `pot_of_pens` and `chalk_border`.
+> A second pass animated five more from stills or LimeZu's own sheets: `globe` (turns),
+> `computer` (a monitor and keyboard, its page scrolling), `paper_mobile` (drifts on its
+> hook), `telephone` (message light blinks) and `robot_kit` (its face light pulses).
+> Thirteen shop items now move; the suite checks every strip's frames really differ.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

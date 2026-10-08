@@ -297,6 +297,22 @@ def recolor(im, mapping):
     return im
 
 
+# LimeZu bakes a flat, opaque contact shadow in this one colour under his objects,
+# matched to his own floor. The "shadowless" singles leave it out, but his animated
+# sheets (and a stray few singles) keep it, and on our floor it reads as a mauve
+# patch -- the room draws its own shadow. "drop_shadow": true clears it.
+LZ_SHADOW = (0xa7, 0x97, 0x96)
+
+
+def drop_shadow(im):
+    px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            if px[x, y][3] and px[x, y][:3] == LZ_SHADOW:
+                px[x, y] = (0, 0, 0, 0)
+    return im
+
+
 def hue_shift(im, degrees):
     """Rotate the hue of every coloured pixel by `degrees`; outlines and greys stay.
 
@@ -322,15 +338,60 @@ def hue_shift(im, degrees):
     return im
 
 
+def spin_frames(still, spin, n):
+    """N frames of a globe turning, from one still.
+
+    Every pixel drawn in a "land" or "sea" colour is a map pixel. Its CATEGORY (land
+    or sea) rolls round its row -- by row length * f / N on frame f, so a short row
+    near a pole turns at the same rate as the equator -- while its SHADE (its index in
+    the light-to-dark ramp) stays where it is, so the light still falls from the same
+    side as the map goes past. Frame N would be frame 0 again, so the strip loops.
+    Outline, stand and every other colour never move.
+    """
+    ramps = {k: [parse_hex(c) for c in spin[k]] for k in ("land", "sea")}
+    lookup = {}
+    for cat, ramp in ramps.items():
+        for i, c in enumerate(ramp):
+            lookup[c] = (cat, i)
+    px = still.load()
+    w, h = still.size
+    rows = {}
+    for y in range(h):
+        xs = [x for x in range(w) if px[x, y][3] and px[x, y][:3] in lookup]
+        if xs:
+            rows[y] = xs
+    frames = []
+    for f in range(n):
+        im = still.copy()
+        q = im.load()
+        for y, xs in rows.items():
+            k = len(xs)
+            shift = int(round(f * k / float(n)))
+            for i, x in enumerate(xs):
+                cat = lookup[px[xs[(i - shift) % k], y][:3]][0]
+                shade = min(lookup[px[x, y][:3]][1], len(ramps[cat]) - 1)
+                r, g, b = ramps[cat][shade]
+                q[x, y] = (r, g, b, px[x, y][3])
+        frames.append(im)
+    return frames
+
+
 def build_anim(spec, manifest):
     """An animated prop -> (static first frame, horizontal strip of every frame), both at game scale.
 
     The spec is a "sheet"+"rect" prop (rect = FRAME 0: x, y, frame_w, frame_h) plus
     "anim": {"frames": N, ...}; frames sit side by side in the pack's sheet. Or it is a
-    "ref" single that the pack never animated, plus "anim": {"frames": 2, "swap_rows":
-    [y0, y1], "swap": {colour: colour}}: frame 2 is the single with those colours traded
-    in those art rows (a fan's grille swapping its light and dark wires reads as the
-    blades going round). Every frame is
+    "ref" single that the pack never animated, plus either
+      "anim": {"frames": 2, "swap_rows": [y0, y1], "swap": {colour: colour}} -- frame 2 is
+        the single with those colours traded in those art rows (a fan's grille swapping
+        its light and dark wires reads as the blades going round), or
+      "anim": {"frames": N, "spin": {"land": [light..dark], "sea": [light..dark]}} -- the
+        land/sea pattern rolls one way round each row while every pixel keeps its own
+        shade (see spin_frames: a globe that turns, lit the same way all the time), or
+      "anim": {"frames": N, "sway": {"from_row": y, "offsets": [0, 1, 0, -1]}} -- every
+        art row from y down slides sideways by that frame's offset, the rows above it
+        (a hook, a string) staying put: a hanging thing drifting on its thread.
+    Every frame is
     cropped by the UNION of their bounds, so the strip is aligned frame to frame and the
     static art (frame 0 with that same crop) lines up with it exactly -- the shop's ghost and
     the placed, animating sprite are the same size.
@@ -341,17 +402,33 @@ def build_anim(spec, manifest):
         rpack, member = resolve(spec["ref"], manifest)
         still = rpack.image(member)
         w, h = still.size
-        ry0, ry1 = a["swap_rows"]
-        alt = still.copy()
-        alt.paste(recolor(alt.crop((0, ry0, w, ry1)), a["swap"]), (0, ry0))
-        frames = [still, alt]
-        if n != len(frames):
-            raise SystemExit("%s: a colour-swap animation is 2 frames, not %d" % (spec["ref"], n))
+        if "spin" in a:
+            frames = spin_frames(still, a["spin"], n)
+        elif "sway" in a:
+            y_from = int(a["sway"]["from_row"])
+            frames = []
+            for off in a["sway"]["offsets"]:
+                f = still.copy()
+                band = still.crop((0, y_from, w, h))
+                f.paste((0, 0, 0, 0), (0, y_from, w, h))
+                f.alpha_composite(band, (int(off), y_from))
+                frames.append(f)
+            if n != len(frames):
+                raise SystemExit("%s: %d sway offsets for %d frames" % (spec["ref"], len(frames), n))
+        else:
+            ry0, ry1 = a["swap_rows"]
+            alt = still.copy()
+            alt.paste(recolor(alt.crop((0, ry0, w, ry1)), a["swap"]), (0, ry0))
+            frames = [still, alt]
+            if n != len(frames):
+                raise SystemExit("%s: a colour-swap animation is 2 frames, not %d" % (spec["ref"], n))
     else:
         pack = need_pack(spec["pack"])
         sheet = pack.image(spec["sheet"])
         x0, y0, w, h = spec["rect"]
         frames = [sheet.crop((x0 + i * w, y0, x0 + (i + 1) * w, y0 + h)) for i in range(n)]
+    if spec.get("drop_shadow"):
+        frames = [drop_shadow(f) for f in frames]
     if "compose" in spec:
         # A still single under every frame, the animated sheet pasted onto it at
         # "at" (art px): the pack's idle frog sitting in its mossy tank, so a
@@ -414,6 +491,8 @@ def build_prop(spec, manifest):
         im = im.crop(tuple(spec["crop"]))
     if spec.get("flip") == "h":
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    if spec.get("drop_shadow"):
+        im = drop_shadow(im)
     im = recolor(im, spec.get("recolor"))
     im = hue_shift(im, spec.get("hue", 0))
     im = trim(im, spec.get("trim", "y"))
