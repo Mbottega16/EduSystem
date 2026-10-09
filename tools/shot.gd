@@ -94,6 +94,14 @@ func _ready() -> void:
 	for i in frames:
 		await get_tree().physics_frame
 
+	# A shot starts from the player's save when there is one, and from a fresh
+	# run -- the storyline intro up over the room -- when there is not. Since
+	# Oct 2026 this machine has had none, and every in-room shot came out as
+	# the intro's first line over a dimmed room. Only the intro's own screens
+	# want it.
+	if screen != "" and not screen.begins_with("intro"):
+		Game.intro_seen = true
+		(main.get_node("UI/HUD") as Node).close()
 	if screen != "":
 		_open_screen(main, screen)
 		# Long enough for the reveal to FINISH. Two frames caught the result

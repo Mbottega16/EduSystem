@@ -2506,6 +2506,10 @@ func show_run_over(info: Dictionary) -> void:
 	Sfx.play("deny")
 	body.visible = false
 	rich.visible = false
+	# The yearbook carries its own header; the panel's title still held the
+	# last screen's ("END OF TERM - D", or the intro's "MONDAY") and printed
+	# straight through it.
+	title.text = ""
 	await _show_yearbook(func() -> void: _show_run_over_report())
 
 
@@ -4619,6 +4623,9 @@ func show_day_report(report: Dictionary) -> void:
 	lines.append("[color=#%s]+%d coins[/color] [color=#%s]-%d upkeep[/color]   homework [color=#%s]%d of %d[/color]" % [
 		C_COIN, earned, C_BAD, upkeep,
 		C_GOOD if done * 2 >= of else C_BAD, done, of])
+	# Everything from here on is news rather than the grade, and goes to small
+	# print if the screen would overflow (see the end of this function).
+	var news_from := lines.size()
 	if report.has("pacing"):
 		lines.append(_pacing_line(report["pacing"]))
 
@@ -4667,8 +4674,30 @@ func show_day_report(report: Dictionary) -> void:
 			String(report.get("event_blurb", ""))])
 
 	rich.text = "\n".join(lines)
+	# MEASURED, not counted (Oct 2026). The fit test counted "\n"s, so a day
+	# with the pacing warning, a new child and tomorrow's event -- three
+	# sentences that each wrap -- passed at ten "lines" while the last one ran
+	# under the footer on screen. When the wrapped text is taller than the box,
+	# the news goes to small print a line at a time from the bottom, until it
+	# fits; if all of it in small print is still too tall, the stacked bar over
+	# the four parts goes (they say the same thing, broken down).
+	var k := lines.size() - 1
+	while _rich_overflows() and k >= news_from:
+		lines[k] = "[font_size=%d]%s[/font_size]" % [UI_SMALL, lines[k]]
+		rich.text = "\n".join(lines)
+		k -= 1
+	if _rich_overflows():
+		lines.remove_at(0)
+		rich.text = "\n".join(lines)
 	_reveal_rich(0.45)
 	hint.text = "E - close"
+
+
+## True when `rich`'s text, wrapped to its width, is taller than its box --
+## the one honest test of whether a screen fits, since a line count cannot see
+## a sentence wrap.
+func _rich_overflows() -> bool:
+	return rich.get_content_height() > int(rich.size.y)
 
 
 func open_catalogue(start: int = Shop.BUY) -> void:

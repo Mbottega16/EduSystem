@@ -3448,9 +3448,13 @@ func test_panels_fit() -> void:
 	report["event"] = "A wasp in the room"
 	report["event_blurb"] = "Nobody is going to concentrate today."
 	hud.show_day_report(report)
+	# Measured: the wrapped text against the box. Counting rows passed this
+	# screen at ten while its last sentence ran under the footer.
 	chk("the end-of-day report fits with everything on it",
-		hud.rich.text.split("\n").size() <= 11,
-		"%d rows" % hud.rich.text.split("\n").size())
+		not hud._rich_overflows(),
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
+	chk("and still says what tomorrow brings",
+		hud.rich.text.contains("A wasp in the room"), hud.rich.text)
 	hud.close()
 
 	Game.cheated = true          # the cheat notice is one more line
@@ -5820,8 +5824,8 @@ func test_screens_explain_themselves() -> void:
 		hud.rich.text.contains("Weakest:")
 		or hud.rich.text.contains("as good as it gets"), hud.rich.text)
 	chk("the day report still fits",
-		hud.rich.text.split("\n").size() <= 11,
-		"%d rows" % hud.rich.text.split("\n").size())
+		not hud._rich_overflows(),
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
 	hud.close()
 
 	# the arrow only appears once there IS a yesterday to compare against
@@ -8907,11 +8911,12 @@ func test_lesson_crafting() -> void:
 	# The result sentence itself is prose -- unlike the day counters
 	# elsewhere on this same screen, which are the sanctioned exception.
 	chk("...and the result sentence itself carries no digit", (func() -> bool:
-		# Strip the [color=#hex] tags first -- a hex colour like C_BAD's
-		# own "d08a86" carries real digits, and scanning the raw BBCode
-		# line would flag the tag rather than the prose.
+		# Strip the BBCode tags first -- a hex colour like C_BAD's own
+		# "d08a86" carries real digits, and so does the [font_size=10] a
+		# crowded report puts its news in; scanning the raw line would flag
+		# the tag rather than the prose.
 		var tag_re := RegEx.new()
-		tag_re.compile("\\[/?color[^\\]]*\\]")
+		tag_re.compile("\\[/?(color|font_size)[^\\]]*\\]")
 		var digit_re := RegEx.new()
 		digit_re.compile("[0-9]")
 		for line: String in hud.rich.text.split("\n"):
