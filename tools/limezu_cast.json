@@ -724,6 +724,54 @@
         }
       },
       "why": "brown skin, white long hair, sky-shifted first outfit"
+    },
+    "staff_a": {
+      "kind": "adult",
+      "body": "01",
+      "eyes": "02",
+      "outfit": "15_03",
+      "hair": {
+        "id": "03_04",
+        "ramp": "hair_dark"
+      },
+      "portrait": false,
+      "why": "a hired teacher: dark spiky hair, a blue tracksuit top"
+    },
+    "staff_b": {
+      "kind": "adult",
+      "body": "07",
+      "eyes": "04",
+      "outfit": "16_01",
+      "hair": {
+        "id": "13_03",
+        "ramp": "hair_auburn"
+      },
+      "portrait": false,
+      "why": "a hired teacher: an auburn bob, a mustard top"
+    },
+    "staff_c": {
+      "kind": "adult",
+      "body": "04",
+      "eyes": "03",
+      "outfit": "10_04",
+      "hair": {
+        "id": "01_04",
+        "ramp": "hair_black"
+      },
+      "portrait": false,
+      "why": "a hired teacher: cropped black hair, a grey jumper"
+    },
+    "staff_d": {
+      "kind": "adult",
+      "body": "02",
+      "eyes": "01",
+      "outfit": "21_04",
+      "hair": {
+        "id": "11_01",
+        "ramp": "hair_blond"
+      },
+      "portrait": false,
+      "why": "a hired teacher: a fair bun, an orange cardigan"
     }
   }
 }

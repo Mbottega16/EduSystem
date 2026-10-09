@@ -185,7 +185,9 @@ rather than a menu you have to remember exists. It is a real room: she
 sits at her desk between two windows, and you walk up and press E for a
 word. Between her door and the mentor's stands the **trophy case**, a
 place in it for every boss trophy -- the ones you have won standing
-there, the rest only their shadow.
+there, the rest only their shadow. Every room you hold is a room you can
+walk into: its class at their desks, the teacher you hired, and yesterday
+playing out again -- you watch, you do not teach.
 
 ## The principal
 
@@ -441,7 +443,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            2467 assertions
+Run Tests.bat            2475 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

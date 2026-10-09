@@ -11,6 +11,7 @@ extends Node2D
 @onready var hallway: Node2D = $Hallway
 @onready var mentor_room: Node2D = $MentorRoom
 @onready var office: Node2D = $PrincipalOffice
+@onready var visit: Node2D = $VisitRoom
 
 var placement: Placement = null
 
@@ -89,6 +90,14 @@ func _ready() -> void:
 	office.talk_chosen.connect(func() -> void:
 		hud._sel = 0
 		hud.show_office())
+	# And a room you hold, visited: E at the front for how its day went.
+	visit.exit_chosen.connect(_leave_visit)
+	visit.teacher_chosen.connect(func(i: int) -> void:
+		if hud._can_watch(i):
+			hud.show_watch(i)
+		else:
+			hud._sel = i
+			hud.show_school())
 	# The chain-dash lesson: hud.gd owns the words, the room owns the
 	# demonstration. The player stays locked while the mentor runs it --
 	# close() on the setup page unlocks them, so it is locked again here.
@@ -590,13 +599,54 @@ func _leave_office() -> void:
 	office.remove_child(p)
 	p.z_index = 0
 	hallway.add_child(p)
-	p.position = hallway.entry_position()
-	p.facing = p.DIR_DOWN
+	p.position = hallway.spot_outside("office")
+	p.facing = p.DIR_UP
 	hallway.refresh_camera_limits(world.camera)
 	if world.camera != null:
 		world.camera.make_current()
 		world.camera.reset_smoothing()
 	office.visible = false
+	world.visible = false
+	hallway.visible = true
+	RoomLight.phase_in(hallway)
+
+
+## Into a room you hold, from its door in the corridor: built for that room,
+## then the same reparent of the same body as every other room off the hall.
+## A visit -- nothing in there is played; see VisitRoom.
+func _enter_visit(room_index: int) -> void:
+	visit.show_room(room_index)
+	visit.visible = true
+	var p: Actor = world.player
+	p.get_parent().remove_child(p)
+	visit.add_child(p)
+	p.position = visit.entry_position()
+	p.facing = p.DIR_RIGHT
+	visit.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	hallway.visible = false
+	world.visible = false
+	RoomLight.phase_in(visit)
+	hud.principal_says("visit_room_first",
+		"Yesterday in this room, as it happened. Ask the teacher at the front how it went.")
+
+
+func _leave_visit() -> void:
+	hallway.rebuild()
+	var p: Actor = world.player
+	var from: int = visit.room_index
+	visit.remove_child(p)
+	p.z_index = 0
+	hallway.add_child(p)
+	p.position = hallway.spot_outside("room", from)
+	p.facing = p.DIR_UP
+	hallway.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	visit.visible = false
 	world.visible = false
 	hallway.visible = true
 	RoomLight.phase_in(hallway)
@@ -624,13 +674,8 @@ func _on_hallway_door(kind: String, room_index: int) -> void:
 			if teacher.is_empty():
 				hud._hiring_for = room_index
 				hud.show_hiring()
-			elif hud._can_watch(room_index):
-				hud.show_watch(room_index)
 			else:
-				# Staffed, but the bell has not rung on it yet -- there is
-				# nothing to watch, but there is still something to show:
-				# the same room overview the old School screen gave, on
-				# this room, rather than silently doing nothing.
-				hud._sel = room_index
-				hud.show_school()
+				# Staffed: walk in (Oct 2026). The watch screen and the
+				# room's overview are E at the front now -- see VisitRoom.
+				_enter_visit(room_index)
 

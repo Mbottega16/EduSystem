@@ -7929,6 +7929,66 @@ func test_hallway() -> void:
 		hallway._door_tint("room", ri) != Color(1.3, 0.55, 0.4) and
 		hallway._door_tint("room", ri) != Color(0.75, 0.9, 1.15))
 
+	# A staffed room's door opens the room itself now (Oct 2026): its class at
+	# their desks, the teacher you hired, yesterday replayed. A visit -- E at
+	# the front for the watch screen, the door back out to the corridor.
+	var visit: Node2D = main.get_node("VisitRoom")
+	Game.resolve_rooms()
+	hallway.rebuild()
+	for d in hallway.doors:
+		if String(d.door_kind) == "room" and int(d.room_index) == ri:
+			room_door = d
+	world.player.global_position = room_door.global_position
+	await step(2)
+	await tap("manage")
+	chk("a staffed room's door walks you into the room",
+		world.player.get_parent() == visit and visit.visible and not hallway.visible
+		and visit.room_index == ri, [world.player.get_parent(), visit.room_index])
+	chk("its own class sits at the desks, one child a desk",
+		visit.pupils.size() == (Game.rooms[ri]["roster"] as Array).size(), visit.pupils.size())
+	chk("and the teacher you hired is at the front, in their own clothes",
+		visit.teacher != null and (visit.teacher.get_node("Sprite2D") as Sprite2D).texture.resource_path
+			.ends_with("%s.png" % Staff.art_for(Game.rooms[ri]["teacher"])))
+	chk("yesterday is there to replay: the room's own frames",
+		visit._frames == (Game.rooms[ri]["last"] as Dictionary).get("history", [])
+		and not visit._frames.is_empty(), visit._frames.size())
+	# One frame, set by hand so the check does not hang on what a seed rolled:
+	# the teacher away from the front, the third child stuck, the first noisy.
+	var real_frames: Array = visit._frames
+	var faces: Array = []
+	for k in visit.pupils.size():
+		faces.append({"name": "x", "state": "stuck" if k == 2 else ("disrupting" if k == 0 else "working")})
+	visit._frames = [{"t": 0.0, "at_front": false, "faces": faces}]
+	visit.show_frame(0)
+	chk("replaying: a child stuck then puts their bubble up again, a noisy one theirs",
+		(visit.pupils[2].bubble as Sprite2D).visible and (visit.pupils[0].bubble as Sprite2D).visible
+		and not (visit.pupils[1].bubble as Sprite2D).visible)
+	chk("and with the teacher away from the front, they head for the first who needs them",
+		visit._target == visit.DESK_SPOTS[0] + visit.HELP_SPOT, visit._target)
+	visit._frames = real_frames
+	visit.show_frame(0)
+	world.player.global_position = visit.talk.global_position
+	await step(2)
+	await tap("interact")
+	chk("E at the front asks how the day went: the watch screen",
+		hud.mode == hud.Mode.WATCH, hud.mode)
+	hud.close()
+	var visit_out: Node2D = null
+	for c in visit.get_children():
+		if c is Interactable and "door_kind" in c and String(c.door_kind) == "home":
+			visit_out = c
+	world.player.global_position = visit_out.global_position
+	await step(2)
+	await tap("manage")
+	var back_at: Vector2 = Vector2.INF
+	for d in hallway.doors:
+		if String(d.door_kind) == "room" and int(d.room_index) == ri:
+			back_at = (d as Node2D).position
+	chk("its door leads back out, to just in front of that room's own door",
+		world.player.get_parent() == hallway and not visit.visible
+		and world.player.position.distance_to(back_at) < 40.0,
+		[world.player.position, back_at])
+
 	# Home again.
 	var home_door: Node2D = null
 	for d in hallway.doors:

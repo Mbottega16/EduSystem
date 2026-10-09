@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-07**, against build `b45`, with **2467 assertions
+> **Measured on 2026-10-07**, against build `b45`, with **2475 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -356,7 +356,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **2467 assertions** across **129 sections** |
+| Tests | **2475 assertions** across **129 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -402,7 +402,12 @@ the wall behind her, a sofa for visitors, her shelves and files. She sits
 at her desk, and E there opens the same screen. Between her door and the
 mentor's stands a **trophy case** with a place for every boss trophy: the
 ones won stand in it, the rest show only their dimmed shape, and E at the
-case lists them.
+case lists them. And a staffed room's door now opens the room itself: its
+own class at their desks, the teacher you hired, as much furniture as you
+have bought it, and its last day replayed from RoomSim's own frames -- a
+stuck child's bubble goes up, the teacher walks over when the sim had them
+away from the front. A visit, never a second room to teach; E at the front
+opens the watch screen the door used to.
 
 **Also built, Aug 2026:** staff you can let go. `Game.fire()` clears a
 room back to unstaffed for `Balance.fire_cost`, and `hire()` now refuses

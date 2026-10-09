@@ -60,6 +60,9 @@ trusting it's still accurate.
 > in `scripts/data/trophies.gd`). The principal's office adds `principal_desk`,
 > `exec_chair`, `office_chart`, `office_art` and `office_plant`, and puts the
 > principal's own sheet (`principal.png`) to use: she sits at her desk.
+> The teachers you hire have faces now: `staff_a` .. `staff_d`, four adult sheets
+> baked from `limezu_cast.json` (no portraits), picked by name (`Staff.art_for`)
+> and seen when you walk into a room you hold (`visit_room.gd`).
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

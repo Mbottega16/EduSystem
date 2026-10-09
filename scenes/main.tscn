@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/classroom.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/main.gd" id="3_main"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/mentor_room.tscn" id="6_mentor"]
 [ext_resource type="Texture2D" path="res://art/tile_backdrop.png" id="7_backdrop"]
 [ext_resource type="PackedScene" path="res://scenes/world/principal_office.tscn" id="8_office"]
+[ext_resource type="PackedScene" path="res://scenes/world/visit_room.tscn" id="9_visit"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("3_main")
@@ -45,6 +46,10 @@ visible = false
 
 [node name="PrincipalOffice" parent="." instance=ExtResource("8_office")]
 position = Vector2(0, 30000)
+visible = false
+
+[node name="VisitRoom" parent="." instance=ExtResource("9_visit")]
+position = Vector2(0, 40000)
 visible = false
 
 [node name="UI" type="CanvasLayer" parent="."]

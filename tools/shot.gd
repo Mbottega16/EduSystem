@@ -143,6 +143,34 @@ func _open_screen(main: Node, screen: String) -> void:
 		hud.close()
 		main._enter_office()
 		return
+	# visit: a room you hold, walked into -- staffed, furnished to level 3,
+	# its day resolved, and the replay wound on to its busiest moment.
+	if screen == "visit":
+		Game.intro_seen = true
+		hud.close()
+		Game.coins = 999999
+		Game.open_room()
+		Game.applicants = [Staff.archetype("steady").duplicate()]
+		Game.applicants[0]["name"] = "Dr Okafor"
+		Game.hire(0, 0)
+		Game.rooms[0]["furniture"] = 3
+		Game.resolve_rooms()
+		main.get_node("Hallway").rebuild()
+		main._enter_visit(0)
+		var v: Node = main.get_node("VisitRoom")
+		var busiest := 0
+		var most := -1
+		for f in v._frames.size():
+			var n := 0
+			for face: Dictionary in (v._frames[f] as Dictionary)["faces"]:
+				if String(face["state"]) in ["stuck", "disrupting"]:
+					n += 1
+			if n > most:
+				most = n
+				busiest = f
+		v._clock = maxf(0.0, float(busiest) * v.FRAME_TIME - 1.1)
+		world.player.position = v.entry_position() + Vector2(30, 0)
+		return
 	# The hallway's trophy case with two of the six won (trophy_case), and
 	# the list E opens on it (trophies).
 	if screen == "trophy_case" or screen == "trophies":

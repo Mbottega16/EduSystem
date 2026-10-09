@@ -299,6 +299,9 @@ func _scan_references() -> void:
 	# ...and what dresses the principal's office, named in its table.
 	for row: Array in preload("res://scripts/world/principal_office.gd").DRESSING:
 		_note(String(row[0]), "principal_office.gd (DRESSING)")
+	# ...and the hired teachers you meet on a visit, picked by name.
+	for a: String in Staff.ART:
+		_note(a, "staff.gd (ART, visit_room.gd)")
 
 
 func _note(art_name: String, where: String) -> void:

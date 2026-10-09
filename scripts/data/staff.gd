@@ -27,6 +27,11 @@ const FIRST := [
 	"Petrov", "Ndiaye", "Kaur", "Almeida", "Weber", "Tanaka",
 ]
 const TITLE := ["Mr", "Ms", "Mrs", "Dr"]
+## What a hired teacher looks like when you walk into their room (VisitRoom):
+## one of four LimeZu sheets baked for the staff room (tools/limezu_cast.json).
+## Chosen from the name, so the same teacher always looks the same and a save
+## needs no new key. Looks only: nothing reads it back.
+const ART := ["staff_a", "staff_b", "staff_c", "staff_d"]
 
 ## The archetypes. Each is a real play-style with a real hole in it.
 ##
@@ -107,6 +112,10 @@ const ARCHETYPES := [
 		"settles": false, "quizzes": false, "wage": 25,
 	},
 ]
+
+
+static func art_for(t: Dictionary) -> String:
+	return ART[absi(String(t.get("name", "")).hash()) % ART.size()]
 
 
 static func archetype(id: String) -> Dictionary:

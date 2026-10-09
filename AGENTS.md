@@ -145,7 +145,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2467 assertions — must pass, count must not drop
+Run Tests.bat            2475 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -263,14 +263,14 @@ still looks armed is how the last one got missed.
 |---|---|
 | `scripts/autoload/game.gd` | The run: day, coins, roster, grading, terms, school. The big one. |
 | `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones |
-| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold), trophy_case (the hallway's, a place per boss trophy), mentor_room and principal_office (the two rooms off the corridor you visit but never run) |
+| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold), trophy_case (the hallway's, a place per boss trophy), mentor_room, principal_office and visit_room (rooms off the corridor you visit but never run; visit_room is any room you hold, its last day replayed) |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
 | `scripts/ui/hud.gd` | Every screen. 23 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2467 assertions, 129 sections |
+| `tests/run.gd` | The suite — 2475 assertions, 129 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |

@@ -21,9 +21,10 @@ extends Node2D
 ##
 ## WHAT WALKING THROUGH ONE DOES NOT DO: put the player inside that room to
 ## teach it. A delegated room is still resolved by RoomSim, same as it
-## always was -- this is a faster way to reach the watch/hire screen for
-## it than the old Tab-through-School-screen route, not a second body to
-## puppet. Teaching two rooms at once is not a thing this game's model
+## always was. Since Oct 2026 a staffed room's door does put you IN the room
+## -- as a visitor (VisitRoom): its class, its teacher, its last day replayed
+## from RoomSim's own frames, E at the front for the watch screen -- but
+## nothing in there is played; it is not a second body to puppet. Teaching two rooms at once is not a thing this game's model
 ## supports, and pretending otherwise here would be exactly the kind of
 ## plausible-looking feature CLAUDE.md warns against.
 
@@ -329,6 +330,16 @@ func _door_tint(kind: String, idx: int) -> Color:
 			return Color(0.55, 0.55, 0.6)       # dim -- not really a room yet
 		_:
 			return Color.WHITE                   # home: the door as drawn
+
+
+## Where you stand coming back out of a room off the corridor: just in front
+## of that room's own door, not back at the start of the corridor. Falls back
+## to entry_position() for a door that is not there.
+func spot_outside(kind: String, room_idx: int = -1) -> Vector2:
+	for d in doors:
+		if is_instance_valid(d) and String(d.door_kind) == kind 				and (kind != "room" or int(d.room_index) == room_idx):
+			return (d as Node2D).position + Vector2(0, -30)
+	return entry_position()
 
 
 ## Where a fresh arrival stands: just past the home door, facing in.
