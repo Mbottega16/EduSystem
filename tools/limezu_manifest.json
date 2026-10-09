@@ -636,6 +636,53 @@
       },
       "trim": "xy",
       "why": "a yellow party balloon bobbing on its string: tied to the teacher's desk on someone's birthday (a fixture, not an item)"
+    },
+    "snow_globe": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_Christmas_snowball_globe.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "anim": {
+        "frames": 8,
+        "fps": 6
+      },
+      "trim": "xy",
+      "drop_shadow": true,
+      "why": "a snow globe, its snow swirling: on the teacher's desk on a cold snap only (a fixture, not an item)"
+    },
+    "ice_cream": {
+      "ref": "icecream#5",
+      "trim": "xy",
+      "why": "a tub of ice cream with a spoon in it: on the teacher's desk on a heatwave only (a fixture, not an item)"
+    },
+    "tissue_box": {
+      "ref": "bath#33",
+      "trim": "xy",
+      "why": "a box of tissues, one poking out: on the teacher's desk on the day half the class is away with a bug only (a fixture, not an item)"
+    },
+    "desk_ball": {
+      "ref": "music#79",
+      "trim": "xy",
+      "why": "a basketball: on the teacher's desk on sports day only (a fixture, not an item)"
+    },
+    "cash_bills": {
+      "ref": "office#337",
+      "trim": "xy",
+      "why": "two bundles of notes: on the teacher's desk on the day a budget or a grant comes through only (a fixture, not an item)"
+    },
+    "donut_plate": {
+      "ref": "kitchen#404",
+      "trim": "xy",
+      "why": "a plate of doughnuts for the visitors: on the teacher's desk on parents' evening only (a fixture, not an item)"
+    },
+    "flower_vase": {
+      "ref": "basement#63",
+      "trim": "xy",
+      "why": "yellow flowers in a glass vase, a welcome: on the teacher's desk on the day a new face joins only (a fixture, not an item)"
     }
   },
   "tiles": {}

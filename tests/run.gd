@@ -7763,6 +7763,7 @@ func test_hallway() -> void:
 			swims = true
 	chk("and its wall is lined -- lockers, boards, a clock, a fish tank that swims",
 		hallway.lining.size() >= 8 and swims, hallway.lining.size())
+
 	chk("the principal greets you the first time, with a face on it",
 		hud.mascot_box.visible and hud.mascot_portrait.visible)
 	chk("and the same nudge does not repeat on a second visit", (func() -> bool:
@@ -13356,6 +13357,38 @@ func test_free_art() -> void:
 				sprites += 1
 	chk("on someone's birthday three balloons bob over the teacher's desk, and only then",
 		hidden_ordinary and shown_birthday and sprites == 3, [hidden_ordinary, shown_birthday, sprites])
+
+	# The other days' desk-top pieces: one per row, each a real day, each
+	# shown on its own day and hidden on every other.
+	var not_days: Array = []
+	for id: String in RoomBuilder.EVENT_DESK:
+		if DayEvent.by_id(id).get("id", "") != id:
+			not_days.append(id)
+	chk("every desk-top piece belongs to a day that can really be rolled", not_days.is_empty(), not_days)
+	var on_desk := {}
+	for n in get_tree().get_nodes_in_group("event_decor"):
+		if is_instance_valid(n) and not n.is_queued_for_deletion() and n is Sprite2D:
+			on_desk[String(n.get_meta("event", ""))] = n
+	chk("each is built on the teacher's desk", on_desk.size() == RoomBuilder.EVENT_DESK.size(),
+		[on_desk.keys(), RoomBuilder.EVENT_DESK.keys()])
+	Game.event = {"id": "none"}
+	world._tick_ambient(0.0)
+	var none_out := on_desk.values().all(func(s: Sprite2D) -> bool: return not s.visible)
+	Game.event = DayEvent.by_id("cold_snap")
+	world._tick_ambient(0.0)
+	var globe: Sprite2D = on_desk.get("cold_snap", null)
+	var only_globe := globe != null and globe.visible and on_desk.values().all(
+		func(s: Sprite2D) -> bool: return s == globe or not s.visible)
+	chk("a snow globe on a cold day, and nothing on an ordinary one", none_out and only_globe,
+		[none_out, only_globe])
+	chk("and its snow swirls (8 frames)", globe != null and globe.hframes == 8,
+		globe.hframes if globe != null else -1)
+	Game.event = DayEvent.by_id("book_fair")
+	world._tick_ambient(0.0)
+	var books: Sprite2D = on_desk.get("book_fair", null)
+	chk("a stack of books on book-fair day", books != null and books.visible
+		and books.texture.resource_path.ends_with("book_stack.png")
+		and globe != null and not globe.visible)
 	Game.event = saved_event
 	world._tick_ambient(0.0)
 

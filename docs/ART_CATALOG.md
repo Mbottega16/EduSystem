@@ -43,6 +43,14 @@ trusting it's still accurate.
 > painted from the classroom's own tiles -- walls, floor, skirting, the door --
 > and the corridor's top wall is lined with lockers, boards, a clock, a plant, a
 > water cooler, coat hooks and a fish tank that swims.
+> Other days put something on the teacher's desk, that day only
+> (`RoomBuilder.EVENT_DESK`): a `snow_globe` (+ `_anim`, its snow swirling) on a
+> cold snap, `ice_cream` in a heatwave, a `tissue_box` when half the class has a
+> bug, a `desk_ball` on sports day, `cash_bills` when a budget or grant comes
+> through, a `donut_plate` on parents' evening and a `flower_vase` for a new face
+> -- all LimeZu's. The `book_stack` for the book fair is the one exception: no
+> pack draws books lying flat, so it is hand-drawn in his palette and keyline
+> (`tools/sprites/book_stack.txt`, every art pixel doubled).
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

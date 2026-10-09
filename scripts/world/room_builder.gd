@@ -30,6 +30,27 @@ const BALLOONS := [
 ]
 const BALLOON_FRAMES := 5
 const BALLOON_FPS := 3.0
+## The other days get something on the desk itself (Oct 2026), the same way:
+## built hidden with the desk, shown by classroom._tick_ambient() on that day
+## only. event id -> [art, frames (1 = still), fps]. The art is LimeZu's
+## (tools/limezu_manifest.json), except the book stack, which no pack draws
+## lying flat and is hand-drawn in his palette (tools/sprites/book_stack.txt).
+## Cosmetic, so like WEATHER it may live in code: nothing reads it back.
+const EVENT_DESK := {
+	"cold_snap": ["snow_globe", 8, 6.0],
+	"book_fair": ["book_stack", 1, 0.0],
+	"heatwave": ["ice_cream", 1, 0.0],
+	"bug": ["tissue_box", 1, 0.0],
+	"sports_day": ["desk_ball", 1, 0.0],
+	"budget": ["cash_bills", 1, 0.0],
+	"small_grant": ["cash_bills", 1, 0.0],
+	"parents_evening": ["donut_plate", 1, 0.0],
+	"new_face": ["flower_vase", 1, 0.0],
+}
+## Where a desk-top piece stands: bottom-centre, on the front of the desk's
+## top at its left end -- the register lies open in the middle and the mug and
+## pen pot hold the right, so it rests on the register's near corner.
+const EVENT_DESK_SPOT := Vector2(-14, -16)
 ## Sunlight through each window, lying on the floor below it (build_sunlight).
 const SUN_COLOUR := Color(1.0, 0.93, 0.72, 0.16)
 const SUN_DEPTH := 96            # px down the floor it reaches (3 tiles)
@@ -379,9 +400,38 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 		bob.set_script(PROP_ANIM_SCRIPT)
 		bunch.add_child(bob)
 		bob.setup(b, BALLOONS[i][1], {"frames": BALLOON_FRAMES, "fps": BALLOON_FPS}, 0.45 * i)
+	bunch.add_to_group("event_decor")
+	bunch.set_meta("event", "birthday")
+	build_event_desk(body)
 	for t: Vector2i in Layout.TEACHER_DESK:
 		grid.set_cell(t, Grid.Cell.BLOCKED)
 	return it
+
+
+## One hidden piece per EVENT_DESK row on the teacher's desk, each in the
+## "event_decor" group with its day's id as meta -- classroom._tick_ambient()
+## shows the one whose day it is. Added after the register and the mug, so it
+## draws over them; no z_index, which would lift it over people too.
+static func build_event_desk(desk: Node2D) -> void:
+	for id: String in EVENT_DESK:
+		var row: Array = EVENT_DESK[id]
+		var tex: Texture2D = load("res://art/%s.png" % String(row[0]))
+		if tex == null:
+			continue
+		var spr := Sprite2D.new()
+		spr.name = "OnDesk_%s" % id
+		spr.texture = tex
+		spr.position = EVENT_DESK_SPOT - Vector2(0, tex.get_height() / 2.0)
+		spr.visible = false
+		spr.add_to_group("event_decor")
+		spr.set_meta("event", id)
+		desk.add_child(spr)
+		if int(row[1]) > 1:
+			var drive := Node.new()
+			drive.set_script(PROP_ANIM_SCRIPT)
+			spr.add_child(drive)
+			drive.setup(spr, load("res://art/%s_anim.png" % String(row[0])),
+				{"frames": int(row[1]), "fps": float(row[2])}, 0.0)
 
 
 ## Sunlight through each window, lying on the floor below it: a pale, warm

@@ -287,6 +287,12 @@ func _scan_references() -> void:
 	# three grade-band faces.
 	for n: String in ["mood_good", "mood_ok", "mood_struggling"]:
 		_note(n, "hud.gd (_render_dash_overview)")
+	# And the day's piece on the teacher's desk, loaded by name from one table.
+	for id: String in RoomBuilder.EVENT_DESK:
+		var row: Array = RoomBuilder.EVENT_DESK[id]
+		_note(String(row[0]), "room_builder.gd (EVENT_DESK %s)" % id)
+		if int(row[1]) > 1:
+			_note(String(row[0]) + "_anim", "room_builder.gd (EVENT_DESK %s)" % id)
 
 
 func _note(art_name: String, where: String) -> void:

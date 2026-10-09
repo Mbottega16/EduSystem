@@ -506,8 +506,10 @@ func _spawn_students(walk_in: bool = true) -> void:
 
 ## The room's own small life, every frame and in every phase: the sun on the
 ## floor (gone on an overcast day), dust drifting through it on a fair day
-## that has no weather of its own, and the birthday balloons. Pure decoration:
-## engine randf, never Game.rng, and nothing reads it back.
+## that has no weather of its own, and the day's own decoration -- the
+## birthday balloons, or what sits on the desk on a cold snap, a book fair and
+## the rest (RoomBuilder.EVENT_DESK). Pure decoration: engine randf, never
+## Game.rng, and nothing reads it back.
 func _process(delta: float) -> void:
 	_tick_ambient(delta)
 
@@ -519,9 +521,10 @@ func _tick_ambient(delta: float) -> void:
 		var n: Node2D = b["node"]
 		if is_instance_valid(n) and n.visible != sunny:
 			n.visible = sunny
-	for n in get_tree().get_nodes_in_group("birthday_balloons"):
-		if n is Node2D and (n as Node2D).visible != (day == "birthday"):
-			(n as Node2D).visible = day == "birthday"
+	for n in get_tree().get_nodes_in_group("event_decor"):
+		var today := n is Node2D and String(n.get_meta("event", "")) == day
+		if n is Node2D and (n as Node2D).visible != today:
+			(n as Node2D).visible = today
 	if not sunny or _sunlight.is_empty() or not WEATHER.get(day, []).is_empty():
 		return
 	_sun_due -= delta

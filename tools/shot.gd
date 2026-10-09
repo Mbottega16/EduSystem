@@ -125,6 +125,17 @@ func _tuck_away() -> void:
 func _open_screen(main: Node, screen: String) -> void:
 	var hud: Node = main.get_node("UI/HUD")
 	var world: Node = main.get_node("World")
+	# desk_<event id>: that day's piece on the teacher's desk (RoomBuilder.
+	# EVENT_DESK) -- desk_cold_snap, desk_book_fair, ... -- with the intro
+	# slate closed and the teacher stood clear of the desk.
+	if screen.begins_with("desk_"):
+		Game.intro_seen = true
+		hud.close()
+		Game.event = DayEvent.by_id(screen.trim_prefix("desk_"))
+		world.start_lesson()
+		world.player.global_position = Grid.tile_to_world(
+			Layout.PODIUM + Vector2i(0, 1))
+		return
 	match screen:
 		"quiz":
 			world.start_lesson()

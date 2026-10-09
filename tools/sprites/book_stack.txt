@@ -1,0 +1,33 @@
+# name: book_stack
+# A stack of three new books from the book fair, on the teacher's desk that day only.
+# Drawn by hand in LimeZu's palette and keyline (no pack has a stack of books lying flat):
+# each art pixel is written twice across and twice down, so it lands on the room's 2px grid.
+# palette: K = #3a3a50, y = #f8d239, Y = #f2b22b, o = #ed931e, O = #d76b19, r = #e07070, R = #b95d72, w = #fae4b5, p = #d8a977, b = #4280dd, B = #3d56d2, n = #564d9e, g = #f8d239, G = #f2b22b
+......KKKKKKKKKKKKKKKK....
+......KKKKKKKKKKKKKKKK....
+....KKyyyyyyyyyyyyyyyyKK..
+....KKyyyyyyyyyyyyyyyyKK..
+....KKYYOOYYYYYYYYOOYYKK..
+....KKYYOOYYYYYYYYOOYYKK..
+....KKooOOooooooooOOooKK..
+....KKooOOooooooooOOooKK..
+KKKKKKKKKKKKKKKKKKKKKKKK..
+KKKKKKKKKKKKKKKKKKKKKKKK..
+KKrrrrrrrrrrrrrrrrrrrrKK..
+KKrrrrrrrrrrrrrrrrrrrrKK..
+KKwwwwwwwwwwwwwwwwwwwwKK..
+KKwwwwwwwwwwwwwwwwwwwwKK..
+KKppppppppppppppppppppKK..
+KKppppppppppppppppppppKK..
+KKRRRRRRRRRRRRRRRRRRRRKK..
+KKRRRRRRRRRRRRRRRRRRRRKK..
+..KKKKKKKKKKKKKKKKKKKKKKKK
+..KKKKKKKKKKKKKKKKKKKKKKKK
+..KKbbbbbbbbbbbbbbbbbbbbKK
+..KKbbbbbbbbbbbbbbbbbbbbKK
+..KKBBggBBBBBBBBBBBBggBBKK
+..KKBBggBBBBBBBBBBBBggBBKK
+..KKnnGGnnnnnnnnnnnnGGnnKK
+..KKnnGGnnnnnnnnnnnnGGnnKK
+....KKKKKKKKKKKKKKKKKKKK..
+....KKKKKKKKKKKKKKKKKKKK..

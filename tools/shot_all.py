@@ -30,7 +30,8 @@ dashboard_items dashboard_skills dashboard_wardrobe marking marking_stamp ads we
 principal consumables mess mess_janitor hat hat_bow hat_wizard hat_mortarboard auto_teach consumables_report
 intro intro_walk intro_line term_paths desk_interruption mentor mentor_demo mentor_chain boss_fight
 fight_report skip skip_report school watch hiring unit_test specialism hand_shuffle staff_scrolled
-boot_title room ideas ideas_science ideas_explorers ideas_calm birthday""".split()
+boot_title room ideas ideas_science ideas_explorers ideas_calm birthday
+desk_cold_snap desk_book_fair""".split()
 
 
 def godot():
