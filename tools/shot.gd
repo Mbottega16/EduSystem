@@ -209,6 +209,13 @@ func _open_screen(main: Node, screen: String) -> void:
 		"specialism":
 			Game.specialism = ""
 			hud.show_specialism()
+		"hand_long":
+			# the longest objective on file (division's, 261 characters): the
+			# worst case for the plan's right-hand page
+			Game.hand = [{"rarity": "legendary", "form": "Project", "difficulty": 5,
+				"subject": "Arithmetic", "lesson": "division"}]
+			hud._sel = 0
+			hud.show_hand()
 		"hand":
 			# a hand with one of each of the top rarities, so the colours
 			# can be compared side by side

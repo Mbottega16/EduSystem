@@ -3460,7 +3460,7 @@ func test_panels_fit() -> void:
 	Game.cheated = true          # the cheat notice is one more line
 	hud.show_exam(Game.sit_exam())
 	chk("the end-of-term exam fits a full class",
-		hud.rich.text.split("\n").size() <= 11,
+		(hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows" % hud.rich.text.split("\n").size())
 	hud.close()
 
@@ -3473,7 +3473,7 @@ func test_panels_fit() -> void:
 			.get("id", "")))
 	hud.show_curriculum()
 	chk("the curriculum fits every subject in the panel",
-		hud.rich.text.split("\n").size() <= RICH_ROWS,
+		(hud.rich.text.split("\n").size() <= RICH_ROWS and not hud._rich_overflows()),
 		"%d rows" % hud.rich.text.split("\n").size())
 	# It WINDOWS now rather than dumping all ten, because it is a list with a
 	# cursor. What matters is that the cursor can reach every subject, not
@@ -3511,7 +3511,7 @@ func test_panels_fit() -> void:
 		pass
 	hud.show_exam(Game.sit_exam())
 	chk("a full class fits on the end-of-term board",
-		hud.rich.text.split("\n").size() <= RICH_ROWS,
+		(hud.rich.text.split("\n").size() <= RICH_ROWS and not hud._rich_overflows()),
 		"%d rows" % hud.rich.text.split("\n").size())
 	chk("and the board says what the term left behind",
 		hud.rich.text.contains("concept") and hud.rich.text.contains("room"),
@@ -5624,8 +5624,9 @@ func test_boss_fight() -> void:
 	chk("the report is on screen",
 		hud.mode == hud.Mode.REPORT
 		and hud.title.text.contains(String(ela["name"]).to_upper()), hud.title.text)
-	chk("it fits the panel", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("it fits the panel", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	chk("and prints no decimal about a child", not hud.rich.text.contains("0."),
 		hud.rich.text)
 	hud.close()
@@ -5715,8 +5716,9 @@ func test_legibility() -> void:
 		return true).call())
 	await tap("help")
 	chk("pressing it in free roam opens the sheet", hud.mode == hud.Mode.HELP, hud.mode)
-	chk("the sheet fits the panel", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("the sheet fits the panel", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	chk("it names the key for the first verb",
 		hud.rich.text.contains(Settings.binding_text("move_up").substr(0, 6)), hud.rich.text)
 	# page all the way down: every action appears somewhere
@@ -6675,8 +6677,22 @@ func test_assignment_cards() -> void:
 		return true).call())
 	hud._sel = 0
 	hud.show_hand()
-	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("and it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
+	# Every lesson's plan, not just the ones this seed dealt: the page is
+	# 256px wide and the longest objective is 261 characters.
+	var saved_hand: Array = Game.hand.duplicate(true)
+	var spills: Array = []
+	for l: Dictionary in Curriculum.lessons:
+		Game.hand = [{"rarity": "legendary", "form": "Project", "difficulty": 5,
+			"subject": String(l.get("subject", "")), "lesson": String(l.get("id", ""))}]
+		hud._sel = 0
+		hud.show_hand()
+		if hud._rich_overflows():
+			spills.append(String(l.get("id", "")))
+	chk("every lesson's plan fits its page, the longest objective too", spills.is_empty(), spills)
+	Game.hand = saved_hand
 	hud.close()
 
 	Game.new_run(SEED)
@@ -7066,8 +7082,9 @@ func test_lesson_plan_folder() -> void:
 	hud._input(click)
 	chk("clicking the page turns it too", hud._sel == 2, hud._sel)
 
-	chk("it fits", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	hud.close()
 
 	Game.new_run(SEED)
@@ -7117,8 +7134,8 @@ func test_dashboard() -> void:
 	chk("and names the cosmetic slots without pretending they exist",
 		hud.rich.text.contains("Hat") and hud.rich.text.contains("Background")
 		and hud.rich.text.contains("none chosen"), hud.rich.text)
-	chk("it fits", hud.rich.text.split("
-").size() <= RICH_ROWS,
+	chk("it fits", (hud.rich.text.split("
+").size() <= RICH_ROWS and not hud._rich_overflows()),
 		hud.rich.text.split("
 ").size())
 
@@ -7133,8 +7150,8 @@ func test_dashboard() -> void:
 	chk("counts what you have bought, by category",
 		hud.rich.text.contains(Items.category_label(Items.category_of("stool"))),
 		hud.rich.text)
-	chk("it fits", hud.rich.text.split("
-").size() <= RICH_ROWS,
+	chk("it fits", (hud.rich.text.split("
+").size() <= RICH_ROWS and not hud._rich_overflows()),
 		hud.rich.text.split("
 ").size())
 	Game.sell_item(Vector2i(9, 6))
@@ -7152,8 +7169,8 @@ func test_dashboard() -> void:
 	chk("shows a perk you have actually spent a point on",
 		hud.rich.text.contains("1 of") and hud.rich.text.contains("skills trained"),
 		hud.rich.text)
-	chk("it fits", hud.rich.text.split("
-").size() <= RICH_ROWS,
+	chk("it fits", (hud.rich.text.split("
+").size() <= RICH_ROWS and not hud._rich_overflows()),
 		hud.rich.text.split("
 ").size())
 
@@ -7180,8 +7197,8 @@ func test_dashboard() -> void:
 		Game.background_id != bg_before, Game.background_id)
 	chk("and leaves the hat exactly where the other row left it",
 		Game.hat_id != hat_before, Game.hat_id)
-	chk("it fits", hud.rich.text.split("
-").size() <= RICH_ROWS,
+	chk("it fits", (hud.rich.text.split("
+").size() <= RICH_ROWS and not hud._rich_overflows()),
 		hud.rich.text.split("
 ").size())
 
@@ -7335,8 +7352,9 @@ func test_milestones() -> void:
 	# trophy cabinet, one that shows what is left is a map.
 	chk("and hides the ones you have not, without hiding that they exist",
 		hud.rich.text.contains("- - -"), hud.rich.text)
-	chk("it fits", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	hud.close()
 
 	Game.new_run(SEED)
@@ -7429,7 +7447,7 @@ func test_trophies() -> void:
 	chk("the title counts trophies", hud.title.text.contains("trophies 1/6"),
 		hud.title.text)
 	chk("the list still fits the panel",
-		hud.rich.text.split("\n").size() <= 11, hud.rich.text.split("\n").size())
+		(hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()), hud.rich.text.split("\n").size())
 	# the cursor can reach the very last entry, which is the inspection trophy
 	hud._sel = hud._career_rows().size() - 1
 	hud.show_career()
@@ -7702,8 +7720,9 @@ func test_the_school() -> void:
 	chk("and who is in it",
 		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"]).substr(0, 8)),
 		hud.rich.text)
-	chk("and it fits", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("and it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 
 	# --- watching the day that already happened ---
 	# The playback must be the SAME roll that produced the letter, not a
@@ -7715,8 +7734,9 @@ func test_the_school() -> void:
 		not (last.get("history", []) as Array).is_empty(), last.get("history", []))
 	hud.show_watch(0)
 	chk("watching opens its own screen", hud.mode == hud.Mode.WATCH)
-	chk("and it fits too", hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+	chk("and it fits too", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	chk("it names the teacher watching",
 		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"])),
 		hud.rich.text)
@@ -8861,6 +8881,13 @@ func test_lesson_crafting() -> void:
 	hud.close()
 	Game.run_started.emit()
 	await step(3)
+	# The queue drains in hud._process(), an IDLE frame. Physics frames
+	# alone can all land inside one main-loop pass when the machine is busy
+	# (Godot catches up several physics steps before one _process), and then
+	# the drain has not run yet: this check failed one run in a few on a
+	# loaded box. Wait for a process frame too.
+	await get_tree().process_frame
+	await get_tree().process_frame
 	chk("a fresh run nudges toward crafting when it starts already unlocked",
 		hud._shown_hints.has("craft_unlocked"))
 
@@ -8872,6 +8899,8 @@ func test_lesson_crafting() -> void:
 	hud.close()
 	Game.day_changed.emit(Game.day)
 	await step(3)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	chk("the day crafting unlocks nudges toward it, if that day is not day 1",
 		hud._shown_hints.has("craft_unlocked"))
 
@@ -11779,7 +11808,7 @@ func test_alumni_wall() -> void:
 		and hud.rich.text.split("\n")[0].contains("Grace"),
 		hud.rich.text.split("\n")[0])
 	chk("the wall fits the panel",
-		hud.rich.text.split("\n").size() <= 11, hud.rich.text.split("\n").size())
+		(hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()), hud.rich.text.split("\n").size())
 
 	# --- open the one with a story ---
 	hud._sel = 1                      # Ada, the second row
@@ -12722,8 +12751,9 @@ func test_subjects_and_skip() -> void:
 	# The panel budget, which this screen has blown before: adding the icon
 	# pushed rows onto a second line until the difficulty bar came off them.
 	chk("no row of the book wraps past the page",
-		hud.rich.text.split("\n").size() <= 11,
-		hud.rich.text.split("\n").size())
+		(hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
+		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
+			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
 	hud.close()
 	await step(2)
 

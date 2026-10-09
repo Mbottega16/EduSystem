@@ -2663,7 +2663,21 @@ func _render_hand() -> void:
 			_cells(BAR_FULL if i == _sel else BAR_EMPTY, 1)]
 	lines.append("%s   [color=#%s]turn the page[/color]" % [edge, INK_DIM])
 
+	rich.add_theme_constant_override("line_separation", 2)
 	rich.text = "\n".join(lines)
+	# A long objective (six lines on this page) pushed the page edge half a
+	# line off the paper -- the fit test counted four "\n"s and passed it.
+	# Measured now: lines closer together first, then the gap before the edge,
+	# then the objective in small print -- the longest (division's, 261
+	# characters) runs to a dozen lines at full size on a 256px page.
+	if _rich_overflows():
+		rich.add_theme_constant_override("line_separation", 0)
+	if _rich_overflows() and lines.size() >= 2 and lines[lines.size() - 2] == "":
+		lines.remove_at(lines.size() - 2)
+		rich.text = _join_rich(lines)
+	if _rich_overflows() and obj != "":
+		lines[1] = "[font_size=%d]%s[/font_size]" % [UI_SMALL, lines[1]]
+		rich.text = _join_rich(lines)
 	_reveal_rich(0.22)
 	hint.text = "Scroll / click / Up-Down to turn    E - set this one"
 	_book_turned(_sel)
@@ -4684,13 +4698,32 @@ func show_day_report(report: Dictionary) -> void:
 	var k := lines.size() - 1
 	while _rich_overflows() and k >= news_from:
 		lines[k] = "[font_size=%d]%s[/font_size]" % [UI_SMALL, lines[k]]
-		rich.text = "\n".join(lines)
+		rich.text = _join_rich(lines)
 		k -= 1
 	if _rich_overflows():
 		lines.remove_at(0)
-		rich.text = "\n".join(lines)
+		rich.text = _join_rich(lines)
 	_reveal_rich(0.45)
 	hint.text = "E - close"
+
+
+## Lines into one rich text, with each line break that follows a small-print
+## line put INSIDE its [font_size] span. Outside it the break is set at full
+## size and makes the small line it ends as tall as a full one -- a visible
+## gap under the last line of a small paragraph.
+func _join_rich(parts: Array[String]) -> String:
+	var out := ""
+	for i in parts.size():
+		var s: String = parts[i]
+		if i < parts.size() - 1:
+			if s.ends_with("[/font_size]"):
+				s = s.substr(0, s.length() - 12) + "
+[/font_size]"
+			else:
+				s += "
+"
+		out += s
+	return out
 
 
 ## True when `rich`'s text, wrapped to its width, is taller than its box --
