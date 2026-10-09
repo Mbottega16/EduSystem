@@ -458,13 +458,80 @@ def build_anim(spec, manifest):
     return up2(cut[0]), up2(strip)
 
 
+def _side_by_side(parts):
+    """Images set left to right, bottoms aligned."""
+    h = max(p.height for p in parts)
+    im = Image.new("RGBA", (sum(p.width for p in parts), h), (0, 0, 0, 0))
+    x = 0
+    for p in parts:
+        im.alpha_composite(p, (x, h - p.height))
+        x += p.width
+    return im
+
+
+def _parts(parts, manifest):
+    """[{"ref": r, "cols": [x0, x1]}, ...] -> those column ranges of those singles, side
+    by side (no "cols" = the whole single). How a modular piece is made longer than the
+    pack draws it: a museum vitrine's left end, its middle twice, its right end."""
+    out = []
+    for p in parts:
+        pack, member = resolve(p["ref"], manifest)
+        im = pack.image(member)
+        if "cols" in p:
+            x0, x1 = p["cols"]
+            im = im.crop((x0, 0, x1, im.height))
+        out.append(im)
+    return _side_by_side(out)
+
+
+def restack(im, rows):
+    """Those [y0, y1) row ranges of `im`, one under the other."""
+    out = Image.new("RGBA", (im.width, sum(y1 - y0 for y0, y1 in rows)), (0, 0, 0, 0))
+    y = 0
+    for y0, y1 in rows:
+        out.alpha_composite(im.crop((0, y0, im.width, y1)), (0, y))
+        y += y1 - y0
+    return out
+
+
+def glare(lit, plain):
+    """The light `lit` adds over `plain`, as white: where plain is empty, lit's own
+    pixel (a glint on clear glass); where plain is drawn, white at a strength set by how
+    much brighter lit is there (a streak across the glass); nothing anywhere else."""
+    if lit.size != plain.size:
+        raise SystemExit("glare_over: %s against %s -- the two must be the same size" % (lit.size, plain.size))
+    out = Image.new("RGBA", lit.size, (0, 0, 0, 0))
+    a, b, o = lit.load(), plain.load(), out.load()
+    for y in range(lit.height):
+        for x in range(lit.width):
+            if a[x, y] == b[x, y] or not a[x, y][3]:
+                continue
+            if not b[x, y][3]:
+                o[x, y] = a[x, y]
+                continue
+            lum = lambda c: 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]
+            gain = lum(a[x, y]) - lum(b[x, y])
+            if gain > 0:
+                o[x, y] = (255, 255, 255, min(255, int(gain * 5)))
+    return out
+
+
 def build_prop(spec, manifest):
     """One manifest prop entry -> the finished, game-scale RGBA image.
 
-    A spec names its source one of three ways: "ref": "classroom#6" (a numbered
+    A spec names its source one of four ways: "ref": "classroom#6" (a numbered
     single, see "themes" in the manifest), "join": [ref, ref] (several singles side
-    by side), or "sheet" + "pack" + "rect" (a [x, y, w, h] cut, in 16x16 art pixels,
-    from one of a pack's big sheets -- how animated first frames come out).
+    by side), "parts" (pieces OF singles side by side, see _parts), or "sheet" +
+    "pack" + "rect" (a [x, y, w, h] cut, in 16x16 art pixels, from one of a pack's
+    big sheets -- how animated first frames come out).
+
+    "rows": [[y0, y1], ...] restacks the image from those row ranges, top to bottom --
+    how a vitrine loses the bar across its front and becomes one tall pane.
+
+    "glare_over": [parts] keeps only the light the spec's own image adds over that
+    other one, as white of matching strength -- the glass of a case without the
+    case, to draw in front of whatever stands inside it. Both must be the same size,
+    so a glare entry and its case use "trim": "none" and line up exactly.
     """
     if "join" in spec:
         # "join": [ref, ref, ...] -- numbered singles set side by side, bottoms aligned
@@ -473,12 +540,9 @@ def build_prop(spec, manifest):
         for ref in spec["join"]:
             pack, member = resolve(ref, manifest)
             parts.append(pack.image(member))
-        h = max(p.height for p in parts)
-        im = Image.new("RGBA", (sum(p.width for p in parts), h), (0, 0, 0, 0))
-        x = 0
-        for p in parts:
-            im.alpha_composite(p, (x, h - p.height))
-            x += p.width
+        im = _side_by_side(parts)
+    elif "parts" in spec:
+        im = _parts(spec["parts"], manifest)
     elif "sheet" in spec:
         pack = need_pack(spec["pack"])
         im = pack.image(spec["sheet"])
@@ -489,6 +553,13 @@ def build_prop(spec, manifest):
         im = pack.image(member)
     if "crop" in spec:
         im = im.crop(tuple(spec["crop"]))
+    if "rows" in spec:
+        im = restack(im, spec["rows"])
+    if "glare_over" in spec:
+        plain = _parts(spec["glare_over"], manifest)
+        if "rows" in spec:
+            plain = restack(plain, spec["rows"])
+        im = glare(im, plain)
     if spec.get("flip") == "h":
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
     if spec.get("drop_shadow"):

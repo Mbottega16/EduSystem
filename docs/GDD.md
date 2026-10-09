@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-07**, against build `b45`, with **2453 assertions
+> **Measured on 2026-10-07**, against build `b45`, with **2467 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -241,7 +241,8 @@ alongside the ordinary paths -- a subject paper (Reading Paper, Number
 Gauntlet, Science Fair, Mock Election) or the mixed Open Evening. The
 term plays as normal; the exam is judged on the class average against
 the card's own bar rather than the seat count, and clearing it puts a
-trophy on the career screen and a cosmetic on sale. Missing it ends the
+trophy on the career screen and in the hallway's trophy case, and a
+cosmetic on sale. Missing it ends the
 run like any missed target.
 
 **The last morning of a boss term is played, not sat.** The podium reads
@@ -355,7 +356,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **2453 assertions** across **129 sections** |
+| Tests | **2467 assertions** across **129 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -395,7 +396,13 @@ screen; an unstaffed one opens hiring; the last door, shown only when
 `Game.can_open_room()` says you actually can, opens a new one. The second
 door along, always there, is the **principal's office** — milestones,
 career totals and a tutorial shelf, reached by walking rather than by a
-key. See §7.
+key. See §7. *(Oct 2026)* The office is a room now, not a screen that
+opens on the door: her desk between two windows, the school's charts on
+the wall behind her, a sofa for visitors, her shelves and files. She sits
+at her desk, and E there opens the same screen. Between her door and the
+mentor's stands a **trophy case** with a place for every boss trophy: the
+ones won stand in it, the rest show only their dimmed shape, and E at the
+case lists them.
 
 **Also built, Aug 2026:** staff you can let go. `Game.fire()` clears a
 room back to unstaffed for `Balance.fire_cost`, and `hire()` now refuses

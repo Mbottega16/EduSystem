@@ -12,9 +12,13 @@ const BUILD_STAMP := preload("res://scripts/data/version.gd")
 ## adequate, it is more legible than real controls would be, and it keeps
 ## the whole UI layer to one script.
 
+## The full-screen panel's backing (hud.tscn's Overlay). The intro's slate
+## swaps in a see-through one; _open() puts this back for every other screen.
+const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
+
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT }
+	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -1079,6 +1083,14 @@ func _open(m: int) -> void:
 	rich.visible = false
 	sheet.visible = false
 	body.visible = true
+	# ...and the intro slate's see-through backing and hidden hint, which it
+	# only puts back when it moves on to its own next page. Any screen opened
+	# with the slate still up -- or after it was closed from outside -- used to
+	# keep both: text straight on the room, no footer (Oct 2026, seen in every
+	# screenshot taken from a fresh run).
+	if m != Mode.INTRO:
+		overlay.color = OVERLAY_COLOUR
+		hint.visible = true
 	# ...and this one. Closing the exam starts a term; closing anything else
 	# must not. show_exam() sets it again straight after this runs, so the
 	# flag can only ever be true for the screen that set it.
@@ -3204,7 +3216,7 @@ func _render_intro() -> void:
 	# dialogue box for the rest of the scene, which is the whole point of a
 	# cutscene over a panel that talks ABOUT the room instead.
 	overlay.visible = false
-	overlay.color = Color(0.06, 0.05, 0.08, 0.93)
+	overlay.color = OVERLAY_COLOUR
 	body.visible = true
 	hint.visible = true
 	if _sel == -2:
@@ -3778,6 +3790,54 @@ func _handle_office_input() -> void:
 		_alum_open = -1
 		_sel = 0
 		show_career()
+
+
+
+## THE TROPHY CASE: what stands in the hallway's case, and what is still to
+## win. Opened from the case itself (TrophyCase, E). One row per trophy --
+## won ones by name, the rest "- - -" exactly as the career list shows them --
+## and the one under the cursor told in full below.
+func show_trophies() -> void:
+	_open(Mode.TROPHIES)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	var all := Trophies.all()
+	title.text = "THE TROPHY CASE  %d/%d" % [Game.trophies.size(), all.size()]
+	_sel = clampi(_sel, 0, maxi(0, all.size() - 1))
+	var lines: Array[String] = []
+	lines.append("[color=#%s]One for every boss term your class has beaten.[/color]" % DIM)
+	lines.append("")
+	for i in all.size():
+		var t: Dictionary = all[i]
+		var won := Game.trophies.has(String(t.get("id", "")))
+		lines.append("%s [color=#%s]%s[/color]" % [">" if i == _sel else " ",
+			C_COIN if won else DIM, String(t.get("name", "")) if won else "- - -"])
+	lines.append("")
+	var sel: Dictionary = all[_sel] if _sel < all.size() else {}
+	var sel_won := Game.trophies.has(String(sel.get("id", "")))
+	lines.append("[color=#%s]%s%s[/color]" % [C_LESSON if sel_won else DIM,
+		"" if sel_won else "Not yet: ", String(sel.get("blurb", ""))])
+	rich.text = "
+".join(lines)
+	_reveal_rich(0.25)
+	hint.text = "Up/Down - look along the shelf   Esc - close"
+
+
+func _handle_trophies_input() -> void:
+	var n := Trophies.count()
+	if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+		Sfx.play("blip")
+		close()
+	elif Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % n
+		Sfx.play("blip")
+		show_trophies()
+	elif Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + n) % n
+		Sfx.play("blip")
+		show_trophies()
 
 
 ## What kind of teacher are you?
@@ -5407,6 +5467,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.OFFICE:
 		_handle_office_input()
+		return
+
+	if mode == Mode.TROPHIES:
+		_handle_trophies_input()
 		return
 
 	if mode == Mode.HELP:

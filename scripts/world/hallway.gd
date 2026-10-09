@@ -57,8 +57,15 @@ const LINING := [
 	["certificate", "hang"], ["plant", "stand"], ["world_map", "hang"],
 ]
 const LINING_GAP := 10.0
+## The trophy case (TrophyCase) stands against the wall between the office
+## door and the mentor's, centred here; the lining leaves it a gap.
+const TROPHY_CASE_X := 208.0
 ## The props along the wall, for the tests.
 var lining: Array = []
+var trophy_case: TrophyCase = null
+
+## Someone pressed E at the trophy case -- main.gd opens the list.
+signal trophies_viewed()
 
 var doors: Array = []
 var _door_art: Array = []
@@ -159,6 +166,15 @@ func _compose(w: float) -> ImageTexture:
 ## bottom sits a few pixels onto the floor, back to the wall; a "hang" one is
 ## centred on the wall's face. The fish tank plays its strip, as a bought one does.
 func _line_the_wall(w: float) -> void:
+	trophy_case = TrophyCase.new()
+	trophy_case.name = "TrophyCase"
+	trophy_case.position = Vector2(TROPHY_CASE_X, 8.0)
+	trophy_case.z_index = -9
+	add_child(trophy_case)
+	trophy_case.looked.connect(func() -> void: trophies_viewed.emit())
+	var half := TrophyCase.CASE.get_width() / 2.0
+	var case_from := TROPHY_CASE_X - half - LINING_GAP
+	var case_to := TROPHY_CASE_X + half + LINING_GAP
 	var x := 18.0
 	var i := 0
 	while true:
@@ -167,6 +183,9 @@ func _line_the_wall(w: float) -> void:
 		if tex == null:
 			i += 1
 			continue
+		# Step round the trophy case: whatever would overlap it goes after it.
+		if x + tex.get_width() > case_from and x < case_to:
+			x = case_to
 		if x + tex.get_width() > w - 18.0:
 			break
 		var spr := Sprite2D.new()
@@ -200,6 +219,9 @@ func rebuild() -> void:
 		if is_instance_valid(a):
 			a.queue_free()
 	_door_art.clear()
+	# A trophy won since the last visit is standing in the case now.
+	if trophy_case != null:
+		trophy_case.refresh()
 
 	# Slots 0-2 are always home, the office, and the mentor teacher's room --
 	# none of the three counts against Game.rooms or the max_rooms cap, all

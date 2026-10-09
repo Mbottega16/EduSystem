@@ -7772,6 +7772,47 @@ func test_hallway() -> void:
 		hud.principal_says("hallway_first_visit", "SHOULD NOT APPEAR AGAIN")
 		return not hud.mascot_box.visible).call())
 
+	# The trophy case: a place per trophy, the won ones standing, the rest
+	# their dimmed shapes; nothing on the wall overlaps it; E reads it out.
+	var tcase: TrophyCase = hallway.trophy_case
+	chk("a trophy case stands against the corridor wall", tcase != null and tcase.is_inside_tree())
+	if tcase != null:
+		chk("with a place in it for every trophy there is", tcase.cups.size() == Trophies.count(),
+			tcase.cups.size())
+		var half := TrophyCase.CASE.get_width() / 2.0
+		var crowded: Array = []
+		for p: Node2D in hallway.lining:
+			var pw := float((p as Sprite2D).texture.get_width()) / 2.0
+			if absf(p.position.x - tcase.position.x) < half + pw:
+				crowded.append(p.name)
+		chk("and nothing on the wall stands in front of it", crowded.is_empty(), crowded)
+		chk("on a fresh run every place shows only the shape of what goes there",
+			tcase.cups.all(func(c: Sprite2D) -> bool: return c.modulate == TrophyCase.NOT_YET))
+		Game.award_trophy("boss_science")
+		hallway.rebuild()
+		var lit_cups: Array = []
+		for i in tcase.cups.size():
+			if (tcase.cups[i] as Sprite2D).modulate == Color.WHITE:
+				lit_cups.append(String((Trophies.all()[i] as Dictionary)["id"]))
+		chk("a trophy won stands in its place on the next visit, and only that one",
+			lit_cups == ["boss_science"], lit_cups)
+		var back_at: Vector2 = world.player.global_position
+		world.player.global_position = tcase.look.global_position
+		await step(2)
+		await tap("interact")
+		chk("E at the case lists what is in it", hud.mode == hud.Mode.TROPHIES)
+		chk("counting what is won out of what there is",
+			hud.title.text.contains("1/%d" % Trophies.count()), hud.title.text)
+		chk("the won one by name, the rest as dashes",
+			hud.rich.text.contains("The Science Fair") and hud.rich.text.contains("- - -")
+			and not hud.rich.text.contains("The Reading Paper"), hud.rich.text)
+		await tap("cancel")
+		chk("and Esc puts it away", hud.mode == hud.Mode.NONE)
+		Game.trophies.clear()
+		hallway.rebuild()
+		world.player.global_position = back_at
+		await step(2)
+
 	var expect_doors := 3 + Game.rooms.size() + (1 if Game.can_open_room() else 0)
 	chk("a door per room, plus home, the office, the mentor, and the next to open",
 		hallway.doors.size() == expect_doors, hallway.doors.size())
@@ -7790,17 +7831,50 @@ func test_hallway() -> void:
 	world.player.global_position = office_door.global_position
 	await step(2)
 	await tap("manage")
-	chk("walking into it opens the principal's office", hud.mode == hud.Mode.OFFICE)
-	chk("its milestone count matches what the career screen knows",
-		hud.rich.text.contains("%d/%d" % [Game.milestones.size(), Milestones.all().size()]),
-		hud.rich.text)
+	# The office is a room now (Oct 2026), not a menu that opens on the door.
+	var office: Node2D = main.get_node("PrincipalOffice")
+	chk("walking into it takes you into the principal's office, a room",
+		world.player.get_parent() == office and office.visible and not hallway.visible
+		and hud.mode != hud.Mode.OFFICE)
 	chk("visiting proves the met_principal milestone", Game.met_principal)
 	chk("and Milestones agrees, from that real state alone",
 		Milestones.newly_earned([]).has("met_principal"))
+	chk("she is in it, sat at her desk, in her own clothes",
+		office.principal != null and office.principal.is_inside_tree()
+		and (office.principal.get_node("Sprite2D") as Sprite2D).texture.resource_path.ends_with("principal.png"))
+	chk("and the room is dressed -- shelves, files, a sofa, her charts on the wall",
+		get_tree().get_nodes_in_group("office_dressing").size() == office.DRESSING.size(),
+		get_tree().get_nodes_in_group("office_dressing").size())
+	world.player.global_position = office.talk.global_position
+	await step(2)
+	await tap("interact")
+	chk("E at her desk opens the principal's office screen", hud.mode == hud.Mode.OFFICE)
+	chk("its milestone count matches what the career screen knows",
+		hud.rich.text.contains("%d/%d" % [Game.milestones.size(), Milestones.all().size()]),
+		hud.rich.text)
 	await tap("interact")
 	chk("E from the office jumps to the full career list", hud.mode == hud.Mode.CAREER)
 	await tap("cancel")
 	chk("Esc backs all the way out, not just to the office", hud.mode == hud.Mode.NONE)
+	# The intro's slate shows the room through a see-through backing and
+	# hides the footer. A screen opened after the slate was shut from outside
+	# kept both -- its words straight on the room, no hint line.
+	hud.show_intro()
+	hud.close()
+	hud.show_office()
+	chk("a screen opened after the intro's slate gets its own backing and footer back",
+		hud.overlay.color == hud.OVERLAY_COLOUR and hud.hint.visible,
+		[hud.overlay.color, hud.hint.visible])
+	hud.close()
+	var way_out: Node2D = null
+	for c in office.get_children():
+		if c is Interactable and "door_kind" in c and String(c.door_kind) == "home":
+			way_out = c
+	world.player.global_position = way_out.global_position
+	await step(2)
+	await tap("manage")
+	chk("and its door leads back into the corridor",
+		world.player.get_parent() == hallway and hallway.visible and not office.visible)
 
 	# Open a room from inside the hallway -- the same Game.open_room() the
 	# old School screen used, just reached by walking to a door instead of
@@ -13541,23 +13615,20 @@ func test_curator() -> void:
 	# is worth nothing.
 	chk("and about the room tiles, which no regex could find",
 		c._referenced.has("tile_floor_a0") and c._referenced.has("tile_wall_side"))
-	# Nothing on disk should be unexplained. Five exceptions, each named
-	# here so a SIXTH orphan is a real failure rather than something that
+	# Nothing on disk should be unexplained. Four exceptions, each named
+	# here so a FIFTH orphan is a real failure rather than something that
 	# blends into an accepted list:
 	#   table, poster_abc     sample art for the text-grid sprite pipeline,
 	#                         which exists to demonstrate it, not to be used
-	#   principal             the principal's walk-cycle sheet -- kept as
-	#                         the palette source make_portrait() draws
-	#                         portrait_principal from (Sept 2026 art pass),
-	#                         but nothing puts the principal IN the room
-	#                         the way the inspector's own sheet is
 	#   portrait_inspector    drawn for every CHARACTERS entry as a matter
 	#                         of consistency, but the inspector has no bio
 	#                         screen to show a bust on -- only the room
 	#                         sprite (inspector.png) is ever displayed
 	#   portrait_inspector_talk  its blink strip, baked beside it for the
 	#                         same reason and shown nowhere for the same one
-	const ART_SAMPLES := ["table", "poster_abc", "principal", "portrait_inspector",
+	# (`principal` was a fifth until Oct 2026: her walk-cycle sheet had no
+	# one to wear it. She sits at her desk in her office now.)
+	const ART_SAMPLES := ["table", "poster_abc", "portrait_inspector",
 		"portrait_inspector_talk"]
 	chk("nothing on disk is left unexplained", (func() -> bool:
 		for f: String in c._files:

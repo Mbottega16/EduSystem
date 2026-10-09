@@ -51,6 +51,15 @@ trusting it's still accurate.
 > -- all LimeZu's. The `book_stack` for the book fair is the one exception: no
 > pack draws books lying flat, so it is hand-drawn in his palette and keyline
 > (`tools/sprites/book_stack.txt`, every art pixel doubled).
+> The hallway's trophy case is LimeZu's museum vitrine made long enough for six
+> (`trophy_case`: its left end, its middle three times, its right end, with the
+> bar across its front taken out -- the importer's `parts` and `rows`), and
+> `trophy_case_glass` is only its glass, drawn back over the cups inside
+> (`glare_over`). The cups: `trophy_gold`, `trophy_silver`, `trophy_bronze`,
+> `trophy_gold_silver`, `trophy_gilt`, `trophy_grand`, one per boss (the `art` key
+> in `scripts/data/trophies.gd`). The principal's office adds `principal_desk`,
+> `exec_chair`, `office_chart`, `office_art` and `office_plant`, and puts the
+> principal's own sheet (`principal.png`) to use: she sits at her desk.
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

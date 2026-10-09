@@ -683,6 +683,181 @@
       "ref": "basement#63",
       "trim": "xy",
       "why": "yellow flowers in a glass vase, a welcome: on the teacher's desk on the day a new face joins only (a fixture, not an item)"
+    },
+    "trophy_case": {
+      "parts": [
+        {
+          "ref": "museum#309"
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#310"
+        }
+      ],
+      "rows": [
+        [
+          0,
+          18
+        ],
+        [
+          22,
+          48
+        ]
+      ],
+      "trim": "none",
+      "why": "the hallway's trophy case: LimeZu's museum vitrine (left end, its middle three times, right end) long enough for six trophies, the bar across its front taken out so it is one tall pane; empty, so the trophies are drawn in it in-game and trophy_case_glass over them"
+    },
+    "trophy_case_glass": {
+      "parts": [
+        {
+          "ref": "museum#311"
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#312"
+        }
+      ],
+      "rows": [
+        [
+          0,
+          18
+        ],
+        [
+          22,
+          48
+        ]
+      ],
+      "glare_over": [
+        {
+          "ref": "museum#309"
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#309",
+          "cols": [
+            18,
+            32
+          ]
+        },
+        {
+          "ref": "museum#310"
+        }
+      ],
+      "trim": "none",
+      "why": "only the glass of the trophy case (its glints and streaks, as white light): drawn in front of the trophies inside it, the same size as trophy_case so the two line up"
+    },
+    "trophy_gold": {
+      "ref": "music#138",
+      "trim": "xy",
+      "why": "a gold cup: The Reading Paper's trophy, in the hallway case once won"
+    },
+    "trophy_silver": {
+      "ref": "music#135",
+      "trim": "xy",
+      "why": "a silver cup: The Number Gauntlet's trophy"
+    },
+    "trophy_bronze": {
+      "ref": "music#132",
+      "trim": "xy",
+      "why": "a bronze cup: The Science Fair's trophy"
+    },
+    "trophy_gold_silver": {
+      "ref": "music#141",
+      "trim": "xy",
+      "why": "a gold cup on a silver stem: The Mock Election's trophy"
+    },
+    "trophy_gilt": {
+      "ref": "music#144",
+      "trim": "xy",
+      "why": "a gold cup, silver stem, gold foot: the Mock Inspection's trophy"
+    },
+    "trophy_grand": {
+      "ref": "music#140",
+      "trim": "xy",
+      "why": "the gold cup with the gold stem: Open Evening's trophy, the gauntlet of every subject"
+    },
+    "principal_desk": {
+      "ref": "living#32",
+      "trim": "y",
+      "why": "the principal's own desk in her office: a wooden desk with a lamp and a pile of files (a fixture, not an item)"
+    },
+    "exec_chair": {
+      "ref": "office#101",
+      "trim": "xy",
+      "why": "a high-backed black office chair: the principal's, behind her desk"
+    },
+    "office_chart": {
+      "ref": "office#172",
+      "trim": "xy",
+      "why": "a whiteboard of charts and graphs on the principal's office wall: how the school is doing"
+    },
+    "office_art": {
+      "ref": "office#164",
+      "trim": "xy",
+      "why": "a framed print of four bright faces, on the principal's office wall"
+    },
+    "office_plant": {
+      "ref": "office#98",
+      "trim": "xy",
+      "why": "a big leafy office plant in a steel pot, in the principal's office"
+    },
+    "visitor_chair": {
+      "ref": "office#112",
+      "trim": "xy",
+      "why": "an orange office chair seen from behind: the two visitors' chairs facing the principal's desk"
     }
   },
   "tiles": {}

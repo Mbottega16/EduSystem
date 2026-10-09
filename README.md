@@ -181,7 +181,11 @@ fine stays a cool blue.
 
 The second door along, always there, is the **principal's office** — your
 milestones, your career totals and a shelf of tutorials, in one room
-rather than a menu you have to remember exists.
+rather than a menu you have to remember exists. It is a real room: she
+sits at her desk between two windows, and you walk up and press E for a
+word. Between her door and the mentor's stands the **trophy case**, a
+place in it for every boss trophy -- the ones you have won standing
+there, the rest only their shadow.
 
 ## The principal
 
@@ -437,7 +441,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            2453 assertions
+Run Tests.bat            2467 assertions
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat

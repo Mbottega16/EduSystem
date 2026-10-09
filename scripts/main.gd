@@ -10,6 +10,7 @@ extends Node2D
 @onready var hud: Control = $UI/HUD
 @onready var hallway: Node2D = $Hallway
 @onready var mentor_room: Node2D = $MentorRoom
+@onready var office: Node2D = $PrincipalOffice
 
 var placement: Placement = null
 
@@ -76,9 +77,18 @@ func _ready() -> void:
 	# landmarks -- it never gets torn down and rebuilt, so this connection
 	# is made once here rather than re-made in _wire_room().
 	hallway.door_chosen.connect(_on_hallway_door)
+	hallway.trophies_viewed.connect(func() -> void:
+		hud._sel = 0
+		hud.show_trophies())
 	# The mentor room, likewise, is a permanent scene -- its exit door hands
 	# the player back to the hallway.
 	mentor_room.exit_chosen.connect(_leave_mentor)
+	# So is the principal's office: E at her desk opens the office screen,
+	# and its door leads back out.
+	office.exit_chosen.connect(_leave_office)
+	office.talk_chosen.connect(func() -> void:
+		hud._sel = 0
+		hud.show_office())
 	# The chain-dash lesson: hud.gd owns the words, the room owns the
 	# demonstration. The player stays locked while the mentor runs it --
 	# close() on the setup page unlocks them, so it is locked again here.
@@ -550,14 +560,54 @@ func _leave_mentor() -> void:
 	RoomLight.phase_in(hallway)
 
 
+## Into the principal's office, off the hallway. The same reparent of the
+## same body as the mentor's room. Walking in is meeting her -- the
+## met_principal milestone has always meant "you came to the office" -- and the
+## first visit she says how to get a word in.
+func _enter_office() -> void:
+	Game.met_principal = true
+	office.visible = true
+	var p: Actor = world.player
+	p.get_parent().remove_child(p)
+	office.add_child(p)
+	p.position = office.entry_position()
+	p.facing = p.DIR_RIGHT
+	office.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	hallway.visible = false
+	world.visible = false
+	RoomLight.phase_in(office)
+	hud.principal_says("office_first_visit",
+		"Come in! Press E at my desk whenever you want a word.")
+
+
+## Back out through the office door, into the hallway.
+func _leave_office() -> void:
+	hallway.rebuild()
+	var p: Actor = world.player
+	office.remove_child(p)
+	p.z_index = 0
+	hallway.add_child(p)
+	p.position = hallway.entry_position()
+	p.facing = p.DIR_DOWN
+	hallway.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	office.visible = false
+	world.visible = false
+	hallway.visible = true
+	RoomLight.phase_in(hallway)
+
+
 func _on_hallway_door(kind: String, room_index: int) -> void:
 	match kind:
 		"home":
 			_return_home()
 		"office":
-			Game.met_principal = true
-			hud._sel = 0
-			hud.show_office()
+			_enter_office()
 		"mentor":
 			_enter_mentor()
 		"open":

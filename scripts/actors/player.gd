@@ -738,11 +738,11 @@ func _chain_target() -> Interactable:
 	return best
 
 
-## Where a dash's decoration hangs: the mentor's room while you are
-## standing in it, the classroom otherwise.
+## Where a dash's decoration hangs: the mentor's room or the principal's
+## office while you are standing in it, the classroom otherwise.
 func _fx_room() -> Node2D:
 	var p := get_parent()
-	if p != null and p.is_in_group("mentor_room"):
+	if p != null and (p.is_in_group("mentor_room") or p.is_in_group("principal_office")):
 		return p as Node2D
 	return get_tree().get_first_node_in_group("classroom") as Node2D
 

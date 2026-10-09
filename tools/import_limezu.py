@@ -46,6 +46,8 @@ def source_label(spec):
         return spec["ref"]
     if "join" in spec:
         return "+".join(spec["join"])
+    if "parts" in spec:
+        return "+".join(pt["ref"] for pt in spec["parts"])
     return spec.get("sheet", "?").split("/")[-1]
 
 

@@ -136,6 +136,36 @@ func _open_screen(main: Node, screen: String) -> void:
 		world.player.global_position = Grid.tile_to_world(
 			Layout.PODIUM + Vector2i(0, 1))
 		return
+	# The principal's office, the room: walked into from the corridor, the
+	# player just inside the door and her first-visit word in the corner.
+	if screen == "office_room":
+		Game.intro_seen = true
+		hud.close()
+		main._enter_office()
+		return
+	# The hallway's trophy case with two of the six won (trophy_case), and
+	# the list E opens on it (trophies).
+	if screen == "trophy_case" or screen == "trophies":
+		Game.intro_seen = true
+		hud.close()
+		Game.award_trophy("boss_ela")
+		Game.award_trophy("boss_social")
+		var hall: Node = main.get_node("Hallway")
+		hall.rebuild()
+		world.player.get_parent().remove_child(world.player)
+		hall.add_child(world.player)
+		world.player.position = hall.trophy_case.position + Vector2(-60, 40)
+		world.player.facing = Actor.DIR_UP
+		hall.refresh_camera_limits(world.camera)
+		if world.camera != null:
+			world.camera.make_current()
+			world.camera.reset_smoothing()
+		world.visible = false
+		hall.visible = true
+		if screen == "trophies":
+			hud._sel = 0
+			hud.show_trophies()
+		return
 	match screen:
 		"quiz":
 			world.start_lesson()

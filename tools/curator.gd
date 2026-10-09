@@ -293,6 +293,12 @@ func _scan_references() -> void:
 		_note(String(row[0]), "room_builder.gd (EVENT_DESK %s)" % id)
 		if int(row[1]) > 1:
 			_note(String(row[0]) + "_anim", "room_builder.gd (EVENT_DESK %s)" % id)
+	# ...and each trophy's cup in the hallway's case, named in its table row.
+	for t: Dictionary in Trophies.all():
+		_note(String(t.get("art", "")), "trophy_case.gd (%s)" % String(t.get("id", "")))
+	# ...and what dresses the principal's office, named in its table.
+	for row: Array in preload("res://scripts/world/principal_office.gd").DRESSING:
+		_note(String(row[0]), "principal_office.gd (DRESSING)")
 
 
 func _note(art_name: String, where: String) -> void:
