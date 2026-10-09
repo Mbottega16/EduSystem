@@ -265,14 +265,23 @@ func _scan_references() -> void:
 	# can see. The room is composed tile by tile from these, and without
 	# this every one of them is reported as unreferenced -- eighteen false
 	# alarms in a report whose entire value is that you believe it.
+	var walls: Array[String] = ["tile_wall_top0", "tile_wall_top1", "tile_wall_side",
+			"tile_wall_bottom", "tile_window_l0", "tile_window_r0",
+			"tile_window_l1", "tile_window_r1", "tile_door_top",
+			"tile_door_bottom"]
 	for i in RoomBuilder.FLOOR_VARIANTS:
 		_note("tile_floor_a%d" % i, "room_builder.gd (floor)")
 		_note("tile_floor_b%d" % i, "room_builder.gd (floor)")
-	for n: String in ["tile_wall_top0", "tile_wall_top1", "tile_wall_side",
-			"tile_wall_bottom", "tile_window_l0", "tile_window_r0",
-			"tile_window_l1", "tile_window_r1", "tile_door_top",
-			"tile_door_bottom"]:
+	for n: String in walls:
 		_note(n, "room_builder.gd (walls)")
+	# ...and the same tiles in every other look a space can wear (the office,
+	# the rooms you hold): the name with `_<look>` on the end.
+	for look: String in RoomBuilder.LOOKS:
+		for i in RoomBuilder.FLOOR_VARIANTS:
+			_note("tile_floor_a%d_%s" % [i, look], "room_builder.gd (LOOKS)")
+			_note("tile_floor_b%d_%s" % [i, look], "room_builder.gd (LOOKS)")
+		for n: String in walls:
+			_note("%s_%s" % [n, look], "room_builder.gd (LOOKS)")
 	# Same reasoning: show_student() loads "res://art/portrait_%s.png" %
 	# s.art, one call site covering all eight, which is invisible to the
 	# regex the same way the tiles above are.

@@ -177,13 +177,13 @@ func _compose() -> ImageTexture:
 	var src := Rect2i(0, 0, t, t)
 	var floors: Array[Image] = []
 	for i in RoomBuilder.FLOOR_VARIANTS:
-		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i))
-		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i))
-	var wall := [RoomBuilder._tile_img("tile_wall_top0"), RoomBuilder._tile_img("tile_wall_top1")]
-	var win := [[RoomBuilder._tile_img("tile_window_l0"), RoomBuilder._tile_img("tile_window_r0")],
-		[RoomBuilder._tile_img("tile_window_l1"), RoomBuilder._tile_img("tile_window_r1")]]
-	var side := RoomBuilder._tile_img("tile_wall_side")
-	var bottom := RoomBuilder._tile_img("tile_wall_bottom")
+		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i, "office"))
+		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i, "office"))
+	var wall := [RoomBuilder._tile_img("tile_wall_top0", "office"), RoomBuilder._tile_img("tile_wall_top1", "office")]
+	var win := [[RoomBuilder._tile_img("tile_window_l0", "office"), RoomBuilder._tile_img("tile_window_r0", "office")],
+		[RoomBuilder._tile_img("tile_window_l1", "office"), RoomBuilder._tile_img("tile_window_r1", "office")]]
+	var side := RoomBuilder._tile_img("tile_wall_side", "office")
+	var bottom := RoomBuilder._tile_img("tile_wall_bottom", "office")
 	var foot := int(WALL_FOOT) + 16
 	var y := foot
 	var row := 0
@@ -206,8 +206,8 @@ func _compose() -> ImageTexture:
 		im.blit_rect(side, src, Vector2i(0, yy))
 		im.blit_rect(side, src, Vector2i(w - t, yy))
 		yy += t
-	im.blit_rect(RoomBuilder._tile_img("tile_door_top"), src, Vector2i(0, 16 + 104))
-	im.blit_rect(RoomBuilder._tile_img("tile_door_bottom"), src, Vector2i(0, 16 + 136))
+	im.blit_rect(RoomBuilder._tile_img("tile_door_top", "office"), src, Vector2i(0, 16 + 104))
+	im.blit_rect(RoomBuilder._tile_img("tile_door_bottom", "office"), src, Vector2i(0, 16 + 136))
 	return ImageTexture.create_from_image(im)
 
 

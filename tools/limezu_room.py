@@ -3,6 +3,13 @@
     python tools/limezu_room.py                  write the 18 art/tile_*.png
     python tools/limezu_room.py --preview out.png   the whole 20x11 room, no writes
     python tools/limezu_room.py --check          is art/ what limezu_room.json builds?
+    python tools/limezu_room.py --preview out.png office   the room in one of its LOOKS
+
+LOOKS (Oct 2026): the classroom's own floor and wall are the default. "looks" in
+limezu_room.json names other floor + wall pairs -- the principal's office, the rooms
+you hold -- and each builds the same 18 tiles again with `_<look>` on the end of the
+name (tile_floor_a0_office ...). RoomBuilder.LOOKS lists them for the game, which
+loads a look's tile by that name (RoomBuilder._tile_img(name, look)).
 
 The game stamps its room at runtime from 18 small tiles (RoomBuilder.compose_room):
 eight floor variants, four wall pieces, a two-tile door, four window quarters.
@@ -36,15 +43,49 @@ ART = os.path.join(ROOT, "art")
 CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "limezu_room.json")
 
 T = 16
-OUTPUTS = (["tile_floor_a%d" % i for i in range(4)] + ["tile_floor_b%d" % i for i in range(4)]
-           + ["tile_wall_top0", "tile_wall_top1", "tile_wall_side", "tile_wall_bottom",
-              "tile_door_top", "tile_door_bottom",
-              "tile_window_l0", "tile_window_l1", "tile_window_r0", "tile_window_r1"])
+BASE = (["tile_floor_a%d" % i for i in range(4)] + ["tile_floor_b%d" % i for i in range(4)]
+        + ["tile_wall_top0", "tile_wall_top1", "tile_wall_side", "tile_wall_bottom",
+           "tile_door_top", "tile_door_bottom",
+           "tile_window_l0", "tile_window_l1", "tile_window_r0", "tile_window_r1"])
 
 
 def load_config():
     with open(CONFIG, encoding="utf-8") as fh:
         return json.load(fh)
+
+
+def looks(cfg):
+    return list(cfg.get("looks", {}).keys())
+
+
+def look_cfg(cfg, look):
+    """The config with one look's floor and wall laid over the classroom's."""
+    v = dict(cfg)
+    lk = cfg["looks"][look]
+    v["floor"] = dict(cfg["floor"], **lk.get("floor", {}))
+    v["wall"] = dict(cfg["wall"], **lk.get("wall", {}))
+    return v
+
+
+def _outputs():
+    if not os.path.exists(CONFIG):
+        return list(BASE)
+    out = list(BASE)
+    for lk in looks(load_config()):
+        out += ["%s_%s" % (n, lk) for n in BASE]
+    return out
+
+
+OUTPUTS = _outputs()
+
+
+def build_all(cfg, pack):
+    """{name: image} for the classroom's tiles and every look's."""
+    tiles = build(cfg, pack)
+    for lk in looks(cfg):
+        for n, im in build(look_cfg(cfg, lk), pack).items():
+            tiles["%s_%s" % (n, lk)] = im
+    return tiles
 
 
 def owned_names():
@@ -151,12 +192,14 @@ def main(argv):
     flags = [a for a in argv if a.startswith("--")]
     cfg = load_config()
     pack = limezu.need_pack("interiors")
-    tiles = build(cfg, pack)
     if "--preview" in flags:
         out = [a for a in argv if a.endswith(".png")][0]
+        want = [a for a in argv if not a.startswith("--") and not a.endswith(".png")]
+        tiles = build(look_cfg(cfg, want[0]) if want else cfg, pack)
         compose_room(tiles).convert("RGB").save(out)
         print("preview ->", out)
         return 0
+    tiles = build_all(cfg, pack)
     check = "--check" in flags
     wrote = bad = 0
     for name in OUTPUTS:

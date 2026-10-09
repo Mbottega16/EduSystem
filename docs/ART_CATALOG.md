@@ -63,6 +63,11 @@ trusting it's still accurate.
 > The teachers you hire have faces now: `staff_a` .. `staff_d`, four adult sheets
 > baked from `limezu_cast.json` (no portraits), picked by name (`Staff.art_for`)
 > and seen when you walk into a room you hold (`visit_room.gd`).
+> Spaces off the corridor wear their own floor and walls: `tools/limezu_room.json`
+> `looks` names six more Room Builder floor + wall pairs (`office`, `room_a` ..
+> `room_e`), each building the same 18 room tiles again as `tile_*_<look>` (108
+> PNGs). The principal's office is dark wood under a cream-and-green wall; each room
+> you hold takes the next room look in turn (`RoomBuilder.ROOM_LOOKS`).
 
 ## Characters — animated sheets (`tools/make_art.py::make_character`)
 

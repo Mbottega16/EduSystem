@@ -7944,6 +7944,10 @@ func test_hallway() -> void:
 	chk("a staffed room's door walks you into the room",
 		world.player.get_parent() == visit and visit.visible and not hallway.visible
 		and visit.room_index == ri, [world.player.get_parent(), visit.room_index])
+	chk("in its own floor and walls, not a copy of the classroom's",
+		visit._look == RoomBuilder.ROOM_LOOKS[ri % RoomBuilder.ROOM_LOOKS.size()]
+		and ResourceLoader.exists("res://art/tile_floor_a0_%s.png" % visit._look)
+		and ResourceLoader.exists("res://art/tile_wall_top0_%s.png" % visit._look), visit._look)
 	chk("its own class sits at the desks, one child a desk",
 		visit.pupils.size() == (Game.rooms[ri]["roster"] as Array).size(), visit.pupils.size())
 	chk("and the teacher you hired is at the front, in their own clothes",

@@ -87,6 +87,10 @@ var _target := FRONT
 ## rebuilt by show_room(). The shell -- floor, walls, the door -- is built once.
 var _contents: Array = []
 var _built := false
+## Which of RoomBuilder.ROOM_LOOKS this room wears -- its own floor and walls,
+## so the rooms you hold are not six copies of one -- and the painted shell.
+var _look := ""
+var _room_art: Sprite2D = null
 
 
 func _ready() -> void:
@@ -98,14 +102,14 @@ func _build_shell() -> void:
 	if _built:
 		return
 	_built = true
-	var art := Sprite2D.new()
-	art.name = "RoomArt"
-	art.texture = _compose()
-	art.centered = false
-	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	art.position = Vector2(-Grid.TILE, -16.0)
-	art.z_index = -20
-	add_child(art)
+	_room_art = Sprite2D.new()
+	_room_art.name = "RoomArt"
+	_room_art.texture = _compose()
+	_room_art.centered = false
+	_room_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_room_art.position = Vector2(-Grid.TILE, -16.0)
+	_room_art.z_index = -20
+	add_child(_room_art)
 	for seg: Rect2 in [
 		Rect2(0.0, WALL_FOOT - 16.0, ROOM_W, 16.0),
 		Rect2(0.0, ROOM_H, ROOM_W, 16.0),
@@ -137,6 +141,8 @@ func show_room(i: int) -> void:
 	if i < 0 or i >= Game.rooms.size():
 		return
 	var r: Dictionary = Game.rooms[i]
+	_look = String(RoomBuilder.ROOM_LOOKS[i % RoomBuilder.ROOM_LOOKS.size()])
+	_room_art.texture = _compose()
 	for row: Array in FIXED:
 		_add_prop(String(row[0]), row[1] as Vector2, String(row[2]))
 	Balance.ensure_loaded()
@@ -267,13 +273,13 @@ func _compose() -> ImageTexture:
 	var src := Rect2i(0, 0, t, t)
 	var floors: Array[Image] = []
 	for i in RoomBuilder.FLOOR_VARIANTS:
-		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i))
-		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i))
-	var wall := [RoomBuilder._tile_img("tile_wall_top0"), RoomBuilder._tile_img("tile_wall_top1")]
-	var win := [[RoomBuilder._tile_img("tile_window_l0"), RoomBuilder._tile_img("tile_window_r0")],
-		[RoomBuilder._tile_img("tile_window_l1"), RoomBuilder._tile_img("tile_window_r1")]]
-	var side := RoomBuilder._tile_img("tile_wall_side")
-	var bottom := RoomBuilder._tile_img("tile_wall_bottom")
+		floors.append(RoomBuilder._tile_img("tile_floor_a%d" % i, _look))
+		floors.append(RoomBuilder._tile_img("tile_floor_b%d" % i, _look))
+	var wall := [RoomBuilder._tile_img("tile_wall_top0", _look), RoomBuilder._tile_img("tile_wall_top1", _look)]
+	var win := [[RoomBuilder._tile_img("tile_window_l0", _look), RoomBuilder._tile_img("tile_window_r0", _look)],
+		[RoomBuilder._tile_img("tile_window_l1", _look), RoomBuilder._tile_img("tile_window_r1", _look)]]
+	var side := RoomBuilder._tile_img("tile_wall_side", _look)
+	var bottom := RoomBuilder._tile_img("tile_wall_bottom", _look)
 	var foot := int(WALL_FOOT) + 16
 	var y := foot
 	var row := 0
@@ -296,8 +302,8 @@ func _compose() -> ImageTexture:
 		im.blit_rect(side, src, Vector2i(0, yy))
 		im.blit_rect(side, src, Vector2i(w - t, yy))
 		yy += t
-	im.blit_rect(RoomBuilder._tile_img("tile_door_top"), src, Vector2i(0, 16 + 104))
-	im.blit_rect(RoomBuilder._tile_img("tile_door_bottom"), src, Vector2i(0, 16 + 136))
+	im.blit_rect(RoomBuilder._tile_img("tile_door_top", _look), src, Vector2i(0, 16 + 104))
+	im.blit_rect(RoomBuilder._tile_img("tile_door_bottom", _look), src, Vector2i(0, 16 + 136))
 	return ImageTexture.create_from_image(im)
 
 

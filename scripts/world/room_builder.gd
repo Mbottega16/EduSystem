@@ -158,8 +158,21 @@ static func build_floor(parent: Node2D) -> void:
 	parent.add_child(floor_spr)
 
 
-static func _tile_img(name: String) -> Image:
-	var tex: Texture2D = load("res://art/%s.png" % name)
+## The other floor-and-wall pairs a space off the corridor can wear
+## (tools/limezu_room.json "looks"): the principal's office, and one per room
+## you hold, cycled. Each is the same 18 tiles with `_<look>` on the name.
+const LOOKS := ["office", "room_a", "room_b", "room_c", "room_d", "room_e"]
+const ROOM_LOOKS := ["room_a", "room_b", "room_c", "room_d", "room_e"]
+
+
+## A room tile by name, in `look` if one is given -- the classroom's own
+## otherwise, and the classroom's own if that look has no such tile.
+static func _tile_img(name: String, look: String = "") -> Image:
+	var tex: Texture2D = null
+	if look != "" and ResourceLoader.exists("res://art/%s_%s.png" % [name, look]):
+		tex = load("res://art/%s_%s.png" % [name, look])
+	if tex == null:
+		tex = load("res://art/%s.png" % name)
 	return tex.get_image() if tex != null else null
 
 
