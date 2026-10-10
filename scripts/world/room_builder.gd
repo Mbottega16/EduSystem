@@ -72,6 +72,7 @@ const ANSWER_ALL_CALLER_SCRIPT := preload("res://scripts/interact/answer_all_cal
 const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
+const GRADE_BOOK_SCRIPT := preload("res://scripts/interact/grade_book.gd")
 const DESK_INTERRUPTION_SCRIPT := preload("res://scripts/interact/desk_interruption.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
@@ -421,6 +422,11 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	var rp := Interactable.new()
 	rp.set_script(DESK_INTERRUPTION_SCRIPT)
 	body.add_child(rp)
+	# Fourth: the register lying open on the desk is the grade book (Oct
+	# 2026), read on its own key. See grade_book.gd for why not E.
+	var gb := Interactable.new()
+	gb.set_script(GRADE_BOOK_SCRIPT)
+	body.add_child(gb)
 	# A mug of coffee on the right of the desk, steaming. The room had
 	# nothing that moved on its own but a fish tank and a butterfly; a
 	# teacher's desk with a hot drink on it is lived in. Sits on the desk's

@@ -18,7 +18,7 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES }
+	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -1265,6 +1265,7 @@ const HELP_LINES := {
 	"quiz": "A quick quiz, mid-lesson. Costs time, tells you who is behind.",
 	"answer_all": "Unstick the whole room at once. Long wait after.",
 	"homework": "Mark the homework you collected, at your desk.",
+	"grades": "Every grade you have given, read at your desk.",
 	"move_desk": "Move a desk. Desks that touch get talking.",
 	"voice": "Settle the desks within earshot.",
 	"call_response": "Class, class! The room is with you a while, anywhere.",
@@ -3869,6 +3870,229 @@ func _handle_trophies_input() -> void:
 		show_trophies()
 
 
+# ------------------------------------------------------------ the grade book
+#
+# The owner's ask (Oct 2026): "keep a log book of all the grades on the table
+# where you submit the papers". The register lying open on your desk, read on
+# its own key (U, interact/grade_book.gd): every grade the run has given
+# (Game.grade_log), in the same open book the curriculum and the lesson plans
+# use. Like a real register it fills a page at a time, and a new term starts a
+# new page. The left page says which lessons a page holds; the right page is
+# the register itself -- a row per child, a letter per lesson. The children
+# who have since moved up keep their rows, which is what a transcript, which
+# leaves with its child, cannot do.
+#
+# Letters, never the numbers under them. A letter is how this game already
+# reports a grade (the lesson report, the exam); "prose, never numbers" bans
+# the 0.62 behind it, not the B. The days heading the columns are a day
+# counter -- the rule's own sanctioned exception.
+
+## Lessons to a page.
+const GRADE_BOOK_COLS := 5
+## Children to a page before it scrolls on Up/Down: with the header row and a
+## mark for more above or below, the right page's ten rows.
+const GRADE_BOOK_ROWS := 7
+## The ink a middling grade is written in: plain, neither good nor bad news.
+const INK_PLAIN := "3d3428"
+## Space either side of a letter in the register: 12px letter + 2 x 6 is a
+## 24px column, five of them and a name fit the page's 256px.
+const GB_PAD := 6
+## Which page is open, counting from the first; -1 opens on the newest.
+var _gb_page: int = -1
+## The first child row shown, when the class is longer than the page.
+var _gb_top: int = 0
+
+
+## The book cut into its pages: GRADE_BOOK_COLS entries each, and never two
+## terms on one page. [[entry, ...], ...], oldest first.
+func grade_book_pages() -> Array:
+	var pages: Array = []
+	var cur: Array = []
+	var cur_term := -1
+	for e: Dictionary in Game.grade_log:
+		var t := int(e.get("term", 1))
+		if not cur.is_empty() and (t != cur_term or cur.size() >= GRADE_BOOK_COLS):
+			pages.append(cur)
+			cur = []
+		cur_term = t
+		cur.append(e)
+	if not cur.is_empty():
+		pages.append(cur)
+	return pages
+
+
+## The children with a grade on this page, as {id, name, here}: the class as
+## it sits now first, in seat order, then anyone who has moved on since, in
+## the order the book first meets them -- their rows stay, written in fainter.
+func grade_book_children(page: Array) -> Array:
+	var on_page := {}
+	for e: Dictionary in page:
+		for r: Dictionary in e.get("rows", []):
+			on_page[int(r.get("id", -1))] = String(r.get("name", ""))
+	var out: Array = []
+	var now := Game.roster.duplicate()
+	now.sort_custom(func(a: StudentData, b: StudentData) -> bool:
+		return a.seat_index < b.seat_index)
+	for s: StudentData in now:
+		if on_page.has(s.id):
+			out.append({"id": s.id, "name": s.first_name(), "here": true})
+			on_page.erase(s.id)
+	for e: Dictionary in page:
+		for r: Dictionary in e.get("rows", []):
+			var rid := int(r.get("id", -1))
+			if on_page.has(rid):
+				out.append({"id": rid, "name": String(on_page[rid]), "here": false})
+				on_page.erase(rid)
+	return out
+
+
+## One child's grade in one entry of the book, or -1 if they had none there.
+static func _grade_in(entry: Dictionary, sid: int) -> float:
+	for r: Dictionary in entry.get("rows", []):
+		if int(r.get("id", -1)) == sid:
+			return float(r.get("grade", 0.0))
+	return -1.0
+
+
+## A grade as the book writes it: the letter, in ink that says how it went --
+## green for the top two, red for the bottom ones, plain for the middle.
+func _book_letter(g: float) -> String:
+	var l := Game.grade_letter(g)
+	var hue := INK_PLAIN
+	if l == "A" or l == "B":
+		hue = _on_paper(C_GOOD)
+	elif l == "D" or l == "E" or l == "F":
+		hue = _on_paper(C_BAD)
+	return "[color=#%s]%s[/color]" % [hue, l]
+
+
+## What heads an entry's column, and names it on the left page: its day, or
+## "Ex" for the term exam, which is sat at the bell of the last one.
+static func _book_day(entry: Dictionary) -> String:
+	if String(entry.get("kind", "")) == "exam":
+		return "Ex"
+	return str(int(entry.get("day", 0)))
+
+
+## Opened at the desk: on the newest page, from the top of the class.
+func open_grade_book() -> void:
+	_gb_page = -1
+	_gb_top = 0
+	show_grade_book()
+
+
+func show_grade_book() -> void:
+	_open(Mode.GRADE_BOOK)
+	body.visible = false
+	rich.visible = true
+	_book(true)
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	title.text = "THE GRADE BOOK"
+	var pages := grade_book_pages()
+	if pages.is_empty():
+		_gb_page = -1
+		rich_left.text = "[color=#%s]Nothing written in it yet.[/color]" % INK_DIM
+		rich.text = "Every grade you give goes in here, lesson by lesson, and stays after the child has moved on."
+		_reveal_rich(0.2)
+		hint.text = "Esc - close"
+		return
+	if _gb_page < 0 or _gb_page >= pages.size():
+		_gb_page = pages.size() - 1
+	_book_turned(_gb_page)
+	var page: Array = pages[_gb_page]
+
+	# --- the left page: which lessons these are ---
+	var legend := ""
+	var total := 0.0
+	var marks := 0
+	for e: Dictionary in page:
+		var label := String(e.get("name", ""))
+		match String(e.get("kind", "lesson")):
+			"test":
+				label += " test"
+		var hue := strand_colour(String(e.get("strand", "")))
+		if String(e.get("kind", "")) == "exam":
+			hue = C_COIN
+		legend += "[cell padding=0,0,8,0][color=#%s]%s[/color][/cell][cell][color=#%s]%s[/color][/cell]" % [
+			INK_DIM, _book_day(e), _on_paper(hue), _fit_px(label, 186)]
+		for r: Dictionary in e.get("rows", []):
+			total += float(r.get("grade", 0.0))
+			marks += 1
+	var left: Array[String] = []
+	left.append("[color=#%s]Term %d[/color]" % [_on_paper(C_LESSON),
+		int((page[0] as Dictionary).get("term", 1))])
+	left.append("[table=2]%s[/table]" % legend)
+	if marks > 0:
+		var avg := Game.grade_letter(total / float(marks))
+		left.append("[font_size=%d][color=#%s]On these the class comes out at %s %s.[/color][/font_size]" % [
+			UI_SMALL, INK_DIM, "an" if avg in ["A", "E", "F"] else "a", avg])
+	left.append("[font_size=%d][color=#%s]Page %d of %d[/color][/font_size]" % [
+		UI_SMALL, INK_DIM, _gb_page + 1, pages.size()])
+	rich_left.text = "\n".join(left)
+
+	# --- the right page: the register ---
+	var kids := grade_book_children(page)
+	_gb_top = clampi(_gb_top, 0, maxi(0, kids.size() - GRADE_BOOK_ROWS))
+	# A table cell is only as wide as its text, and in this Godot an expand
+	# ratio does not widen a one-word column -- the letters ran together into
+	# one word ("BAADD"). Padding spaces them instead: every letter is the same
+	# 12px in this font and so is every small day number, so even padding
+	# either side keeps each one centred over its column.
+	var col := "[cell padding=%d,0,%d,0]" % [GB_PAD, GB_PAD]
+	var cells := "[cell padding=0,0,10,0] [/cell]"
+	for e: Dictionary in page:
+		cells += "%s[font_size=%d][color=#%s]%s[/color][/font_size][/cell]" % [
+			col, UI_SMALL, INK_DIM, _book_day(e)]
+	for k: Dictionary in kids.slice(_gb_top, _gb_top + GRADE_BOOK_ROWS):
+		cells += "[cell padding=0,0,10,0][color=#%s]%s[/color][/cell]" % [
+			INK_PLAIN if bool(k["here"]) else INK_DIM, _fit_px(String(k["name"]), 96)]
+		for e: Dictionary in page:
+			var g := _grade_in(e, int(k["id"]))
+			cells += "%s%s[/cell]" % [col,
+				_book_letter(g) if g >= 0.0 else "[color=#%s]-[/color]" % INK_DIM]
+	var right: Array[String] = []
+	if _gb_top > 0:
+		right.append("[center][color=#%s]^ more above[/color][/center]" % INK_DIM)
+	right.append("[table=%d]%s[/table]" % [page.size() + 1, cells])
+	if _gb_top + GRADE_BOOK_ROWS < kids.size():
+		right.append("[center][color=#%s]v more below[/color][/center]" % INK_DIM)
+	rich.text = "\n".join(right)
+	_reveal_rich(0.25)
+	hint.text = _hint_clip("Left/Right - turn the page%s   Esc - close" % (
+		"   Up/Down - more names" if kids.size() > GRADE_BOOK_ROWS else ""))
+
+
+func _handle_grade_book_input() -> void:
+	var pages := grade_book_pages().size()
+	if Input.is_action_just_pressed("cancel") or Game.claim_interact() \
+			or Game.claim_action("grades"):
+		Sfx.play("blip")
+		close()
+	elif pages > 0 and Input.is_action_just_pressed("move_left"):
+		if _gb_page > 0:
+			_gb_page -= 1
+			_gb_top = 0
+			show_grade_book()
+		else:
+			Sfx.play("deny")              # the first page: nothing earlier
+	elif pages > 0 and Input.is_action_just_pressed("move_right"):
+		if _gb_page < pages - 1:
+			_gb_page += 1
+			_gb_top = 0
+			show_grade_book()
+		else:
+			Sfx.play("deny")              # the newest page: nothing later yet
+	elif pages > 0 and Input.is_action_just_pressed("move_down"):
+		_gb_top += 1
+		Sfx.play("blip")
+		show_grade_book()
+	elif pages > 0 and Input.is_action_just_pressed("move_up"):
+		_gb_top = maxi(0, _gb_top - 1)
+		Sfx.play("blip")
+		show_grade_book()
+
+
 ## What kind of teacher are you?
 ##
 ## Asked once, at the start of a run. Your own subject is a step easier to
@@ -5557,6 +5781,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.TROPHIES:
 		_handle_trophies_input()
+		return
+
+	if mode == Mode.GRADE_BOOK:
+		_handle_grade_book_input()
 		return
 
 	if mode == Mode.HELP:

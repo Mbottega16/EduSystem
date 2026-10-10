@@ -196,6 +196,7 @@ func _main() -> void:
 	await test_book_pages()
 	await test_chatter()
 	await test_study_folder()
+	await test_grade_book()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -10858,6 +10859,185 @@ func test_study_folder() -> void:
 	chk("the room does, in a lesson", cls_src.contains("Game.tick_desk_tops("))
 
 	Layout.reset_seats()
+	Game.new_run(SEED)
+	await step(2)
+
+
+## THE GRADE BOOK (Oct 2026, the owner's ask: "keep a log book of all the
+## grades on the table where you submit the papers"). Every grade the run
+## gives is written into Game.grade_log as it is given; the register lying
+## open on your desk is where you read it, on its own key.
+func test_grade_book() -> void:
+	section("GRADE BOOK")
+	var hud := _hud()
+	var p: Node = world.player
+	Game.new_run(SEED)
+	await step(2)
+	chk("a new career's book is empty", Game.grade_log.is_empty())
+
+	# --- it is written as grades are given, by the real grading ---
+	for s: StudentData in Game.roster:
+		s.reset_lesson()
+		s.assign_work()
+	var results := Game.grade_class()
+	chk("grading a lesson writes it in", Game.grade_log.size() == 1, Game.grade_log.size())
+	var e: Dictionary = Game.grade_log[0]
+	chk("...as a lesson, on its day, in its term", String(e.get("kind", "")) == "lesson"
+		and int(e.get("day", -1)) == Game.day and int(e.get("term", -1)) == Game.term)
+	chk("...under the lesson's name", String(e.get("name", "")) == String(
+		Game.lesson.get("name", "Lesson")))
+	chk("...a row for every child, with the grade they were given", (func() -> bool:
+		var rows: Array = e.get("rows", [])
+		if rows.size() != results.size():
+			return false
+		for i in results.size():
+			var s: StudentData = results[i]["student"]
+			if int(rows[i]["id"]) != s.id or String(rows[i]["name"]) != s.first_name() \
+					or not is_equal_approx(float(rows[i]["grade"]), float(results[i]["grade"])):
+				return false
+		return true).call())
+	Game.day += 1
+	Game.grade_test()
+	chk("a unit test goes in, marked as a test", Game.grade_log.size() == 2
+		and String(Game.grade_log[1].get("kind", "")) == "test")
+
+	# an older save, written before the book: this term comes back from the
+	# class's own records
+	var old: Dictionary = JSON.parse_string(JSON.stringify(Game.to_dict()))
+	old.erase("grade_log")
+	Game.from_dict(old)
+	chk("a save from before the book opens with this term written back in",
+		Game.grade_log.size() == 2
+		and String(Game.grade_log[0].get("kind", "")) == "lesson"
+		and String(Game.grade_log[1].get("kind", "")) == "test"
+		and (Game.grade_log[0].get("rows", []) as Array).size() == Game.roster.size(),
+		Game.grade_log.size())
+
+	# the exam goes in when the term closes, and the children who moved up
+	# keep their rows after they have gone
+	var first_ids: Array = []
+	for r: Dictionary in Game.grade_log[0].get("rows", []):
+		first_ids.append(int(r["id"]))
+	Game.next_term()
+	var exam_in := false
+	for x: Dictionary in Game.grade_log:
+		if String(x.get("kind", "")) == "exam" and not (x.get("rows", []) as Array).is_empty():
+			exam_in = true
+	chk("the term exam goes in when the term closes", exam_in)
+	chk("the book keeps every row it was given, whoever has left since",
+		(Game.grade_log[0].get("rows", []) as Array).size() == first_ids.size())
+
+	# saved, and a new career starts a new book
+	var kept := Game.grade_log.duplicate(true)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(Game.to_dict()))
+	Game.grade_log.clear()
+	Game.from_dict(saved)
+	chk("a save keeps the book", Game.grade_log.size() == kept.size()
+		and String(Game.grade_log[0].get("name", "")) == String(kept[0].get("name", "")))
+	Game.new_run(SEED)
+	await step(2)
+	chk("a new career starts a new book", Game.grade_log.is_empty())
+
+	# --- the page ---
+	hud.open_grade_book()
+	chk("an empty book says so rather than showing a blank page",
+		hud.mode == hud.Mode.GRADE_BOOK and hud.rich.text.contains("Every grade you give"))
+	hud.close()
+	# seven entries: a full page and two on the next, and one child who has
+	# moved on before the last of them
+	var gone := StudentData.new()
+	gone.id = 9999
+	gone.display_name = "Mo Pike"
+	for i in 7:
+		var res: Array = []
+		for s: StudentData in Game.roster:
+			res.append({"student": s, "grade": 0.42 + 0.11 * float((s.id + i) % 6)})
+		if i < 2:
+			res.append({"student": gone, "grade": 0.7})
+		Game.day = 3 + i
+		Game.log_grades("test" if i == 3 else "lesson", "Lesson %s" % ["A", "B", "C", "D", "E", "F", "G"][i],
+			"math", res)
+	chk("five lessons to a page", hud.grade_book_pages().size() == 2
+		and (hud.grade_book_pages()[0] as Array).size() == hud.GRADE_BOOK_COLS)
+	hud.open_grade_book()
+	chk("the book opens on the newest page", hud._gb_page == 1, hud._gb_page)
+	chk("...its lessons named on the left page", hud.rich_left.text.contains("Lesson F")
+		and hud.rich_left.text.contains("Lesson G") and not hud.rich_left.text.contains("Lesson A"))
+	var strip_tags := RegEx.new()
+	strip_tags.compile("\\[[^\\]]*\\]")
+	var right_plain := strip_tags.sub(hud.rich.text, "", true)
+	chk("...the register on the right: every child, a letter a lesson",
+		(func() -> bool:
+			for s: StudentData in Game.roster:
+				if not right_plain.contains(s.first_name()):
+					return false
+			return right_plain.contains(Game.grade_letter(0.42 + 0.11 * float(
+				(Game.roster[0].id + 5) % 6)))).call(), right_plain)
+	var decimal := RegEx.new()
+	decimal.compile("[0-9][.,][0-9]|%")
+	chk("...a letter, never the number behind it", decimal.search(right_plain) == null
+		and decimal.search(strip_tags.sub(hud.rich_left.text, "", true)) == null)
+	chk("the page fits its paper", not hud._rich_overflows()
+		and hud.rich_left.get_content_height() <= int(hud.rich_left.size.y),
+		[hud.rich.get_content_height(), hud.rich_left.get_content_height()])
+	await tap("move_left")
+	chk("Left turns back a page", hud._gb_page == 0 and hud.rich_left.text.contains("Lesson A"))
+	chk("...a test is marked as one", hud.rich_left.text.contains("Lesson D test"))
+	chk("a child who has moved on keeps their rows, in fainter ink",
+		strip_tags.sub(hud.rich.text, "", true).contains("Mo")
+		and hud.rich.text.contains("[color=#%s]Mo" % hud.INK_DIM))
+	await tap("move_right")
+	chk("Right turns forward again", hud._gb_page == 1)
+	await tap("cancel")
+	chk("Esc closes it", hud.mode == hud.Mode.NONE)
+
+	# a class longer than the page scrolls
+	while Game.enrol() != null:
+		pass
+	var big: Array = []
+	for s: StudentData in Game.roster:
+		big.append({"student": s, "grade": 0.8})
+	big.append({"student": gone, "grade": 0.6})
+	Game.log_grades("lesson", "Lesson H", "math", big)
+	hud.open_grade_book()
+	chk("a long class says there is more below", hud.rich.text.contains("more below"),
+		Game.roster.size())
+	chk("...and still fits", not hud._rich_overflows(), hud.rich.get_content_height())
+	await tap("move_down")
+	chk("Down scrolls the names", hud._gb_top == 1 and hud.rich.text.contains("more above"))
+	hud.close()
+
+	# --- at your desk, on its own key ---
+	chk("the grade book is a real, rebindable action with its own key",
+		Settings.DEFAULTS.has("grades") and InputMap.has_action("grades")
+		and hud.HELP_LINES.has("grades") and (func() -> bool:
+			var mine: Array = Settings.DEFAULTS["grades"]
+			for k: String in Settings.DEFAULTS:
+				if k != "grades":
+					for code in Settings.DEFAULTS[k]:
+						if mine.has(code):
+							return false
+			return true).call())
+	world.player.input_locked = false
+	await place_player(Layout.TEACHER_DESK[0] + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	chk("standing at your desk, the book is on offer", (func() -> bool:
+		var t: Interactable = p.targets["grades"]
+		return t != null and t.prompt_text() == "Read the grade book").call(),
+		p.targets["grades"])
+	chk("...on its own key, never E -- E still hands in your sheets", (func() -> bool:
+		var t: Interactable = p.targets["grades"]
+		return t != null and t.action_name() == "grades").call())
+	chk("...and the badge over the teacher says so", (p.badge_texts() as Array).any(
+		func(b: Variant) -> bool: return String(b).contains("grade book")), p.badge_texts())
+	await tap("grades")
+	chk("pressing it opens the book", hud.mode == hud.Mode.GRADE_BOOK, hud.mode)
+	await tap("grades")
+	chk("...and pressing it again closes it", hud.mode == hud.Mode.NONE, hud.mode)
+	await place_player(Vector2i(14, 9), Actor.DIR_UP)
+	await step(2)
+	chk("across the room it is not on offer", p.targets["grades"] == null)
+
 	Game.new_run(SEED)
 	await step(2)
 

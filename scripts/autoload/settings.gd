@@ -28,6 +28,7 @@ const ACTIONS := [
 	{"action": "quiz", "label": "Quick quiz"},
 	{"action": "answer_all", "label": "Answer all"},
 	{"action": "homework", "label": "Mark homework"},
+	{"action": "grades", "label": "Read the grade book"},
 	{"action": "move_desk", "label": "Move a desk"},
 	{"action": "voice", "label": "Settle the room"},
 	{"action": "call_response", "label": "Class, class! (call them back)"},
@@ -63,6 +64,10 @@ const DEFAULTS := {
 	"quiz": [KEY_Q],
 	"answer_all": [KEY_J],
 	"homework": [KEY_H],
+	# U, beside H: the two things you do with the paper on your own desk --
+	# mark what came in, read back what you gave. G (for grades) was already
+	# letting a hired teacher go.
+	"grades": [KEY_U],
 	"move_desk": [KEY_M],
 	"voice": [KEY_C],
 	# Y for "Yes, yes!" -- what the room shouts back. One of the few letters

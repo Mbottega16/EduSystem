@@ -29,6 +29,7 @@ func _ready() -> void:
 	world.answer_all_requested.connect(_run_answer_all)
 	world.curriculum_requested.connect(hud.show_curriculum)
 	world.marking_requested.connect(hud.open_marking)
+	world.grade_book_requested.connect(hud.open_grade_book)
 	world.test_requested.connect(func(lid: String) -> void: world.start_test(lid))
 	world.lesson_auto_ended.connect(_on_lesson_ended)
 	world.auto_lesson_resolved.connect(_on_auto_lesson_resolved)

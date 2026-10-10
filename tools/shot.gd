@@ -587,6 +587,21 @@ func _open_screen(main: Node, screen: String) -> void:
 		# code. It taught basic_arithmetic x7, reading_fluency x4 and
 		# science_basics once; the surviving arm teaches all lessons x4,
 		# which is what every "curriculum" screenshot has actually shown.
+		"at_desk", "help_sheet":
+			# at_desk: standing at your own desk, carrying a sheet -- E hands it
+			# in, and the grade book is on its own key beside it. help_sheet:
+			# the in-play key sheet, scrolled to the grade book's row.
+			Game.intro_seen = true
+			hud.close()
+			if screen == "help_sheet":
+				hud._sel = Settings.ACTIONS.map(func(a: Dictionary) -> String:
+					return String(a["action"])).find("grades")
+				hud.show_help()
+				return
+			world.player.carry_work(1)
+			world.player.facing = Actor.DIR_UP
+			world.player.global_position = Grid.tile_to_world(
+				Layout.TEACHER_DESK[0] + Vector2i(0, 1))
 		"at_board":
 			# standing at the noticeboard: BOTH buttons must be named
 			Game.set_phase(Game.Phase.AFTERNOON)
@@ -718,6 +733,33 @@ func _open_screen(main: Node, screen: String) -> void:
 				hud.show_student(Game.roster[0])
 				hud._bio_page = hud.BIO_ACTING
 				hud.show_student(Game.roster[0])
+		"grade_book", "grade_book_empty":
+			# The grade book on the teacher's desk (hud.show_grade_book()).
+			# grade_book: a page of five -- four lessons and a unit test --
+			# written through Game.log_grades(), the function the real
+			# grading calls, with grades spread across the bands so every
+			# ink shows, and a child who has since moved up still in the
+			# first two columns, in fainter ink.
+			Game.intro_seen = true
+			hud.close()
+			Game.grade_log.clear()
+			if screen == "grade_book":
+				var gone := StudentData.new()
+				gone.id = 9999
+				gone.display_name = "Mo Pike"
+				var pages := [["Fractions", "math"], ["Phonics", "ela"],
+					["Habitats", "science"], ["Our Town", "social"], ["Fractions", "math"]]
+				for i in pages.size():
+					var res: Array = []
+					for s: StudentData in Game.roster:
+						res.append({"student": s,
+							"grade": 0.42 + 0.11 * float((s.id * 3 + i) % 6)})
+					if i < 2:
+						res.append({"student": gone, "grade": 0.7})
+					Game.day = 3 + i
+					Game.log_grades("test" if i == 4 else "lesson",
+						String(pages[i][0]), String(pages[i][1]), res)
+			hud.open_grade_book()
 		"folder", "folder_place", "folder_shop":
 			# The study folder (Game.desk_items). folder: two pairs of desks
 			# pushed together in a lesson. The pair with a folder between them

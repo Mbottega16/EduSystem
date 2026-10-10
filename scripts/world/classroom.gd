@@ -44,6 +44,9 @@ signal fight_banner(text: String)
 signal fight_ended(report: Dictionary)
 signal curriculum_requested()
 signal marking_requested()
+## The grade book on your desk was opened (interact/grade_book.gd). Relayed
+## by main.gd to the HUD, like marking.
+signal grade_book_requested()
 ## Someone is at your desk and this one wants an answer, not a nod.
 ## Relayed by main.gd to the HUD, exactly like quiz/marking -- the
 ## room does not reach into a screen itself.
@@ -197,6 +200,7 @@ func build() -> void:
 	for hw in get_tree().get_nodes_in_group("homework_desk"):
 		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
 			hw.marking_requested.connect(_on_marking_requested)
+	_connect_grade_book()
 	for rp in get_tree().get_nodes_in_group("interruption_desk"):
 		if rp is Interactable and not rp.interruption_answered.is_connected(_on_interruption_answered):
 			rp.interruption_answered.connect(_on_interruption_answered)
@@ -464,6 +468,7 @@ func rebuild_room() -> void:
 	for hw in get_tree().get_nodes_in_group("homework_desk"):
 		if hw is Interactable and not hw.marking_requested.is_connected(_on_marking_requested):
 			hw.marking_requested.connect(_on_marking_requested)
+	_connect_grade_book()
 	for rp in get_tree().get_nodes_in_group("interruption_desk"):
 		if rp is Interactable and not rp.interruption_answered.is_connected(_on_interruption_answered):
 			rp.interruption_answered.connect(_on_interruption_answered)
@@ -1740,6 +1745,18 @@ func _on_curriculum_requested() -> void:
 
 func _on_marking_requested() -> void:
 	marking_requested.emit()
+
+
+## The desk is rebuilt with the room, so its grade book is a new object each
+## time and has to be reconnected -- same as everything above it.
+func _connect_grade_book() -> void:
+	for gb in get_tree().get_nodes_in_group("grade_book"):
+		if gb is Interactable and not gb.grade_book_opened.is_connected(_on_grade_book_requested):
+			gb.grade_book_opened.connect(_on_grade_book_requested)
+
+
+func _on_grade_book_requested() -> void:
+	grade_book_requested.emit()
 
 
 func _on_test_requested(lesson_id: String) -> void:

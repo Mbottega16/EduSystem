@@ -740,6 +740,7 @@ func new_run(seed_value: int = 0) -> void:
 	room_items.clear()
 	cabinet.clear()
 	desk_items.clear()
+	grade_log.clear()
 	desks_in_store = 0
 	homework_out = false
 	subject = pick_subject()
@@ -1487,6 +1488,9 @@ func met_target(passed: int) -> bool:
 func next_term() -> Dictionary:
 	Balance.ensure_loaded()
 	var result := exam_result if not exam_result.is_empty() else sit_exam()
+	# The exam goes in the grade book here, where the term is closed -- once,
+	# whichever way it was reached -- and before the class moves on.
+	log_grades("exam", "Term exam", "", result.get("rows", []))
 
 	# Missing the target ends the RUN. Everything below still happens, so
 	# the final screen can say what the term was, but no next term opens.
@@ -2078,6 +2082,7 @@ func grade_test() -> Array:
 		s.record_result(lesson, g, day, true)
 		s.add_xp(Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
+	log_grades("test", String(lesson.get("name", "Lesson")), lesson_strand(), out)
 	test_active = false
 	return out
 
@@ -3125,6 +3130,70 @@ func grade_for(s: StudentData) -> float:
 	return clampf(room_score(s.seat_index) + lesson + hw + expertise, 0.0, 1.0)
 
 
+# --- the grade book ---------------------------------------------------------
+#
+# The owner's ask (Oct 2026): "keep a log book of all the grades on the table
+# where you submit the papers". Every grade this run has given, in the order
+# it was given: one entry per lesson, unit test and term exam, each row a
+# child's id, first name and grade. It is the TEACHER's record, kept apart
+# from each child's transcript on purpose -- a transcript leaves with its
+# child when they move up, and the book keeps them. Read at the register
+# lying open on your desk (interact/grade_book.gd, hud.show_grade_book()).
+# Saved, and cleared by new_run(); it only ever records grades the game
+# already gave, so it cannot move anything.
+
+## [{term, day, kind ("lesson" | "test" | "exam"), name, strand, rows:
+## [{id, name, grade}]}], oldest first.
+var grade_log: Array = []
+
+
+## Write one page of the book: `results` as grade_class()/grade_test() return
+## them ({student, grade}) or as the exam's rows ({student, score}).
+func log_grades(kind: String, title: String, strand: String, results: Array) -> void:
+	var rows: Array = []
+	for r: Dictionary in results:
+		var s: StudentData = r.get("student", null)
+		if s == null:
+			continue
+		rows.append({"id": s.id, "name": s.first_name(),
+			"grade": float(r.get("grade", r.get("score", 0.0)))})
+	if rows.is_empty():
+		return
+	grade_log.append({"term": term, "day": day, "kind": kind, "name": title,
+		"strand": strand, "rows": rows})
+
+
+## A save from before the book existed: write this term back into it from the
+## class's own records, so the book does not open empty on a term already
+## under way. A child's last N transcript rows are this term's, N being how
+## many grades they hold (next_term() clears `grades` and keeps the
+## transcript). Earlier terms are not recovered -- the children who sat them
+## have moved on, and the book says it starts here.
+func _grade_log_from_transcripts() -> Array:
+	var pages := {}
+	var order: Array = []
+	for s: StudentData in roster:
+		var n := mini(s.grades.size(), s.transcript.size())
+		for row: Dictionary in s.transcript.slice(s.transcript.size() - n):
+			var test := bool(row.get("test", false))
+			var key := "%d|%s|%s" % [int(row.get("day", 0)), String(row.get("lesson", "")), str(test)]
+			if not pages.has(key):
+				var l := Curriculum.by_id(String(row.get("lesson", "")))
+				pages[key] = {"term": term, "day": int(row.get("day", 0)),
+					"kind": "test" if test else "lesson",
+					"name": String(row.get("name", "Lesson")),
+					"strand": String(l.get("strand", "")), "rows": []}
+				order.append(key)
+			(pages[key]["rows"] as Array).append({"id": s.id, "name": s.first_name(),
+				"grade": float(row.get("grade", 0.0))})
+	var out: Array = []
+	for key: String in order:
+		out.append(pages[key])
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["day"]) < int(b["day"]))
+	return out
+
+
 ## Close the lesson: everyone is graded, and it is recorded.
 func grade_class() -> Array:
 	var out: Array = []
@@ -3165,6 +3234,7 @@ func grade_class() -> Array:
 		var levels := s.add_xp(earned)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g),
 			"levels": levels})
+	log_grades("lesson", String(lesson.get("name", "Lesson")), strand, out)
 	record_taught(String(lesson.get("id", "")))
 	return out
 
@@ -3572,6 +3642,7 @@ func to_dict() -> Dictionary:
 		# seat -> id, with the seat as a string: JSON object keys are strings,
 		# and from_dict() turns them back into seat numbers.
 		"desk_items": _desk_items_for_save(),
+		"grade_log": grade_log.duplicate(true),
 		"desks_in_store": desks_in_store,
 	}
 
@@ -3691,6 +3762,13 @@ func from_dict(d: Dictionary) -> void:
 	roster.clear()
 	for sd: Dictionary in d.get("roster", []):
 		roster.append(StudentData.from_dict(sd))
+	# The grade book. A save from before it existed has no key: this term is
+	# written back into it from the class's own records (needs the roster,
+	# hence here, last).
+	if d.has("grade_log"):
+		grade_log = (d.get("grade_log", []) as Array).duplicate(true)
+	else:
+		grade_log = _grade_log_from_transcripts()
 	roster_changed.emit()
 
 
