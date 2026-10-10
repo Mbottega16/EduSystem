@@ -93,13 +93,18 @@ static func acting_on(s: StudentData) -> Dictionary:
 	# Close enough to someone to get talking (Game.tick_chat) -- named, since
 	# WHO they are sat by is the thing a player can change.
 	var mates := Game.chat_partners(s)
-	if not mates.is_empty():
+	if not mates.is_empty() and Game.screened(s):
+		helping.append("Their study folder screens them from the desk next door.")
+	elif not mates.is_empty():
 		var who := "%s's" % mates[0].first_name()
 		if mates.size() == 2:
 			who = "%s's and %s's" % [mates[0].first_name(), mates[1].first_name()]
 		elif mates.size() > 2:
 			who = "several others'"
 		against.append("Their desk is close enough to %s to get talking." % who)
+	# What stands on their own desk: the study folder (Game.desk_items).
+	if Game.works_out_after(s) > 0.0:
+		helping.append("A study folder on their desk: they look things up when stuck.")
 
 	# --- where YOU are, right now ---
 	if s.seat_index >= 0:

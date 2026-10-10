@@ -161,7 +161,14 @@ once produced 22 items at half the correct strength.)*
 - Optional `teaches` (a concept id it unlocks outright) or `needs` (a
   concept id that must be known before it is on sale).
 - `blurb` ≤ 60 characters. See the voice rule below.
-- Currently 71 items.
+- Currently 72 items.
+- *(Oct 2026)* One piece stands ON a child's desk rather than on the floor:
+  `desk_top: true` (the study folder). It keeps `range: 0` and `bonus: 0.0`
+  -- it is never a grade term -- and carries `works_out_after` (seconds a
+  stuck child sits before looking it up themselves), `screens_neighbours`
+  (nobody chats with them or copies over it) and `max_owned` (how many you
+  may have). A different schema, outside the density rule below -- do not
+  generate one by extrapolating from the furniture rules.
 - *(Aug 2026)* The shop also sells 4 **consumables** — `cat: "consumable"`,
   no `range`/`bonus`, an `effect` dict instead (the same hook vocabulary
   day events use: `stall_mult`, `lesson_mult`, `coin_mult`, `bonus_coins`,

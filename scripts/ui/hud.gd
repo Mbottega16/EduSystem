@@ -2023,6 +2023,8 @@ func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
 			return "Helped the child beside them for the first time, without being asked."
 		"got_chatting":
 			return "Got talking to the desk beside them %s, and the work stopped while they did." % when
+		"worked_it_out":
+			return "Looked it up in their study folder %s and got going again on their own." % when
 		"fire_drill":
 			return "Filed out for a fire drill %s, and filed straight back in." % when
 	return ""
@@ -4873,6 +4875,19 @@ func _render_catalogue() -> void:
 					">" if i == _sel else " ", hue if afford else DIM,
 					String(d["name"]).substr(0, 13),
 					C_GOOD if afford else C_BAD, price, DIM])
+			elif Items.is_desk_top(id):
+				# Stands on one child's desk (the study folder): it reaches
+				# nobody else, so the worth-bar and reach-words -- which
+				# describe what a piece does for the desks AROUND it -- would
+				# both be wrong. Says where it goes, and when you have all the
+				# copies a decision about WHO is worth.
+				var cap := Items.max_owned(id)
+				var full: bool = cap > 0 and Game.owned_count(id) >= cap
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]%s[/color][/font_size]" % [
+					">" if i == _sel else " ", hue if afford and not full else DIM,
+					String(d["name"]).substr(0, 13),
+					C_GOOD if afford and not full else C_BAD, price, UI_SMALL, DIM,
+					"you have them all" if full else "on one desk, no chatting"])
 			else:
 				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
 					">" if i == _sel else " ", hue if afford else DIM,

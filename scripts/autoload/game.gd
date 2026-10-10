@@ -739,6 +739,7 @@ func new_run(seed_value: int = 0) -> void:
 	roster.clear()
 	room_items.clear()
 	cabinet.clear()
+	desk_items.clear()
 	desks_in_store = 0
 	homework_out = false
 	subject = pick_subject()
@@ -1097,13 +1098,13 @@ func too_close(s: StudentData) -> bool:
 
 ## Free to start a conversation right now: seated, a sheet in front of them
 ## and working at it -- not stuck (they want YOU), not messing about, not
-## about to, not already talking, and not inside the quiet a broken-up chat
-## buys.
+## about to, not already talking, not inside the quiet a broken-up chat
+## buys, and not behind a study folder (nobody chats over one).
 func can_chat(s: StudentData) -> bool:
 	return s != null and s.seat_index >= 0 \
 		and s.work_state == StudentData.Work.WORKING \
 		and not s.is_struggling() and not s.disrupting and not s.flaring() \
-		and not s.chatting() and s.chat_cool <= 0.0
+		and not s.chatting() and s.chat_cool <= 0.0 and not screened(s)
 
 
 ## This pair's chance per second of getting talking. A Chatty child doubles
@@ -1257,7 +1258,11 @@ func tick_class(delta: float, rng: RandomNumberGenerator) -> void:
 					if not m.has_moment("helped_neighbour"):
 						m.note_moment("helped_neighbour", day)
 					break
-				if Traits.has_flag(s.trait_id, "copy_from_neighbour") 						and rng.randf() < 0.6 * delta:
+				# Nobody copies past a study folder -- theirs or the desk they
+				# would be copying from (Game.screened()). They look it up instead.
+				if Traits.has_flag(s.trait_id, "copy_from_neighbour") \
+						and not screened(s) and not screened(m) \
+						and rng.randf() < 0.6 * delta:
 					if s.copy_from(m):
 						break
 
@@ -3176,8 +3181,11 @@ func class_average() -> float:
 # ------------------------------------------------------------------ items
 
 ## Can `id` be placed with its origin at `tile`, given what's already down?
-## The caller still has to check the grid for walls and furniture.
+## The caller still has to check the grid for walls and furniture. A
+## desk-top piece fits on a desk with nothing on it, and nowhere else.
 func item_fits(id: String, tile: Vector2i) -> bool:
+	if Items.is_desk_top(id):
+		return desk_top_free(tile)
 	var want := Items.footprint(id, tile)
 	for placed: Dictionary in room_items:
 		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
@@ -3234,8 +3242,15 @@ func place_item(id: String, tile: Vector2i) -> bool:
 
 
 ## Put an item down without charging — used when MOVING one that is already
-## owned, and when a cancelled move puts it back.
+## owned, and when a cancelled move puts it back. A desk-top piece goes on
+## the desk at `tile` (its seat or the desk itself).
 func add_item(id: String, tile: Vector2i) -> void:
+	if Items.is_desk_top(id):
+		var seat := Layout.seat_at_tile(tile)
+		if seat >= 0:
+			desk_items[seat] = id
+			room_changed.emit()
+		return
 	room_items.append({"id": id, "tile": tile})
 	room_changed.emit()
 
@@ -3249,14 +3264,112 @@ func item_at(tile: Vector2i) -> Dictionary:
 	return {}
 
 
-## Lift an item off the floor. Returns its id, or "" if there was none.
+## Lift an item off the floor -- or off the desk at `tile`, where a desk-top
+## piece stands. Returns its id, or "" if there was none.
 func remove_item(tile: Vector2i) -> String:
 	var placed := item_at(tile)
 	if placed.is_empty():
-		return ""
+		var on_desk := desk_item_at(tile)
+		if on_desk.is_empty():
+			return ""
+		desk_items.erase(int(on_desk["seat"]))
+		room_changed.emit()
+		return String(on_desk["id"])
 	room_items.erase(placed)
 	room_changed.emit()
 	return String(placed["id"])
+
+
+# --------------------------------------------------- what stands on the desks
+#
+# The owner's ask (Oct 2026): "an item you can put on the child's desk to make
+# them solve their lessons". A desk-top item (Items.is_desk_top) is placed ON a
+# child's desk with the same ghost cursor as everything else, and kept here
+# rather than in room_items: it takes no floor, reaches nobody else, and moves
+# with its desk, because a desk keeps its seat index when it moves. Whoever
+# sits at that desk -- this child, or the next one after they move up -- is
+# the one it works for.
+#
+# The study folder is the first: a child stuck at a desk with one looks it up
+# and gets going again after its works_out_after seconds (tick_desk_tops()),
+# and it screens them from the desks beside them -- nobody chats with them or
+# copies over it. Pace only, like the chatter: it is never a room_score term
+# (range 0, bonus 0), and the room ticks it, never tools/sim.gd.
+
+## seat index -> item id. Saved; cleared by new_run().
+var desk_items: Dictionary = {}
+
+## A stuck child looked it up in the folder on their desk and got going again.
+signal worked_it_out(student_id: int)
+
+
+## The id of what stands on desk `seat_index`, or "".
+func desk_item(seat_index: int) -> String:
+	return String(desk_items.get(seat_index, ""))
+
+
+## The def of what stands on this child's desk, or {} for a bare desk.
+func desk_item_def(s: StudentData) -> Dictionary:
+	if s == null or s.seat_index < 0:
+		return {}
+	var id := desk_item(s.seat_index)
+	return Items.get_def(id) if id != "" else {}
+
+
+## Behind something that screens them from the desks beside them (the study
+## folder): nobody gets talking to them over it, and they cannot copy past it.
+func screened(s: StudentData) -> bool:
+	return bool(desk_item_def(s).get("screens_neighbours", false))
+
+
+## Seconds a child at this desk sits stuck before they look it up themselves,
+## or 0 when nothing on their desk lets them.
+func works_out_after(s: StudentData) -> float:
+	return float(desk_item_def(s).get("works_out_after", 0.0))
+
+
+## Can a desk-top piece go on the desk at `tile` (its seat or the desk) right
+## now: a desk that is out of the cabinet, with nothing already on it.
+func desk_top_free(tile: Vector2i) -> bool:
+	var seat := Layout.seat_at_tile(tile)
+	return seat >= 0 and seat < Layout.seat_count() - desks_in_store \
+		and desk_item(seat) == ""
+
+
+## {id, tile, seat} for what stands on the desk at `tile`, or {} -- `tile` is
+## the DESK's tile, so a piece picked up goes back exactly where it came from.
+func desk_item_at(tile: Vector2i) -> Dictionary:
+	var seat := Layout.seat_at_tile(tile)
+	if seat < 0 or desk_item(seat) == "":
+		return {}
+	return {"id": desk_item(seat), "tile": Layout.desk_tile(seat), "seat": seat}
+
+
+## How many of `id` you own: in the cabinet, on the floor and on desks.
+func owned_count(id: String) -> int:
+	var n := cabinet_count(id)
+	for placed: Dictionary in room_items:
+		if String(placed.get("id", "")) == id:
+			n += 1
+	for seat: Variant in desk_items:
+		if String(desk_items[seat]) == id:
+			n += 1
+	return n
+
+
+## The study folder at work, once a frame during a lesson the room is running
+## (never a written test, never the boss paper -- an exam has no folder --
+## never tools/sim.gd). A child stuck at a desk with one looks it up after its
+## works_out_after seconds: slower than you walking over, no XP, nobody's help
+## counted -- but they stop sitting there stewing until frustration tips them
+## into messing about, which in practice is most of what it buys.
+func tick_desk_tops() -> void:
+	for s: StudentData in roster:
+		var after := works_out_after(s)
+		if after <= 0.0 or not s.is_struggling() or s.disrupting:
+			continue
+		if s.stuck_seconds() >= after and s.work_it_out():
+			worked_it_out.emit(s.id)
 
 
 func sell_value(id: String) -> int:
@@ -3320,6 +3433,11 @@ func intro_pull_desk() -> int:
 ## The shop stays open afterwards -- there is no placement to start yet.
 func buy_to_cabinet(id: String) -> String:
 	var price := shop_price(id)
+	# A piece with a limit (the study folder: Items.max_owned) is about WHICH
+	# children get one, so the shop stops selling it once you have them all.
+	var cap := Items.max_owned(id)
+	if cap > 0 and owned_count(id) >= cap:
+		return "you have all you can use"
 	if not can_afford(price):
 		return "not enough coins"
 	spend(price)
@@ -3451,8 +3569,18 @@ func to_dict() -> Dictionary:
 		"room_items": room_items.map(func(p: Dictionary) -> Dictionary:
 			return {"id": p["id"], "tx": p["tile"].x, "ty": p["tile"].y}),
 		"cabinet": cabinet.duplicate(),
+		# seat -> id, with the seat as a string: JSON object keys are strings,
+		# and from_dict() turns them back into seat numbers.
+		"desk_items": _desk_items_for_save(),
 		"desks_in_store": desks_in_store,
 	}
+
+
+func _desk_items_for_save() -> Dictionary:
+	var out := {}
+	for seat: Variant in desk_items:
+		out[str(seat)] = String(desk_items[seat])
+	return out
 
 
 func from_dict(d: Dictionary) -> void:
@@ -3543,6 +3671,20 @@ func from_dict(d: Dictionary) -> void:
 			"tile": Vector2i(int(p.get("tx", 0)), int(p.get("ty", 0)))})
 	# An older save has no cabinet key -- it simply loads with an empty one.
 	cabinet = (d.get("cabinet", []) as Array).duplicate()
+	# ...nor anything on the desks. A piece whose id no longer exists, or that
+	# sits on a desk the room no longer has, goes back in the cabinet rather
+	# than vanishing (the same courtesy rehang_wall_items() pays a clock).
+	desk_items.clear()
+	var saved_tops: Dictionary = d.get("desk_items", {})
+	for key: Variant in saved_tops:
+		var top_id := String(saved_tops[key])
+		var seat := int(str(key))
+		if not Items.is_desk_top(top_id):
+			continue
+		if seat >= 0 and seat < Layout.seat_count() and not desk_items.has(seat):
+			desk_items[seat] = top_id
+		else:
+			cabinet.append(top_id)
 	rehang_wall_items()      # an older save kept its clock standing on the floor
 	desks_in_store = int(d.get("desks_in_store", 0))
 	phase = Phase.MORNING

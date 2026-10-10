@@ -299,10 +299,13 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 
 		# The finished sheet, hidden until they're done with it.
 		var paper := Sprite2D.new()
+		paper.name = "Paper"
 		paper.texture = PROP_PAPER
 		paper.position = Vector2(0, -36)   # doubled, was -18
 		paper.visible = false
 		body.add_child(paper)
+		# ...and whatever stands on this desk (a study folder), under the sheet.
+		dress_desk(body, i)
 
 		var station := Interactable.new()
 		station.set_script(DESK_STATION_SCRIPT)
@@ -330,6 +333,42 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		grid.set_cell(seat, Grid.Cell.SEAT)
 		grid.set_cell(desk, Grid.Cell.BLOCKED)
 	return stations
+
+
+## Where a desk-top piece's sprite is centred on its desk body. Every one is
+## drawn on the desk's own 16x32 LimeZu canvas (tools/limezu_manifest.json,
+## "trim": "none" -- the study folder is classroom#8 minus classroom#6), and
+## desk.png is that canvas trimmed to rows 5..22, so the canvas's top sits 46px
+## above the body and its 64px middle 14px above it. Cosmetic: nothing reads it.
+const DESK_TOP_CENTRE := Vector2(0, -14)
+
+
+## Put on desk `seat_index`'s body whatever stands on it (Game.desk_items), and
+## take away whatever no longer does. Called as the desks are built and again
+## whenever the room changes, so a folder placed, lifted or carried with its
+## desk is always drawn where the data says it is. Kept below the finished
+## sheet ("Paper"), which marks the desk and must never be hidden.
+static func dress_desk(body: Node2D, seat_index: int) -> void:
+	var old := body.get_node_or_null("DeskTop")
+	if old != null:
+		body.remove_child(old)
+		old.queue_free()
+	var id := Game.desk_item(seat_index)
+	if id == "":
+		return
+	var tex: Texture2D = load("res://art/%s.png" % String(Items.get_def(id).get("art", "")))
+	if tex == null:
+		return
+	var spr := Sprite2D.new()
+	spr.name = "DeskTop"
+	spr.texture = tex
+	spr.position = DESK_TOP_CENTRE
+	spr.set_meta("item_id", id)
+	spr.add_to_group("desk_top")
+	body.add_child(spr)
+	var paper := body.get_node_or_null("Paper")
+	if paper != null:
+		body.move_child(spr, paper.get_index())
 
 
 static func build_podium(parent: Node2D, grid: Grid) -> Interactable:

@@ -317,6 +317,17 @@ func _land_at(tile: Vector2i) -> void:
 			Fx.land(n)
 			Fx.puff(world, (n as Node2D).global_position, Color(1, 1, 1, 0.7), 4)
 			return
+	# A piece set down on a desk is drawn on the desk's body, not as furniture
+	# of its own: find it by the desk it stands on.
+	var seat := Layout.seat_at_tile(tile)
+	for n in get_tree().get_nodes_in_group("desk_top"):
+		var desk: Node = n.get_parent()
+		if seat >= 0 and n is Node2D and desk is Node2D \
+				and Grid.world_to_tile((desk as Node2D).global_position) == Layout.desk_tile(seat):
+			Fx.land(n)
+			Fx.puff(world, (desk as Node2D).global_position + Vector2(0, -20),
+				Color(1, 1, 1, 0.7), 4)
+			return
 
 
 func _finish_placing(id: String, tile: Vector2i) -> void:
@@ -337,6 +348,9 @@ var _moving_from: Vector2i = NOWHERE
 
 func _start_moving(id: String, tile: Vector2i) -> void:
 	var placed := Game.item_at(tile)
+	if placed.is_empty():
+		# ...or a piece standing on a desk (the study folder), lifted off it.
+		placed = Game.desk_item_at(tile)
 	if placed.is_empty():
 		return
 	_moving_from = placed["tile"]

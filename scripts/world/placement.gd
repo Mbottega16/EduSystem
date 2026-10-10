@@ -133,6 +133,8 @@ func begin(id: String, grid: Grid, start: Vector2i) -> void:
 	item_id = id
 	_grid = grid
 	tile = _wall_start(id, start) if Items.is_wall(id) else start
+	if Items.is_desk_top(id):
+		tile = _desk_top_start(start)
 	active = true
 	visible = true
 	if _ghost == null:
@@ -156,6 +158,47 @@ func _wall_start(id: String, start: Vector2i) -> Vector2i:
 	return best
 
 
+## A desk-top piece (the study folder) starts on the free desk nearest the
+## teacher -- or where it came from, when it is being moved -- and the cursor
+## sits on the DESK's tile, so the ghost stands where the piece will.
+func _desk_top_start(start: Vector2i) -> Vector2i:
+	var here := Layout.seat_at_tile(start)
+	if here >= 0:
+		return Layout.desk_tile(here)
+	var best := start
+	var best_d := 9999
+	for i in Layout.seat_count():
+		var t := Layout.desk_tile(i)
+		if not Game.desk_top_free(t):
+			continue
+		var d := absi(t.x - start.x) + absi(t.y - start.y)
+		if d < best_d:
+			best = t
+			best_d = d
+	return best
+
+
+## The next desk from the cursor in direction `d`: nearest along it, with a
+## sideways step costing double, so pressing right goes to the desk to the
+## right rather than to one two rows away that happens to be a little nearer.
+## Stays put at the edge of the class.
+func _next_desk(d: Vector2i) -> Vector2i:
+	var best := tile
+	var best_score := 99999
+	for i in Layout.seat_count():
+		var t := Layout.desk_tile(i)
+		var off := t - tile
+		var along := off.x * d.x + off.y * d.y
+		if along <= 0:
+			continue
+		var across := absi(off.x * d.y) + absi(off.y * d.x)
+		var score := along + across * 2
+		if score < best_score:
+			best = t
+			best_score = score
+	return best
+
+
 func finish() -> void:
 	browsing = false
 	active = false
@@ -174,6 +217,10 @@ func is_valid() -> bool:
 		return _desk_is_valid()
 	if item_id == "":
 		return false
+	if Items.is_desk_top(item_id):
+		# On a desk that is out, with nothing already standing on it. Takes no
+		# floor, so it can never cut anybody off from the door.
+		return Game.desk_top_free(tile)
 	if Items.is_wall(item_id):
 		# On the wall: its own rules, and it can never trap anyone because it
 		# takes no floor.
@@ -303,6 +350,18 @@ func _refresh() -> void:
 		_reached.clear()
 		queue_redraw()
 		return
+	if Items.is_desk_top(item_id):
+		# Stood on the desk exactly as RoomBuilder.dress_desk() will stand it,
+		# and "helps" the one child who sits there.
+		var seat := Layout.seat_at_tile(tile)
+		var body_at := Grid.tile_to_world(Layout.desk_tile(seat) if seat >= 0 else tile)
+		_ghost.position = body_at + RoomBuilder.DESK_TOP_CENTRE
+		_ghost.modulate = OK_TINT if is_valid() else BAD_TINT
+		_reached.clear()
+		if seat >= 0 and is_valid():
+			_reached.append(seat)
+		queue_redraw()
+		return
 	var tiles := Items.footprint(item_id, tile)
 	var anchor := Layout.wall_anchor(tiles) if Items.is_wall(item_id) else Layout.span_anchor(tiles)
 	_ghost.position = anchor - Vector2(0, ghost_h / 2.0)
@@ -322,7 +381,7 @@ func _draw() -> void:
 		return
 	if browsing:
 		var r := Rect2(Vector2(tile) * Grid.TILE, Vector2(Grid.TILE, Grid.TILE))
-		var on_something: bool = not Game.item_at(tile).is_empty()
+		var on_something: bool = not _thing_at(tile).is_empty()
 		draw_rect(r, REACH_FILL if on_something else Color(1, 1, 1, 0.12))
 		draw_rect(r, REACH_EDGE if on_something else Color(1, 1, 1, 0.5), false, 2.0)   # doubled line width
 	else:
@@ -336,6 +395,14 @@ func _draw() -> void:
 				draw_rect(r, REACH_EDGE, false, 2.0)   # doubled line width
 			elif occupied:
 				draw_rect(r, Color(0, 0, 0, 0.12))
+		if Items.is_desk_top(item_id):
+			# Every desk it could still go on, outlined, so the choice is the
+			# whole class at once and not one desk at a time.
+			for i in Layout.seat_count():
+				var dt := Layout.desk_tile(i)
+				if Game.desk_top_free(dt):
+					draw_rect(Rect2(Vector2(dt) * Grid.TILE + Vector2(2, 2),
+						Vector2(Grid.TILE - 4, Grid.TILE - 4)), Color(1, 1, 1, 0.5), false, 2.0)
 	_draw_crowding()
 
 
@@ -355,11 +422,22 @@ func _draw_crowding() -> void:
 		draw_rect(r, CROWD_EDGE, false, 2.0)
 
 
+## What build mode can pick up under the cursor: a piece on the floor or the
+## wall, or one standing on a desk ({id, tile}, the desk's tile for that).
+func _thing_at(t: Vector2i) -> Dictionary:
+	var here := Game.item_at(t)
+	return here if not here.is_empty() else Game.desk_item_at(t)
+
+
 func move_by(d: Vector2i) -> void:
 	var want := tile + d
 	if desk_index < 0 and not browsing and Items.is_wall(item_id):
 		# A hung piece slides along the wall; up and down do nothing.
 		want = Vector2i(tile.x + d.x, Layout.WALL_ROW)
+	elif desk_index < 0 and not browsing and Items.is_desk_top(item_id):
+		# A desk-top piece hops desk to desk: the floor between them is
+		# nowhere it could go.
+		want = _next_desk(d)
 	if Grid.in_bounds(want):
 		tile = want
 		_refresh()
@@ -396,14 +474,14 @@ func _handle_input() -> void:
 			finish()
 			cancelled.emit()
 		elif Game.claim_interact():
-			var here := Game.item_at(tile)
+			var here := _thing_at(tile)
 			if here.is_empty():
 				Sfx.play("deny")
 			else:
 				Sfx.play("confirm")
 				picked_up.emit(String(here["id"]), here["tile"])
 		elif Game.claim_action("manage"):
-			var here2 := Game.item_at(tile)
+			var here2 := _thing_at(tile)
 			if here2.is_empty():
 				Sfx.play("deny")
 			else:

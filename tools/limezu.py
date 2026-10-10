@@ -516,6 +516,26 @@ def glare(lit, plain):
     return out
 
 
+def minus(im, base):
+    """Only the pixels `im` draws differently from `base`, the same size -- the thing
+    LimeZu drew standing ON a piece we already have, without that piece. The study
+    folder is classroom#8 minus classroom#6: his desk with a folder open on it, less
+    the plain desk the game already draws, leaving the folder (and the shade it casts
+    on the desktop) to lay over any desk. Kept on the shared canvas ("trim": "none")
+    so it lines up with the desk pixel for pixel."""
+    im = im.convert("RGBA")
+    base = base.convert("RGBA")
+    if im.size != base.size:
+        raise SystemExit("minus: %s against %s -- the two must be the same size" % (im.size, base.size))
+    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    a, b, o = im.load(), base.load(), out.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            if a[x, y][3] and a[x, y] != b[x, y]:
+                o[x, y] = a[x, y]
+    return out
+
+
 def build_prop(spec, manifest):
     """One manifest prop entry -> the finished, game-scale RGBA image.
 
@@ -532,6 +552,9 @@ def build_prop(spec, manifest):
     other one, as white of matching strength -- the glass of a case without the
     case, to draw in front of whatever stands inside it. Both must be the same size,
     so a glare entry and its case use "trim": "none" and line up exactly.
+
+    "minus": ref keeps only what the spec's image draws differently from that single
+    (see minus()) -- an object LimeZu drew standing on something, lifted off it.
     """
     if "join" in spec:
         # "join": [ref, ref, ...] -- numbered singles set side by side, bottoms aligned
@@ -560,6 +583,9 @@ def build_prop(spec, manifest):
         if "rows" in spec:
             plain = restack(plain, spec["rows"])
         im = glare(im, plain)
+    if "minus" in spec:
+        pack, member = resolve(spec["minus"], manifest)
+        im = minus(im, pack.image(member))
     if spec.get("flip") == "h":
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
     if spec.get("drop_shadow"):

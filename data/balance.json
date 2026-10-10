@@ -648,6 +648,20 @@
       "blurb": "One sound, one card, over and over.",
       "needs": "phonics.apply"
     },
+    "study_folder": {
+      "name": "Study Folder",
+      "cat": "learning",
+      "cost": 60,
+      "art": "study_folder",
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "desk_top": true,
+      "max_owned": 2,
+      "works_out_after": 6.0,
+      "screens_neighbours": true,
+      "blurb": "On one desk: they look it up instead of waiting for you."
+    },
     "rhyme_chart": {
       "name": "Rhyme Chart",
       "cat": "subjects",
@@ -962,6 +976,7 @@
     "supply_shelf",
     "sand_timer",
     "sound_cards",
+    "study_folder",
     "shape_sorter",
     "maths_tiles",
     "printer",
@@ -1257,6 +1272,7 @@
     "decor",
     "consumable"
   ],
+  "_desk_top_note": "Oct 2026, the owner's ask: 'an item you can put on the child's desk to make them solve their lessons'. A 'desk_top' item is placed ON a child's desk rather than on the floor (Game.desk_items, seat -> id): it takes no floor, reaches nobody else and travels with its desk. The study folder: a child stuck at a desk with one looks it up and gets going again after 'works_out_after' seconds -- slower than you walking over, no XP, but they stop sitting there stewing until frustration tips them into messing about -- and 'screens_neighbours' means nobody chats with them or copies over it. 'max_owned' is how many you may have at once, so it is a decision about WHICH children, not a set for every desk. range 0 / bonus 0.0 on purpose: it is never a room_score term, so the contract cannot see it, and the folder only works in a lesson the room ticks (never tools/sim.gd, never the boss paper).",
   "_items_note": "'teaches' means owning the item unlocks that concept outright -- which is what finally ties the furniture you buy to the curriculum. 'needs' gates an item behind a concept you must already know, so the shop grows as you teach rather than only as you earn.",
   "_subject_shelf_note": "Ten-commits.md step 8: the subject-specific items got their own 'subjects' shop tab, split out of 'learning' where the distinction used to be invisible -- item_order is tested cost-ascending WITHIN a category, so reordering learning itself could never have grouped them; a category of their own does. Two per strand now (ela/math/science/social), each carrying a 'strand' and a 'strand_bonus': it pays its small ordinary 'bonus' on any day, plus strand_bonus on top only when today's lesson matches. Specialising the room makes it do more on its subject and less off it -- never strictly better. It cannot move the 0.63/0.71/0.97 contract: Game.room_score() clamps to room_cap and tools/sim.gd fills the contract room to that cap regardless of which items it uses. See Items.strand()/strand_bonus().",
   "traits": {
@@ -1343,7 +1359,7 @@
     "xp_for_settling": 3
   },
   "chat": {
-    "_note": "Desks that touch get talking (Oct 2026, the owner's ask: 'if the students are too close to each other they start talking to one another'). Two seated children whose seats are within reach_tiles of each other (corners count) may strike up a conversation while both are working: start_per_second is the chance per PAIR per second, times each child's trait chat_mult. While they talk, neither does a stroke of work -- the same as messing about, but quieter and it ends by itself after `seconds`. The teacher standing within hush_tiles of either desk stops it at once and stops a new one starting ('they see you coming'); so does Class, class! and raising your voice within earshot. After any chat both get grace_seconds back at work before they can start another. A chat nobody breaks up has noise_chance to turn the one who started it into messing about. This REPLACES room.cluster_penalty, the old hidden slowdown for a crowded desk: the cost of sitting children close is now something on screen you can do something about. Pace only: it never touches a grade formula, it is ticked by the room (classroom._physics_process) and never by tools/sim.gd. The opening layout has no two seats within a tile of each other, so nobody talks until a player moves desks together.",
+    "_note": "Desks that touch get talking (Oct 2026, the owner's ask: 'if the students are too close to each other they start talking to one another'). Two seated children whose seats are within reach_tiles of each other (corners count) may strike up a conversation while both are working: start_per_second is the chance per PAIR per second, times each child's trait chat_mult. While they talk, neither does a stroke of work -- the same as messing about, but quieter and it ends by itself after `seconds`. The teacher standing within hush_tiles of either desk stops it at once and stops a new one starting ('they see you coming'); so does Class, class! and raising your voice within earshot. After any chat both get grace_seconds back at work before they can start another. A chat nobody breaks up has noise_chance to turn the one who started it into messing about. This REPLACES room.cluster_penalty, the old hidden slowdown for a crowded desk: the cost of sitting children close is now something on screen you can do something about. Pace only: it never touches a grade formula, it is ticked by the room (classroom._physics_process) and never by tools/sim.gd. A study folder on a desk (items.study_folder) screens that child out of it. The opening layout has no two seats within a tile of each other, so nobody talks until a player moves desks together.",
     "reach_tiles": 1,
     "start_per_second": 0.06,
     "seconds": 5.0,

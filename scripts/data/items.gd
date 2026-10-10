@@ -66,6 +66,21 @@ static func category_of(id: String) -> String:
 	return String(get_def(id).get("cat", ""))
 
 
+## Stands ON a child's desk rather than on the floor (Oct 2026: the study
+## folder). It lives in Game.desk_items, not Game.room_items: it takes no
+## floor, reaches nobody else, and travels with its desk because a desk keeps
+## its index when it moves. What it does is to the one child sitting there.
+static func is_desk_top(id: String) -> bool:
+	return bool(get_def(id).get("desk_top", false))
+
+
+## How many copies you may own at once -- in the cabinet, on the floor and on
+## desks, all counted (Game.owned_count()). 0 means no limit, which is every
+## piece of furniture; a limit makes WHO gets one the decision.
+static func max_owned(id: String) -> int:
+	return int(get_def(id).get("max_owned", 0))
+
+
 ## The concept owning this item confers, if any.
 static func teaches(id: String) -> String:
 	return String(get_def(id).get("teaches", ""))

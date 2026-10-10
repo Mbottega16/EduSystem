@@ -195,6 +195,7 @@ func _main() -> void:
 	await test_materials_day()
 	await test_book_pages()
 	await test_chatter()
+	await test_study_folder()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -1335,6 +1336,13 @@ func test_items() -> void:
 			# requirement that SOMETHING real is there.
 			if String(d.get("cat", "")) == "consumable":
 				if (d.get("effect", {}) as Dictionary).is_empty():
+					return false
+			elif Items.is_desk_top(id):
+				# A desk-top piece (the study folder) does its work on the
+				# child at that desk, not through bonus/range -- its effect is
+				# that, and it must have one.
+				if float(d.get("works_out_after", 0.0)) <= 0.0 \
+						and not bool(d.get("screens_neighbours", false)):
 					return false
 			elif float(d["bonus"]) <= 0.0:
 				return false
@@ -10623,6 +10631,232 @@ func test_chatter() -> void:
 	Balance.chat_noise_chance = kept_noise
 	Game.chat_started.disconnect(on_start)
 	Game.chat_ended.disconnect(on_end)
+	Layout.reset_seats()
+	Game.new_run(SEED)
+	await step(2)
+
+
+## What the room has drawn on desk `seat` (RoomBuilder.dress_desk()), or null.
+func _desk_top_node(seat: int) -> Sprite2D:
+	var st: Interactable = world.station(seat)
+	if st == null or st.get_parent() == null:
+		return null
+	return st.get_parent().get_node_or_null("DeskTop") as Sprite2D
+
+
+## THE STUDY FOLDER (Oct 2026, the owner's ask: "an item you can put on the
+## child's desk to make them solve their lessons"). It stands on one desk; a
+## child stuck there looks it up and gets going again on their own, slower
+## than you walking over and with nothing counted for it; and nobody chats
+## with them or copies over it. Pace only -- see the contract guards below.
+func test_study_folder() -> void:
+	section("STUDY FOLDER")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var id := "study_folder"
+	var d := Items.get_def(id)
+	chk("the study folder is in the catalogue", not d.is_empty() and Items.in_shop(id))
+	chk("...as something that stands on a desk, not the floor", Items.is_desk_top(id)
+		and not Items.is_desk_top("bookshelf"))
+	chk("...with a limit, so WHO gets one is the decision", Items.max_owned(id) >= 1,
+		Items.max_owned(id))
+	chk("...that lets a child look it up, and screens the next desk",
+		float(d.get("works_out_after", 0.0)) > 0.0
+		and bool(d.get("screens_neighbours", false)))
+	chk("...and is never a room_score term", int(d.get("range", -1)) == 0
+		and is_zero_approx(float(d.get("bonus", -1.0))))
+	chk("its picture loads", load("res://art/%s.png" % String(d.get("art", ""))) != null)
+	chk("it is on sale from the first day", Items.is_unlocked(id)
+		and Items.available_in_category(Items.category_of(id)).has(id))
+
+	# --- the shop row says where it goes, not what it reaches ---
+	var hud := _hud()
+	# The shop remembers its category tab between openings, so this puts it
+	# back: later sections open the shop expecting the first tab.
+	var shop_row := func() -> String:
+		var kept_cat: int = hud._cat
+		hud.open_catalogue()
+		hud._cat = Items.categories().find(Items.category_of(id))
+		hud._sel = Items.available_in_category(Items.category_of(id)).find(id)
+		hud._render_catalogue()
+		var text: String = hud.rich.text
+		hud._cat = kept_cat
+		hud.close()
+		return text
+	chk("the shop says it goes on one desk", (shop_row.call() as String).contains(
+		"on one desk, no chatting"))
+
+	# --- buying: into the cabinet, up to the limit and no further ---
+	Game.coins = 5000
+	var cap := Items.max_owned(id)
+	var bought := 0
+	for i in cap:
+		if Game.buy_to_cabinet(id) == "":
+			bought += 1
+	chk("you can buy up to the limit", bought == cap
+		and Game.cabinet_count(id) == cap, bought)
+	var coins_before := Game.coins
+	chk("...and no more", Game.buy_to_cabinet(id) != ""
+		and Game.cabinet_count(id) == cap)
+	chk("...a refused purchase costs nothing", Game.coins == coins_before)
+	chk("the shop says so", (shop_row.call() as String).contains("you have them all"))
+
+	# --- placing: only ever on a desk, one to a desk ---
+	var desk0 := Layout.desk_tile(0)
+	chk("a bare desk can take one", Game.item_fits(id, desk0))
+	chk("...from its seat as well as the desk", Game.item_fits(id, Layout.seat(0)))
+	chk("the floor cannot", not Game.item_fits(id, Vector2i(9, 9)))
+	chk("taking one out of the cabinet puts it on that desk",
+		Game.place_from_cabinet(id, desk0) and Game.desk_item(0) == id
+		and Game.cabinet_count(id) == cap - 1)
+	chk("...not among the floor's furniture", Game.item_at(desk0).is_empty()
+		and not Game.desk_item_at(desk0).is_empty())
+	chk("a desk holds one", not Game.item_fits(id, desk0)
+		and not Game.place_from_cabinet(id, Layout.seat(0)))
+	chk("what you own counts the one on the desk", Game.owned_count(id) == cap)
+
+	# --- drawn on the desk, in the real room, and it moves with it ---
+	await step(2)
+	var top := _desk_top_node(0)
+	chk("the room draws it on that desk", top != null
+		and top.texture == load("res://art/study_folder.png"))
+	chk("...under the finished sheet, which must never be hidden", top != null
+		and top.get_index() < top.get_parent().get_node("Paper").get_index())
+	chk("...and on no other desk", _desk_top_node(1) == null)
+	world.move_desk(0, Vector2i(5, 4))
+	await step(2)
+	top = _desk_top_node(0)
+	chk("moving the desk takes the folder with it", Game.desk_item(0) == id
+		and top != null and Grid.world_to_tile(
+			(top.get_parent() as Node2D).global_position) == Layout.desk_tile(0))
+	world.move_desk(0, Vector2i(3, 4))
+	await step(2)
+	chk("packing it away lifts it into the cabinet",
+		Game.store_item(Layout.desk_tile(0)) == id and Game.desk_item(0) == ""
+		and Game.cabinet_count(id) == cap)
+	await step(2)
+	chk("...and the desk is bare again", _desk_top_node(0) == null)
+
+	# --- a save keeps it; an impossible one goes back in the cabinet ---
+	Game.place_from_cabinet(id, Layout.desk_tile(0))
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(Game.to_dict()))
+	Game.desk_items.clear()
+	Game.from_dict(saved)
+	chk("a save keeps what stands on each desk", Game.desk_item(0) == id)
+	var odd := saved.duplicate(true)
+	odd["desk_items"] = {"99": id}
+	Game.from_dict(odd)
+	chk("...one on a desk the room no longer has goes back in the cabinet",
+		Game.desk_items.is_empty() and Game.cabinet_count(id) == cap)
+	Game.new_run(SEED)
+	await step(2)
+	chk("a new career starts with bare desks", Game.desk_items.is_empty())
+
+	# --- what it does: a stuck child looks it up ---
+	var heard: Array = []
+	var on_worked := func(sid: int) -> void: heard.append(sid)
+	Game.worked_it_out.connect(on_worked)
+	var s0: StudentData = Game.roster[0]
+	var s1: StudentData = Game.roster[1]
+	Game.desk_items[s0.seat_index] = id
+	for s: StudentData in [s0, s1]:
+		s.reset_lesson()
+		s.work_state = StudentData.Work.WORKING
+		s.work_total = 20.0
+		s.work_timer = 20.0
+		s.confusion = 1.0
+	var xp0 := s0.xp
+	var helps0 := s0.helps_total
+	var after := Game.works_out_after(s0)
+	for i in int((after - 0.5) * 60.0):
+		s0.tick_work(1.0 / 60.0, null, 1.0)
+		Game.tick_desk_tops()
+	chk("stuck behind a folder, they sit with it a while first",
+		s0.is_struggling() and heard.is_empty())
+	for i in 60:
+		s0.tick_work(1.0 / 60.0, null, 1.0)
+		Game.tick_desk_tops()
+	chk("...then look it up and get going again", not s0.is_struggling())
+	chk("...on their own: no XP, no help counted", s0.xp == xp0
+		and s0.helps_total == helps0)
+	chk("...not copied either -- the understanding is theirs", not s0.copied)
+	chk("...a moment in their story", s0.has_moment("worked_it_out")
+		and hud._moment_sentence("worked_it_out", 1, s0.joined_day, s0) != "")
+	chk("the room was told, so it can say so over the desk", heard == [s0.id], heard)
+	for i in 600:
+		s1.tick_work(1.0 / 60.0, null, 1.0)
+		Game.tick_desk_tops()
+	chk("without one, a stuck child waits for you however long it takes",
+		s1.is_struggling())
+	Game.worked_it_out.disconnect(on_worked)
+
+	# --- it screens the desk next door: no chatting, no copying ---
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	for s: StudentData in [s0, s1]:
+		s.reset_lesson()
+		s.work_state = StudentData.Work.WORKING
+		s.work_total = 20.0
+		s.work_timer = 20.0
+	chk("behind a folder a child is not free to chat", Game.screened(s0)
+		and not Game.can_chat(s0) and Game.can_chat(s1))
+	var kept_start := Balance.chat_start_per_second
+	Balance.chat_start_per_second = 1000.0
+	Game.tick_chat(1.0 / 60.0, Game.rng, Vector2i(17, 9))
+	chk("...so the desk next door cannot get them talking",
+		not s0.chatting() and not s1.chatting())
+	Balance.chat_start_per_second = kept_start
+	s1.trait_id = "copier"
+	s1.confusion = 1.0
+	s0.work_timer = s0.work_total * 0.2       # well ahead: worth copying from
+	for i in 600:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+	chk("nobody copies past a folder", not s1.copied and s1.is_struggling())
+	Game.desk_items.clear()
+	for i in 1500:
+		Game.tick_class(1.0 / 60.0, Game.rng)
+		if s1.copied:
+			break
+	chk("...where without it the copier leans over", s1.copied)
+
+	# --- the file says what it is doing for them ---
+	Game.desk_items[s0.seat_index] = id
+	var read := StudentRead.acting_on(s0)
+	chk("their file says what it does for them", (read.get("helping", []) as Array).has(
+		"A study folder on their desk: they look things up when stuck."))
+	chk("...and that it screens them from the desk next door",
+		(read.get("helping", []) as Array).has(
+			"Their study folder screens them from the desk next door.")
+		and not (read.get("against", []) as Array).any(
+			func(l: Variant) -> bool: return String(l).contains("get talking")))
+
+	# --- the cursor: on a desk, hopping desk to desk ---
+	Layout.reset_seats()
+	Game.desk_items.clear()
+	var place := Placement.new()
+	world.add_child(place)
+	place.begin(id, world.grid, Layout.seat(2))
+	chk("placing one starts the cursor on a desk", place.tile == Layout.desk_tile(2),
+		place.tile)
+	chk("...where it may go", place.is_valid())
+	place.tile = Vector2i(9, 9)
+	chk("...and on the floor it may not", not place.is_valid())
+	place.tile = Layout.desk_tile(0)
+	place.move_by(Vector2i(1, 0))
+	chk("right hops to the next desk along", place.tile == Layout.desk_tile(1),
+		place.tile)
+	place.finish()
+	place.remove_from_group("placement")
+	place.queue_free()
+
+	# --- pace only: the contract cannot see it ---
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never ticks the folder", not sim_src.contains("tick_desk_tops("))
+	var cls_src := FileAccess.get_file_as_string("res://scripts/world/classroom.gd")
+	chk("the room does, in a lesson", cls_src.contains("Game.tick_desk_tops("))
+
 	Layout.reset_seats()
 	Game.new_run(SEED)
 	await step(2)

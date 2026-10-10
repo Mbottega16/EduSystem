@@ -718,6 +718,39 @@ func _open_screen(main: Node, screen: String) -> void:
 				hud.show_student(Game.roster[0])
 				hud._bio_page = hud.BIO_ACTING
 				hud.show_student(Game.roster[0])
+		"folder", "folder_place", "folder_shop":
+			# The study folder (Game.desk_items). folder: two pairs of desks
+			# pushed together in a lesson. The pair with a folder between them
+			# stays quiet, and its child is stuck and about to look it up, so
+			# "looked it up" rises over that desk during the shot; the pair
+			# without one is chatting, for the contrast.
+			# folder_place: one being put down, the free desks outlined.
+			# folder_shop: it on the shop's Learning tab.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			if screen == "folder_shop":
+				hud.open_catalogue()
+				hud._cat = Items.categories().find("learning")
+				hud._sel = Items.available_in_category("learning").find("study_folder")
+				hud._render_catalogue()
+				return
+			Game.cabinet.append("study_folder")
+			if screen == "folder_place":
+				main._start_placing("study_folder")
+				main.placement.tile = Layout.desk_tile(1)
+				main.placement.move_by(Vector2i.ZERO)
+				return
+			world.move_desk(1, Layout.seat(0) + Vector2i(1, 0))
+			world.move_desk(3, Layout.seat(2) + Vector2i(1, 0))
+			Game.add_item("study_folder", Layout.desk_tile(0))
+			world.start_lesson()
+			world.player.global_position = Grid.tile_to_world(
+				Layout.DOOR + Vector2i(1, 0))
+			var stuck: StudentData = Game.roster[0]
+			stuck.confusion = 1.0
+			stuck._hidden_for = Game.works_out_after(stuck) - 0.4
+			Game.start_chat(Game.roster[2], Game.roster[3])
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance

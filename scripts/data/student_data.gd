@@ -626,6 +626,23 @@ func help() -> bool:
 	return true
 
 
+## Looked it up and got going again, with nobody's help -- the study folder
+## on their desk (Game.tick_desk_tops()). Like help() it clears the stall;
+## unlike it there is no XP and no help counted, because nobody came, and the
+## record stays honest about that. It is not copying either: the folder holds
+## how to do it, not the next desk's answer, so the understanding is theirs.
+## Returns false if they were not stuck.
+func work_it_out() -> bool:
+	if not is_struggling():
+		return false
+	confusion = 0.0
+	_since_stall = 0.0
+	_hidden_for = 0.0
+	if not has_moment("worked_it_out"):
+		note_moment("worked_it_out", Game.day)
+	return true
+
+
 ## The paper has frozen them. Visible AT ONCE, whatever their trait: a
 ## Quiet child hides an ordinary stall for a few seconds, but a freeze in
 ## an exam hall is the whole room's business. Same state as being stuck

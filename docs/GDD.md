@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-07**, against build `b45`, with **2515 assertions
+> **Measured on 2026-10-07**, against build `b45`, with **2562 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -267,7 +267,9 @@ contract sim never sees any of it. Full design: `docs/ROGUELIKE_DESIGN.md`.
 Seeded RNG · day phases · roster and enrolment · neighbour model (reads live
 desk positions) · desk chatter (two children whose desks touch get talking
 and neither works until it ends or you walk over -- the counter to cramming;
-it replaced a hidden 12% slowdown in Oct 2026) · class
+it replaced a hidden 12% slowdown in Oct 2026) · what stands on the desks
+(the study folder: a stuck child behind one looks it up after a while, and
+nobody chats or copies over it; two at most, so WHO gets one is the call) · class
 tick (helping, copying, disruption) · grading and the
 grade split · room score · terms, targets and `next_term()` · teacher XP,
 levels and perks · graduation · concepts · room expansion · unit test ·
@@ -357,7 +359,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **2515 assertions** across **129 sections** |
+| Tests | **2562 assertions** across **130 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

@@ -148,6 +148,7 @@ func _ready() -> void:
 	Game.intro_desks_changed.connect(rebuild_desks_only)
 	Game.chat_started.connect(_on_chat_started)
 	Game.chat_ended.connect(_on_chat_ended)
+	Game.worked_it_out.connect(_on_worked_it_out)
 	# A new run builds a whole new roster. Without this the actor nodes stay
 	# bound to the PREVIOUS run's StudentData -- the room carries on showing
 	# and animating children who are no longer in the class, and every
@@ -591,6 +592,8 @@ func _physics_process(delta: float) -> void:
 		if roll != null:
 			# Desks that touch get talking, unless you are standing by them.
 			Game.tick_chat(delta, roll, teacher_tile())
+			# ...and a child stuck behind a study folder looks it up.
+			Game.tick_desk_tops()
 			_tick_flares(delta, roll)
 			_tick_complications(delta, roll)
 		Game.tick_voice(delta)
@@ -860,6 +863,19 @@ func _on_chat_ended(a_id: int, b_id: int, why: String) -> void:
 		"loud":
 			if a != null:
 				_flash_pose(a.id, Actor.POSE_CHAT)
+
+
+## A stuck child looked it up in the study folder on their desk and is going
+## again. Said quietly -- a word over the desk and a small puff, no sound of
+## its own -- because it is the thing that happens while you are elsewhere,
+## and it should read as the folder having done its job, not as an event.
+func _on_worked_it_out(student_id: int) -> void:
+	var s := Game.student_by_id(student_id)
+	if s == null:
+		return
+	var at := Grid.tile_to_world(Layout.seat(s.seat_index))
+	Floater.pop(self, at + Vector2(0, -40), "looked it up", Color(0.62, 0.86, 0.66))
+	Fx.puff(self, at + Vector2(0, -10), Color(0.62, 0.86, 0.66))
 
 
 ## Somebody sat down. If the lesson has already started they have missed
@@ -1495,6 +1511,16 @@ func _rebuild_purchased() -> void:
 		n.get_parent().remove_child(n)
 		n.queue_free()
 	RoomBuilder.build_decor(self, grid)
+	# ...and what stands on the desks (a study folder) is redrawn on them,
+	# since placing or lifting one is a room change like any other.
+	_dress_desks()
+
+
+## Redraw what stands on every desk from Game.desk_items.
+func _dress_desks() -> void:
+	for st: Interactable in stations:
+		if is_instance_valid(st) and st.get_parent() is Node2D:
+			RoomBuilder.dress_desk(st.get_parent() as Node2D, st.seat_index)
 
 
 ## Flare-ups: a random, catchable warning that ONE calm child is about to

@@ -858,6 +858,12 @@
       "ref": "office#112",
       "trim": "xy",
       "why": "an orange office chair seen from behind: the two visitors' chairs facing the principal's desk"
+    },
+    "study_folder": {
+      "ref": "classroom#8",
+      "minus": "classroom#6",
+      "trim": "none",
+      "why": "the study folder (Oct 2026): LimeZu's own school desk with a folder standing open on it and a pencil, less the plain desk (classroom#6, the game's `desk`) -- the folder alone, on the desk's own 16x32 canvas, so RoomBuilder.dress_desk() lays it over any desk pixel for pixel"
     }
   },
   "tiles": {}
