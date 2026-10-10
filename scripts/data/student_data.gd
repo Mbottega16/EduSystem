@@ -51,6 +51,19 @@ var flare_left: float = 0.0
 ## does not -- which is exactly what copying is.
 var copied: bool = false
 
+## Talking to a desk close by (Game.tick_chat()): the id of whoever they are
+## talking to, or -1. Neither of the two works while it lasts -- the visible
+## cost of sitting children too close, which used to be a hidden slowdown.
+var chat_with: int = -1
+## Seconds left on the conversation if nobody interrupts it.
+var chat_left: float = 0.0
+## Seconds of work owed before they may start another. Breaking a pair up
+## buys this much quiet, so a trip over there is not wasted the moment you
+## walk away again.
+var chat_cool: float = 0.0
+## They started it. If it gets loud, it is them.
+var chat_lead: bool = false
+
 ## Seconds this child has been stuck without letting on. A Quiet student
 ## hides it for a while, which is the whole point of them: you cannot
 ## triage by scanning for bubbles alone.
@@ -151,6 +164,11 @@ func is_struggling() -> bool:
 	return confusion > 0.5
 
 
+## Turned to the desk next door, talking.
+func chatting() -> bool:
+	return chat_with >= 0
+
+
 ## One line in their record. Called once per graded lesson.
 func record_result(lesson: Dictionary, grade: float, day: int,
 		was_test: bool = false) -> void:
@@ -240,6 +258,10 @@ func reset_lesson() -> void:
 	disrupting = false
 	flare_left = 0.0
 	copied = false
+	chat_with = -1
+	chat_left = 0.0
+	chat_cool = 0.0
+	chat_lead = false
 	_since_stall = 0.0
 	_hidden_for = 0.0
 
@@ -410,6 +432,8 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null,
 		return false
 	if disrupting:
 		return false                      # not doing a stroke until settled
+	if chatting():
+		return false                      # turned to the desk next door
 	if is_struggling():
 		# Count how long they have sat there without letting on. A Quiet
 		# child withholds the "?" for a few seconds, which is what stops

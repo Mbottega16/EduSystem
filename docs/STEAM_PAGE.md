@@ -79,7 +79,7 @@ exam show whether the work held together.
 **The game never shows you a number for a child.** Open a pupil's file
 and it tells you, in words, what is acting on them right now — their
 temperament, the day's event, whether the room suits today's subject,
-whether their desk is hemmed in, whether you have been standing close
+who they sit close enough to chat with, whether you have been standing close
 enough, and what they are doing to themselves. Sorted by what is working
 against them, worst first. A bad grade always traces back to something
 you can point at.

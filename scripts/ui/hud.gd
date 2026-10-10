@@ -720,6 +720,7 @@ func _update_status() -> void:
 	var stuck := 0
 	var waiting := 0
 	var noisy := 0
+	var chatting := 0
 	for st: StudentData in Game.roster:
 		if st.disrupting:
 			noisy += 1
@@ -729,6 +730,8 @@ func _update_status() -> void:
 			stuck += 1
 		if st.has_work_to_collect():
 			waiting += 1
+		if st.chatting():
+			chatting += 1
 
 	# via a group, not current_scene -- current_scene is not Main when the
 	# game is instantiated inside a test or a screenshot harness
@@ -736,9 +739,10 @@ func _update_status() -> void:
 	if place != null and place.active:
 		bits.append("helps %d" % place.reach_count())
 		# ten-commits.md step 4: the overlay already draws the orange
-		# outline; the strip is where you'd already look for a count.
+		# outline; the strip is where you'd already look for a count. "Too
+		# close" since the cost of crowding became talking (Game.tick_chat).
 		if place.crowd_count() > 0:
-			bits.append("%d crowded" % place.crowd_count())
+			bits.append("%d too close" % place.crowd_count())
 
 	# Loudest first: messing about is the one that gets worse while you are
 	# somewhere else.
@@ -746,6 +750,9 @@ func _update_status() -> void:
 		bits.append("%d NOISY" % noisy)
 	if stuck > 0:
 		bits.append("%d stuck" % stuck)
+	# After stuck: a chat ends by itself, a stuck child never does.
+	if chatting > 0:
+		bits.append("%d chatting" % chatting)
 	if waiting > 0:
 		bits.append("%d ready" % waiting)
 
@@ -1258,7 +1265,7 @@ const HELP_LINES := {
 	"quiz": "A quick quiz, mid-lesson. Costs time, tells you who is behind.",
 	"answer_all": "Unstick the whole room at once. Long wait after.",
 	"homework": "Mark the homework you collected, at your desk.",
-	"move_desk": "Move a desk. Spread them out; crowding slows them.",
+	"move_desk": "Move a desk. Desks that touch get talking.",
 	"voice": "Settle the desks within earshot.",
 	"call_response": "Class, class! The room is with you a while, anywhere.",
 	"build": "Rearrange the room from a free cursor. Not mid-lesson.",
@@ -2014,6 +2021,8 @@ func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
 			return "Strung together several lessons in their best subject, one after another."
 		"helped_neighbour":
 			return "Helped the child beside them for the first time, without being asked."
+		"got_chatting":
+			return "Got talking to the desk beside them %s, and the work stopped while they did." % when
 		"fire_drill":
 			return "Filed out for a fire drill %s, and filed straight back in." % when
 	return ""
@@ -3328,9 +3337,9 @@ const MENTOR_PAGES := [
 		"rope to grab, not a way to teach.",
 	],
 	[
-		"Now the desks. Sit two children side by side",
-		"and each works about an eighth slower -- the",
-		"price of a crowded table.",
+		"Now the desks. Push two together and those",
+		"two get talking -- and neither does a stroke",
+		"while they do. Walk over and it stops.",
 		"",
 		"But it runs both ways. A calm neighbour will",
 		"quietly help the one who is stuck. A restless",

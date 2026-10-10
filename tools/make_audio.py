@@ -10,7 +10,7 @@ number instead of hunting for a replacement file.
 Writes 22.05kHz 16-bit mono WAVs to audio/. That rate is deliberate — it is
 plenty for short blips and keeps the files tiny.
 
-Two halves. The first is the eleven sound effects, one function each. The
+Two halves. The first is the twelve sound effects, one function each. The
 second (from "composition" down) is the music and ambience: a small
 composition layer -- notes, a step sequencer, an ADSR, a one-pole filter, a
 circular loop buffer -- and the eight tracks written with it: the title
@@ -124,6 +124,21 @@ def make_stuck():
     a = apply_env(tone(520, 0.10, "tri"), attack=0.01, decay=0.5)
     b = apply_env(tone(392, 0.16, "tri"), attack=0.01, decay=0.4)
     save("stuck", a + b, 0.42)
+
+
+def make_chatter():
+    """Two children at touching desks getting talking: a burst of babble,
+    four quick syllables wandering up and down, the way a sim's people talk
+    without words. Its own random.Random rather than the module's, so adding
+    it shifted no other sound by a single sample."""
+    rng = random.Random(11)
+    out = []
+    for hz in (330, 392, 294, 349):
+        body = apply_env(tone(hz, 0.065, "tri"), attack=0.08, decay=0.6)
+        buzz = apply_env(tone(hz * 2.01, 0.065, "square"), attack=0.08, decay=0.4)
+        out += mix(body, [s * 0.35 for s in buzz])
+        out += [0.0] * int(RATE * rng.uniform(0.015, 0.03))
+    save("chatter", out, 0.36)
 
 
 def make_help():
@@ -913,6 +928,7 @@ if __name__ == "__main__":
     make_deny()
     make_grade()
     make_start()
+    make_chatter()
     print("")
     print("music and ambience (every loop an exact sample count, seam measured)")
     make_music_title()

@@ -314,11 +314,21 @@ static var concept_bonus_cap: float = 0.12
 # --- buying floor space, and how it is used ----------------------------
 static var room_expand_cost_per_tile: int = 26
 static var room_expand_growth: float = 1.45
-## The counter to the desk-cramming meta: a child with another occupied
-## desk orthogonally adjacent works this fraction slower. Layout only --
-## the contract sim never seats anyone next to anyone, so it never bites
-## there. 0.0 turns it off.
-static var room_cluster_penalty: float = 0.12
+
+# --- desks that touch get talking (Game.tick_chat) ----------------------
+## The counter to the desk-cramming meta, and the visible replacement for
+## the old hidden cluster penalty. Two seated children within reach_tiles of
+## each other (corners count) may start a conversation, start_per_second per
+## pair (times each one's trait chat_mult); neither works while it lasts.
+## It ends after `seconds`, or at once when the teacher comes within
+## hush_tiles; grace_seconds of work follow before either can start another,
+## and a chat nobody broke up has noise_chance to turn into messing about.
+static var chat_reach_tiles: int = 1
+static var chat_start_per_second: float = 0.06
+static var chat_seconds: float = 5.0
+static var chat_grace_seconds: float = 6.0
+static var chat_hush_tiles: int = 2
+static var chat_noise_chance: float = 0.25
 
 # --- the end-of-unit test ------------------------------------------------
 static var test_requires_taught: int = 3
@@ -692,7 +702,14 @@ static func apply(d: Dictionary) -> void:
 	var rm: Dictionary = d.get("room", {})
 	room_expand_cost_per_tile = int(rm.get("expand_cost_per_tile", room_expand_cost_per_tile))
 	room_expand_growth = float(rm.get("expand_growth", room_expand_growth))
-	room_cluster_penalty = float(rm.get("cluster_penalty", room_cluster_penalty))
+
+	var ch: Dictionary = d.get("chat", {})
+	chat_reach_tiles = int(ch.get("reach_tiles", chat_reach_tiles))
+	chat_start_per_second = float(ch.get("start_per_second", chat_start_per_second))
+	chat_seconds = float(ch.get("seconds", chat_seconds))
+	chat_grace_seconds = float(ch.get("grace_seconds", chat_grace_seconds))
+	chat_hush_tiles = int(ch.get("hush_tiles", chat_hush_tiles))
+	chat_noise_chance = float(ch.get("noise_chance", chat_noise_chance))
 
 	var ts: Dictionary = d.get("test", {})
 	test_requires_taught = int(ts.get("requires_taught", test_requires_taught))

@@ -456,6 +456,9 @@ like decoration in the game. Do not invent a field.
                         understanding it.
   helps_neighbour       float. They lift the child next to them by this
                         much.
+  chat_mult             float. Multiplies how readily they get talking
+                        to a desk close enough to theirs. Above 1.0 =
+                        chattier; both children's values multiply.
 
 A trait carries ONLY the hooks it uses. It does not list the others at
 neutral values.
@@ -465,7 +468,8 @@ SCHEMA, copied verbatim from the live file:
   "chatty": {
     "name": "Chatty",
     "blurb": "Talks to whoever is sitting next to them.",
-    "neighbour_stall_mult": 1.5
+    "neighbour_stall_mult": 1.5,
+    "chat_mult": 2.0
   }
 
 THE EXISTING SIX, with the hook each one uses:
@@ -475,7 +479,7 @@ THE EXISTING SIX, with the hook each one uses:
   curious  "Asks about everything. Gets stuck more, learns more."
            stall_mult 1.35, help_xp_mult 2.0
   chatty   "Talks to whoever is sitting next to them."
-           neighbour_stall_mult 1.5
+           neighbour_stall_mult 1.5, chat_mult 2.0
   steady   "Quietly gets on with it."
            stall_mult 0.7
   copier   "Leans over at the first sign of trouble."

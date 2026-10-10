@@ -153,7 +153,8 @@ flowchart TB
     subgraph INPUTS["What moves a child's work, per tick"]
         ATT["attention<br/>full only while you teach in radius,<br/>zero when the class is unattended"]
         HELP["help / settle / collect<br/>your verbs at the desk"]
-        FURN["furniture by the desk<br/>some items teach; cluster penalty"]
+        FURN["furniture by the desk<br/>some items teach"]
+        CHAT["who sits beside them<br/>desks that touch get talking"]
         CONC["concepts taught<br/>breadth, small, capped"]
         TRAIT["the child's trait"]
     end
@@ -161,6 +162,7 @@ flowchart TB
     ATT --> WORK
     HELP --> WORK
     FURN --> WORK
+    CHAT --> WORK
     CONC --> WORK
     TRAIT --> WORK
 

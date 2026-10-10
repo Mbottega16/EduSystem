@@ -101,17 +101,21 @@ func _process(delta: float) -> void:
 		_fade_noise(0.0, delta)
 		return
 	
-	var disruptors := 0
+	var disruptors := 0.0
 	var seated := 0
 	for s: StudentData in Game.roster:
 		if s.seat_index >= 0:
 			seated += 1
 			if s.disrupting:
-				disruptors += 1
+				disruptors += 1.0
+			elif s.chatting():
+				# Two children talking at touching desks (Game.tick_chat) are a
+				# murmur, not a riot: half as loud as one messing about.
+				disruptors += 0.5
 	
 	var target := 0.0
 	if seated > 0:
-		target = float(disruptors) / float(mini(3, seated)) # Maxes out at 3 disruptors
+		target = disruptors / float(mini(3, seated)) # Maxes out at 3 disruptors
 	target = clampf(target, 0.0, 1.0)
 	
 	_fade_noise(target, delta)

@@ -65,6 +65,12 @@ const NOISE_BUBBLE_TINT := Color(1.0, 0.45, 0.35)
 ## the noise red so it reads as "now" against a room that may already have
 ## a disruption or two showing.
 const FLARE_BUBBLE_TINT := Color(1.0, 0.7, 0.2)
+## Two children talking (Game.tick_chat). A soft lilac: a cost, but the
+## mildest one in the room -- it ends by itself, or the moment you walk over.
+const CHAT_BUBBLE_TINT := Color(0.84, 0.77, 1.0)
+## How long each of a talking pair holds the floor before the bubble goes
+## across to the other one. Cosmetic -- nothing reads it back.
+const CHAT_TURN := 0.8
 
 var grid := Grid.new()
 var player: Actor = null
@@ -140,6 +146,8 @@ func _ready() -> void:
 	Game.room_changed.connect(_rebuild_purchased)
 	Game.room_resized.connect(rebuild_room)
 	Game.intro_desks_changed.connect(rebuild_desks_only)
+	Game.chat_started.connect(_on_chat_started)
+	Game.chat_ended.connect(_on_chat_ended)
 	# A new run builds a whole new roster. Without this the actor nodes stay
 	# bound to the PREVIOUS run's StudentData -- the room carries on showing
 	# and animating children who are no longer in the class, and every
@@ -566,15 +574,13 @@ func _physics_process(delta: float) -> void:
 		# so it runs at full rate regardless of where the teacher stands.
 		var rate: float = 1.0 if Game.test_active else Game.work_rate()
 		for s: StudentData in Game.roster:
-			# A crammed seating plan slows the children in it -- see
-			# Game.cluster_rate_mult(). Off during a written test (rate is
-			# already forced to 1.0 there: nobody is teaching it).
+			# A child you never got their materials to on a materials day
+			# works slower. Off during a written test (rate is already forced
+			# to 1.0 there: nobody is teaching it). It slows the work, it
+			# never touches the record. (A crammed seating plan used to cost
+			# a hidden slowdown here too; that is the chatter below now.)
 			var s_rate: float = rate
 			if not Game.test_active:
-				s_rate *= Game.cluster_rate_mult(s)
-				# ...and a child you never got their materials to on a
-				# materials day. Same shape as the cluster penalty: it slows
-				# the work, it never touches the record.
 				s_rate *= Game.supply_rate_mult(s)
 			if s.tick_work(delta, roll, s_rate):
 				_on_work_done(s)
@@ -583,6 +589,8 @@ func _physics_process(delta: float) -> void:
 		# and whether a calm child is about to -- the catchable warning the
 		# dash exists to answer. Silent in a written test, same as the rest.
 		if roll != null:
+			# Desks that touch get talking, unless you are standing by them.
+			Game.tick_chat(delta, roll, teacher_tile())
 			_tick_flares(delta, roll)
 			_tick_complications(delta, roll)
 		Game.tick_voice(delta)
@@ -759,10 +767,20 @@ func _refresh_bubbles() -> void:
 		var stuck: bool = n.seated and n.data.is_visibly_struggling()
 		var flagged: bool = n.seated and n.data.quiz_flagged
 		var presenting: bool = n.seated and Game.fight != null 			and Game.fight.presenting == n.data.id
+		# Talking to a desk close by: the two turn to each other and the
+		# bubble goes back and forth between them, one speaker at a time.
+		var chatting: bool = n.seated and n.data.chatting()
+		var partner: Actor = null
+		if chatting:
+			var other := Game.student_by_id(n.data.chat_with)
+			partner = student_node(other.seat_index) if other != null else null
+		if n.seated:
+			n.face_partner(partner)
 		# The mark says which of the three it is; the tint says how loud.
 		# Both, not the tint alone -- see STUDENT_SCRIPT.MARK_ART.
 		var tint := QUIZ_BUBBLE_TINT
 		var mark: String = STUDENT_SCRIPT.MARK_BEHIND
+		var shown: bool = flaring or noisy or stuck or presenting
 		if flaring:
 			tint = FLARE_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_FLARE
@@ -775,16 +793,73 @@ func _refresh_bubbles() -> void:
 		elif presenting:
 			tint = PRESENT_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_NERVES
-		n.set_bubble(flaring or noisy or stuck or flagged or presenting, tint, mark)
+		elif chatting:
+			# Only the one talking right now; the listener's own bubble (a
+			# quiz flag, say) waits until the conversation is over.
+			shown = chat_speaking(n.data)
+			tint = CHAT_BUBBLE_TINT
+			mark = STUDENT_SCRIPT.MARK_CHAT
+		else:
+			shown = flagged
+		n.set_bubble(shown, tint, mark)
 		# Head down on the desk, held: a child who has stopped getting anything
 		# out of this class, with no louder problem to show instead. Art only --
 		# the bubble decision above is untouched and nothing here is a grade
 		# input. The pose IS the read, which is why it raises no second bubble.
-		var loud: bool = flaring or noisy or stuck or flagged or presenting
+		var loud: bool = flaring or noisy or stuck or flagged or presenting or chatting
 		n.set_slumped(n.seated and n.data.is_capped() and not loud)
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
+
+
+## Whether this half of a conversation is the one talking right now. The one
+## who started it opens, and the floor changes hands every CHAT_TURN seconds.
+func chat_speaking(s: StudentData) -> bool:
+	if s == null or not s.chatting():
+		return false
+	var said: float = maxf(0.0, Balance.chat_seconds - s.chat_left)
+	var lead_turn: bool = int(said / CHAT_TURN) % 2 == 0
+	return lead_turn == s.chat_lead
+
+
+## The tile the teacher is standing on, for Game.tick_chat(): close enough and
+## nobody there gets talking. (-1, -1) when there is no teacher in THIS room --
+## a test that never spawned one, or the teacher out in the corridor -- which
+## the chatter reads as nobody watching.
+func teacher_tile() -> Vector2i:
+	if player == null or not is_instance_valid(player) or player.get_parent() != self:
+		return Vector2i(-1, -1)
+	return Grid.world_to_tile(player.global_position)
+
+
+## Two children have got talking. One burst of babble (throttled, so a room
+## that starts three conversations in a second says it once).
+func _on_chat_started(_a_id: int, _b_id: int) -> void:
+	Sfx.play_varied("chatter")
+
+
+## A conversation stopped. Walking over says "shh" between the two desks, so
+## the trip reads as having done something; a chat that ran its course and
+## got loud shows the one who started it kicking off, the same flash every
+## other way into messing about uses. Class, class! has its own rings and
+## says nothing more here.
+func _on_chat_ended(a_id: int, b_id: int, why: String) -> void:
+	var a := Game.student_by_id(a_id)
+	var b := Game.student_by_id(b_id)
+	var na: Actor = student_node(a.seat_index) if a != null else null
+	var nb: Actor = student_node(b.seat_index) if b != null else null
+	match why:
+		"hushed", "voice":
+			if na != null:
+				var at: Vector2 = na.global_position
+				if nb != null:
+					at = (na.global_position + nb.global_position) / 2.0
+				Floater.pop(self, at + Vector2(0, -44), "shh!",
+					CHAT_BUBBLE_TINT)
+		"loud":
+			if a != null:
+				_flash_pose(a.id, Actor.POSE_CHAT)
 
 
 ## Somebody sat down. If the lesson has already started they have missed

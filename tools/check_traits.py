@@ -28,6 +28,9 @@ HOOKS = {
     "help_xp_mult": (float, 0.2, 3.0),
     "copy_from_neighbour": (bool, None, None),
     "helps_neighbour": (float, 0.1, 0.6),
+    # Oct 2026: how readily they get talking to a desk close by
+    # (Game.chat_chance()). Chatty 2.0, Loud 1.5, Shy 0.5, Anchor 0.6.
+    "chat_mult": (float, 0.2, 3.0),
 }
 
 

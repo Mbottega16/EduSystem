@@ -194,14 +194,15 @@ name adds nothing a player cannot read off the label.
 "chatty": {
   "name": "Chatty",
   "blurb": "Talks to whoever is sitting next to them.",
-  "neighbour_stall_mult": 1.5
+  "neighbour_stall_mult": 1.5,
+  "chat_mult": 2.0
 }
 ```
 
 *(Copied verbatim from `data/balance.json`.)* A trait carries **only the
 hooks it actually uses** — it does not list the others at neutral values.
 
-**These six hooks are the complete set the engine reads.** Anything else
+**These seven hooks are the complete set the engine reads.** Anything else
 is silently ignored, so a trait built on an invented field is decoration
 that looks like mechanics:
 
@@ -213,11 +214,12 @@ that looks like mechanics:
 | `help_xp_mult` | float | Multiplies the XP they give when you help them. |
 | `copy_from_neighbour` | bool | They get unstuck off a neighbour, without understanding it. |
 | `helps_neighbour` | float | They lift the child next to them by this much. |
+| `chat_mult` | float | Multiplies how readily they get talking to a desk close enough to theirs. |
 
 **The rule:** it must hook into the work model or the seating. A trait that
 only prints a sentence is rejected. The existing six, and the hook each
 one uses: Quiet (`hide_seconds` 6.0), Curious (`stall_mult` 1.35 +
-`help_xp_mult` 2.0), Chatty (`neighbour_stall_mult` 1.5), Steady
+`help_xp_mult` 2.0), Chatty (`neighbour_stall_mult` 1.5 + `chat_mult` 2.0), Steady
 (`stall_mult` 0.7), Copies (`copy_from_neighbour`), Bright spark
 (`helps_neighbour` 0.35).
 

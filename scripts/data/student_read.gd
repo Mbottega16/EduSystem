@@ -90,8 +90,16 @@ static func acting_on(s: StudentData) -> Dictionary:
 		# so the read follows the desk's priority.
 		against.append(NOTHING_TO_WORK_WITH)
 		candidates.append({"rank": 0, "text": NOTHING_TO_WORK_WITH})
-	if Game.cluster_rate_mult(s) < 1.0:
-		against.append("Their desk is hemmed in by the others, so they work slower.")
+	# Close enough to someone to get talking (Game.tick_chat) -- named, since
+	# WHO they are sat by is the thing a player can change.
+	var mates := Game.chat_partners(s)
+	if not mates.is_empty():
+		var who := "%s's" % mates[0].first_name()
+		if mates.size() == 2:
+			who = "%s's and %s's" % [mates[0].first_name(), mates[1].first_name()]
+		elif mates.size() > 2:
+			who = "several others'"
+		against.append("Their desk is close enough to %s to get talking." % who)
 
 	# --- where YOU are, right now ---
 	if s.seat_index >= 0:
@@ -117,6 +125,10 @@ static func acting_on(s: StudentData) -> Dictionary:
 		# is_struggling() would hand over exactly what the trait withholds.
 		if s.is_visibly_struggling():
 			candidates.append({"rank": 2, "text": STUCK})
+	if s.chatting():
+		var talker := Game.student_by_id(s.chat_with)
+		against.append("They are talking to %s instead of working." % (
+			talker.first_name() if talker != null else "the next desk"))
 	if s.copied:
 		against.append("They have copied their way past it, so the gap is hidden.")
 	if s.quiz_flagged:

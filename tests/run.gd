@@ -194,7 +194,7 @@ func _main() -> void:
 	await test_acting_on_them()
 	await test_materials_day()
 	await test_book_pages()
-	await test_cluster_penalty()
+	await test_chatter()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -1263,8 +1263,12 @@ func test_balance() -> void:
 	chk("...nor _tick_flares()", not one_lesson_src.contains("_tick_flares("))
 	chk("...nor _tick_complications() -- the new one",
 		not one_lesson_src.contains("_tick_complications("))
-	chk("...nor cluster_rate_mult() -- the anti-cram penalty is layout-only",
-		not one_lesson_src.contains("cluster_rate_mult("))
+	# The anti-cram counter is the chatter now (it was cluster_rate_mult()),
+	# and the room ticks it -- the whole simulator must never reach it.
+	chk("...nor tick_chat() -- desks that touch get talking, in the room only",
+		not one_lesson_src.contains("tick_chat("))
+	chk("...and nothing in tools/sim.gd ticks the chatter at all",
+		not sim_src.contains("tick_chat("))
 	chk("...nor run_answer_all() -- the mass-help skill pays no grade",
 		not one_lesson_src.contains("run_answer_all("))
 	# The call-and-response holds attention, and attention is what the
@@ -2003,7 +2007,7 @@ func test_placement() -> void:
 
 	# --- ten-commits.md step 4: the crowding overlay, and its readout ---
 	# crowd_count() reads Game state directly (seats, roster,
-	# cluster_rate_mult()) rather than anything Placement itself is
+	# Game.too_close()) rather than anything Placement itself is
 	# holding, so a bare instance is enough -- no begin()/begin_browse()
 	# needed to exercise the logic. _draw()'s own CROWD_EDGE pass is the
 	# same data painted; confirmed by screenshot, not here.
@@ -2011,14 +2015,14 @@ func test_placement() -> void:
 	Game.new_run(SEED)
 	_seat_in_a_row(2, 4)     # every seat one tile from the next
 	await step(2)
-	chk("a row of touching desks hems in the whole class",
+	chk("a row of touching desks puts the whole class too close",
 		crowd.crowd_count() == Game.roster.size(), crowd.crowd_count())
-	chk("...the exact formula the game itself charges them",
-		Game.cluster_rate_mult(Game.roster[0]) < 1.0)
+	chk("...the exact test the chatter itself uses",
+		Game.too_close(Game.roster[0]))
 
 	Layout.reset_seats()     # the opening layout: no two seats within one tile
 	await step(2)
-	chk("the opening layout has nobody hemmed in",
+	chk("the opening layout has nobody too close",
 		crowd.crowd_count() == 0, crowd.crowd_count())
 	crowd.queue_free()
 
@@ -3399,7 +3403,7 @@ func test_panels_fit() -> void:
 	# the STORY page, with a full reel -- the other half of the file
 	for k: String in ["got_stuck", "quiz_caught", "grade_jump", "grade_drop",
 			"kept_back", "graduated", "caught_flare", "never_stuck",
-			"favourite_streak", "helped_neighbour", "fire_drill"]:
+			"favourite_streak", "helped_neighbour", "fire_drill", "got_chatting"]:
 		s.note_moment(k, s.joined_day + 5)
 		s.note_moment(k, s.joined_day + 9)
 	hud.show_student(s)                 # ensure _bio == s, then turn the page
@@ -10370,88 +10374,258 @@ func test_desk_interruption() -> void:
 	world._clear_mess()
 
 
-## The anti-cram penalty: a child with an occupied desk orthogonally
-## adjacent works slower, so spreading the desks back out is the actual
-## counter-play to the discovered "shove every desk into the middle" meta.
-## Layout only -- see the _one_lesson() source scan in test_balance() for
-## the assertion that the contract never sees it.
-func test_cluster_penalty() -> void:
-	section("DESK CLUSTERING")
+## DESKS THAT TOUCH GET TALKING (Oct 2026, the owner's ask): two children sat
+## too close strike up a conversation, neither works while it lasts, and the
+## teacher walking over stops it. It replaced the hidden cluster slowdown as
+## the counter to cramming the desks together -- the cost is on screen now.
+## Pace only; see test_balance()'s source scan for the contract guard.
+func test_chatter() -> void:
+	section("DESK CHATTER")
 	Balance.ensure_loaded()
 	Game.new_run(SEED)
 	await step(2)
 
-	chk("the penalty is a real, read tunable rather than a code const",
-		Balance.room_cluster_penalty > 0.0, Balance.room_cluster_penalty)
+	chk("the chatter's numbers are read from balance.json",
+		Balance.chat_reach_tiles >= 1 and Balance.chat_start_per_second > 0.0
+		and Balance.chat_seconds > 0.0 and Balance.chat_grace_seconds > 0.0
+		and Balance.chat_hush_tiles >= 1
+		and Balance.chat_noise_chance >= 0.0 and Balance.chat_noise_chance <= 1.0)
 
 	# the opening layout has no two seats within a tile of each other, so
-	# nobody pays it until a player chooses to bunch the desks up
-	var any_penalised := false
+	# nobody talks until a player chooses to bunch the desks up
+	var anyone := false
 	for s: StudentData in Game.roster:
-		if Game.cluster_rate_mult(s) < 1.0:
-			any_penalised = true
-	chk("the opening layout costs nobody anything", not any_penalised)
+		if Game.too_close(s):
+			anyone = true
+	chk("the opening layout puts nobody too close to talk", not anyone)
 
 	var s0: StudentData = Game.roster[0]
 	var s1: StudentData = Game.roster[1]
 	var s2: StudentData = Game.roster[2]
+	var s3: StudentData = Game.roster[3]
 
-	# 0 and 1 shoved together; 2 left off on its own
+	# 0 and 1 shoved side by side; 2 off on its own
 	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
 		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
 		Vector2i(7, 4)])
-	chk("a bunched desk works slower", is_equal_approx(
-		Game.cluster_rate_mult(s0), 1.0 - Balance.room_cluster_penalty),
-		Game.cluster_rate_mult(s0))
-	chk("and so does the desk it was bunched against",
-		Game.cluster_rate_mult(s1) < 1.0)
-	chk("the desk left on its own is untouched",
-		is_equal_approx(Game.cluster_rate_mult(s2), 1.0))
-
-	# spreading them back out clears it -- the counter-play actually works
-	Layout.set_seats([Vector2i(3, 4), Vector2i(15, 7), Vector2i(13, 8),
+	chk("two desks pushed together are too close", Game.too_close(s0)
+		and Game.too_close(s1))
+	chk("...each other's only chat partner", Game.chat_partners(s0).size() == 1
+		and Game.chat_partners(s0)[0] == s1 and Game.chat_partners(s1).size() == 1
+		and Game.chat_partners(s1)[0] == s0, Game.chat_partners(s0).size())
+	chk("the desk left on its own is not", not Game.too_close(s2))
+	# corners count: a staggered block is as crammed as a straight row, and
+	# the old penalty, which only looked along the row, let it through
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 5), Vector2i(13, 8),
 		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
 		Vector2i(7, 4)])
-	chk("moving them apart clears the penalty",
-		is_equal_approx(Game.cluster_rate_mult(s0), 1.0))
-
-	# 0.0 turns it off entirely
-	var kept := Balance.room_cluster_penalty
-	Balance.room_cluster_penalty = 0.0
+	chk("desks that touch only at a corner are too close as well",
+		Game.too_close(s0) and Game.too_close(s1))
+	Layout.set_seats([Vector2i(3, 4), Vector2i(5, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("a one-tile aisle between them is enough", not Game.too_close(s0))
 	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
 		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
 		Vector2i(7, 4)])
-	chk("penalty of 0 is a clean no-op, not a 0x rate",
-		is_equal_approx(Game.cluster_rate_mult(s0), 1.0))
-	Balance.room_cluster_penalty = kept
 
-	# the room's own work tick actually reads it -- not just the helper
-	var cls_src := FileAccess.get_file_as_string("res://scripts/world/classroom.gd")
-	chk("classroom._physics_process actually applies cluster_rate_mult",
-		cls_src.contains("cluster_rate_mult("))
+	# whoever they are, the trait decides how readily they talk
+	s0.trait_id = "chatty"
+	s1.trait_id = ""
+	chk("a Chatty child doubles the pair's chance",
+		is_equal_approx(Game.chat_chance(s0, s1),
+			Balance.chat_start_per_second * Traits.value("chatty", "chat_mult", 1.0)))
+	chk("...Chatty really is chattier and Shy really is quieter",
+		Traits.value("chatty", "chat_mult", 1.0) > 1.0
+		and Traits.value("shy", "chat_mult", 1.0) < 1.0)
 
-	# and the behaviour it buys: the same sheet and the same teaching rate
-	# for both, and the bunched desk still falls behind the lone one.
-	# Rate held at 1.0 (perfect teaching, the contract's own convention)
-	# and a null rng so no stalls muddy the comparison.
-	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
-		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
-		Vector2i(7, 4)])
-	for s: StudentData in Game.roster:
-		s.work_state = StudentData.Work.WORKING
-		s.work_total = 10.0
-		s.work_timer = 10.0
-		s.confusion = 0.0
-		s.disrupting = false
-	for i in 200:
+	var events: Array = []
+	var on_start := func(a: int, b: int) -> void: events.append(["start", a, b])
+	var on_end := func(a: int, b: int, why: String) -> void: events.append([why, a, b])
+	Game.chat_started.connect(on_start)
+	Game.chat_ended.connect(on_end)
+	var far := Vector2i(17, 9)
+	var kept_start := Balance.chat_start_per_second
+	var kept_noise := Balance.chat_noise_chance
+
+	var working := func() -> void:
 		for s: StudentData in Game.roster:
-			s.tick_work(1.0 / 60.0, null, Game.cluster_rate_mult(s))
-	chk("over a stretch of teaching, the bunched desk is behind the lone one",
-		s0.work_fraction() < s2.work_fraction(),
-		"%.3f vs %.3f" % [s0.work_fraction(), s2.work_fraction()])
+			s.reset_lesson()
+			s.work_state = StudentData.Work.WORKING
+			s.work_total = 20.0
+			s.work_timer = 20.0
+	working.call()
 
+	chk("a test is silent: no rng, nobody talks", (func() -> bool:
+		Balance.chat_start_per_second = 1000.0
+		Game.tick_chat(1.0 / 60.0, null, far)
+		return not s0.chatting()).call())
+
+	# a chance this high is certain on the first frame
+	Game.tick_chat(1.0 / 60.0, Game.rng, far)
+	chk("left alone, the two close desks get talking",
+		s0.chatting() and s1.chatting() and s0.chat_with == s1.id
+		and s1.chat_with == s0.id)
+	chk("...the Chatty one started it", s0.chat_lead and not s1.chat_lead)
+	chk("...and the desk on its own did not join in", not s2.chatting()
+		and not s3.chatting())
+	chk("the room heard it start", events.size() == 1
+		and events[0] == ["start", s0.id, s1.id], events)
+	chk("the first time is a moment in both their stories",
+		s0.has_moment("got_chatting") and s1.has_moment("got_chatting")
+		and _hud()._moment_sentence("got_chatting", 1, s0.joined_day, s0) != "")
+
+	var before := s0.work_timer
+	s0.tick_work(1.0, null, 1.0)
+	chk("while they talk, not a stroke of work", is_equal_approx(s0.work_timer, before))
+	chk("...the same with whoever they are talking to", (func() -> bool:
+		var t := s1.work_timer
+		s1.tick_work(1.0, null, 1.0)
+		return is_equal_approx(s1.work_timer, t)).call())
+	chk("...and it shows on their file, by name",
+		(StudentRead.acting_on(s0).get("against", []) as Array).has(
+			"They are talking to %s instead of working." % s1.first_name()))
+	chk("the file says who they are sat too close to",
+		(StudentRead.acting_on(s0).get("against", []) as Array).has(
+			"Their desk is close enough to %s's to get talking." % s1.first_name()))
+
+	# nobody came: it runs its course and ends by itself
+	Balance.chat_noise_chance = 0.0
+	events.clear()
+	for i in int(Balance.chat_seconds * 60.0) + 5:
+		Game.tick_chat(1.0 / 60.0, Game.rng, far)
+		if not s0.chatting():
+			break
+	chk("left to run, a chat ends by itself", not s0.chatting() and not s1.chatting())
+	chk("...said as having run its course", events.size() == 1
+		and String(events[0][0]) == "over", events)
+	chk("...and both owe some work before the next one",
+		s0.chat_cool > 0.0 and s1.chat_cool > 0.0)
+	Game.tick_chat(1.0 / 60.0, Game.rng, far)
+	chk("so they do not start again straight away", not s0.chatting())
+
+	# the quiet after a chat runs out, and then they can talk again
+	for i in int(Balance.chat_grace_seconds * 60.0) + 5:
+		Game.tick_chat(1.0 / 60.0, Game.rng, far)
+		if s0.chatting():
+			break
+	chk("once that quiet is up, they can get talking again", s0.chatting())
+
+	# the teacher walking over stops it, and stops the next one starting
+	events.clear()
+	var by_them := Layout.seat(s0.seat_index) + Vector2i(0, -1)
+	Game.tick_chat(1.0 / 60.0, Game.rng, by_them)
+	chk("the teacher coming over stops it at once", not s0.chatting()
+		and not s1.chatting())
+	chk("...said as hushed, for the 'shh'", events.size() == 1
+		and String(events[0][0]) == "hushed", events)
+	s0.chat_cool = 0.0
+	s1.chat_cool = 0.0
+	Game.tick_chat(1.0 / 60.0, Game.rng, by_them)
+	chk("and nobody starts while you stand there", not s0.chatting())
+	chk("standing close is close: within reach, not across the room",
+		Game.teacher_near(s0, by_them) and not Game.teacher_near(s0, far)
+		and not Game.teacher_near(s0, Vector2i(-1, -1)))
+
+	# left to run with nobody coming, it can get loud -- ordinary messing about
+	Balance.chat_noise_chance = 1.0
+	Game.tick_chat(1.0 / 60.0, Game.rng, far)
+	events.clear()
+	for i in int(Balance.chat_seconds * 60.0) + 5:
+		Game.tick_chat(1.0 / 60.0, Game.rng, far)
+		if not s0.chatting():
+			break
+	chk("a chat nobody broke up can turn into messing about", s0.disrupting
+		and not s1.disrupting)
+	chk("...the one who started it, said as loud", events.size() == 1
+		and events[0] == ["loud", s0.id, s1.id], events)
+	chk("a child messing about cannot start a chat", not Game.can_chat(s0))
+	Balance.chat_noise_chance = kept_noise
+
+	working.call()
+	s0.confusion = 1.0
+	chk("nor can a stuck one -- they want you, not their neighbour",
+		not Game.can_chat(s0))
+	working.call()
+
+	# Class, class!: every head turns to you, so every conversation stops
+	Game.start_chat(s0, s1)
+	Game.set_phase(Game.Phase.LESSON)
+	Game.call_response_taught = true
+	Game.voice = 1.0
+	Game.call_cooldown = 0.0
+	events.clear()
+	chk("Class, class! is heard", Game.call_the_class())
+	chk("...and it stops every chat in the room", not s0.chatting()
+		and events.size() == 1 and String(events[0][0]) == "called", events)
+
+	# raising your voice reaches chats within earshot too, uncounted
+	working.call()
+	Game.start_chat(s0, s1)
+	Game.voice = 1.0
+	events.clear()
+	var settled := Game.raise_voice(Layout.seat(s0.seat_index))
+	chk("'Right -- settle down' stops a chat within earshot",
+		not s0.chatting() and events.size() == 1
+		and String(events[0][0]) == "voice", events)
+	chk("...without counting it as settling anyone", settled == 0, settled)
+	Game.set_phase(Game.Phase.MORNING)
+
+	# a new lesson clears it
+	Game.start_chat(s0, s1)
+	s0.reset_lesson()
+	chk("a fresh lesson starts with nobody mid-sentence",
+		not s0.chatting() and s0.chat_cool == 0.0)
+
+	# --- in the room: the pair turn to each other, and the bubble goes back
+	# and forth. In the morning nothing ticks the chat down, so it holds
+	# still to be looked at. Seats 0 and 1 are still where the opening
+	# layout drew them (seat 0 left of seat 1), which is all facing needs.
+	Layout.reset_seats()
+	var seated_guard := 0
+	while not world.everyone_seated() and seated_guard < 900:
+		await step(1)
+		seated_guard += 1
+	working.call()
+	var n0: Actor = world.student_node(s0.seat_index)
+	var n1: Actor = world.student_node(s1.seat_index)
+	Game.start_chat(s0, s1)
+	await step(3)
+	chk("they turn to face each other", n0 != null and n1 != null
+		and n0.facing == Actor.DIR_RIGHT and n1.facing == Actor.DIR_LEFT,
+		[n0.facing if n0 != null else -1, n1.facing if n1 != null else -1])
+	chk("the one talking has the chat bubble up", n0.bubble.visible
+		and n0.bubble.texture == load("res://art/bubble_chat.png"))
+	chk("...and the one listening does not, yet", not n1.bubble.visible)
+	var turn: float = float(world.get_script().get_script_constant_map().get(
+		"CHAT_TURN", 0.8))
+	s0.chat_left = Balance.chat_seconds - turn - 0.05
+	s1.chat_left = s0.chat_left
+	await step(3)
+	chk("the floor changes hands: now the other one is talking",
+		n1.bubble.visible and not n0.bubble.visible)
+	Game.end_chat(s0, "hushed")
+	await step(3)
+	chk("when it ends they face the front again",
+		n0.facing == Actor.DIR_DOWN and n1.facing == Actor.DIR_DOWN)
+	chk("...and the bubble comes down", not n0.bubble.visible
+		and not n1.bubble.visible)
+
+	# the room ticks it -- not just the helper -- and the old hidden
+	# slowdown is really gone from the work tick
+	var cls_src := FileAccess.get_file_as_string("res://scripts/world/classroom.gd")
+	chk("classroom._physics_process actually ticks the chatter",
+		cls_src.contains("Game.tick_chat("))
+	chk("...and no longer charges the old hidden cluster slowdown",
+		not cls_src.contains("cluster_rate_mult("))
+
+	Balance.chat_start_per_second = kept_start
+	Balance.chat_noise_chance = kept_noise
+	Game.chat_started.disconnect(on_start)
+	Game.chat_ended.disconnect(on_end)
 	Layout.reset_seats()
 	Game.new_run(SEED)
+	await step(2)
 
 
 # ============================================ furniture lanes and clutter

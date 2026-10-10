@@ -82,6 +82,9 @@ const MARK_BEHIND := "behind"
 const MARK_NERVES := "nerves"
 const MARK_HELPED := "helped"
 const MARK_DRIFT := "drift"
+## Talking to the desk next door (Game.tick_chat): quotation marks, shown on
+## whichever of the two is speaking, so the bubble goes back and forth.
+const MARK_CHAT := "chat"
 
 const MARK_ART := {
 	MARK_STUCK: preload("res://art/bubble_q.png"),
@@ -91,6 +94,7 @@ const MARK_ART := {
 	MARK_NERVES: preload("res://art/bubble_drop.png"),
 	MARK_HELPED: preload("res://art/bubble_heart.png"),
 	MARK_DRIFT: preload("res://art/bubble_zzz.png"),
+	MARK_CHAT: preload("res://art/bubble_chat.png"),
 }
 
 
@@ -113,12 +117,36 @@ func set_bubble(on: bool, tint: Color = Color.WHITE, mark: String = MARK_STUCK) 
 	if on:
 		# a small pop, and a sound, because a boolean toggle thirty tiles
 		# away in a static frame is genuinely easy to miss
-		Sfx.play_varied("stuck")
 		bubble.scale = Vector2(0.4, 0.4)
 		var tw := create_tween()
 		tw.tween_property(bubble, "scale", Vector2.ONE, 0.18) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		play_pose(POSE_SAD)
+		# ...but a conversation is not a child in trouble. Its bubble pops back
+		# and forth between the two of them every turn, so it keeps the pop
+		# and leaves out the "stuck" sound and the head-down pose; the chat
+		# has its own sound, once, when it starts.
+		if bubble.texture != MARK_ART[MARK_CHAT]:
+			Sfx.play_varied("stuck")
+			play_pose(POSE_SAD)
+
+
+## Turn to face whoever they are talking to, or back to the front when
+## `partner` is null. Re-frames only on a change, and never over a held pose
+## (that hands back to this facing when it ends), so it cannot fight a jump,
+## a blink or anything else that set the frame. Side by side or at a corner,
+## they turn sideways; one behind the other, up or down.
+func face_partner(partner: Node2D) -> void:
+	var want := DIR_DOWN
+	if partner != null:
+		var d := partner.global_position - global_position
+		if absf(d.x) >= 1.0:
+			want = DIR_RIGHT if d.x > 0.0 else DIR_LEFT
+		else:
+			want = DIR_DOWN if d.y > 0.0 else DIR_UP
+	if facing == want:
+		return
+	facing = want
+	_set_frame(rest_frame())
 
 
 ## The notice column over their head: the work bar, and the "?" bubble

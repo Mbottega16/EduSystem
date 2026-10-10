@@ -40,28 +40,39 @@ of it.
 - **Run end**: missing a term's target, exactly as it already works.
   No new grading system.
 
-## The anti-clustering fix (base game, not roguelike-only) — shipped
+## The anti-clustering fix (base game, not roguelike-only) — shipped, then made visible
 
 The originally-reported problem: the discovered meta is cramming every
-desk together in the middle of the room. The fix: a child with another
-**occupied desk orthogonally adjacent** works `room.cluster_penalty`
-(0.12) slower — `Game.cluster_rate_mult()`, applied per student in
-`classroom._physics_process()` on top of the class-wide work rate.
-Spreading the desks back out is the whole counter-play, and the opening
-layout already has no two seats within a tile of each other, so it costs
-nothing until a player chooses to bunch them.
+desk together in the middle of the room. The first fix was a hidden one:
+a child with an **occupied desk orthogonally adjacent** worked
+`room.cluster_penalty` (0.12) slower. It worked, but nothing on screen
+said so, and nothing you did during a lesson could change it.
 
-Layout only — it never touches a grade formula, and the contract sim
-(`tools/sim.gd::_one_lesson()`) seats every child at 0 and calls
-`tick_work()` directly rather than through the room, so it never sees
-this. `test_balance()`'s source scan asserts `_one_lesson()` never calls
-`cluster_rate_mult()`, the same guard the complication ticks got.
+**Since Oct 2026 the cost is talking** (the owner's ask: "if the students
+are too close to each other they start talking to one another"). Two seated
+children whose seats are within `chat.reach_tiles` of each other — corners
+count, so a staggered block is as crammed as a straight row — may strike
+up a conversation while both are working (`Game.tick_chat()`, ticked by
+the room). They turn to each other, the bubble goes back and forth, and
+neither does any work until it ends: after `chat.seconds`, or at once when
+the teacher comes within `chat.hush_tiles` ("shh!"), calls Class, class!,
+or raises their voice within earshot. A pair then owes `chat.grace_seconds`
+of work before the next one, and a chat nobody broke up has
+`chat.noise_chance` to turn the one who started it into ordinary messing
+about. Traits lean on it through `chat_mult` (Chatty 2.0, Loud 1.5, Anchor
+0.6, Shy 0.5). The hidden 12% is gone; spreading the desks out, or standing
+by the pair, is the counter-play, and the opening layout still costs
+nothing because no two of its seats are within a tile.
+
+Pace only — it never touches a grade formula, and the contract sim
+(`tools/sim.gd`) never calls `tick_chat()`; `test_balance()`'s source scan
+asserts that, the same guard the complication ticks got.
 
 Genuinely adjacent, and left as-is: `neighbour_stall_multiplier()`
 (`scripts/data/student_data.gd`) already raises stall chance from an
 *actively disrupting* neighbour, and a `helps_neighbour` trait is a
-*positive* reason to cluster — the two pulls now sit either side of the
-new penalty rather than all pointing one way.
+*positive* reason to cluster — the two pulls sit either side of the
+chatter rather than all pointing one way.
 
 ## Mid-lesson complications — shipped
 
@@ -137,8 +148,8 @@ child legible, and giving the teacher a job that is unmistakably theirs.
 
 **A child's file has a third page.** Tab cycles the file, their story, and
 now *what is acting on them* — their trait, the day's own event, whether
-the room has anything out for today's subject, whether their desk is
-hemmed in, whether you are stood close enough to settle them, and what
+the room has anything out for today's subject, who they sit close
+enough to get talking to, whether you are stood close enough to settle them, and what
 they are doing to themselves. Sorted under AGAINST THEM and FOR THEM,
 worst first, because the reason you opened the page is that something is
 wrong.

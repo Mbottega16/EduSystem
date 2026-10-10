@@ -29,7 +29,7 @@
     "lesson_seconds": 45.0,
     "stall_chance_per_second": 0.14,
     "supplies_stall_mult": 0.7,
-    "_supplies_note": "A materials day (DayEvent \"supplies\") starts every seated child empty-handed, and it is the teacher's job to hand their things out before the bell. A child who never got theirs works at this fraction of the normal rate for the day -- a PACE penalty on their own work, exactly like room.cluster_penalty, never a term on their grade. It cannot fire unless the day rolled the materials event, which tools/sim.gd never does, so the contract rows never see it.",
+    "_supplies_note": "A materials day (DayEvent \"supplies\") starts every seated child empty-handed, and it is the teacher's job to hand their things out before the bell. A child who never got theirs works at this fraction of the normal rate for the day -- a PACE penalty on their own work, the same kind of cost as two desks too close to stop chatting (the chat section), never a term on their grade. It cannot fire unless the day rolled the materials event, which tools/sim.gd never does, so the contract rows never see it.",
     "stall_grace_seconds": 1.5,
     "_uncollected_note": "Seconds a finished sheet may sit on a desk before the game says out loud, once per run, that it only counts when collected. Uncollected work HALVES that child's lesson grade at the bell (see grade.uncollected_penalty), and nothing said so. Not instant: the player may already be walking over, and a nudge that fires the moment a child finishes would be noise rather than teaching.",
     "uncollected_hint_after": 6.0,
@@ -1102,10 +1102,9 @@
     "none_streak_cap": 2
   },
   "room": {
-    "_note": "Buying floor space, and how it is used. Floor is priced per TILE of new floor and rising with each expansion, so a bigger room is a real investment rather than a thing you tick off on day two. The room only grows right and down: the door is a fixed point on the left wall and everything already placed must keep its coordinates. cluster_penalty is the counter to the discovered meta of cramming every desk into the middle: a child with another occupied desk orthogonally adjacent works this fraction slower. The opening layout has no two seats within one tile of each other, so it costs nothing until a player moves desks together. Layout-only -- never touches a grade formula, and the contract sim (tools/sim.gd _one_lesson()) never sees it: it sets every seat to 0 and calls tick_work() directly rather than through the room.",
+    "_note": "Buying floor space, and how it is used. Floor is priced per TILE of new floor and rising with each expansion, so a bigger room is a real investment rather than a thing you tick off on day two. The room only grows right and down: the door is a fixed point on the left wall and everything already placed must keep its coordinates. (The counter to cramming every desk into the middle used to live here as cluster_penalty, a hidden 12% slowdown for a child with a desk next to theirs. Since Oct 2026 that cost is the CHAT section instead: desks that touch get talking, which you can see and stop.)",
     "expand_cost_per_tile": 26,
-    "expand_growth": 1.45,
-    "cluster_penalty": 0.12
+    "expand_growth": 1.45
   },
   "test": {
     "_note": "The end-of-unit test. Playable only after you have taught the unit enough times to have unlocked its concepts. It is the one instrument you cannot intervene in: no helping, no collecting, no stalls. What it measures is the classroom you BUILT and the children you developed, not how well you ran round the room today -- which is exactly why it is worth more than a lesson.",
@@ -1276,7 +1275,8 @@
     "chatty": {
       "name": "Chatty",
       "blurb": "Talks to whoever is sitting next to them.",
-      "neighbour_stall_mult": 1.5
+      "neighbour_stall_mult": 1.5,
+      "chat_mult": 2.0
     },
     "steady": {
       "name": "Steady",
@@ -1297,13 +1297,15 @@
       "name": "Loud",
       "blurb": "Works well enough, but narrates everything they do.",
       "stall_mult": 0.8,
-      "neighbour_stall_mult": 1.6
+      "neighbour_stall_mult": 1.6,
+      "chat_mult": 1.5
     },
     "shy": {
       "name": "Shy",
       "blurb": "Will sit silently stuck until directly asked.",
       "hide_seconds": 6.5,
-      "help_xp_mult": 1.6
+      "help_xp_mult": 1.6,
+      "chat_mult": 0.5
     },
     "restless": {
       "name": "Restless",
@@ -1321,7 +1323,8 @@
       "name": "Anchor",
       "blurb": "Solid and dependable, but keeps their head down.",
       "helps_neighbour": 0.5,
-      "help_xp_mult": 0.3
+      "help_xp_mult": 0.3,
+      "chat_mult": 0.6
     },
     "ghost": {
       "name": "Ghost",
@@ -1338,6 +1341,15 @@
     "spread_per_second": 0.045,
     "neighbour_stall_mult": 2.0,
     "xp_for_settling": 3
+  },
+  "chat": {
+    "_note": "Desks that touch get talking (Oct 2026, the owner's ask: 'if the students are too close to each other they start talking to one another'). Two seated children whose seats are within reach_tiles of each other (corners count) may strike up a conversation while both are working: start_per_second is the chance per PAIR per second, times each child's trait chat_mult. While they talk, neither does a stroke of work -- the same as messing about, but quieter and it ends by itself after `seconds`. The teacher standing within hush_tiles of either desk stops it at once and stops a new one starting ('they see you coming'); so does Class, class! and raising your voice within earshot. After any chat both get grace_seconds back at work before they can start another. A chat nobody breaks up has noise_chance to turn the one who started it into messing about. This REPLACES room.cluster_penalty, the old hidden slowdown for a crowded desk: the cost of sitting children close is now something on screen you can do something about. Pace only: it never touches a grade formula, it is ticked by the room (classroom._physics_process) and never by tools/sim.gd. The opening layout has no two seats within a tile of each other, so nobody talks until a player moves desks together.",
+    "reach_tiles": 1,
+    "start_per_second": 0.06,
+    "seconds": 5.0,
+    "grace_seconds": 6.0,
+    "hush_tiles": 2,
+    "noise_chance": 0.25
   },
   "flare": {
     "_note": "A flare-up: a random, timed warning that ONE calm child is about to kick off. A bubble goes up over their head with a countdown -- reach the desk and press E (this is what the dash is for: a flare across the room is only catchable if you spend a burst) and it is defused, with a small coin tip and a little XP for the child. Let the countdown run out and they start disrupting -- the ordinary messing-about mechanic, nothing new grade-side. Independent of boredom/frustration on purpose: those already lead to disruption; this is the extra, catchable urgency. onset is per calm seated child per second, multiplied by whatever today's day event does to stall (a Restless class throws more). Capped per day so a bad-luck run cannot bury you.",

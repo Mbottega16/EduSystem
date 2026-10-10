@@ -1046,25 +1046,183 @@ func neighbours_of(s: StudentData) -> Array[StudentData]:
 	return out
 
 
-## The counter to the discovered meta of cramming every desk into the
-## middle of the room: a child with another occupied desk orthogonally
-## adjacent works Balance.room_cluster_penalty slower. Spreading the desks
-## back out is the whole counter-play, and the opening layout already has
-## no two seats within a tile of each other, so this costs nothing until a
-## player chooses to bunch them.
-##
-## Layout only, read live the same way neighbours_of() is -- it never
-## touches a grade formula. The contract sim (tools/sim.gd _one_lesson())
-## seats every child at 0 and calls tick_work() directly rather than
-## through classroom._physics_process, so it never sees this; asserted in
-## test_balance()'s _one_lesson() source scan alongside tick_class().
-func cluster_rate_mult(s: StudentData) -> float:
+# --- desks that touch get talking ------------------------------------------
+#
+# The counter to the discovered meta of cramming every desk into the middle
+# of the room. It used to be a hidden 12% slowdown for any child with a desk
+# beside theirs (cluster_rate_mult(), room.cluster_penalty): real, but
+# invisible, and nothing you could do about it once the lesson started. The
+# owner asked for the visible version (Oct 2026): sit two children too close
+# and they start talking to one another. While they talk neither works; walk
+# over and it stops. The cost of crowding is now something on screen.
+#
+# Pace only. A chat stops a child's work timer exactly the way messing about
+# does, and never touches a grade formula. It is ticked by the room
+# (classroom._physics_process) and never by tools/sim.gd, so the contract rows
+# cannot see it -- asserted in test_balance()'s source scan.
+
+## A conversation began between these two (a_id started it).
+signal chat_started(a_id: int, b_id: int)
+## It ended. `why`: "over" (ran its course), "loud" (ran its course and the
+## one who started it is messing about now), "hushed" (the teacher came over),
+## "called" (Class, class!), "voice" (raised voice, within earshot).
+signal chat_ended(a_id: int, b_id: int, why: String)
+
+
+## Who this child could talk to: everyone seated within Balance.chat_reach_tiles
+## of them, corners counting. Read live from the seating, like neighbours_of(),
+## so moving a desk changes it at once. Corners count because a staggered
+## block of desks is every bit as crammed as a straight row, and the old
+## penalty, which only looked along the row, let it through.
+func chat_partners(s: StudentData) -> Array[StudentData]:
 	Balance.ensure_loaded()
-	if s == null or s.seat_index < 0 or Balance.room_cluster_penalty <= 0.0:
-		return 1.0
-	if neighbours_of(s).is_empty():
-		return 1.0
-	return maxf(0.0, 1.0 - Balance.room_cluster_penalty)
+	var out: Array[StudentData] = []
+	if s == null or s.seat_index < 0:
+		return out
+	var here: Vector2i = Layout.seat(s.seat_index)
+	for other: StudentData in roster:
+		if other == s or other.seat_index < 0:
+			continue
+		var there: Vector2i = Layout.seat(other.seat_index)
+		if maxi(absi(there.x - here.x), absi(there.y - here.y)) <= Balance.chat_reach_tiles:
+			out.append(other)
+	return out
+
+
+## Sitting close enough to someone to get talking: the warm outline in build
+## mode, "too close" on the strip, and a line on the child's file.
+func too_close(s: StudentData) -> bool:
+	return not chat_partners(s).is_empty()
+
+
+## Free to start a conversation right now: seated, a sheet in front of them
+## and working at it -- not stuck (they want YOU), not messing about, not
+## about to, not already talking, and not inside the quiet a broken-up chat
+## buys.
+func can_chat(s: StudentData) -> bool:
+	return s != null and s.seat_index >= 0 \
+		and s.work_state == StudentData.Work.WORKING \
+		and not s.is_struggling() and not s.disrupting and not s.flaring() \
+		and not s.chatting() and s.chat_cool <= 0.0
+
+
+## This pair's chance per second of getting talking. A Chatty child doubles
+## it; a Shy one halves it.
+func chat_chance(a: StudentData, b: StudentData) -> float:
+	Balance.ensure_loaded()
+	return Balance.chat_start_per_second \
+		* Traits.value(a.trait_id, "chat_mult", 1.0) \
+		* Traits.value(b.trait_id, "chat_mult", 1.0)
+
+
+## Is the teacher (standing on `teacher_tile`) close enough to this desk that
+## nobody there will chat? A negative tile means nobody is in the room.
+func teacher_near(s: StudentData, teacher_tile: Vector2i) -> bool:
+	if s == null or s.seat_index < 0 or teacher_tile.x < 0:
+		return false
+	var seat: Vector2i = Layout.seat(s.seat_index)
+	return absi(seat.x - teacher_tile.x) + absi(seat.y - teacher_tile.y) \
+		<= Balance.chat_hush_tiles
+
+
+## One frame of the room's chatter, called by the room during a lesson (never
+## a written test, never the boss paper) with the tile the teacher stands on.
+## A null rng is a test, which is silent: nobody talks in one.
+func tick_chat(delta: float, rng: RandomNumberGenerator, teacher_tile: Vector2i) -> void:
+	Balance.ensure_loaded()
+	if rng == null:
+		return
+	for s: StudentData in roster:
+		if s.chat_cool > 0.0:
+			s.chat_cool = maxf(0.0, s.chat_cool - delta)
+
+	# --- the conversations already going, each pair once (from its lead) ---
+	for s: StudentData in roster.duplicate():
+		if not s.chatting() or not s.chat_lead:
+			continue
+		var m := student_by_id(s.chat_with)
+		if m == null or m.chat_with != s.id:
+			end_chat(s, "over")
+		elif s.disrupting or m.disrupting or s.is_struggling() or m.is_struggling() \
+				or s.flaring() or m.flaring():
+			end_chat(s, "over")             # something louder took over
+		elif teacher_near(s, teacher_tile) or teacher_near(m, teacher_tile):
+			end_chat(s, "hushed")
+		else:
+			s.chat_left = maxf(0.0, s.chat_left - delta)
+			m.chat_left = s.chat_left
+			if s.chat_left <= 0.0:
+				# Nobody came. Sometimes that is the end of it, and sometimes
+				# it gets loud -- and then it is ordinary messing about, which
+				# spreads and wants settling.
+				if rng.randf() < Balance.chat_noise_chance:
+					s.disrupting = true
+					end_chat(s, "loud")
+				else:
+					end_chat(s, "over")
+
+	# --- new ones. Each pair is rolled once a frame, from its lower id. ---
+	for s: StudentData in roster:
+		if not can_chat(s) or teacher_near(s, teacher_tile):
+			continue
+		for m: StudentData in chat_partners(s):
+			if m.id <= s.id or not can_chat(m) or teacher_near(m, teacher_tile):
+				continue
+			if rng.randf() < chat_chance(s, m) * delta:
+				# The chattier of the two started it.
+				var lead := s
+				if Traits.value(m.trait_id, "chat_mult", 1.0) \
+						> Traits.value(s.trait_id, "chat_mult", 1.0):
+					lead = m
+				start_chat(lead, m if lead == s else s)
+				break
+
+
+## Get these two talking: `a` started it.
+func start_chat(a: StudentData, b: StudentData) -> void:
+	Balance.ensure_loaded()
+	if a == null or b == null or a == b:
+		return
+	a.chat_with = b.id
+	b.chat_with = a.id
+	a.chat_left = Balance.chat_seconds
+	b.chat_left = Balance.chat_seconds
+	a.chat_lead = true
+	b.chat_lead = false
+	for c: StudentData in [a, b]:
+		if not c.has_moment("got_chatting"):
+			c.note_moment("got_chatting", day)
+	chat_started.emit(a.id, b.id)
+
+
+## Stop the conversation `s` is in, both halves of it, and start both on the
+## quiet that follows. Returns false if they were not talking.
+func end_chat(s: StudentData, why: String) -> bool:
+	Balance.ensure_loaded()
+	if s == null or not s.chatting():
+		return false
+	var m := student_by_id(s.chat_with)
+	var lead := s if s.chat_lead or m == null else m
+	var other := m if lead == s else s
+	for c: StudentData in [s, m]:
+		if c == null:
+			continue
+		c.chat_with = -1
+		c.chat_left = 0.0
+		c.chat_lead = false
+		c.chat_cool = Balance.chat_grace_seconds
+	chat_ended.emit(lead.id, other.id if other != null else -1, why)
+	return true
+
+
+## Every conversation in the room, stopped at once -- Class, class! Returns
+## how many pairs it broke up.
+func end_all_chats(why: String) -> int:
+	var n := 0
+	for s: StudentData in roster.duplicate():
+		if s.chatting() and s.chat_lead and end_chat(s, why):
+			n += 1
+	return n
 
 
 ## Everything that depends on WHO IS SITTING NEXT TO WHOM, once per frame.
@@ -2031,14 +2189,18 @@ func raise_voice(from: Vector2i) -> int:
 	voice = maxf(0.0, voice - Balance.voice_cost)
 	voice_changed.emit(voice)
 	var settled := 0
+	var range_tiles: float = Balance.voice_range + Progress.voice_range_bonus(perk_ranks)
 	for s: StudentData in roster:
-		if s.seat_index < 0 or not s.disrupting:
+		if s.seat_index < 0:
 			continue
 		var seat: Vector2i = Layout.seat(s.seat_index)
-		var range_tiles: float = Balance.voice_range + Progress.voice_range_bonus(perk_ranks)
 		if absi(seat.x - from.x) + absi(seat.y - from.y) > range_tiles:
 			continue
-		if s.settle():
+		# "Right -- settle down" stops a chat within earshot as well. It is not
+		# counted: the count is who was messing about, and a chat was not.
+		if s.chatting():
+			end_chat(s, "voice")
+		if s.disrupting and s.settle():
 			settled += 1
 	return settled
 
@@ -2114,6 +2276,8 @@ func call_the_class() -> bool:
 	if not is_equal_approx(attention, 1.0):
 		attention = 1.0
 		attention_changed.emit(attention)
+	# Every head turns to you, so every conversation stops mid-sentence.
+	end_all_chats("called")
 	return true
 
 # --- the class's attention -------------------------------------------

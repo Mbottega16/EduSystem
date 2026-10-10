@@ -16,7 +16,9 @@ const VOICES := 8
 
 ## Sounds that would become noise if fired every frame, and how long to
 ## suppress a repeat for.
-const THROTTLE := {"step": 0.26, "stuck": 0.12, "blip": 0.05}
+## "chatter" is a crowded room's babble (Game.tick_chat): several pairs can
+## start talking within a second of each other, and one burst says it.
+const THROTTLE := {"step": 0.26, "stuck": 0.12, "blip": 0.05, "chatter": 1.2}
 
 var enabled: bool = true
 var volume_db: float = -6.0

@@ -688,6 +688,36 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.start_lesson()
 			world.player.global_position = Grid.tile_to_world(
 				Layout.PODIUM + Vector2i(0, 1))
+		"chatter", "chatter_build", "chatter_file":
+			# Desks that touch get talking (Game.tick_chat). Two pairs pushed
+			# together, both mid-conversation; the second pair a turn further
+			# on, so both halves of a back-and-forth are in the one frame.
+			# chatter_build: the same room in build mode, where the warm
+			# outline and "too close" on the strip warn about it in advance.
+			# chatter_file: page three of one of them, which names who.
+			# Auto-teach off: a save that has it on would resolve the lesson
+			# the moment it started, and the shot would be its replay.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			world.move_desk(1, Layout.seat(0) + Vector2i(1, 0))
+			world.move_desk(3, Layout.seat(2) + Vector2i(1, 0))
+			if screen == "chatter_build":
+				main._toggle_build()
+				return
+			world.start_lesson()
+			# By the door, well away from every desk: a teacher stood near a
+			# pair hushes it (the save's own layout may put desks anywhere).
+			world.player.global_position = Grid.tile_to_world(
+				Layout.DOOR + Vector2i(1, 0))
+			Game.start_chat(Game.roster[0], Game.roster[1])
+			Game.start_chat(Game.roster[2], Game.roster[3])
+			Game.roster[2].chat_left = Balance.chat_seconds - 1.0
+			Game.roster[3].chat_left = Game.roster[2].chat_left
+			if screen == "chatter_file":
+				hud.show_student(Game.roster[0])
+				hud._bio_page = hud.BIO_ACTING
+				hud.show_student(Game.roster[0])
 		"noise":
 			# one of each problem, side by side, to check the three bubble
 			# colours read apart at a glance

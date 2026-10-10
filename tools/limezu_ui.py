@@ -102,6 +102,19 @@ NOTE = [
     ".##..",
 ]
 
+## Oct 2026: two children whose desks touch, talking (Game.tick_chat). Closing
+## quotation marks -- "somebody is saying something" -- chosen over a wave, a
+## mouth and text lines in a side-by-side sheet: at bubble size the quotes are
+## the only one that cannot be read as anything else.
+QUOTES = [
+    "##.##",
+    "##.##",
+    ".#..#",
+    "#..#.",
+    ".....",
+    ".....",
+]
+
 
 def stamp(im, glyph, x0, y0, colour):
     for dy, row in enumerate(glyph):
@@ -191,6 +204,7 @@ BUILDERS = {
     "bubble_zzz": _bubble(ZED),
     "bubble_drop": _bubble(DROP),
     "bubble_note": _bubble(NOTE),
+    "bubble_chat": _bubble(QUOTES),
     "ui_frame": ui_frame,
     "ui_speech": ui_speech,
     "ui_move_dash": _move_icon("ui_move_dash"),
