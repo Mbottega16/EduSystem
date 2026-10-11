@@ -31,19 +31,25 @@ func _carrier() -> Node:
 
 func can_interact() -> bool:
 	var c := _carrier()
-	return c != null and c.carrying_hw > 0
+	if c == null:
+		return false
+	return c.carrying_hw > 0 or Game.total_graded_bank() > 0
 
 
 func prompt_text() -> String:
 	var c := _carrier()
-	if c == null or c.carrying_hw <= 0:
+	if c == null:
 		return ""
-	return "Mark %d homework" % c.carrying_hw
+	if c.carrying_hw > 0:
+		return "Mark & trade %d homework" % c.carrying_hw
+	if Game.total_graded_bank() > 0:
+		return "Mark & trade papers (%d)" % Game.total_graded_bank()
+	return ""
 
 
 func interact(by: Node) -> void:
 	var c: Node = by if (by != null and by.has_method("carry_work")) else _carrier()
-	if c == null or c.carrying_hw <= 0:
+	if c == null or (c.carrying_hw <= 0 and Game.total_graded_bank() <= 0):
 		return
 	marking_requested.emit()
 	used.emit(by)

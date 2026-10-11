@@ -28,6 +28,7 @@ const NOTHING_TO_WORK_WITH := "They have nothing in front of them to work with."
 const GOING_OFF := "They are going off right now, and it will spread."
 const PLAYING_UP := "They have stopped working and are playing up."
 const STUCK := "They are stuck, and their work is not moving at all."
+const SLEEPING_AT_DESK := "They have nodded off at their desk."
 const QUIZ_CAUGHT := "The quiz caught them out on this."
 
 ## Nothing pressing. Matches StudentData.attention_rank()'s own convention,
@@ -102,9 +103,12 @@ static func acting_on(s: StudentData) -> Dictionary:
 		elif mates.size() > 2:
 			who = "several others'"
 		against.append("Their desk is close enough to %s to get talking." % who)
-	# What stands on their own desk: the study folder (Game.desk_items).
+	# What stands on their own desk: the study folder or a learning aid (Game.desk_items).
 	if Game.works_out_after(s) > 0.0:
 		helping.append("A study folder on their desk: they look things up when stuck.")
+	elif Game.desk_work_mult(s) > 1.0:
+		var dname := String(Game.desk_item_def(s).get("name", "study aid")).to_lower()
+		helping.append("The %s on their desk speeds their work along." % dname)
 
 	# --- where YOU are, right now ---
 	if s.seat_index >= 0:
@@ -120,6 +124,9 @@ static func acting_on(s: StudentData) -> Dictionary:
 	elif s.disrupting:
 		against.append(PLAYING_UP)
 		candidates.append({"rank": 1, "text": PLAYING_UP})
+	if s.sleeping():
+		against.append(SLEEPING_AT_DESK)
+		candidates.append({"rank": 2, "text": SLEEPING_AT_DESK})
 	if s.is_struggling():
 		against.append(STUCK)
 		# The PAGE says it as soon as it is true. The ROOM waits for
@@ -134,6 +141,11 @@ static func acting_on(s: StudentData) -> Dictionary:
 		var talker := Game.student_by_id(s.chat_with)
 		against.append("They are talking to %s instead of working." % (
 			talker.first_name() if talker != null else "the next desk"))
+	if s.zpd_active():
+		if Game.zpd_multiplier(s) > 1.0:
+			helping.append("Working with a classmate inside their zone of proximal development.")
+		else:
+			against.append("Working with a classmate whose pace does not match theirs.")
 	if s.copied:
 		against.append("They have copied their way past it, so the gap is hidden.")
 	if s.quiz_flagged:

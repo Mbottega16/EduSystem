@@ -864,6 +864,25 @@
       "minus": "classroom#6",
       "trim": "none",
       "why": "the study folder (Oct 2026): LimeZu's own school desk with a folder standing open on it and a pencil, less the plain desk (classroom#6, the game's `desk`) -- the folder alone, on the desk's own 16x32 canvas, so RoomBuilder.dress_desk() lays it over any desk pixel for pixel"
+    },
+    "desk_caddy": {
+      "ref": "classroom#12",
+      "minus": "classroom#6",
+      "trim": "none",
+      "why": "the pencil caddy (Oct 2026): LimeZu's school desk with a cup of pens and a notepad, less the plain desk (classroom#6) -- stands on one child's desk to speed up their learning"
+    },
+    "desk_primer": {
+      "ref": "classroom#10",
+      "minus": "classroom#6",
+      "trim": "none",
+      "why": "the desk primer (Oct 2026): LimeZu's school desk with open workbooks and pencils, less the plain desk (classroom#6) -- stands on one child's desk to speed up their learning"
+    },
+    "desk_atlas": {
+      "ref": "classroom#10",
+      "minus": "classroom#6",
+      "hue_shift": 110,
+      "trim": "none",
+      "why": "the desk atlas (Oct 2026): hue-shifted green-and-gold reference set on a school desk, less the plain desk (classroom#6) -- stands on one child's desk for a strong learning speed boost"
     }
   },
   "tiles": {}

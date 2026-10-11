@@ -31,6 +31,9 @@ var _path_i: int = 0
 var _delay: float = 0.0
 var _seat_world := Vector2.ZERO
 var _was_working := false      # edge-detects WORKING -> DONE, for the jump
+var _roaming_visit: bool = false
+var _visit_world := Vector2.ZERO
+var _visit_partner: Node2D = null
 
 
 func bind(d: StudentData) -> void:
@@ -46,6 +49,8 @@ func bind(d: StudentData) -> void:
 func seat_at(world_pos: Vector2) -> void:
 	global_position = world_pos
 	_seat_world = world_pos
+	_roaming_visit = false
+	_visit_partner = null
 	_path.clear()
 	sit(DIR_DOWN)
 	_set_collision(false)
@@ -54,6 +59,8 @@ func seat_at(world_pos: Vector2) -> void:
 ## Walk a tile path and sit down at the end of it. `delay` staggers the class
 ## so they file in rather than surging through the door as one block.
 func walk_to_seat(path: Array[Vector2i], delay: float = 0.0) -> void:
+	_roaming_visit = false
+	_visit_partner = null
 	stand()
 	_set_collision(true)
 	_path = path
@@ -61,6 +68,36 @@ func walk_to_seat(path: Array[Vector2i], delay: float = 0.0) -> void:
 	_delay = delay
 	if not path.is_empty():
 		_seat_world = Grid.tile_to_world(path[path.size() - 1])
+
+
+## Walk over to a classmate's desk during a collaborative assignment and stand
+## facing them while working together (Vygotsky ZPD). Collision stays off so a
+## roaming child never blocks the teacher in a 16px aisle.
+func walk_to_peer(path: Array[Vector2i], partner_node: Node2D) -> void:
+	if path.is_empty():
+		return
+	stand()
+	_set_collision(false)
+	_roaming_visit = true
+	_visit_partner = partner_node
+	_path = path
+	_path_i = 0
+	_delay = 0.0
+	_visit_world = Grid.tile_to_world(path[path.size() - 1])
+
+
+## Walk back from a classmate's desk to this student's own seat.
+func return_to_seat(path: Array[Vector2i]) -> void:
+	_roaming_visit = false
+	_visit_partner = null
+	if path.is_empty():
+		seat_at(_seat_world)
+		return
+	stand()
+	_set_collision(false)
+	_path = path
+	_path_i = 0
+	_delay = 0.0
 
 
 func is_walking() -> bool:
@@ -250,7 +287,7 @@ func _draw_notice() -> void:
 		BAR_W + BAR_PAD * 2.0, BAR_H + BAR_PAD * 2.0), BAR_BG)
 	notice.draw_rect(Rect2(x, y, BAR_W, BAR_H), BAR_TRACK)
 	notice.draw_rect(Rect2(x, y, BAR_W * frac, BAR_H),
-		BAR_STUCK if data.is_struggling() else BAR_FILL)
+		BAR_STUCK if (data.is_struggling() or data.sleeping()) else BAR_FILL)
 
 
 ## Shifted off their own head: say whose it is, or a crowded room turns into
@@ -310,6 +347,14 @@ func _physics_process(delta: float) -> void:
 
 func _arrive() -> void:
 	_path.clear()
+	if _roaming_visit:
+		global_position = _visit_world
+		stand()
+		if _visit_partner != null and is_instance_valid(_visit_partner):
+			face_partner(_visit_partner)
+		_set_collision(false)
+		arrived.emit()
+		return
 	global_position = _seat_world
 	sit(DIR_DOWN)
 	# The desk and chair already block these tiles. Leaving a body here would

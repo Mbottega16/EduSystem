@@ -190,6 +190,7 @@ static var fire_cost: int = 150
 ## hand_size_min in balance.json -- the hook for a later teacher LUCK skill.
 static var assign_hand_size_min: int = 3
 static var assign_hand_size_max: int = 7
+static var assign_trade_in_count: int = 3
 static var assign_rarities: Array = []
 static var assign_forms: Array = []
 
@@ -329,6 +330,24 @@ static var chat_seconds: float = 5.0
 static var chat_grace_seconds: float = 6.0
 static var chat_hush_tiles: int = 2
 static var chat_noise_chance: float = 0.25
+static var chat_talk_scale_min: int = 1
+static var chat_talk_scale_max: int = 4
+static var chat_talk_max_slowdown: float = 0.5
+
+# --- dozing off at the desk (Game.tick_sleep) ---------------------------
+static var sleep_tick_seconds: float = 15.0
+static var sleep_chance_per_level: float = 0.1
+static var sleep_nap_seconds: float = 8.0
+static var sleep_scale_max: int = 3
+
+# --- Vygotsky ZPD & collaborative roaming (Game.tick_zpd) ---------------
+static var zpd_roam_interval_seconds: float = 8.0
+static var zpd_interact_seconds: float = 5.0
+static var zpd_gap_min: float = 0.08
+static var zpd_gap_max: float = 0.45
+static var zpd_boost_mult: float = 1.35
+static var zpd_mismatch_mult: float = 0.8
+static var zpd_bonus_xp: int = 2
 
 # --- the end-of-unit test ------------------------------------------------
 static var test_requires_taught: int = 3
@@ -600,6 +619,7 @@ static func apply(d: Dictionary) -> void:
 	var asg: Dictionary = d.get("assignments", {})
 	assign_hand_size_min = int(asg.get("hand_size_min", assign_hand_size_min))
 	assign_hand_size_max = int(asg.get("hand_size_max", assign_hand_size_max))
+	assign_trade_in_count = int(asg.get("trade_in_count", assign_trade_in_count))
 	assign_rarities = asg.get("rarities", assign_rarities)
 	assign_forms = asg.get("forms", assign_forms)
 
@@ -710,6 +730,24 @@ static func apply(d: Dictionary) -> void:
 	chat_grace_seconds = float(ch.get("grace_seconds", chat_grace_seconds))
 	chat_hush_tiles = int(ch.get("hush_tiles", chat_hush_tiles))
 	chat_noise_chance = float(ch.get("noise_chance", chat_noise_chance))
+	chat_talk_scale_min = int(ch.get("talk_scale_min", chat_talk_scale_min))
+	chat_talk_scale_max = int(ch.get("talk_scale_max", chat_talk_scale_max))
+	chat_talk_max_slowdown = float(ch.get("talk_max_slowdown", chat_talk_max_slowdown))
+
+	var slp: Dictionary = d.get("sleep", {})
+	sleep_tick_seconds = float(slp.get("tick_seconds", sleep_tick_seconds))
+	sleep_chance_per_level = float(slp.get("chance_per_level", sleep_chance_per_level))
+	sleep_nap_seconds = float(slp.get("nap_seconds", sleep_nap_seconds))
+	sleep_scale_max = int(slp.get("scale_max", sleep_scale_max))
+
+	var zp: Dictionary = d.get("zpd", {})
+	zpd_roam_interval_seconds = float(zp.get("roam_interval_seconds", zpd_roam_interval_seconds))
+	zpd_interact_seconds = float(zp.get("interact_seconds", zpd_interact_seconds))
+	zpd_gap_min = float(zp.get("gap_min", zpd_gap_min))
+	zpd_gap_max = float(zp.get("gap_max", zpd_gap_max))
+	zpd_boost_mult = float(zp.get("boost_mult", zpd_boost_mult))
+	zpd_mismatch_mult = float(zp.get("mismatch_mult", zpd_mismatch_mult))
+	zpd_bonus_xp = int(zp.get("bonus_xp", zpd_bonus_xp))
 
 	var ts: Dictionary = d.get("test", {})
 	test_requires_taught = int(ts.get("requires_taught", test_requires_taught))

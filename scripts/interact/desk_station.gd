@@ -46,7 +46,7 @@ func action() -> int:
 	# is the one that gets worse while you deal with something else.
 	if s.disrupting:
 		return Action.SETTLE
-	if s.is_struggling():
+	if s.sleeping() or s.is_struggling():
 		return Action.HELP
 	if s.has_work_to_collect():
 		return Action.COLLECT_WORK
@@ -79,7 +79,10 @@ func prompt_text() -> String:
 		Action.HAND_OUT: return "Give %s their things" % who
 		Action.DEFUSE: return "Head off %s before they kick off" % who
 		Action.SETTLE: return ("Settle %s" if fight else "Have a word with %s") % who
-		Action.HELP: return ("Steady %s" if fight else "Help %s") % who
+		Action.HELP:
+			if s.sleeping():
+				return "Wake %s" % who
+			return ("Steady %s" if fight else "Help %s") % who
 		Action.COLLECT_WORK: return "Collect %s's work" % who
 		Action.GO_OVER: return "Go over the quiz with %s" % who
 		Action.COLLECT_HW: return "Take %s's homework" % who
@@ -117,7 +120,13 @@ func interact(by: Node) -> void:
 				_pop("sorry!", Color(1, 0.7, 0.5))
 				used.emit(by)
 		Action.HELP:
-			if s.help():
+			if s.sleeping():
+				if s.wake_up(true):
+					Game.student_woke_up.emit(s.id, "desk")
+					Sfx.play("help")
+					_pop("wide awake!", Color(0.55, 1.0, 0.6))
+					used.emit(by)
+			elif s.help():
 				Sfx.play("help")
 				_pop("steady" if Game.fight_active() else "got it!",
 					Color(0.55, 1.0, 0.6))
@@ -153,7 +162,7 @@ func dash_answerable() -> bool:
 	if not Game.chain_dash_taught or Game.test_active:
 		return false
 	var s := student()
-	return s != null and action() == Action.HELP and s.is_visibly_struggling()
+	return s != null and action() == Action.HELP and (s.is_visibly_struggling() or s.sleeping())
 
 
 ## Answer them on arrival. Exactly the E key's HELP branch -- one verb, two

@@ -1339,11 +1339,12 @@ func test_items() -> void:
 				if (d.get("effect", {}) as Dictionary).is_empty():
 					return false
 			elif Items.is_desk_top(id):
-				# A desk-top piece (the study folder) does its work on the
-				# child at that desk, not through bonus/range -- its effect is
-				# that, and it must have one.
+				# A desk-top piece (study folder, pencil caddy, desk primer, desk atlas)
+				# does its work on the child at that desk, not through bonus/range --
+				# its effect is that, and it must have one.
 				if float(d.get("works_out_after", 0.0)) <= 0.0 \
-						and not bool(d.get("screens_neighbours", false)):
+						and not bool(d.get("screens_neighbours", false)) \
+						and float(d.get("desk_work_mult", 1.0)) <= 1.0:
 					return false
 			elif float(d["bonus"]) <= 0.0:
 				return false
@@ -8587,13 +8588,13 @@ func test_overlays() -> void:
 
 
 func test_marking() -> void:
-	section("MARKING")
+	section("MARKING & ASSIGNMENT TRADE-UP")
 	var hud := _hud()
 	var p: Actor = world.player
 	Game.new_run(SEED)
 	await step(2)
 
-	# hand everyone a finished sheet to mark
+	# hand everyone a finished sheet to grade & bank
 	for s: StudentData in Game.roster:
 		s.hw_state = StudentData.HW.COLLECTED
 		s.hw_true_accuracy = 0.9
@@ -8602,83 +8603,35 @@ func test_marking() -> void:
 
 	hud.open_marking()
 	await step(2)
-	chk("the marking game opens with a sheet per student",
-		hud.mode == hud.Mode.MARKING and hud._marking.size() == Game.roster.size(),
-		hud._marking.size())
-	chk("it names whose sheet you're looking at",
-		hud.title.text.contains(Game.roster[0].display_name), hud.title.text)
-	chk("it draws the sheet instead of describing it in words",
-		hud.sheet.visible and not hud.body.visible)
-	chk("the sheet actually holds this student's own items",
-		hud.sheet._sheet.get("items", []) == Game.roster[0].hw_sheet.get("items", []))
-
-	# --- the mouse-gesture path. Regression: $Overlay/Sheet was
-	# mouse_filter IGNORE for its entire life, so _gui_input() never fired
-	# and tracing a check or an X on the page did nothing at all -- only
-	# the Left/Right fallback ever worked. ---
-	chk("the sheet is actually wired to receive mouse input",
-		hud.sheet.mouse_filter == Control.MOUSE_FILTER_STOP, hud.sheet.mouse_filter)
-	var g0: int = hud._marking.size()
-	trace_stroke(hud.sheet, [Vector2(60, 120), Vector2(95, 155), Vector2(160, 55)])
-	for i in 30:
-		hud.sheet.tick_gesture(0.02)
-	await step(2)
-	chk("tracing one unbroken stroke marks the sheet a pass",
-		hud._marking.size() == g0 - 1 and hud.sheet._stamp_pass == 1,
-		hud.sheet._stamp_pass)
-	hud._marking_hold = 0.0
-	hud._finish_marking_if_ready()
-	await step(2)
-
-	var x0: int = hud._marking.size()
-	trace_stroke(hud.sheet, [Vector2(60, 55), Vector2(160, 155)])
-	trace_stroke(hud.sheet, [Vector2(160, 55), Vector2(60, 155)])
-	for i in 30:
-		hud.sheet.tick_gesture(0.02)
-	await step(2)
-	chk("tracing two separate strokes marks the sheet a fail",
-		hud._marking.size() == x0 - 1 and hud.sheet._stamp_pass == 0,
-		hud.sheet._stamp_pass)
-	hud._marking_hold = 0.0
-	hud._finish_marking_if_ready()
-	await step(2)
-
-	var left: int = hud._marking.size()
-	await tap("move_right")
-	await step(2)
-	chk("a verdict moves on to the next sheet immediately, state-wise",
-		hud._marking.size() == left - 1)
-	chk("and stamps the player's OWN verdict on the page, not the truth",
-		hud.sheet._stamp_pass == 1, hud.sheet._stamp_pass)
-
-	# The stamp holds for MARKING_STAMP_SECONDS of real pacing before the
-	# next sheet replaces it -- the point of drawing it at all. A test has
-	# no reason to sit through that any more than test_school() waits out
-	# WATCH's own frame clock (see its _watch_i / _render_watch_frame()
-	# just above): bypass it the same way, directly.
-	hud._marking_hold = 0.0
-	hud._finish_marking_if_ready()
-
-	var guard := 0
-	while hud.mode == hud.Mode.MARKING and guard < 20:
-		await tap("move_right")
-		hud._marking_hold = 0.0
-		hud._finish_marking_if_ready()
-		await step(2)
-		guard += 1
-	chk("marking every sheet finishes the batch", hud.mode == hud.Mode.REPORT, guard)
-	chk("your arms are empty afterwards", p.carrying_hw == 0, p.carrying_hw)
-	chk("every sheet is now marked", (func() -> bool:
+	chk("opening marking grades and banks all collected sheets into the trade-up screen",
+		hud.mode == hud.Mode.MARKING and Game.graded_count("common") == Game.roster.size(),
+		Game.graded_count("common"))
+	chk("the trade-up screen uses the text panel, not the old problem worksheet",
+		hud.body.visible and not hud.sheet.visible)
+	chk("your arms are empty once the sheets are banked", p.carrying_hw == 0, p.carrying_hw)
+	chk("every student's homework is now marked", (func() -> bool:
 		for s: StudentData in Game.roster:
 			if s.hw_state != StudentData.HW.MARKED:
 				return false
 		return true).call())
-	# every sheet here is a strong one, so a pass is "right" -- except the
-	# single sheet the two-stroke gesture above deliberately X'd.
-	chk("passing genuinely good sheets counts as getting them right",
-		hud._marked_right == Game.roster.size() - 1, hud._marked_right)
 
-	# marked homework feeds the grade
+	# Trade 3 common papers -> 1 rare paper via move_right
+	var common_before := Game.graded_count("common")
+	await tap("move_right")
+	await step(2)
+	chk("trading in 3 common assignments yields 1 rare assignment",
+		Game.graded_count("common") == common_before - Balance.assign_trade_in_count
+		and Game.graded_count("rare") == 1,
+		"common=%d rare=%d" % [Game.graded_count("common"), Game.graded_count("rare")])
+
+	# Select Rare row and press E to apply/queue it for the class
+	await tap("move_down")
+	await tap("interact")
+	await step(2)
+	chk("applying a traded-up Rare assignment sets or queues Rare for the class",
+		String(Game.assignment.get("rarity", "")) == "rare" or Game.queued_assignment_tier == "rare")
+
+	# marked homework still feeds the grade
 	var s0: StudentData = Game.roster[0]
 	Game.room_items.clear()
 	var with_hw := Game.grade_for(s0)
@@ -8686,11 +8639,84 @@ func test_marking() -> void:
 	var without := Game.grade_for(s0)
 	chk("marked homework raises the grade", with_hw > without,
 		"%.3f vs %.3f" % [with_hw, without])
+	s0.hw_state = StudentData.HW.MARKED
 
-	await tap("interact")
+	await tap("cancel")
 	await step(2)
-	chk("closing the summary hands control back",
+	chk("closing the trade-up screen hands control back",
 		hud.mode == hud.Mode.NONE and not p.input_locked)
+
+	# --- Bio scales (Intel 1-4, Talk 1-4, Sleep 1-3) + talkativeness slowdown ---
+	section("BIO SCALES, TALKATIVENESS, SLEEP, ZPD & DESK ITEMS")
+	chk("every student rolls talkativeness (1..4) and sleepiness (1..3)",
+		s0.talkativeness >= 1 and s0.talkativeness <= 4
+		and s0.sleepiness >= 1 and s0.sleepiness <= 3
+		and s0.intelligence_tier() >= 1 and s0.intelligence_tier() <= 4)
+	hud.show_student(s0)
+	chk("Page 1 of the child bio shows Intel, Talk, and Sleep scales",
+		hud.body.text.contains("Intel ") and hud.body.text.contains("Talk ")
+		and hud.body.text.contains("Sleep "), hud.body.text)
+	hud.close()
+
+	# Talkativeness proximity slowdown: 1..4 cuts learning speed up to half (0.50x)
+	var s1: StudentData = Game.roster[1]
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	s0.talkativeness = 4
+	s1.talkativeness = 1
+	chk("sitting close to a level-4 talkative student cuts learning speed in half (0.5x)",
+		is_equal_approx(Game.talk_proximity_rate_mult(s0), 0.5)
+		and is_equal_approx(Game.talk_proximity_rate_mult(s1), 0.5),
+		"%.3f / %.3f" % [Game.talk_proximity_rate_mult(s0), Game.talk_proximity_rate_mult(s1)])
+	Layout.reset_seats()
+	chk("spacing desks apart restores full learning speed (1.0x)",
+		is_equal_approx(Game.talk_proximity_rate_mult(s0), 1.0))
+
+	# --- 15-second sleep tick (10% / 20% / 30% chance) & waking ---
+	s0.sleepiness = 1
+	s1.sleepiness = 3
+	chk("sleepiness 1..3 maps to 10%..30% chance on the 15s tick",
+		is_equal_approx(s0.sleep_chance(), 0.10) and is_equal_approx(s1.sleep_chance(), 0.30))
+	s0.reset_lesson()
+	s0.assign_work()
+	s0.fall_asleep(8.0)
+	var timer_asleep := s0.work_timer
+	s0.tick_work(1.0, null, 1.0)
+	chk("a sleeping student's work timer is frozen until woken",
+		s0.sleeping() and is_equal_approx(s0.work_timer, timer_asleep))
+	s0.wake_up(true)
+	chk("waking a student clears their sleep timer", not s0.sleeping())
+
+	# --- Roaming collaborative assignments & Vygotsky ZPD ---
+	Game.assignment = {"form": "Investigation", "rarity": "rare", "collaborative": true}
+	chk("Investigation and Project assignments are collaborative", Game.is_collaborative_lesson())
+	s0.reset_lesson()
+	s1.reset_lesson()
+	s0.assign_work()
+	s1.assign_work()
+	s0.aptitude = 0.40
+	s1.aptitude = 0.62
+	var paired_ok := Game.start_zpd_pair(s0, s1)
+	var mult_in_zone := Game.zpd_multiplier(s0)
+	chk("pairing with a peer inside Vygotsky's ZPD boosts learning speed (1.35x)",
+		paired_ok and s0.zpd_active() and s1.zpd_active()
+		and is_equal_approx(mult_in_zone, Balance.zpd_boost_mult),
+		mult_in_zone)
+	Game.end_all_zpd()
+	s1.aptitude = 0.40
+	var paired_out := Game.start_zpd_pair(s0, s1)
+	var mult_outside := Game.zpd_multiplier(s0)
+	chk("pairing outside the ZPD gap slows learning speed (0.80x)",
+		paired_out and is_equal_approx(mult_outside, Balance.zpd_mismatch_mult),
+		mult_outside)
+	Game.end_all_zpd()
+
+	# --- Desk-top learning speed items ---
+	Game.desk_items[s0.seat_index] = "desk_atlas"
+	chk("placing a Desk Atlas on a child's desk boosts their learning speed (1.30x)",
+		is_equal_approx(Game.desk_work_mult(s0), 1.30), Game.desk_work_mult(s0))
+	Game.desk_items.clear()
 
 
 func test_shop() -> void:

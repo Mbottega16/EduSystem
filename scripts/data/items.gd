@@ -81,6 +81,11 @@ static func max_owned(id: String) -> int:
 	return int(get_def(id).get("max_owned", 0))
 
 
+## Multiplier on work speed for the child whose desk holds this item.
+static func desk_work_mult(id: String) -> float:
+	return float(get_def(id).get("desk_work_mult", 1.0))
+
+
 ## The concept owning this item confers, if any.
 static func teaches(id: String) -> String:
 	return String(get_def(id).get("teaches", ""))

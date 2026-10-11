@@ -20,9 +20,14 @@ var display_name: String = ""
 var art: String = "student_a"
 var seat_index: int = -1
 
-# --- ability. Two numbers on purpose; resist growing this to four. ----
+# --- ability & bio scales ---------------------------------------------
 var aptitude: float = 0.5          ## 0..1 — resistance to getting stuck
 var diligence: float = 0.5         ## 0..1 — will they do the homework
+## Bio scale 1..4: how much this child talks and slows learning when seated
+## too close to a neighbour (up to Balance.chat_talk_max_slowdown at level 4).
+var talkativeness: int = 2
+## Bio scale 1..3: chance per 15s lesson tick of dozing off (10% per level).
+var sleepiness: int = 1
 ## The one subject this student is good at. Gives the day's subject a
 ## reason to exist beyond being a label.
 var favourite: String = ""
@@ -63,6 +68,16 @@ var chat_left: float = 0.0
 var chat_cool: float = 0.0
 ## They started it. If it gets loud, it is them.
 var chat_lead: bool = false
+
+## Dozing off at the desk (Game.tick_sleep()): seconds left asleep, or 0.
+var sleeping_left: float = 0.0
+
+## Vygotsky ZPD peer interaction on collaborative assignments (Game.tick_zpd()):
+## who they are paired with (-1 when seated alone), seconds left in the visit,
+## and whether this child is the one who walked across the room.
+var zpd_partner_id: int = -1
+var zpd_left: float = 0.0
+var zpd_roaming: bool = false
 
 ## Seconds this child has been stuck without letting on. A Quiet student
 ## hides it for a while, which is the whole point of them: you cannot
@@ -169,6 +184,72 @@ func chatting() -> bool:
 	return chat_with >= 0
 
 
+## Dozing off on the desk.
+func sleeping() -> bool:
+	return sleeping_left > 0.0
+
+
+## Paired with a classmate on a collaborative assignment.
+func zpd_active() -> bool:
+	return zpd_partner_id >= 0 and zpd_left > 0.0
+
+
+## General intelligence on a 1..4 bio scale, derived from aptitude.
+func intelligence_tier() -> int:
+	if aptitude < 0.42:
+		return 1
+	if aptitude < 0.60:
+		return 2
+	if aptitude < 0.78:
+		return 3
+	return 4
+
+
+func set_intelligence_tier(tier: int) -> void:
+	var table := [0.33, 0.51, 0.69, 0.88]
+	aptitude = table[clampi(tier, 1, 4) - 1]
+
+
+## Roll talkativeness (1..4, biased by trait chat_mult) and sleepiness (1..3).
+func roll_bio_scales(r: RandomNumberGenerator) -> void:
+	Balance.ensure_loaded()
+	var cm := Traits.value(trait_id, "chat_mult", 1.0)
+	var lo := Balance.chat_talk_scale_min
+	var hi := Balance.chat_talk_scale_max
+	if cm > 1.2:
+		talkativeness = r.randi_range(maxi(lo, hi - 1), hi)
+	elif cm < 0.8:
+		talkativeness = r.randi_range(lo, mini(hi, lo + 1))
+	else:
+		talkativeness = r.randi_range(lo, hi)
+	sleepiness = r.randi_range(1, maxi(1, Balance.sleep_scale_max))
+
+
+## Chance (0..1) of falling asleep on each 15-second sleep tick: 10% per level.
+func sleep_chance() -> float:
+	Balance.ensure_loaded()
+	return float(clampi(sleepiness, 1, maxi(1, Balance.sleep_scale_max))) * Balance.sleep_chance_per_level
+
+
+func fall_asleep(seconds: float = -1.0) -> bool:
+	Balance.ensure_loaded()
+	if work_state != Work.WORKING or disrupting or flaring() or chatting() or sleeping():
+		return false
+	sleeping_left = Balance.sleep_nap_seconds if seconds < 0.0 else seconds
+	return sleeping_left > 0.0
+
+
+func wake_up(by_teacher: bool = false) -> bool:
+	if sleeping_left <= 0.0:
+		return false
+	sleeping_left = 0.0
+	if by_teacher:
+		helps_received += 1
+		helps_total += 1
+	return true
+
+
+
 ## One line in their record. Called once per graded lesson.
 func record_result(lesson: Dictionary, grade: float, day: int,
 		was_test: bool = false) -> void:
@@ -262,6 +343,10 @@ func reset_lesson() -> void:
 	chat_left = 0.0
 	chat_cool = 0.0
 	chat_lead = false
+	sleeping_left = 0.0
+	zpd_partner_id = -1
+	zpd_left = 0.0
+	zpd_roaming = false
 	_since_stall = 0.0
 	_hidden_for = 0.0
 
@@ -434,6 +519,8 @@ func tick_work(delta: float, rng: RandomNumberGenerator = null,
 		return false                      # not doing a stroke until settled
 	if chatting():
 		return false                      # turned to the desk next door
+	if sleeping():
+		return false                      # dozing off at the desk
 	if is_struggling():
 		# Count how long they have sat there without letting on. A Quiet
 		# child withholds the "?" for a few seconds, which is what stops
@@ -526,7 +613,7 @@ func attention_rank() -> int:
 		return 1
 	if disrupting:
 		return 1
-	if is_visibly_struggling():
+	if is_visibly_struggling() or sleeping():
 		return 2
 	if quiz_flagged:
 		return 3
@@ -678,6 +765,7 @@ func to_dict() -> Dictionary:
 	return {
 		"id": id, "display_name": display_name, "art": art,
 		"seat_index": seat_index, "aptitude": aptitude, "diligence": diligence,
+		"talkativeness": talkativeness, "sleepiness": sleepiness,
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite, "trait": trait_id,
@@ -701,6 +789,8 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.seat_index = int(d.get("seat_index", -1))
 	s.aptitude = float(d.get("aptitude", 0.5))
 	s.diligence = float(d.get("diligence", 0.5))
+	s.talkativeness = int(d.get("talkativeness", 2))
+	s.sleepiness = int(d.get("sleepiness", 1))
 	s.hw_state = int(d.get("hw_state", HW.NONE))
 	s.hw_true_accuracy = float(d.get("hw_true_accuracy", 0.0))
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
@@ -724,3 +814,4 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s._favourite_streak = int(d.get("favourite_streak", 0))
 	s.boss_delta = float(d.get("boss_delta", 0.0))
 	return s
+

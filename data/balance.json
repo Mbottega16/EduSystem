@@ -660,7 +660,47 @@
       "max_owned": 2,
       "works_out_after": 6.0,
       "screens_neighbours": true,
+      "desk_work_mult": 1.1,
       "blurb": "On one desk: they look it up instead of waiting for you."
+    },
+    "desk_caddy": {
+      "name": "Pencil Caddy",
+      "cat": "learning",
+      "cost": 45,
+      "art": "desk_caddy",
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "desk_top": true,
+      "max_owned": 4,
+      "desk_work_mult": 1.15,
+      "blurb": "On one desk: everything to hand, so the work goes faster."
+    },
+    "desk_primer": {
+      "name": "Desk Primer",
+      "cat": "learning",
+      "cost": 65,
+      "art": "desk_primer",
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "desk_top": true,
+      "max_owned": 3,
+      "desk_work_mult": 1.22,
+      "blurb": "On one desk: worked examples right beside their elbow."
+    },
+    "desk_atlas": {
+      "name": "Desk Atlas",
+      "cat": "learning",
+      "cost": 85,
+      "art": "desk_atlas",
+      "w": 1,
+      "range": 0,
+      "bonus": 0.0,
+      "desk_top": true,
+      "max_owned": 2,
+      "desk_work_mult": 1.3,
+      "blurb": "On one desk: reference plates that speed every page along."
     },
     "rhyme_chart": {
       "name": "Rhyme Chart",
@@ -975,9 +1015,12 @@
     "cabinet",
     "supply_shelf",
     "sand_timer",
+    "desk_caddy",
     "sound_cards",
     "study_folder",
+    "desk_primer",
     "shape_sorter",
+    "desk_atlas",
     "maths_tiles",
     "printer",
     "abacus",
@@ -1359,13 +1402,33 @@
     "xp_for_settling": 3
   },
   "chat": {
-    "_note": "Desks that touch get talking (Oct 2026, the owner's ask: 'if the students are too close to each other they start talking to one another'). Two seated children whose seats are within reach_tiles of each other (corners count) may strike up a conversation while both are working: start_per_second is the chance per PAIR per second, times each child's trait chat_mult. While they talk, neither does a stroke of work -- the same as messing about, but quieter and it ends by itself after `seconds`. The teacher standing within hush_tiles of either desk stops it at once and stops a new one starting ('they see you coming'); so does Class, class! and raising your voice within earshot. After any chat both get grace_seconds back at work before they can start another. A chat nobody breaks up has noise_chance to turn the one who started it into messing about. This REPLACES room.cluster_penalty, the old hidden slowdown for a crowded desk: the cost of sitting children close is now something on screen you can do something about. Pace only: it never touches a grade formula, it is ticked by the room (classroom._physics_process) and never by tools/sim.gd. A study folder on a desk (items.study_folder) screens that child out of it. The opening layout has no two seats within a tile of each other, so nobody talks until a player moves desks together.",
+    "_note": "Desks that touch get talking (Oct 2026, the owner's ask: 'if the students are too close to each other they start talking to one another'). Two seated children whose seats are within reach_tiles of each other (corners count) may strike up a conversation while both are working: start_per_second is the chance per PAIR per second, times each child's trait chat_mult. While they talk, neither does a stroke of work -- the same as messing about, but quieter and it ends by itself after `seconds`. In addition, each child has a talkativeness scale (talk_scale_min..talk_scale_max) that slows both their own learning and the learning of neighbours sitting too close, cutting work speed by up to talk_max_slowdown (0.50x at scale 4). The teacher standing within hush_tiles of either desk stops a chat at once and stops a new one starting ('they see you coming'); so does Class, class! and raising your voice within earshot. After any chat both get grace_seconds back at work before they can start another. A chat nobody breaks up has noise_chance to turn the one who started it into messing about. This REPLACES room.cluster_penalty, the old hidden slowdown for a crowded desk: the cost of sitting children close is now something on screen you can do something about. Pace only: it never touches a grade formula, it is ticked by the room (classroom._physics_process) and never by tools/sim.gd. A study folder on a desk (items.study_folder) screens that child out of it. The opening layout has no two seats within a tile of each other, so nobody talks until a player moves desks together.",
     "reach_tiles": 1,
     "start_per_second": 0.06,
     "seconds": 5.0,
     "grace_seconds": 6.0,
     "hush_tiles": 2,
-    "noise_chance": 0.25
+    "noise_chance": 0.25,
+    "talk_scale_min": 1,
+    "talk_scale_max": 4,
+    "talk_max_slowdown": 0.5
+  },
+  "sleep": {
+    "_note": "Dozing off at the desk. Every child has a sleepiness scale from 1 to scale_max; every tick_seconds during a lesson each working child rolls against sleepiness * chance_per_level (1 -> 10%, 2 -> 20%, 3 -> 30%). While asleep their work stops until nap_seconds elapses or the teacher wakes them at the desk, calls Class, class!, or raises their voice within earshot. Pace only: ticked by the room, never tools/sim.gd.",
+    "tick_seconds": 15.0,
+    "chance_per_level": 0.1,
+    "nap_seconds": 8.0,
+    "scale_max": 3
+  },
+  "zpd": {
+    "_note": "Vygotsky's Zone of Proximal Development on collaborative assignments (Investigation, Project, or hands-on/discussion/game-based styles). Every roam_interval_seconds during a collaborative lesson, seated working children get up, walk to a classmate's desk, and work together for interact_seconds. When paired with a peer who is moderately ahead (ability/progress gap between gap_min and gap_max), scaffolding speeds learning by boost_mult and awards bonus_xp; when mismatched outside the zone (too far apart, or neither ahead enough to scaffold), learning slows by mismatch_mult. Pace and XP only: ticked by the room, never tools/sim.gd.",
+    "roam_interval_seconds": 8.0,
+    "interact_seconds": 5.0,
+    "gap_min": 0.08,
+    "gap_max": 0.45,
+    "boost_mult": 1.35,
+    "mismatch_mult": 0.8,
+    "bonus_xp": 2
   },
   "flare": {
     "_note": "A flare-up: a random, timed warning that ONE calm child is about to kick off. A bubble goes up over their head with a countdown -- reach the desk and press E (this is what the dash is for: a flare across the room is only catchable if you spend a burst) and it is defused, with a small coin tip and a little XP for the child. Let the countdown run out and they start disrupting -- the ordinary messing-about mechanic, nothing new grade-side. Independent of boredom/frustration on purpose: those already lead to disruption; this is the extra, catchable urgency. onset is per calm seated child per second, multiplied by whatever today's day event does to stall (a Restless class throws more). Capped per day so a bad-luck run cannot bury you.",
@@ -1430,12 +1493,13 @@
     "coin_bonus": 1.25
   },
   "assignments": {
-    "_note": "The paper you set. A hand is drawn at the podium and you pick one, so setting work is a decision instead of a formality. RARITY pays -- coins and the experience the children get -- and DIFFICULTY is how long the paper takes. They are rolled separately and then correlated, so a Legendary is usually demanding: the question is whether this class, on this day, can actually finish it. Work you never collect counts for half.",
+    "_note": "The paper you set. A hand is drawn at the podium and you pick one, so setting work is a decision instead of a formality. RARITY pays -- coins and the experience the children get -- and DIFFICULTY is how long the paper takes. They are rolled separately and then correlated, so a Legendary is usually demanding: the question is whether this class, on this day, can actually finish it. Work you never collect counts for half. Completed and collected assignments also bank at the teacher's desk by rarity tier, where trade_in_count of a lower tier can be traded up for one of the next tier.",
     "_colour_note": "Grey, green, blue, violet, gold -- the ladder every looter has trained players to read without a legend. The names are yours; the order of the colours is the one people already know.",
     "_grade_note": "Rarity deliberately pays COINS and XP, never grade. The three-row balance contract is measured from work completion, and a multiplier on the lesson term would move the pillar by luck rather than by play.",
     "_hand_size_note": "How many cards are drawn, rolled fresh each morning between hand_size_min and hand_size_max inclusive -- a real shuffle, not always the same count. This is the hook for a later teacher LUCK skill (more, and eventually better, options for a teacher who has earned it) -- do not hardcode a count anywhere else when that lands, read it from here.",
     "hand_size_min": 3,
     "hand_size_max": 7,
+    "trade_in_count": 3,
     "rarities": [
       {
         "id": "common",
@@ -1488,11 +1552,13 @@
       },
       {
         "name": "Investigation",
-        "difficulty": 4
+        "difficulty": 4,
+        "collaborative": true
       },
       {
         "name": "Project",
-        "difficulty": 5
+        "difficulty": 5,
+        "collaborative": true
       }
     ]
   },

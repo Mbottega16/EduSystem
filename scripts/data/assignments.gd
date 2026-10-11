@@ -24,6 +24,9 @@ extends RefCounted
 ## would move the design pillar by luck instead of by play.
 
 
+const RARITY_ORDER := ["common", "rare", "excellent", "epic", "legendary"]
+
+
 static func rarities() -> Array:
 	Balance.ensure_loaded()
 	return Balance.assign_rarities
@@ -49,8 +52,61 @@ static func rarity_name(id: String) -> String:
 	return String(rarity(id).get("name", "Common"))
 
 
+static func rarity_label(id: String) -> String:
+	return rarity_name(id)
+
+
 static func pay(id: String) -> float:
 	return float(rarity(id).get("pay", 1.0))
+
+
+static func rarity_index(id: String) -> int:
+	var all := rarities()
+	for i in all.size():
+		if String(all[i].get("id", "")) == id:
+			return i
+	return 0
+
+
+static func next_rarity_id(id: String) -> String:
+	var all := rarities()
+	var idx := rarity_index(id)
+	if idx + 1 < all.size():
+		return String(all[idx + 1].get("id", ""))
+	return ""
+
+
+static func is_collaborative_form(form_name: String) -> bool:
+	for f: Dictionary in forms():
+		if String(f.get("name", "")) == form_name:
+			return bool(f.get("collaborative", false))
+	return false
+
+
+static func is_collaborative(card: Dictionary) -> bool:
+	if card.is_empty():
+		return false
+	if card.has("collaborative"):
+		return bool(card.get("collaborative", false))
+	return is_collaborative_form(String(card.get("form", "")))
+
+
+static func card_for_rarity(rid: String, lesson: Dictionary, base_card: Dictionary = {}) -> Dictionary:
+	Balance.ensure_loaded()
+	var all_forms := forms()
+	var tier := rarity_index(rid)
+	var form: Dictionary = all_forms[clampi(tier, 0, maxi(0, all_forms.size() - 1))] if not all_forms.is_empty() else {}
+	var form_name := String(base_card.get("form", form.get("name", "Worksheet")))
+	var diff := int(base_card.get("difficulty", form.get("difficulty", 1)))
+	var collab := bool(base_card.get("collaborative", is_collaborative_form(form_name)))
+	return {
+		"rarity": rid,
+		"form": form_name,
+		"difficulty": diff,
+		"collaborative": collab,
+		"subject": String(base_card.get("subject", lesson.get("short", lesson.get("name", "Lesson")))),
+		"lesson": String(base_card.get("lesson", lesson.get("id", ""))),
+	}
 
 
 ## Roll one rarity, by weight. `bias` (Lucky Break's Progress.assignment_luck())
@@ -93,6 +149,7 @@ static func roll(rng: RandomNumberGenerator, lesson: Dictionary, bias: float = 0
 		"rarity": rid,
 		"form": String(form.get("name", "Worksheet")),
 		"difficulty": int(form.get("difficulty", 1)),
+		"collaborative": bool(form.get("collaborative", false)),
 		"subject": String(lesson.get("short", lesson.get("name", "Lesson"))),
 		"lesson": String(lesson.get("id", "")),
 	}
@@ -125,3 +182,4 @@ static func title(card: Dictionary) -> String:
 	if card.is_empty():
 		return "Classwork"
 	return "%s %s" % [String(card.get("subject", "")), String(card.get("form", ""))]
+

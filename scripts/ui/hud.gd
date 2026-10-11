@@ -213,12 +213,12 @@ func _window_start(total: int, shown: int) -> int:
 		return 0
 	return clampi(_sel - shown / 2, 0, total - shown)
 
-# marking state
-var _marking: Array = []       ## StudentData still to be judged
+# marking / assignment trade-up state
+var _marking: Array = []       ## legacy array kept empty for compat
 var _marked_right: int = 0
-## Counts down MARKING_STAMP_SECONDS after a verdict, ticked in _process()
-## below. > 0 means a check/X is currently up and input is ignored.
 var _marking_hold: float = 0.0
+var _trade_sel: int = 0
+var _last_graded_batch: int = 0
 
 ## The ad poster: which tier is highlighted, and (while > 0) the
 ## compressed "watching" countdown from Balance.ad_tiers[_ad_tier].wait --
@@ -1876,7 +1876,8 @@ func show_student(s: StudentData) -> void:
 	# with spaces to clear it -- but a space is about 2px at font 8, not the
 	# 5 that assumed, so the portrait was drawn straight over the words.
 	var lines: Array[String] = []
-	lines.append("Seat %d, joined on day %d." % [s.seat_index + 1, s.joined_day])
+	lines.append("Seat %d, day %d · %s" % [
+		s.seat_index + 1, s.joined_day, _bio_scales_line(s)])
 	lines.append(_ability_line(s))
 	lines.append(_subject_line(s))
 	lines.append(_grades_line(s))
@@ -1888,6 +1889,19 @@ func show_student(s: StudentData) -> void:
 	lines.append_array(_bio_actions(s))
 	body.text = "\n".join(lines)
 	hint.text = "Tab their story   Up/Down choose   E do it   Esc back"
+
+
+func _pip_bar(val: int, max_val: int) -> String:
+	var v := clampi(val, 1, max_val)
+	return "█".repeat(v) + "░".repeat(maxi(0, max_val - v))
+
+
+func _bio_scales_line(s: StudentData) -> String:
+	return "Intel %s · Talk %s · Sleep %s" % [
+		_pip_bar(s.intelligence_tier(), 4),
+		_pip_bar(s.talkativeness, 4),
+		_pip_bar(s.sleepiness, 3),
+	]
 
 
 ## Page three: everything acting on this child RIGHT NOW, as prose.
@@ -5100,18 +5114,23 @@ func _render_catalogue() -> void:
 					String(d["name"]).substr(0, 13),
 					C_GOOD if afford else C_BAD, price, DIM])
 			elif Items.is_desk_top(id):
-				# Stands on one child's desk (the study folder): it reaches
-				# nobody else, so the worth-bar and reach-words -- which
+				# Stands on one child's desk (the study folder or a learning aid):
+				# it reaches nobody else, so the worth-bar and reach-words -- which
 				# describe what a piece does for the desks AROUND it -- would
 				# both be wrong. Says where it goes, and when you have all the
 				# copies a decision about WHO is worth.
 				var cap := Items.max_owned(id)
 				var full: bool = cap > 0 and Game.owned_count(id) >= cap
+				var tag := "on one desk, no chatting"
+				if full:
+					tag = "you have them all"
+				elif not bool(d.get("screens_neighbours", false)) and float(d.get("desk_work_mult", 1.0)) > 1.0:
+					tag = "on one desk, +%d%% work speed" % int(round((float(d.get("desk_work_mult", 1.0)) - 1.0) * 100.0))
 				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]%s[/color][/font_size]" % [
 					">" if i == _sel else " ", hue if afford and not full else DIM,
 					String(d["name"]).substr(0, 13),
 					C_GOOD if afford and not full else C_BAD, price, UI_SMALL, DIM,
-					"you have them all" if full else "on one desk, no chatting"])
+					tag])
 			else:
 				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
 					">" if i == _sel else " ", hue if afford else DIM,
@@ -5460,68 +5479,57 @@ func open_marking() -> void:
 	_marking.clear()
 	_marked_right = 0
 	_marking_hold = 0.0
-	for s: StudentData in Game.roster:
-		if s.homework_ready_to_mark():
-			_marking.append(s)
-	if _marking.is_empty():
-		return
-	_open(Mode.MARKING)
-	body.visible = false
-	sheet.visible = true
-	_render_sheet()
-
-
-func _render_sheet() -> void:
-	if _marking.is_empty():
-		return
-	var s: StudentData = _marking[0]
-	title.text = "%s  —  %d left" % [s.display_name, _marking.size()]
-	sheet.show_sheet(s.hw_sheet)
-	hint.text = "Trace a check or an X    or Left/Right"
-
-
-## Ignoring input while a stamp is still up (rather than queuing it) is
-## deliberate: it is what stops a second verdict landing on a sheet that
-## has already been popped, if a press arrives mid-countdown.
-func _verdict(pass_it: bool) -> void:
-	if _marking_hold > 0.0:
-		return
-	var s: StudentData = _marking.pop_front()
-	s.hw_player_verdict = 1 if pass_it else 0
-	s.hw_state = StudentData.HW.MARKED
-	if pass_it == Questions.sheet_is_good(s.hw_sheet):
-		_marked_right += 1
-	# The player's own call, stamped on the page -- not a reveal of the
-	# truth. See homework_sheet.gd's class comment.
-	sheet.stamp(pass_it)
-	Sfx.play("confirm" if pass_it else "deny")
-	_marking_hold = MARKING_STAMP_SECONDS
-
-
-## Runs once a stamped verdict's hold has counted down to zero -- see the
-## _process() tick below. Split out from _verdict() because the STATE
-## change (popping the queue, marking it graded) has to land immediately,
-## the same frame the verdict is given, or "a verdict moves on to the next
-## sheet" would need to know about a delay it has no reason to care about;
-## only the SCREEN change waits.
-func _finish_marking_if_ready() -> void:
-	if not _marking.is_empty():
-		_render_sheet()
-		return
+	var newly := Game.bank_collected_homework()
 	if _player != null and is_instance_valid(_player):
 		_player.drop_all_homework()
-	title.text = "MARKING DONE"
+	if newly <= 0 and Game.total_graded_bank() <= 0:
+		return
+	_last_graded_batch = newly
+	_marked_right = newly
+	_trade_sel = 0
+	_open(Mode.MARKING)
 	body.visible = true
 	sheet.visible = false
-	body.text = "\n".join([
-		"You judged %d of them the way the sheet actually" % _marked_right,
-		"deserved.",
-		"",
-		"A sheet you waved through won't flag its student as",
-		"struggling tomorrow — so you won't go and help them.",
-	])
-	hint.text = "E — close"
-	mode = Mode.REPORT
+	_render_marking()
+
+
+func _render_marking() -> void:
+	Balance.ensure_loaded()
+	title.text = "GRADED ASSIGNMENTS"
+	var lines: Array[String] = []
+	if _last_graded_batch > 0:
+		lines.append("Graded & banked %d homework sheet%s." % [
+			_last_graded_batch, "" if _last_graded_batch == 1 else "s"])
+	else:
+		lines.append("Trade %d lower-tier papers for 1 higher tier." % Balance.assign_trade_in_count)
+	var cur_tier := Game.queued_assignment_tier if Game.queued_assignment_tier != "" \
+		else String(Game.assignment.get("rarity", "common"))
+	lines.append("Active / queued class tier: %s" % Assignments.rarity_label(cur_tier))
+	var order := Assignments.RARITY_ORDER
+	for i in order.size():
+		var r_id := String(order[i])
+		var cnt := Game.graded_count(r_id)
+		var label := Assignments.rarity_label(r_id)
+		var nxt := Assignments.next_rarity_id(r_id)
+		var action_hint := ""
+		if Game.can_trade_up(r_id):
+			action_hint = "  [Right: %d -> 1 %s]" % [
+				Balance.assign_trade_in_count, Assignments.rarity_label(nxt)]
+		elif cnt > 0 and Assignments.rarity_index(r_id) > 0:
+			action_hint = "  [E: Set for class]"
+		lines.append(_clip("%s %-10s x%-2d%s" % [
+			">" if i == _trade_sel else " ", label, cnt, action_hint]))
+	body.text = "\n".join(lines)
+	hint.text = "Up/Down tier   Right trade up   E set tier   Esc close"
+
+
+func _verdict(_pass_it: bool) -> void:
+	pass
+
+
+func _finish_marking_if_ready() -> void:
+	if mode == Mode.MARKING:
+		_render_marking()
 
 
 ## The optional reward-video poster (scripts/interact/ad_poster.gd).
@@ -6080,7 +6088,34 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.MARKING:
-		if Input.is_action_just_pressed("move_left"):
-			_verdict(false)
-		elif Input.is_action_just_pressed("move_right"):
-			_verdict(true)
+		var order := Assignments.RARITY_ORDER
+		var n := order.size()
+		if Input.is_action_just_pressed("cancel") or Input.is_action_just_pressed("move_left"):
+			Sfx.play("blip")
+			close()
+		elif n > 0 and Input.is_action_just_pressed("move_down"):
+			_trade_sel = (_trade_sel + 1) % n
+			Sfx.play("blip")
+			_render_marking()
+		elif n > 0 and Input.is_action_just_pressed("move_up"):
+			_trade_sel = (_trade_sel - 1 + n) % n
+			Sfx.play("blip")
+			_render_marking()
+		elif n > 0 and Input.is_action_just_pressed("move_right"):
+			var r_id := String(order[_trade_sel])
+			var next_tier := Game.trade_up_assignment(r_id)
+			if next_tier != "":
+				_last_graded_batch = 0
+				Sfx.play("coins")
+				_render_marking()
+			else:
+				Sfx.play("deny")
+		elif Game.claim_interact():
+			var r_id := String(order[_trade_sel]) if n > 0 else "common"
+			if Assignments.rarity_index(r_id) > 0 and Game.apply_graded_tier(r_id):
+				_last_graded_batch = 0
+				Sfx.play("confirm")
+				_render_marking()
+			else:
+				Sfx.play("confirm")
+				close()

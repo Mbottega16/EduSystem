@@ -336,6 +336,9 @@ func open_room() -> String:
 		s.favourite = strands[rng.randi_range(0, strands.size() - 1)] 			if not strands.is_empty() else "math"
 		s.trait_id = Traits.roll(rng)
 		s.seat_index = i
+		var bio_rng := RandomNumberGenerator.new()
+		bio_rng.seed = int(rng.seed) * 1103515245 + s.id * 12345 + day * 97
+		s.roll_bio_scales(bio_rng)
 		(r["roster"] as Array).append(s)
 	rooms.append(r)
 	school_changed.emit()
@@ -464,7 +467,7 @@ var specialism: String = ""
 ## which is what it always used to do.
 var chosen_lesson: String = ""
 
-# --- the paper you set ------------------------------------------------
+# --- the paper you set & tier trade-up ---------------------------------
 ## The three cards drawn at the podium, and the one you picked.
 ##
 ## Setting work used to be a formality -- tap the podium, everyone gets the
@@ -473,12 +476,21 @@ var chosen_lesson: String = ""
 ## living with.
 var hand: Array = []
 var assignment: Dictionary = {}
+## Completed/graded assignments banked at the teacher's desk by rarity id
+## ("common" -> int, "rare" -> int, ...). Three of a lower tier trade up for
+## one of the next tier up.
+var graded_bank: Dictionary = {}
+## Rarity id queued from the trade-up desk to upgrade the current or next
+## assignment set for the class.
+var queued_assignment_tier: String = ""
 
 signal hand_drawn(cards: Array)
 
 
 func draw_hand() -> Array:
 	hand = Assignments.draw(rng, lesson, Progress.assignment_luck(perk_ranks))
+	if queued_assignment_tier != "" and not hand.is_empty():
+		hand[0] = Assignments.card_for_rarity(queued_assignment_tier, lesson, hand[0])
 	hand_drawn.emit(hand)
 	return hand
 
@@ -487,8 +499,80 @@ func choose_assignment(i: int) -> Dictionary:
 	if i < 0 or i >= hand.size():
 		return {}
 	assignment = (hand[i] as Dictionary).duplicate()
+	if queued_assignment_tier != "" and Assignments.rarity_index(queued_assignment_tier) \
+			> Assignments.rarity_index(String(assignment.get("rarity", "common"))):
+		assignment = Assignments.card_for_rarity(queued_assignment_tier, lesson, assignment)
+	queued_assignment_tier = ""
 	hand.clear()
 	return assignment
+
+
+func graded_count(rarity_id: String) -> int:
+	return maxi(0, int(graded_bank.get(rarity_id, 0)))
+
+
+func total_graded_bank() -> int:
+	var n := 0
+	for r: Dictionary in Assignments.rarities():
+		n += graded_count(String(r.get("id", "")))
+	return n
+
+
+func bank_graded_assignment(rarity_id: String, count: int = 1) -> void:
+	if count <= 0:
+		return
+	var rid := rarity_id if rarity_id != "" else "common"
+	graded_bank[rid] = graded_count(rid) + count
+
+
+## Bank any collected homework sheets sitting on the teacher's desk into
+## graded_bank and mark them on the students' records so their homework
+## grade term and XP still pay out cleanly.
+func bank_collected_homework() -> int:
+	var banked := 0
+	var rid := String(assignment.get("rarity", "common")) if not assignment.is_empty() else "common"
+	for s: StudentData in roster:
+		if s.homework_ready_to_mark():
+			s.hw_player_verdict = 1 if Questions.sheet_is_good(s.hw_sheet) else 0
+			s.misjudged = false
+			s.hw_state = StudentData.HW.MARKED
+			bank_graded_assignment(rid, 1)
+			banked += 1
+	return banked
+
+
+func can_trade_up(rarity_id: String) -> bool:
+	Balance.ensure_loaded()
+	var next_id := Assignments.next_rarity_id(rarity_id)
+	if next_id == "":
+		return false
+	return graded_count(rarity_id) >= Balance.assign_trade_in_count
+
+
+## Trade `Balance.assign_trade_in_count` (3) graded assignments of `rarity_id`
+## for 1 of the next rarity tier up. Returns the new tier's id, or "".
+func trade_up_assignment(rarity_id: String) -> String:
+	Balance.ensure_loaded()
+	if not can_trade_up(rarity_id):
+		return ""
+	var next_id := Assignments.next_rarity_id(rarity_id)
+	graded_bank[rarity_id] = graded_count(rarity_id) - Balance.assign_trade_in_count
+	bank_graded_assignment(next_id, 1)
+	return next_id
+
+
+## Spend 1 banked assignment of `rarity_id` to upgrade the active/next class
+## assignment to that tier.
+func apply_graded_tier(rarity_id: String) -> bool:
+	if graded_count(rarity_id) <= 0:
+		return false
+	graded_bank[rarity_id] = graded_count(rarity_id) - 1
+	queued_assignment_tier = rarity_id
+	if not assignment.is_empty():
+		assignment = Assignments.card_for_rarity(rarity_id, lesson, assignment)
+	if not hand.is_empty():
+		hand[0] = Assignments.card_for_rarity(rarity_id, lesson, hand[0])
+	return true
 
 
 ## What the paper on the desks is worth, as a multiplier on coins and on the
@@ -507,6 +591,7 @@ func assignment_difficulty() -> int:
 	if assignment.is_empty():
 		return 3
 	return clampi(int(assignment.get("difficulty", 3)), 1, 5)
+
 
 # --- the teacher's own progression ---------------------------------
 var teacher_xp: int = 0
@@ -834,6 +919,10 @@ func new_run(seed_value: int = 0) -> void:
 	chosen_lesson = ""
 	hand.clear()
 	assignment = {}
+	graded_bank.clear()
+	queued_assignment_tier = ""
+	_sleep_tick_accum = 0.0
+	_zpd_tick_accum = 0.0
 	expansions = 0
 	Grid.reset_size()
 	_next_id = 1
@@ -871,6 +960,9 @@ func enrol() -> StudentData:
 		if not strands.is_empty() else "math"
 	s.trait_id = Traits.roll(rng)
 	s.seat_index = _lowest_free_seat()
+	var bio_rng := RandomNumberGenerator.new()
+	bio_rng.seed = int(rng.seed) * 1103515245 + s.id * 12345 + day * 97
+	s.roll_bio_scales(bio_rng)
 	roster.append(s)
 	roster_changed.emit()
 	return s
@@ -1097,6 +1189,27 @@ func too_close(s: StudentData) -> bool:
 	return not chat_partners(s).is_empty()
 
 
+## How much a child's learning speed is slowed by sitting too close to
+## others: reads the highest talkativeness (1..4) among `s` and any
+## unscreened chat_partners(s), scaling up to cutting work speed in half
+## (1.0 - Balance.chat_talk_max_slowdown = 0.50x) at talk_scale_max (4).
+## Returns 1.0 when desks are spaced apart or screened by a study folder.
+func talk_proximity_rate_mult(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	if s == null or s.seat_index < 0 or screened(s):
+		return 1.0
+	var max_talk := 0
+	for other: StudentData in chat_partners(s):
+		if screened(other):
+			continue
+		max_talk = maxi(max_talk, maxi(s.talkativeness, other.talkativeness))
+	if max_talk <= 0:
+		return 1.0
+	var scale_max := float(maxi(1, Balance.chat_talk_scale_max))
+	var frac := clampf(float(max_talk) / scale_max, 0.0, 1.0)
+	return clampf(1.0 - Balance.chat_talk_max_slowdown * frac, 0.1, 1.0)
+
+
 ## Free to start a conversation right now: seated, a sheet in front of them
 ## and working at it -- not stuck (they want YOU), not messing about, not
 ## about to, not already talking, not inside the quiet a broken-up chat
@@ -1105,7 +1218,7 @@ func can_chat(s: StudentData) -> bool:
 	return s != null and s.seat_index >= 0 \
 		and s.work_state == StudentData.Work.WORKING \
 		and not s.is_struggling() and not s.disrupting and not s.flaring() \
-		and not s.chatting() and s.chat_cool <= 0.0 and not screened(s)
+		and not s.chatting() and not s.sleeping() and s.chat_cool <= 0.0 and not screened(s)
 
 
 ## This pair's chance per second of getting talking. A Chatty child doubles
@@ -1225,6 +1338,175 @@ func end_all_chats(why: String) -> int:
 		if s.chatting() and s.chat_lead and end_chat(s, why):
 			n += 1
 	return n
+
+
+# --- dozing off at the desk (15-second sleep tick) -------------------------
+var _sleep_tick_accum: float = 0.0
+signal student_fell_asleep(student_id: int)
+signal student_woke_up(student_id: int, why: String)
+
+
+## Wake every sleeping child in the room (Class, class! or Answer all).
+func wake_all_sleeping(why: String = "called") -> int:
+	var n := 0
+	for s: StudentData in roster:
+		if s.sleeping() and s.wake_up(false):
+			student_woke_up.emit(s.id, why)
+			n += 1
+	return n
+
+
+## Advance active naps and roll once every Balance.sleep_tick_seconds (15s)
+## against each working child's sleepiness (1->10%, 2->20%, 3->30%).
+func tick_sleep(delta: float, r: RandomNumberGenerator) -> void:
+	Balance.ensure_loaded()
+	for s: StudentData in roster:
+		if not s.sleeping():
+			continue
+		if s.disrupting or s.flaring():
+			s.wake_up(false)
+			student_woke_up.emit(s.id, "startled")
+			continue
+		s.sleeping_left = maxf(0.0, s.sleeping_left - delta)
+		if s.sleeping_left <= 0.0:
+			student_woke_up.emit(s.id, "rested")
+	if r == null:
+		return
+	_sleep_tick_accum += delta
+	var interval := maxf(0.5, Balance.sleep_tick_seconds)
+	while _sleep_tick_accum >= interval:
+		_sleep_tick_accum -= interval
+		for s: StudentData in roster:
+			if s.seat_index < 0 or s.work_state != StudentData.Work.WORKING:
+				continue
+			if s.sleeping() or s.disrupting or s.flaring() or s.chatting() or s.is_struggling():
+				continue
+			if r.randf() < s.sleep_chance():
+				if s.fall_asleep():
+					student_fell_asleep.emit(s.id)
+
+
+# --- Vygotsky ZPD & collaborative roaming ----------------------------------
+var _zpd_tick_accum: float = 0.0
+signal zpd_paired(roamer_id: int, host_id: int, boosted: bool)
+signal zpd_ended(roamer_id: int, host_id: int)
+
+
+## True when today's assignment or crafted lesson style has students get up,
+## walk around, and work together.
+func is_collaborative_lesson() -> bool:
+	if Assignments.is_collaborative(assignment):
+		return true
+	var style := craft_style(String(lesson.get("id", "")))
+	return style in ["Hands-On", "Discussion", "Game-Based"]
+
+
+func zpd_competence(s: StudentData) -> float:
+	if s == null:
+		return 0.0
+	return s.aptitude * 0.65 + s.work_fraction() * 0.35
+
+
+## Vygotsky's Zone of Proximal Development multiplier when `learner` works
+## with `peer`. If the competence gap between them sits inside the ZPD
+## scaffolding zone [zpd_gap_min, zpd_gap_max], learning speeds up by
+## zpd_boost_mult; outside that zone (no scaffold or too far apart), learning
+## slows by zpd_mismatch_mult.
+func zpd_multiplier_between(learner: StudentData, peer: StudentData) -> float:
+	Balance.ensure_loaded()
+	if learner == null or peer == null or learner == peer:
+		return 1.0
+	var gap := absf(zpd_competence(peer) - zpd_competence(learner))
+	if gap >= Balance.zpd_gap_min and gap <= Balance.zpd_gap_max:
+		return Balance.zpd_boost_mult
+	return Balance.zpd_mismatch_mult
+
+
+func zpd_multiplier(s: StudentData) -> float:
+	if s == null or not s.zpd_active():
+		return 1.0
+	var peer := student_by_id(s.zpd_partner_id)
+	if peer == null:
+		return 1.0
+	return zpd_multiplier_between(s, peer)
+
+
+func start_zpd_pair(roamer: StudentData, host: StudentData) -> bool:
+	Balance.ensure_loaded()
+	if roamer == null or host == null or roamer == host:
+		return false
+	roamer.zpd_partner_id = host.id
+	roamer.zpd_left = Balance.zpd_interact_seconds
+	roamer.zpd_roaming = true
+	host.zpd_partner_id = roamer.id
+	host.zpd_left = Balance.zpd_interact_seconds
+	host.zpd_roaming = false
+	var boosted := zpd_multiplier_between(roamer, host) > 1.0
+	if boosted:
+		roamer.add_xp(Balance.zpd_bonus_xp)
+		host.add_xp(Balance.zpd_bonus_xp)
+	zpd_paired.emit(roamer.id, host.id, boosted)
+	return true
+
+
+func end_zpd_pair(s: StudentData) -> bool:
+	if s == null or s.zpd_partner_id < 0:
+		return false
+	var m := student_by_id(s.zpd_partner_id)
+	var roamer_id := s.id if s.zpd_roaming else (m.id if m != null else s.id)
+	var host_id := m.id if (m != null and s.zpd_roaming) else s.id
+	for c: StudentData in [s, m]:
+		if c == null:
+			continue
+		c.zpd_partner_id = -1
+		c.zpd_left = 0.0
+		c.zpd_roaming = false
+	zpd_ended.emit(roamer_id, host_id)
+	return true
+
+
+func end_all_zpd() -> void:
+	for s: StudentData in roster.duplicate():
+		if s.zpd_partner_id >= 0:
+			end_zpd_pair(s)
+
+
+func tick_zpd(delta: float, r: RandomNumberGenerator) -> void:
+	Balance.ensure_loaded()
+	for s: StudentData in roster.duplicate():
+		if not s.zpd_active() or not s.zpd_roaming:
+			continue
+		var m := student_by_id(s.zpd_partner_id)
+		if m == null or m.zpd_partner_id != s.id \
+				or s.work_state != StudentData.Work.WORKING \
+				or m.work_state != StudentData.Work.WORKING \
+				or s.disrupting or m.disrupting or s.sleeping() or m.sleeping():
+			end_zpd_pair(s)
+		else:
+			s.zpd_left = maxf(0.0, s.zpd_left - delta)
+			m.zpd_left = s.zpd_left
+			if s.zpd_left <= 0.0:
+				end_zpd_pair(s)
+	if not is_collaborative_lesson() or r == null:
+		return
+	_zpd_tick_accum += delta
+	var interval := maxf(0.5, Balance.zpd_roam_interval_seconds)
+	while _zpd_tick_accum >= interval:
+		_zpd_tick_accum -= interval
+		var pool: Array[StudentData] = []
+		for s: StudentData in roster:
+			if s.seat_index >= 0 and s.work_state == StudentData.Work.WORKING \
+					and not s.zpd_active() and not s.sleeping() and not s.disrupting \
+					and not s.flaring() and not s.chatting() and not s.is_struggling():
+				pool.append(s)
+		if pool.size() >= 2:
+			var r_idx := r.randi_range(0, pool.size() - 1)
+			var roamer := pool[r_idx]
+			pool.remove_at(r_idx)
+			var h_idx := r.randi_range(0, pool.size() - 1)
+			var host := pool[h_idx]
+			start_zpd_pair(roamer, host)
+
 
 
 ## Everything that depends on WHO IS SITTING NEXT TO WHOM, once per frame.
@@ -2210,6 +2492,8 @@ func raise_voice(from: Vector2i) -> int:
 		# counted: the count is who was messing about, and a chat was not.
 		if s.chatting():
 			end_chat(s, "voice")
+		if s.sleeping() and s.wake_up(false):
+			student_woke_up.emit(s.id, "voice")
 		if s.disrupting and s.settle():
 			settled += 1
 	return settled
@@ -2288,6 +2572,7 @@ func call_the_class() -> bool:
 		attention_changed.emit(attention)
 	# Every head turns to you, so every conversation stops mid-sentence.
 	end_all_chats("called")
+	wake_all_sleeping("called")
 	return true
 
 # --- the class's attention -------------------------------------------
@@ -2719,6 +3004,9 @@ func run_answer_all() -> Dictionary:
 		if s.seat_index < 0:
 			continue
 		if s.help():
+			helped += 1
+		if s.sleeping() and s.wake_up(true):
+			student_woke_up.emit(s.id, "answer_all")
 			helped += 1
 		if s.resolve_quiz():
 			flagged_cleared += 1
@@ -3229,11 +3517,15 @@ func grade_class() -> Array:
 		var earned := Balance.stu_xp_per_lesson
 		if s.work_state == StudentData.Work.COLLECTED:
 			earned += Balance.stu_xp_per_work_done
+			bank_graded_assignment(String(assignment.get("rarity", "common")), 1)
 		if s.hw_state == StudentData.HW.MARKED:
 			earned += Balance.stu_xp_per_homework
 		var levels := s.add_xp(earned)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g),
 			"levels": levels})
+	_sleep_tick_accum = 0.0
+	_zpd_tick_accum = 0.0
+	end_all_zpd()
 	log_grades("lesson", String(lesson.get("name", "Lesson")), strand, out)
 	record_taught(String(lesson.get("id", "")))
 	return out
@@ -3396,6 +3688,12 @@ func screened(s: StudentData) -> bool:
 ## or 0 when nothing on their desk lets them.
 func works_out_after(s: StudentData) -> float:
 	return float(desk_item_def(s).get("works_out_after", 0.0))
+
+
+## Work-rate multiplier granted by the item standing on this child's desk
+## (e.g. Pencil Caddy 1.15x, Desk Primer 1.22x, Desk Atlas 1.30x, Study Folder 1.10x).
+func desk_work_mult(s: StudentData) -> float:
+	return float(desk_item_def(s).get("desk_work_mult", 1.0))
 
 
 ## Can a desk-top piece go on the desk at `tile` (its seat or the desk) right
@@ -3616,6 +3914,8 @@ func to_dict() -> Dictionary:
 		"background_id": background_id,
 		"auto_teach": auto_teach,
 		"assignment": assignment,
+		"graded_bank": graded_bank.duplicate(),
+		"queued_assignment_tier": queued_assignment_tier,
 		"term_history": term_history,
 		"run_over": run_over,
 		"milestones": milestones,
@@ -3702,6 +4002,8 @@ func from_dict(d: Dictionary) -> void:
 	background_id = String(d.get("background_id", ""))
 	auto_teach = bool(d.get("auto_teach", false))
 	assignment = d.get("assignment", {}).duplicate()
+	graded_bank = (d.get("graded_bank", {}) as Dictionary).duplicate()
+	queued_assignment_tier = String(d.get("queued_assignment_tier", ""))
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()
 	# An older save has no trophies key -- it loads with none, same as a

@@ -152,6 +152,10 @@ func _ready() -> void:
 	Game.chat_started.connect(_on_chat_started)
 	Game.chat_ended.connect(_on_chat_ended)
 	Game.worked_it_out.connect(_on_worked_it_out)
+	Game.student_fell_asleep.connect(_on_student_fell_asleep)
+	Game.student_woke_up.connect(_on_student_woke_up)
+	Game.zpd_paired.connect(_on_zpd_paired)
+	Game.zpd_ended.connect(_on_zpd_ended)
 	# A new run builds a whole new roster. Without this the actor nodes stay
 	# bound to the PREVIOUS run's StudentData -- the room carries on showing
 	# and animating children who are no longer in the class, and every
@@ -583,11 +587,13 @@ func _physics_process(delta: float) -> void:
 			# A child you never got their materials to on a materials day
 			# works slower. Off during a written test (rate is already forced
 			# to 1.0 there: nobody is teaching it). It slows the work, it
-			# never touches the record. (A crammed seating plan used to cost
-			# a hidden slowdown here too; that is the chatter below now.)
+			# never touches the record.
 			var s_rate: float = rate
 			if not Game.test_active:
 				s_rate *= Game.supply_rate_mult(s)
+				s_rate *= Game.talk_proximity_rate_mult(s)
+				s_rate *= Game.desk_work_mult(s)
+				s_rate *= Game.zpd_multiplier(s)
 			if s.tick_work(delta, roll, s_rate):
 				_on_work_done(s)
 		# who is sitting next to whom, and who has started playing up
@@ -597,6 +603,10 @@ func _physics_process(delta: float) -> void:
 		if roll != null:
 			# Desks that touch get talking, unless you are standing by them.
 			Game.tick_chat(delta, roll, teacher_tile())
+			# 15-second sleep tick (10% / 20% / 30% chance per sleepiness level).
+			Game.tick_sleep(delta, roll)
+			# Collaborative assignments: students roam to peers for Vygotsky ZPD.
+			Game.tick_zpd(delta, roll)
 			# ...and a child stuck behind a study folder looks it up.
 			Game.tick_desk_tops()
 			_tick_flares(delta, roll)
@@ -773,22 +783,27 @@ func _refresh_bubbles() -> void:
 		var flaring: bool = n.seated and n.data.flaring()
 		var noisy: bool = n.seated and n.data.disrupting
 		var stuck: bool = n.seated and n.data.is_visibly_struggling()
+		var dozing: bool = n.seated and n.data.sleeping()
 		var flagged: bool = n.seated and n.data.quiz_flagged
 		var presenting: bool = n.seated and Game.fight != null 			and Game.fight.presenting == n.data.id
 		# Talking to a desk close by: the two turn to each other and the
 		# bubble goes back and forth between them, one speaker at a time.
 		var chatting: bool = n.seated and n.data.chatting()
+		var zpd: bool = n.data.zpd_active()
 		var partner: Actor = null
 		if chatting:
 			var other := Game.student_by_id(n.data.chat_with)
 			partner = student_node(other.seat_index) if other != null else null
+		elif zpd:
+			var zpd_other := Game.student_by_id(n.data.zpd_partner_id)
+			partner = student_node(zpd_other.seat_index) if zpd_other != null else null
 		if n.seated:
 			n.face_partner(partner)
 		# The mark says which of the three it is; the tint says how loud.
 		# Both, not the tint alone -- see STUDENT_SCRIPT.MARK_ART.
 		var tint := QUIZ_BUBBLE_TINT
 		var mark: String = STUDENT_SCRIPT.MARK_BEHIND
-		var shown: bool = flaring or noisy or stuck or presenting
+		var shown: bool = flaring or noisy or stuck or dozing or presenting
 		if flaring:
 			tint = FLARE_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_FLARE
@@ -798,6 +813,9 @@ func _refresh_bubbles() -> void:
 		elif stuck:
 			tint = Color.WHITE
 			mark = STUDENT_SCRIPT.MARK_STUCK
+		elif dozing:
+			tint = Color(0.75, 0.85, 1.0)
+			mark = STUDENT_SCRIPT.MARK_DRIFT
 		elif presenting:
 			tint = PRESENT_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_NERVES
@@ -807,15 +825,19 @@ func _refresh_bubbles() -> void:
 			shown = chat_speaking(n.data)
 			tint = CHAT_BUBBLE_TINT
 			mark = STUDENT_SCRIPT.MARK_CHAT
+		elif zpd:
+			shown = true
+			var zmult := Game.zpd_multiplier(n.data)
+			tint = Color(0.55, 0.95, 0.65) if zmult > 1.0 else CHAT_BUBBLE_TINT
+			mark = STUDENT_SCRIPT.MARK_HELPED if zmult > 1.0 else STUDENT_SCRIPT.MARK_CHAT
 		else:
 			shown = flagged
 		n.set_bubble(shown, tint, mark)
 		# Head down on the desk, held: a child who has stopped getting anything
-		# out of this class, with no louder problem to show instead. Art only --
-		# the bubble decision above is untouched and nothing here is a grade
-		# input. The pose IS the read, which is why it raises no second bubble.
-		var loud: bool = flaring or noisy or stuck or flagged or presenting or chatting
-		n.set_slumped(n.seated and n.data.is_capped() and not loud)
+		# out of this class, with no louder problem to show instead — or a child
+		# who has nodded off on the 15-second sleep tick.
+		var loud: bool = flaring or noisy or stuck or flagged or presenting or chatting or zpd
+		n.set_slumped(n.seated and (dozing or (n.data.is_capped() and not loud)))
 	for st: Interactable in stations:
 		var s := Game.student_in_seat(st.seat_index)
 		st.show_paper(s != null and s.has_work_to_collect())
@@ -881,6 +903,62 @@ func _on_worked_it_out(student_id: int) -> void:
 	var at := Grid.tile_to_world(Layout.seat(s.seat_index))
 	Floater.pop(self, at + Vector2(0, -40), "looked it up", Color(0.62, 0.86, 0.66))
 	Fx.puff(self, at + Vector2(0, -10), Color(0.62, 0.86, 0.66))
+
+
+func _on_student_fell_asleep(student_id: int) -> void:
+	var s := Game.student_by_id(student_id)
+	if s == null or s.seat_index < 0:
+		return
+	var at := Grid.tile_to_world(Layout.seat(s.seat_index))
+	Floater.pop(self, at + Vector2(0, -40), "dozed off...", Color(0.75, 0.85, 1.0))
+
+
+func _on_student_woke_up(student_id: int, why: String) -> void:
+	if why == "desk" or why == "bell":
+		return
+	var s := Game.student_by_id(student_id)
+	if s == null or s.seat_index < 0:
+		return
+	var at := Grid.tile_to_world(Layout.seat(s.seat_index))
+	Floater.pop(self, at + Vector2(0, -40), "awake!", Color(0.65, 0.95, 0.75))
+
+
+func _on_zpd_paired(a_id: int, b_id: int, mult: float) -> void:
+	var a := Game.student_by_id(a_id)
+	var b := Game.student_by_id(b_id)
+	if a == null or b == null or a.seat_index < 0 or b.seat_index < 0:
+		return
+	var na := student_node(a.seat_index)
+	var nb := student_node(b.seat_index)
+	if na != null and nb != null and na.has_method("walk_to_peer"):
+		var target_seat := Layout.seat(b.seat_index)
+		var dest := target_seat
+		for off: Vector2i in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, -1), Vector2i(1, -1)]:
+			var cand := target_seat + off
+			if grid.is_free(cand):
+				dest = cand
+				break
+		var p := grid.path(Grid.world_to_tile(na.global_position), dest)
+		na.walk_to_peer(p, nb)
+	var at := Grid.tile_to_world(Layout.seat(b.seat_index))
+	var label := "ZPD boost!" if mult > 1.0 else "peer mismatch"
+	var col := Color(0.55, 0.95, 0.65) if mult > 1.0 else Color(0.95, 0.78, 0.50)
+	Floater.pop(self, at + Vector2(0, -40), label, col)
+
+
+func _on_zpd_ended(a_id: int, _b_id: int) -> void:
+	var a := Game.student_by_id(a_id)
+	if a == null or a.seat_index < 0:
+		return
+	var na := student_node(a.seat_index)
+	if na == null or not na.has_method("return_to_seat"):
+		return
+	var home := Layout.seat(a.seat_index)
+	if Game.phase == Game.Phase.LESSON:
+		var p := grid.path(Grid.world_to_tile(na.global_position), home)
+		na.return_to_seat(p)
+	else:
+		na.seat_at(Grid.tile_to_world(home))
 
 
 ## Somebody sat down. If the lesson has already started they have missed
@@ -1321,6 +1399,11 @@ func end_lesson() -> Array:
 		s.confusion = 0.0
 		s.disrupting = false
 		s.flare_left = 0.0          # the bell interrupts a brewing flare-up too
+	Game.wake_all_sleeping("bell")
+	Game.end_all_zpd()
+	for n: Actor in students:
+		if n != null and n.data != null and n.data.seat_index >= 0 and not n.seated:
+			n.seat_at(Grid.tile_to_world(Layout.seat(n.data.seat_index)))
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
