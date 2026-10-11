@@ -449,6 +449,18 @@ static var ad_tiers: Array = []
 static var item_order: Array = []
 static var item_categories: Array = []
 
+# --- age tiers & consumables -------------------------------------------
+static var age_tiers: Dictionary = {}
+static var consumables: Dictionary = {}
+static var distraction_default_radius: int = 2
+static var distraction_min_radius: int = 1
+static var distraction_max_radius: int = 3
+static var distraction_wall_dampen: int = 1
+static var distraction_bookcase_dampen: int = 1
+static var tenure_days_per_level: int = 5
+static var tenure_lessons_per_level: int = 3
+static var tenure_resilience_per_level: float = 0.05
+
 
 static func ensure_loaded() -> void:
 	if _loaded:
@@ -839,6 +851,23 @@ static func apply(d: Dictionary) -> void:
 		item_order = d["item_order"]
 	if d.has("item_categories"):
 		item_categories = d["item_categories"]
+
+	if d.has("age_tiers"):
+		age_tiers = d["age_tiers"]
+	if d.has("consumables"):
+		consumables = d["consumables"]
+
+	var dis: Dictionary = d.get("distraction", {})
+	distraction_default_radius = int(dis.get("default_radius", distraction_default_radius))
+	distraction_min_radius = int(dis.get("min_radius", distraction_min_radius))
+	distraction_max_radius = int(dis.get("max_radius", distraction_max_radius))
+	distraction_wall_dampen = int(dis.get("wall_dampen", distraction_wall_dampen))
+	distraction_bookcase_dampen = int(dis.get("bookcase_dampen", distraction_bookcase_dampen))
+
+	var ten: Dictionary = d.get("tenure", {})
+	tenure_days_per_level = int(ten.get("days_per_level", tenure_days_per_level))
+	tenure_lessons_per_level = int(ten.get("lessons_per_level", tenure_lessons_per_level))
+	tenure_resilience_per_level = float(ten.get("resilience_per_level", tenure_resilience_per_level))
 
 
 ## Named access for the live debug panel. Object.get()/set() cannot be

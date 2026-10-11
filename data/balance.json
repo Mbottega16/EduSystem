@@ -1843,5 +1843,77 @@
         "density_mult": 1.0
       }
     ]
+  },
+  "age_tiers": {
+    "elementary": {
+      "name": "Elementary School",
+      "age_range": "6-10",
+      "wander_interval_seconds": 18.0,
+      "base_distraction_radius": 2,
+      "promotion_graduates_needed": 8,
+      "promotion_min_term_grade": 0.70
+    },
+    "middle": {
+      "name": "Middle School",
+      "age_range": "11-14",
+      "zpd_cluster_bonus": 0.15,
+      "base_distraction_radius": 2,
+      "promotion_graduates_needed": 8,
+      "promotion_min_term_grade": 0.75
+    },
+    "high": {
+      "name": "High School",
+      "age_range": "15-18",
+      "morning_fatigue_mult": 1.4,
+      "base_distraction_radius": 1,
+      "promotion_graduates_needed": 8,
+      "promotion_min_term_grade": 0.80
+    },
+    "college": {
+      "name": "College / University",
+      "age_range": "18-22",
+      "seminar_focus_bonus": 0.20,
+      "base_distraction_radius": 1,
+      "promotion_graduates_needed": 8,
+      "promotion_min_term_grade": 0.85
+    }
+  },
+  "consumables": {
+    "mint": {
+      "name": "Peppermint",
+      "description": "Wakes up a sleeping student and prevents napping for 45s.",
+      "cost": 5,
+      "duration": 45.0,
+      "wake_immediate": true,
+      "distraction_dampen": 0
+    },
+    "fidget_cube": {
+      "name": "Fidget Cube",
+      "description": "Absorbs fidgeting; cuts distraction radius by 1 for 60s.",
+      "cost": 8,
+      "duration": 60.0,
+      "wake_immediate": false,
+      "distraction_dampen": 1
+    },
+    "brain_snack": {
+      "name": "Brain Snack",
+      "description": "Clears frustration stall immediately and boosts stamina.",
+      "cost": 12,
+      "duration": 60.0,
+      "wake_immediate": true,
+      "distraction_dampen": 0
+    }
+  },
+  "distraction": {
+    "default_radius": 2,
+    "min_radius": 1,
+    "max_radius": 3,
+    "wall_dampen": 1,
+    "bookcase_dampen": 1
+  },
+  "tenure": {
+    "days_per_level": 5,
+    "lessons_per_level": 3,
+    "resilience_per_level": 0.05
   }
 }

@@ -292,6 +292,7 @@ func _main() -> void:
 	await test_music()
 	await test_fight_music()
 	test_portraits()
+	test_tiered_learning_and_dossier()
 	test_walkthrough()
 
 	print("")
@@ -14737,6 +14738,45 @@ func test_portraits() -> void:
 ## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
 ##
 ## Not a test of the game -- a test of the thing that tests the game, and
+func test_tiered_learning_and_dossier() -> void:
+	section("TIERED LEARNING & STUDENT DOSSIER")
+	chk("balance.json has age_tiers table", Balance.age_tiers.has("elementary") and Balance.age_tiers.has("college"))
+	chk("balance.json has consumables defined", Balance.consumables.has("mint") and Balance.consumables.has("fidget_cube"))
+	chk("distraction defaults load correctly", Balance.distraction_default_radius == 2)
+
+	var s := StudentData.new()
+	s.days_enrolled = 14
+	s.transcript = [
+		{"name": "Lesson 1", "grade": 0.85, "day": 1},
+		{"name": "Lesson 2", "grade": 0.90, "day": 2},
+		{"name": "Lesson 3", "grade": 0.88, "day": 3},
+		{"name": "Lesson 4", "grade": 0.92, "day": 4},
+		{"name": "Lesson 5", "grade": 0.95, "day": 5},
+		{"name": "Lesson 6", "grade": 0.91, "day": 6},
+	]
+	# Level = 1 + int(14 / 5) + int(6 / 3) = 1 + 2 + 2 = 5
+	chk("student level scales with days and completed lessons", s.student_level() == 5, s.student_level())
+	chk("base distraction radius defaults to 2", s.effective_distraction_radius() == 2, s.effective_distraction_radius())
+
+	s.give_consumable("fidget_cube", 30.0)
+	chk("fidget cube consumable reduces distraction radius by 1", s.effective_distraction_radius() == 1, s.effective_distraction_radius())
+
+	s.tick_consumable(35.0)
+	chk("consumable effect expires after duration", s.effective_distraction_radius() == 2, s.effective_distraction_radius())
+
+	# Test serialization round-trip
+	s.days_enrolled = 20
+	s.distraction_radius = 3
+	s.active_consumable = "mint"
+	s.consumable_left = 15.0
+	var d := s.to_dict()
+	var loaded := StudentData.from_dict(d)
+	chk("days_enrolled round-trips through dictionary", loaded.days_enrolled == 20)
+	chk("distraction_radius round-trips through dictionary", loaded.distraction_radius == 3)
+	chk("active_consumable round-trips through dictionary", loaded.active_consumable == "mint")
+	chk("consumable_left round-trips through dictionary", loaded.consumable_left == 15.0)
+
+
 ## the two failures it pins down are both ones this repo actually had.
 ##
 ## walk_to() lived in playterm.gd and playtrace.gd, byte-identical. A real

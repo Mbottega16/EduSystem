@@ -240,6 +240,8 @@ const BIO_STORY := 1
 ## Page three: everything pulling on this child RIGHT NOW.
 const BIO_ACTING := 2
 var _bio_page: int = BIO_FILE
+var _student_book_open: bool = false
+var _student_book_page: int = 0
 
 ## The career screen has two pages, cycled by the same "menu" key: the
 ## MILESTONES/trophies list it always was, and THE ONES WHO LEFT -- the
@@ -1848,6 +1850,7 @@ func show_student(s: StudentData) -> void:
 		return
 	if _bio != s:
 		_bio_page = BIO_FILE      # a file just opened always starts on page one
+		_student_book_page = 0
 	_bio = s
 	_open(Mode.STUDENT)
 	body.add_theme_font_size_override("font_size", UI_SIZE)
@@ -1870,25 +1873,27 @@ func show_student(s: StudentData) -> void:
 	if _bio_page == BIO_ACTING:
 		_render_student_acting(s)
 		return
+	if _student_book_open:
+		_render_student_book(s)
+		return
 
 	# The portrait sits top-RIGHT and the text runs full width beneath it.
-	# An earlier version put the portrait on the left and indented the text
-	# with spaces to clear it -- but a space is about 2px at font 8, not the
-	# 5 that assumed, so the portrait was drawn straight over the words.
 	var lines: Array[String] = []
-	lines.append("Seat %d, day %d · %s" % [
-		s.seat_index + 1, s.joined_day, _bio_scales_line(s)])
+	lines.append("Seat %d, day %d · Lv.%d · %s" % [
+		s.seat_index + 1, s.joined_day, s.student_level(), _bio_scales_line(s)])
+	if s.active_consumable != "":
+		lines.append("Buff: %s (%.0fs) · Distract: %d tiles" % [
+			s.active_consumable.capitalize(), s.consumable_left, s.effective_distraction_radius()])
+	else:
+		lines.append("Distract radius: %d tiles · Best: %s" % [
+			s.effective_distraction_radius(), s.best_subject().capitalize() if s.best_subject() != "" else "All"])
 	lines.append(_ability_line(s))
-	lines.append(_subject_line(s))
 	lines.append(_grades_line(s))
 	lines.append(_homework_line(s))
 	lines.append(_help_line(s))
-	# No blank separator. With every line filled in -- a full transcript, a
-	# marked sheet, ready to move up -- the file is exactly at the panel's
-	# limit, and the "> " markers already tell the actions from the prose.
 	lines.append_array(_bio_actions(s))
 	body.text = "\n".join(lines)
-	hint.text = "Tab their story   Up/Down choose   E do it   Esc back"
+	hint.text = "Tab page   Up/Down choose   E do it   Esc back"
 
 
 func _pip_bar(val: int, max_val: int) -> String:
@@ -1946,9 +1951,35 @@ func _render_student_acting(s: StudentData) -> void:
 	# a page that is already ordered worst-first.
 	if lines.size() > 11:
 		lines = lines.slice(0, 11)
-	body.text = "
-".join(lines)
+	body.text = "\n".join(lines)
 	hint.text = "Tab back to the file    Esc back"
+
+
+func _render_student_book(s: StudentData) -> void:
+	var per_page := 4
+	var total_pages := maxi(1, int(ceil(float(s.transcript.size()) / float(per_page))))
+	_student_book_page = clampi(_student_book_page, 0, total_pages - 1)
+
+	title.text = "%s's Assignment Book (%d/%d)" % [s.first_name(), _student_book_page + 1, total_pages]
+	portrait.visible = false
+
+	var lines: Array[String] = []
+	if s.transcript.is_empty():
+		lines.append("No completed assignments in this workbook yet.")
+		lines.append("")
+		lines.append("Grades received will appear here as lessons finish.")
+	else:
+		var start_i := _student_book_page * per_page
+		var end_i := mini(start_i + per_page, s.transcript.size())
+		for i in range(start_i, end_i):
+			var entry: Dictionary = s.transcript[i]
+			var l_name: String = String(entry.get("name", "Lesson"))
+			var g_val: float = float(entry.get("grade", 0.0))
+			var letter: String = _book_letter(g_val)
+			var day_i: int = int(entry.get("day", 1))
+			lines.append("Day %2d · %-16s · %s" % [day_i, l_name.substr(0, 16), letter])
+	body.text = "\n".join(lines)
+	hint.text = "Left/Right flip   Tab next page   Esc back"
 
 
 ## Page two of a child's file: what actually HAPPENED to them, as prose.
@@ -5972,10 +6003,27 @@ func _handle_input() -> void:
 		return
 
 	if mode == Mode.STUDENT:
-		# The file is a menu now, so E acts on the highlighted row instead of
-		# backing out. Esc is the way out -- E used to be both, which is the
-		# overloaded-button problem all over again. Tab turns the page between
-		# the file and their story; the story page is read-only.
+		if _student_book_open:
+			if Input.is_action_just_pressed("cancel"):
+				_student_book_open = false
+				Sfx.play("blip")
+				show_student(_bio)
+			elif Input.is_action_just_pressed("move_left"):
+				var per_page := 4
+				var total_pages := maxi(1, int(ceil(float(_bio.transcript.size()) / float(per_page))))
+				if _student_book_page > 0:
+					_student_book_page -= 1
+					_play_page_flip()
+					show_student(_bio)
+			elif Input.is_action_just_pressed("move_right"):
+				var per_page := 4
+				var total_pages := maxi(1, int(ceil(float(_bio.transcript.size()) / float(per_page))))
+				if _student_book_page < total_pages - 1:
+					_student_book_page += 1
+					_play_page_flip()
+					show_student(_bio)
+			return
+
 		if Input.is_action_just_pressed("cancel"):
 			Sfx.play("blip")
 			_bio = null
@@ -5983,6 +6031,11 @@ func _handle_input() -> void:
 		elif Input.is_action_just_pressed("menu"):
 			_bio_page = (_bio_page + 1) % 3
 			Sfx.play("blip")
+			show_student(_bio)
+		elif _bio_page == BIO_FILE and (Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right")):
+			_student_book_open = true
+			_student_book_page = 0
+			_play_page_flip()
 			show_student(_bio)
 		elif _bio_page == BIO_FILE and Input.is_action_just_pressed("move_down"):
 			_bio_sel = (_bio_sel + 1) % Act.COUNT

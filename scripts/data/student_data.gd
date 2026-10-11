@@ -79,6 +79,12 @@ var zpd_partner_id: int = -1
 var zpd_left: float = 0.0
 var zpd_roaming: bool = false
 
+# --- distraction, tenure & consumables -------------------------------
+var distraction_radius: int = 2
+var days_enrolled: int = 1
+var active_consumable: String = ""
+var consumable_left: float = 0.0
+
 ## Seconds this child has been stuck without letting on. A Quiet student
 ## hides it for a while, which is the whole point of them: you cannot
 ## triage by scanning for bubbles alone.
@@ -247,6 +253,36 @@ func wake_up(by_teacher: bool = false) -> bool:
 		helps_received += 1
 		helps_total += 1
 	return true
+
+
+## Effective student level based on tenure and completed lessons.
+func student_level() -> int:
+	var lessons_done := transcript.size()
+	return 1 + int(days_enrolled / 5) + int(lessons_done / 3)
+
+
+## Distraction radius accounting for active consumables and trait modifiers.
+func effective_distraction_radius() -> int:
+	var r := distraction_radius
+	if active_consumable == "fidget_cube" and consumable_left > 0.0:
+		r = maxi(1, r - 1)
+	return r
+
+
+## Apply a consumable carried from the Supply Stash.
+func give_consumable(id: String, duration: float, wake_now: bool = false) -> void:
+	active_consumable = id
+	consumable_left = duration
+	if wake_now and sleeping():
+		wake_up(true)
+
+
+## Decrement consumable timer during active lesson tick.
+func tick_consumable(delta: float) -> void:
+	if consumable_left > 0.0:
+		consumable_left = maxf(0.0, consumable_left - delta)
+		if consumable_left <= 0.0:
+			active_consumable = ""
 
 
 
@@ -778,6 +814,10 @@ func to_dict() -> Dictionary:
 		"moments": moments,
 		"favourite_streak": _favourite_streak,
 		"boss_delta": boss_delta,
+		"distraction_radius": distraction_radius,
+		"days_enrolled": days_enrolled,
+		"active_consumable": active_consumable,
+		"consumable_left": consumable_left,
 	}
 
 
@@ -791,6 +831,10 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.diligence = float(d.get("diligence", 0.5))
 	s.talkativeness = int(d.get("talkativeness", 2))
 	s.sleepiness = int(d.get("sleepiness", 1))
+	s.distraction_radius = int(d.get("distraction_radius", 2))
+	s.days_enrolled = int(d.get("days_enrolled", 1))
+	s.active_consumable = String(d.get("active_consumable", ""))
+	s.consumable_left = float(d.get("consumable_left", 0.0))
 	s.hw_state = int(d.get("hw_state", HW.NONE))
 	s.hw_true_accuracy = float(d.get("hw_true_accuracy", 0.0))
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))

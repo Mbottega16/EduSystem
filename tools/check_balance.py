@@ -31,7 +31,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOGUE_SECTIONS = {"items", "item_order", "item_categories", "perks",
-                      "traits"}
+                      "traits", "age_tiers", "consumables"}
 
 
 def read(rel):
