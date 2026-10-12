@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-07**, against build `b45`, with **2656 assertions
+> **Measured on 2026-10-07**, against build `b45`, with **2704 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -257,6 +257,22 @@ score that afternoon (`bosses.fight.max_swing`, about half a letter).
 The record still decides the exam; the day decides the margin. The
 contract sim never sees any of it. Full design: `docs/ROGUELIKE_DESIGN.md`.
 
+### The school's stages *(built Oct 2026)*
+A run begins in Elementary School and moves up a stage -- Middle, High
+School, College -- once enough children have left the class at or above
+the stage's bar (`age_tiers.*.promotion_graduates_needed` of them, each
+with a term evaluation of at least `promotion_min_term_grade`, which rises
+from 0.70 to 0.85). Closing the exam of a school about to move up stops at
+the **Graduation & Transfer Hall**: pick up to `tiers.captains_max` of the
+qualified children to stay on with you, keeping their whole file; everyone
+else is sent up as usual. Each stage opens with fresh faces at its own base
+distraction radius and has one flavour -- middle school's pods
+(`zpd_cluster_bonus`), high school's morning fatigue
+(`morning_fatigue_mult`), college's research pairs (`seminar_focus_bonus`).
+All of it is pace only: the contract rows are measured in the first stage
+and `tools/sim.gd` never reads any of it. Design and work pack:
+`docs/WORK_PACK_TIERED_LEARNING.md`.
+
 ---
 
 ## 5. Systems reference
@@ -359,7 +375,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **2656 assertions** across **134 sections** |
+| Tests | **2704 assertions** across **135 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

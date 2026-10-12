@@ -18,7 +18,7 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK }
+	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -253,6 +253,11 @@ const CAREER_ALUMNI := 1
 var _career_page: int = CAREER_MILESTONES
 ## Which alum's story is open on the alumni page. -1 is the list itself.
 var _alum_open: int = -1
+## The Graduation & Transfer Hall (Mode.HALL): who qualifies to stay on as a
+## cohort captain (the exam's rows, from Game.promotion_preview()) and the ids
+## picked so far.
+var _hall_rows: Array = []
+var _hall_picked: Array[int] = []
 ## The exam is the one screen whose closing DOES something, so it has to be
 ## told apart from every other report.
 var _showing_exam: bool = false
@@ -2055,6 +2060,8 @@ func _moment_sentence(kind: String, n: int, day: int, s: StudentData) -> String:
 			return "Froze on the paper more than once, and carried that morning for a while."
 		"graduated":
 			return "Left your class ready for what came next."
+		"captain":
+			return "Stayed on as a cohort captain when the school moved up."
 		"caught_flare":
 			if n > 1:
 				return "Reached them before it went off more than once -- you know their tells now."
@@ -4172,6 +4179,85 @@ func show_specialism() -> void:
 	hint.text = "Up/Down choose    E - this is my subject"
 
 
+## Close the exam: the term ends, the class moves up or stays, the next one
+## opens. Reached from the exam directly, or by way of the Graduation Hall.
+func _begin_next_term() -> void:
+	var info := Game.next_term()
+	if bool(info.get("run_over", false)):
+		show_run_over(info)
+	else:
+		show_new_term(info)
+
+
+## The Graduation & Transfer Hall (learning-system-plan.md): the school is
+## about to move up a stage, and the children who got it there line up. Pick up
+## to Balance.tier_captains_max of them to come with you -- they keep their
+## whole file, bio, level and workbook -- and everyone else is sent up as usual
+## into the yearbook. `preview` is Game.promotion_preview().
+func show_graduation_hall(preview: Dictionary) -> void:
+	_hall_rows = (preview.get("candidates", []) as Array).duplicate()
+	_hall_picked.clear()
+	_sel = 0
+	_render_hall()
+
+
+func _render_hall() -> void:
+	_open(Mode.HALL)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	title.text = "GRADUATION & TRANSFER HALL"
+	var to_name := Game.tier_name(Game.age_tier + 1)
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%s is ready for %s.[/color]" % [
+		C_GOOD, Game.tier_name(), to_name])
+	lines.append("[color=#%s]Pick up to %d to come with you.[/color]" % [
+		DIM, Balance.tier_captains_max])
+	lines.append("")
+	var per := 6
+	var top := clampi(_sel - (per - 1), 0, maxi(0, _hall_rows.size() - per))
+	for i in range(top, mini(top + per, _hall_rows.size())):
+		var row: Dictionary = _hall_rows[i]
+		var s: StudentData = row["student"]
+		lines.append("%s %s %-8s %s" % [
+			">" if i == _sel else " ",
+			"(x)" if _hall_picked.has(s.id) else "( )",
+			s.first_name().substr(0, 8), String(row.get("letter", "?"))])
+	lines.append("")
+	lines.append("[color=#%s]The rest are sent up, and fresh faces take their desks.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.4)
+	hint.text = _hint_clip("Up/Down move   E pick   F begin %s" % to_name)
+
+
+func _handle_hall_input() -> void:
+	var n := _hall_rows.size()
+	if n > 0 and Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % n
+		Sfx.play("blip")
+		_render_hall()
+	elif n > 0 and Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + n) % n
+		Sfx.play("blip")
+		_render_hall()
+	elif n > 0 and Game.claim_interact():
+		var s: StudentData = _hall_rows[_sel]["student"]
+		if _hall_picked.has(s.id):
+			_hall_picked.erase(s.id)
+			Sfx.play("blip")
+		elif _hall_picked.size() < Balance.tier_captains_max:
+			_hall_picked.append(s.id)
+			Sfx.play("confirm")
+		else:
+			Sfx.play("deny")
+		_render_hall()
+	elif Input.is_action_just_pressed("cancel") or Game.claim_action("manage"):
+		Game.captains = _hall_picked.duplicate()
+		Sfx.play("confirm")
+		_begin_next_term()
+
+
 ## A new term. Who left, who stayed, who is new.
 ##
 ## This screen is the reward for the one before it: it names what you KEEP.
@@ -4208,6 +4294,18 @@ func show_new_term(info: Dictionary) -> void:
 	if not joined.is_empty():
 		lines.append("[color=#%s]New in your class:[/color] %s" % [C_ROOM,
 			_names_line(joined)])
+	# Which stage of school this is: the move up, with whoever stayed on, or
+	# how close the class is to it. A milestone's count, not a child's score.
+	var captains: Array = info.get("captains", [])
+	if bool(info.get("promoted", false)):
+		lines.append("[color=#%s]The school moves up. Welcome to %s.[/color]" % [
+			C_GOOD, String(info.get("school", Game.tier_name()))])
+		if not captains.is_empty():
+			lines.append("[color=#%s]Staying on as captains:[/color] %s" % [
+				C_ROOM, _names_line(captains)])
+	elif not Game.is_top_tier():
+		lines.append("[color=#%s]%s: %d of %d moved up at the bar.[/color]" % [
+			DIM, Game.tier_name(), Game.tier_graduates, Game.tier_graduates_needed()])
 	lines.append("")
 	lines.append("[color=#%s]You keep[/color]  %d items   %d concepts   level %d   %d coins" % [
 		C_KNOW, Game.room_items.size(), Game.concepts.size(),
@@ -5826,6 +5924,10 @@ func _handle_input() -> void:
 		_handle_grade_book_input()
 		return
 
+	if mode == Mode.HALL:
+		_handle_hall_input()
+		return
+
 	if mode == Mode.HELP:
 		_handle_help_input()
 		return
@@ -5960,11 +6062,13 @@ func _handle_input() -> void:
 			# 22, 23 simply kept coming. It is a doorway now.
 			if _showing_exam:
 				_showing_exam = false
-				var info := Game.next_term()
-				if bool(info.get("run_over", false)):
-					show_run_over(info)
+				# A school about to move up stops at the Graduation & Transfer
+				# Hall first, to pick who stays on with you.
+				var preview := Game.promotion_preview()
+				if bool(preview.get("due", false)) and Balance.tier_captains_max > 0:
+					show_graduation_hall(preview)
 				else:
-					show_new_term(info)
+					_begin_next_term()
 				return
 			if _showing_run_over:
 				_showing_run_over = false

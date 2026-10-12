@@ -467,6 +467,9 @@ static var tenure_resilience_per_level: float = 0.05
 static var tenure_resilience_cap: float = 0.5
 static var tenure_tutor_per_level: float = 0.06
 static var tenure_tutor_cap: float = 0.5
+static var tier_order: Array = ["elementary", "middle", "high", "college"]
+static var tier_captains_max: int = 2
+static var tier_pod_reach_tiles: int = 3
 
 
 static func ensure_loaded() -> void:
@@ -882,6 +885,11 @@ static func apply(d: Dictionary) -> void:
 	tenure_resilience_cap = float(ten.get("resilience_cap", tenure_resilience_cap))
 	tenure_tutor_per_level = float(ten.get("tutor_per_level", tenure_tutor_per_level))
 	tenure_tutor_cap = float(ten.get("tutor_cap", tenure_tutor_cap))
+
+	var tr: Dictionary = d.get("tiers", {})
+	tier_order = tr.get("order", tier_order)
+	tier_captains_max = int(tr.get("captains_max", tier_captains_max))
+	tier_pod_reach_tiles = int(tr.get("pod_reach_tiles", tier_pod_reach_tiles))
 
 
 ## Named access for the live debug panel. Object.get()/set() cannot be

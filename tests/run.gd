@@ -294,6 +294,7 @@ func _main() -> void:
 	test_portraits()
 	test_tiered_learning_and_dossier()
 	await test_environment_and_tenure()
+	await test_age_tiers()
 	test_walkthrough()
 
 	print("")
@@ -14990,6 +14991,256 @@ func test_environment_and_tenure() -> void:
 		sim_src != "" and not sim_src.contains("tick_buffs")
 		and not sim_src.contains("sleep_chance_for") and not sim_src.contains("peer_tutoring")
 		and not sim_src.contains("distraction_radius_of") and not sim_src.contains("pair_reach"))
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The school's age tier (learning-system-plan.md): four stages, a bar to leave
+## each, a Graduation & Transfer Hall where up to two qualified children are
+## picked to stay on, and one flavour per stage. Pace only: the contract rows
+## are measured in the first stage and tools/sim.gd never reads any of it.
+func test_age_tiers() -> void:
+	section("AGE TIERS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("a run starts in the first stage, with nobody counted yet",
+		Game.age_tier == 0 and Game.tier_id() == "elementary" and Game.tier_graduates == 0
+		and not Game.is_top_tier() and Game.captains.is_empty())
+	chk("there are four stages, in order",
+		Balance.tier_order == ["elementary", "middle", "high", "college"])
+	var defined := true
+	var rising := true
+	var last_bar := 0.0
+	for i in Game.tier_count():
+		var d: Dictionary = Game.tier_def(i)
+		if String(d.get("name", "")) == "" or not d.has("base_distraction_radius") \
+				or not d.has("promotion_graduates_needed"):
+			defined = false
+		var bar := float(d.get("promotion_min_term_grade", 0.0))
+		if bar <= last_bar:
+			rising = false
+		last_bar = bar
+	chk("each stage has a name, a headcount and a way of whispering", defined)
+	chk("and the bar to leave a stage rises stage by stage", rising)
+	chk("an out-of-range stage is clamped, never a crash",
+		Game.tier_id(99) == "college" and Game.tier_id(0) == "elementary")
+	chk("a new child begins with their stage's radius", (func() -> bool:
+		for s: StudentData in Game.roster:
+			if s.distraction_radius != Game.tier_base_radius():
+				return false
+		return true).call())
+
+	# --- one flavour per stage ---
+	var l: StudentData = Game.roster[0]
+	var p: StudentData = Game.roster[1]
+	for c: StudentData in [l, p]:
+		c.reset_lesson()
+		c.days_enrolled = 1
+		c.transcript.clear()
+	l.aptitude = 0.3
+	p.aptitude = 0.6
+	var near_seats: Array[Vector2i] = [Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7), Vector2i(7, 4)]
+	var far_seats: Array[Vector2i] = [Vector2i(3, 4), Vector2i(15, 8), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7), Vector2i(7, 4)]
+	Layout.set_seats(near_seats)
+	var boost := Balance.zpd_boost_mult
+	chk("in elementary a scaffolded pair gets the plain boost",
+		is_equal_approx(Game.zpd_multiplier_between(l, p), boost), Game.zpd_multiplier_between(l, p))
+	Game.age_tier = 1
+	var cluster := float(Game.tier_def().get("zpd_cluster_bonus", 0.0))
+	chk("middle school's pods add the cluster bonus when the desks are close",
+		cluster > 0.0 and is_equal_approx(Game.zpd_multiplier_between(l, p), boost + cluster),
+		Game.zpd_multiplier_between(l, p))
+	Layout.set_seats(far_seats)
+	chk("...and nothing when they are across the room",
+		is_equal_approx(Game.zpd_multiplier_between(l, p), boost), Game.zpd_multiplier_between(l, p))
+	Layout.set_seats(near_seats)
+	Game.age_tier = 2
+	chk("high school adds nothing to a pair", is_equal_approx(
+		Game.zpd_multiplier_between(l, p), boost), Game.zpd_multiplier_between(l, p))
+	Game.age_tier = 3
+	var seminar := float(Game.tier_def().get("seminar_focus_bonus", 0.0))
+	chk("college's research pairs add the seminar bonus",
+		seminar > 0.0 and is_equal_approx(Game.zpd_multiplier_between(l, p), boost + seminar),
+		Game.zpd_multiplier_between(l, p))
+	l.aptitude = 0.3
+	p.aptitude = 0.3
+	chk("...but only to a pair that is being scaffolded", is_equal_approx(
+		Game.zpd_multiplier_between(l, p), Balance.zpd_mismatch_mult))
+
+	Game.age_tier = 2
+	Game.lesson_progress = 0.1
+	var fatigue := float(Game.tier_def().get("morning_fatigue_mult", 1.0))
+	chk("a high school is sleepier early in the lesson",
+		fatigue > 1.0 and is_equal_approx(Game.tier_sleep_mult(), fatigue))
+	l.sleepiness = 1
+	l.work_state = StudentData.Work.WORKING
+	chk("it shows in the chance of nodding off",
+		is_equal_approx(Game.sleep_chance_for(l), l.sleep_chance() * fatigue), Game.sleep_chance_for(l))
+	Game.lesson_progress = Balance.sleep_morning_window + 0.01
+	chk("and is gone once the morning is over", is_equal_approx(Game.tier_sleep_mult(), 1.0))
+	Game.age_tier = 0
+	Game.lesson_progress = 0.0
+	chk("no other stage has a morning", is_equal_approx(Game.tier_sleep_mult(), 1.0))
+	Game.age_tier = 2
+	Game.lesson_progress = 1.0
+	chk("a high school's children begin with the narrower radius",
+		Game.tier_base_radius() == int(Game.tier_def().get("base_distraction_radius", -1))
+		and Game.tier_base_radius() < Balance.distraction_default_radius)
+	l.distraction_radius = Game.tier_base_radius()
+	p.distraction_radius = Game.tier_base_radius()
+	chk("and nobody whispers across touching desks there", not Game.too_close(l))
+	Game.age_tier = 0
+	l.distraction_radius = Balance.distraction_default_radius
+	p.distraction_radius = Balance.distraction_default_radius
+	chk("while an elementary class still does", Game.too_close(l))
+
+	# --- the move up: who counts, and what the Hall can see ---
+	Game.new_run(SEED)
+	await step(2)
+	while Game.enrol() != null:
+		pass
+	var kids: Array = Game.roster.duplicate()
+	var rows: Array = []
+	for s: StudentData in kids:
+		rows.append({"student": s, "score": 0.9, "letter": "A", "passed": true})
+	Game.exam_result = {"rows": rows, "average": 0.9, "letter": "A",
+		"passed": rows.size(), "total": rows.size()}
+	var need := Game.tier_graduates_needed()
+	chk("a stage names how many must leave it", need >= 1)
+	var one_short: Array = rows.duplicate(true)
+	(one_short[0] as Dictionary)["score"] = Game.tier_min_grade() - 0.05
+	Game.exam_result = {"rows": one_short, "average": 0.88, "letter": "B",
+		"passed": one_short.size(), "total": one_short.size()}
+	Game.tier_graduates = maxi(0, need - rows.size())
+	chk("one short of the headcount at the bar, the school stays put",
+		rows.size() - 1 + Game.tier_graduates >= need
+		or not bool(Game.promotion_preview()["due"]))
+	Game.exam_result = {"rows": rows, "average": 0.9, "letter": "A",
+		"passed": rows.size(), "total": rows.size()}
+	var weak: Array = rows.duplicate(true)
+	for r: Dictionary in weak:
+		r["score"] = Game.tier_min_grade() - 0.05
+	var kept_exam := Game.exam_result
+	Game.exam_result = {"rows": weak, "average": 0.6, "letter": "C",
+		"passed": weak.size(), "total": weak.size()}
+	Game.tier_graduates = need
+	chk("passing is not enough: below the bar nobody counts",
+		not bool(Game.promotion_preview()["due"]))
+	Game.exam_result = kept_exam
+	Game.tier_graduates = maxi(0, need - rows.size())
+	var prev := Game.promotion_preview()
+	chk("with enough at the bar, the move up is due, and the whole class is eligible",
+		bool(prev["due"]) and (prev["candidates"] as Array).size() == rows.size()
+		and String(prev["from"]) == "Elementary School" and String(prev["to"]) == "Middle School",
+		prev)
+	Game.age_tier = Game.tier_count() - 1
+	chk("the last stage has nowhere to move up to",
+		Game.is_top_tier() and not bool(Game.promotion_preview()["due"]))
+	Game.age_tier = 0
+	Game.exam_result = {"rows": rows, "average": 0.9, "letter": "A", "passed": 0, "total": rows.size()}
+	chk("a term that missed its target moves nobody up",
+		not Game._term_hit(Game.exam_result) and not bool(Game.promotion_preview()["due"]))
+	Game.exam_result = kept_exam
+
+	# --- the Hall: pick who stays on, and the school moves up ---
+	var hud := _hud()
+	var a: StudentData = kids[0]
+	var b: StudentData = kids[1]
+	var c: StudentData = kids[2]
+	a.days_enrolled = 12
+	a.note_moment("got_stuck", 2)
+	hud.show_exam(Game.exam_result)
+	await step(2)
+	await tap("interact")
+	chk("closing the exam of a school about to move up opens the Hall first",
+		hud.mode == hud.Mode.HALL and Game.age_tier == 0, hud.mode)
+	chk("it lists every child who qualified, and nobody is picked yet",
+		hud._hall_rows.size() == rows.size() and hud._hall_picked.is_empty())
+	chk("it names the stage you are moving to", hud.rich.text.contains("Middle School"))
+	chk("and fits the panel", not hud._rich_overflows(), hud.rich.text)
+	await tap("interact")
+	chk("E picks the child under the cursor",
+		hud._hall_picked.size() == 1 and hud._hall_picked[0] == a.id, hud._hall_picked)
+	await tap("move_down")
+	await tap("interact")
+	await tap("move_down")
+	await tap("interact")
+	chk("only so many can stay on", hud._hall_picked.size() == Balance.tier_captains_max,
+		hud._hall_picked)
+	await tap("interact")
+	chk("pressing E on a third who is not picked is refused",
+		not hud._hall_picked.has(c.id))
+	await tap("move_up")
+	await tap("interact")
+	chk("and E on one who is picked puts them back", not hud._hall_picked.has(b.id)
+		and hud._hall_picked.size() == Balance.tier_captains_max - 1, hud._hall_picked)
+	await tap("move_down")
+	await tap("interact")
+	chk("so the place can go to someone else", hud._hall_picked.has(c.id)
+		and hud._hall_picked.size() == Balance.tier_captains_max, hud._hall_picked)
+	var alumni_before: int = Game.meta["alumni"].size()
+	await tap("manage")
+	chk("F begins the new school", Game.age_tier == 1 and Game.tier_id() == "middle"
+		and Game.tier_graduates == 0, Game.age_tier)
+	chk("the new term opens on the screen that welcomes you",
+		hud.mode == hud.Mode.REPORT and hud.rich.text.contains("Welcome to Middle School")
+		and hud.rich.text.contains(a.first_name()) and hud.rich.text.contains(c.first_name()),
+		hud.rich.text)
+	chk("and fits the panel", not hud._rich_overflows(), hud.rich.text)
+	chk("the two picked are still in your class", Game.roster.has(a) and Game.roster.has(c)
+		and not Game.roster.has(b))
+	chk("with their whole file: tenure, record, moments",
+		a.days_enrolled == 12 and a.has_moment("got_stuck") and a.has_moment("captain")
+		and c.has_moment("captain") and not a.has_moment("graduated"))
+	chk("they are not in the alumni yet, and everyone else qualified is",
+		Game.meta["alumni"].size() == alumni_before + rows.size() - 2
+		and Game.graduated.size() == rows.size() - 2)
+	chk("the class is full again, every desk in the new stage's way of whispering",
+		Game.roster.size() == Game.seat_capacity() and (func() -> bool:
+			for s: StudentData in Game.roster:
+				if s.distraction_radius != Game.tier_base_radius():
+					return false
+			return true).call())
+	chk("the picks are spent", Game.captains.is_empty() and hud._hall_picked.size() == 2)
+	chk("a saved game remembers the stage", (func() -> bool:
+		Game.save_game()
+		Game.new_run(1)
+		var fresh := Game.age_tier == 0
+		Game.load_game()
+		Game.delete_save()
+		return fresh and Game.age_tier == 1).call(), Game.age_tier)
+	chk("and a new run begins in the first again", (func() -> bool:
+		Game.new_run(SEED)
+		return Game.age_tier == 0 and Game.tier_graduates == 0).call())
+
+	# --- no Hall when the school does not move up ---
+	Game.new_run(SEED)
+	await step(2)
+	var some: Array = []
+	for s: StudentData in Game.roster:
+		some.append({"student": s, "score": 0.9, "letter": "A", "passed": true})
+	Game.exam_result = {"rows": some, "average": 0.9, "letter": "A",
+		"passed": some.size(), "total": some.size()}
+	Game.tier_graduates = 0
+	hud.show_exam(Game.exam_result)
+	await step(2)
+	await tap("interact")
+	chk("a class that leaves the stage short goes straight to the next term",
+		hud.mode == hud.Mode.REPORT and Game.age_tier == 0 and Game.term == 2
+		and Game.tier_graduates == some.size(), [hud.mode, Game.age_tier, Game.term])
+	chk("and the screen says how close it is", hud.rich.text.contains("moved up at the bar"),
+		hud.rich.text)
+	chk("it fits the panel", not hud._rich_overflows(), hud.rich.text)
+	hud.close()
+
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never reads the stage, the Hall or the captains",
+		sim_src != "" and not sim_src.contains("age_tier") and not sim_src.contains("promotion_preview")
+		and not sim_src.contains("captains") and not sim_src.contains("tier_"))
 	Game.new_run(SEED)
 	await step(2)
 

@@ -95,6 +95,9 @@ var examiner: Actor = null
 var camera: Camera2D = null
 
 var lesson_left: float = 0.0
+## How long this lesson was when it began, so the clock can say how far through
+## it is (Game.lesson_progress -- a high school is sleepiest early).
+var _lesson_total: float = 1.0
 ## Ambient weather: seconds until the next mote is due. A day event whose
 ## id has no entry in WEATHER spawns nothing, which is deliberate — most
 ## days should still look like the plain room they have always been.
@@ -571,6 +574,7 @@ func _physics_process(delta: float) -> void:
 		# Without it nothing ended the lesson but the player, so you could
 		# always reach every student and there was no triage to do.
 		lesson_left = maxf(0.0, lesson_left - delta)
+		Game.lesson_progress = clampf(1.0 - lesson_left / maxf(1.0, _lesson_total), 0.0, 1.0)
 		Game.answer_all_cooldown = maxf(0.0, Game.answer_all_cooldown - delta)
 		Game.tick_boost(delta)
 		# A peppermint or a fidget cube in a pocket wears off in lesson seconds.
@@ -1015,6 +1019,8 @@ func start_lesson() -> int:
 	Game.call_cooldown = 0.0        # ...and so does the call-and-response
 	Game.call_hold = 0.0
 	lesson_left = Game.lesson_length()
+	_lesson_total = lesson_left
+	Game.lesson_progress = 0.0
 	# Auto-teach fully replaces the per-student setup below: RoomSim's own
 	# play_day() does its own reset_lesson()/assign_work() as part of
 	# resolving the whole day, so doing it again here would just re-roll

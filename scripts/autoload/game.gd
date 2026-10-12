@@ -874,6 +874,10 @@ func new_run(seed_value: int = 0) -> void:
 	background_id = ""
 	auto_teach = false
 	graduated.clear()
+	age_tier = 0
+	tier_graduates = 0
+	captains.clear()
+	lesson_progress = 1.0
 	# meta is NOT cleared here -- it outlives the run. This only tops up a
 	# key a mid-upgrade save might be missing, so the block is always whole.
 	_ensure_meta_keys()
@@ -960,6 +964,7 @@ func enrol() -> StudentData:
 		if not strands.is_empty() else "math"
 	s.trait_id = Traits.roll(rng)
 	s.seat_index = _lowest_free_seat()
+	s.distraction_radius = tier_base_radius()
 	var bio_rng := RandomNumberGenerator.new()
 	bio_rng.seed = int(rng.seed) * 1103515245 + s.id * 12345 + day * 97
 	s.roll_bio_scales(bio_rng)
@@ -1478,12 +1483,14 @@ func tick_sleep(delta: float, r: RandomNumberGenerator) -> void:
 ## The chance this child dozes off on a sleep tick, with everything that eases
 ## or sharpens it: their own sleepiness (StudentData.sleep_chance()), how long
 ## they have been here (a veteran sleeps less), the room (a water cooler or a
-## standing fan within reach of the desk), and a peppermint in the pocket.
+## standing fan within reach of the desk), a peppermint in the pocket, and a
+## high school's early-morning fatigue (tier_sleep_mult()).
 func sleep_chance_for(s: StudentData) -> float:
 	Balance.ensure_loaded()
 	if s == null or s.sleep_proof():
 		return 0.0
-	return clampf(s.sleep_chance() * (1.0 - s.resilience()) * sleep_room_mult(s), 0.0, 1.0)
+	return clampf(s.sleep_chance() * (1.0 - s.resilience()) * sleep_room_mult(s)
+		* tier_sleep_mult(), 0.0, 1.0)
 
 
 ## The share of their sleep chance that is left once the room has had its say:
@@ -1550,7 +1557,7 @@ func zpd_multiplier_between(learner: StudentData, peer: StudentData) -> float:
 	var gap := absf(zpd_competence(peer) - zpd_competence(learner))
 	var mult := Balance.zpd_mismatch_mult
 	if gap >= Balance.zpd_gap_min and gap <= Balance.zpd_gap_max:
-		mult = Balance.zpd_boost_mult
+		mult = Balance.zpd_boost_mult + tier_zpd_bonus(learner, peer)
 	return mult + peer_tutoring_bonus(learner, peer)
 
 
@@ -1942,6 +1949,17 @@ func next_term() -> Dictionary:
 	if not hit:
 		run_over = true
 
+	# The school moves up a stage when enough children have left it at the
+	# bar. promotion_preview() reads the same rule for the Graduation Hall,
+	# which is where `captains` were picked.
+	var qualified := 0
+	for row: Dictionary in result.get("rows", []):
+		if _row_qualifies(row):
+			qualified += 1
+	var promoting := not run_over and not is_top_tier() and qualified > 0 \
+		and tier_graduates + qualified >= tier_graduates_needed()
+	var captain_names: Array[String] = []
+
 	var moved_up: Array[String] = []
 	var stayed: Array[StudentData] = []
 	for row: Dictionary in result.get("rows", []):
@@ -1954,9 +1972,18 @@ func next_term() -> Dictionary:
 		if not s.has_moment("got_stuck") and not s.has_moment("never_stuck"):
 			s.note_moment("never_stuck", day)
 		if bool(row.get("passed", false)) and Balance.term_pass_moves_up:
-			s.note_moment("graduated", day)
-			moved_up.append(s.display_name)
-			_add_graduation(s)
+			if promoting and captains.has(s.id) and _row_qualifies(row) \
+					and captain_names.size() < Balance.tier_captains_max:
+				# A cohort captain: stays on into the next stage with their
+				# whole record -- bio, level, traits, transcript -- and is
+				# not archived to the alumni yet.
+				s.note_moment("captain", day)
+				captain_names.append(s.display_name)
+				stayed.append(s)
+			else:
+				s.note_moment("graduated", day)
+				moved_up.append(s.display_name)
+				_add_graduation(s)
 		else:
 			s.note_moment("kept_back", day)
 			stayed.append(s)
@@ -1979,6 +2006,18 @@ func next_term() -> Dictionary:
 			"target": target,
 			"previous": term_history[term_history.size() - 1],
 		}
+
+	# The school moves up a stage, or counts the children who got it closer.
+	# Everyone staying on -- the captains and whoever was kept back -- begins
+	# the new stage in the new stage's own way of whispering.
+	if promoting:
+		age_tier += 1
+		tier_graduates = 0
+		for s: StudentData in stayed:
+			s.distraction_radius = tier_base_radius()
+	else:
+		tier_graduates += qualified
+	captains.clear()
 
 	# whoever is left starts the new term with a clean slate but their own
 	# history -- the transcript is theirs and it travels
@@ -2033,11 +2072,14 @@ func next_term() -> Dictionary:
 	# closes -- see hud.gd's show_new_term()/show_term_paths().
 	draw_term_paths()
 	save_game()
+	if promoting:
+		tier_promoted.emit(age_tier)
 	return {
 		"term": term, "moved_up": moved_up, "joined": joined,
 		"stayed": stayed.size(), "run_over": false,
 		"target": term_target(),
 		"previous": term_history[term_history.size() - 1],
+		"promoted": promoting, "school": tier_name(), "captains": captain_names,
 	}
 
 
@@ -2160,6 +2202,133 @@ func graduate(s: StudentData) -> Dictionary:
 	record["coins"] = coins_won
 	record["replaced_by"] = joined.display_name if joined != null else ""
 	return record
+
+
+# --- the school's age tier --------------------------------------------------
+#
+# learning-system-plan.md: Elementary -> Middle -> High -> College. A run
+# begins in the first stage; when enough children have left the class at or
+# above the stage's bar, the school moves up (next_term() does it, the
+# Graduation & Transfer Hall lets you pick cohort captains first). What a
+# stage changes is pace only and read by the room -- the starting radius of a
+# new child's whispering, and one flavour each (tier_zpd_bonus(),
+# tier_sleep_mult()) -- so the balance contract, measured in the first stage,
+# cannot see it.
+
+## Index into Balance.tier_order. Saved; new_run() sends it back to the first.
+var age_tier: int = 0
+## Children who left this stage's class at or above its term-evaluation bar and
+## have not yet been counted into a promotion. Saved.
+var tier_graduates: int = 0
+## Student ids picked in the Graduation Hall to stay on into the next stage.
+## Read and cleared by next_term().
+var captains: Array = []
+## The lesson clock, 0 at the bell and 1 at the end, kept by the room each
+## frame. Only the morning fatigue of a high school reads it.
+var lesson_progress: float = 1.0
+
+signal tier_promoted(tier: int)
+
+
+func tier_count() -> int:
+	Balance.ensure_loaded()
+	return Balance.tier_order.size()
+
+
+func is_top_tier() -> bool:
+	return age_tier >= tier_count() - 1
+
+
+## The id of tier `i` (this run's own when -1), clamped into range.
+func tier_id(i: int = -1) -> String:
+	var n := tier_count()
+	if n == 0:
+		return ""
+	return String(Balance.tier_order[clampi(age_tier if i < 0 else i, 0, n - 1)])
+
+
+func tier_def(i: int = -1) -> Dictionary:
+	return Balance.age_tiers.get(tier_id(i), {})
+
+
+func tier_name(i: int = -1) -> String:
+	return String(tier_def(i).get("name", "School"))
+
+
+## The distraction radius a child starts with in this stage.
+func tier_base_radius() -> int:
+	return int(tier_def().get("base_distraction_radius", Balance.distraction_default_radius))
+
+
+## The term evaluation (0..1) a child must reach to count towards promotion.
+func tier_min_grade() -> float:
+	return float(tier_def().get("promotion_min_term_grade", 0.0))
+
+
+func tier_graduates_needed() -> int:
+	return maxi(1, int(tier_def().get("promotion_graduates_needed", 8)))
+
+
+## Would this exam row count towards promotion: passed, would move up, and at
+## or above the stage's bar.
+func _row_qualifies(row: Dictionary) -> bool:
+	return bool(row.get("passed", false)) and Balance.term_pass_moves_up \
+		and float(row.get("score", 0.0)) >= tier_min_grade()
+
+
+## Did the class clear the term? The same rule next_term() applies, read
+## without any of its side effects so the Hall can ask first.
+func _term_hit(result: Dictionary) -> bool:
+	if String(term_path.get("kind", "")) == "boss":
+		return float(result.get("average", 0.0)) >= float(term_path.get("target", 1.0))
+	return met_target(int(result.get("passed", 0)))
+
+
+## What closing the exam is about to do to the school, read BEFORE next_term()
+## commits to it: {due, candidates, from, to}. `candidates` are the exam rows
+## of the children who qualify, the ones that may stay on as captains. Nothing
+## here changes anything.
+func promotion_preview() -> Dictionary:
+	Balance.ensure_loaded()
+	var out := {"due": false, "candidates": [], "from": tier_name(), "to": ""}
+	if exam_result.is_empty() or is_top_tier() or not _term_hit(exam_result):
+		return out
+	var rows: Array = []
+	for row: Dictionary in exam_result.get("rows", []):
+		if _row_qualifies(row):
+			rows.append(row)
+	if rows.is_empty() or tier_graduates + rows.size() < tier_graduates_needed():
+		return out
+	out["due"] = true
+	out["candidates"] = rows
+	out["to"] = tier_name(age_tier + 1)
+	return out
+
+
+## The pace bonus a stage adds to a ZPD pair that is already being scaffolded:
+## middle school's pods (desks within Balance.tier_pod_reach_tiles of each
+## other) and college's research pairs. Zero in elementary and high school.
+func tier_zpd_bonus(learner: StudentData, peer: StudentData) -> float:
+	var def := tier_def()
+	var bonus := float(def.get("seminar_focus_bonus", 0.0))
+	var cluster := float(def.get("zpd_cluster_bonus", 0.0))
+	if cluster > 0.0 and learner != null and peer != null \
+			and learner.seat_index >= 0 and peer.seat_index >= 0:
+		var a: Vector2i = Layout.seat(learner.seat_index)
+		var b: Vector2i = Layout.seat(peer.seat_index)
+		if maxi(absi(a.x - b.x), absi(a.y - b.y)) <= Balance.tier_pod_reach_tiles:
+			bonus += cluster
+	return bonus
+
+
+## A high school is sleepier early in the lesson: the stage's
+## morning_fatigue_mult for the first Balance.sleep_morning_window of the
+## clock, 1.0 otherwise and in every other stage.
+func tier_sleep_mult() -> float:
+	var mult := float(tier_def().get("morning_fatigue_mult", 1.0))
+	if mult == 1.0 or lesson_progress > Balance.sleep_morning_window:
+		return 1.0
+	return mult
 
 
 # --- what you have taught, and what it taught YOU -------------------
@@ -4092,6 +4261,8 @@ func to_dict() -> Dictionary:
 		"desk_items": _desk_items_for_save(),
 		"grade_log": grade_log.duplicate(true),
 		"desks_in_store": desks_in_store,
+		"age_tier": age_tier,
+		"tier_graduates": tier_graduates,
 	}
 
 
@@ -4208,6 +4379,10 @@ func from_dict(d: Dictionary) -> void:
 			cabinet.append(top_id)
 	rehang_wall_items()      # an older save kept its clock standing on the floor
 	desks_in_store = int(d.get("desks_in_store", 0))
+	# An older save has no stage: it is the first, and nobody is counted yet.
+	age_tier = clampi(int(d.get("age_tier", 0)), 0, maxi(0, tier_count() - 1))
+	tier_graduates = maxi(0, int(d.get("tier_graduates", 0)))
+	captains.clear()
 	phase = Phase.MORNING
 	roster.clear()
 	for sd: Dictionary in d.get("roster", []):
