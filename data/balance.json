@@ -267,7 +267,8 @@
       "w": 1,
       "range": 4,
       "bonus": 0.06,
-      "blurb": "They will use any excuse to visit it."
+      "sleep_dampen": 0.15,
+      "blurb": "They will use any excuse to visit it, and it keeps them awake."
     },
     "sofa": {
       "name": "Sofa",
@@ -404,7 +405,8 @@
       "w": 1,
       "range": 4,
       "bonus": 0.09,
-      "blurb": "Reaches further than it looks like it should.",
+      "dampener": "bookcase",
+      "blurb": "Reaches further than it looks like it should, and muffles the desks beside it.",
       "cat": "learning"
     },
     "computer": {
@@ -553,7 +555,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.06,
-      "blurb": "Reachable without asking for help."
+      "dampener": "bookcase",
+      "blurb": "Reachable without asking for help, and it soaks up the whispering."
     },
     "display_rack": {
       "name": "Display Rack",
@@ -563,7 +566,8 @@
       "w": 2,
       "range": 3,
       "bonus": 0.08,
-      "blurb": "Whatever goes up here gets looked at.",
+      "dampener": "wall",
+      "blurb": "Whatever goes up here gets looked at, and it screens the desks behind it.",
       "needs": "chemistry.properties"
     },
     "filing_cart": {
@@ -674,7 +678,8 @@
       "desk_top": true,
       "max_owned": 4,
       "desk_work_mult": 1.15,
-      "blurb": "On one desk: everything to hand, so the work goes faster."
+      "dampener": "desk",
+      "blurb": "On one desk: everything to hand, so the work goes faster and the fidgeting stops."
     },
     "desk_primer": {
       "name": "Desk Primer",
@@ -832,7 +837,8 @@
       "w": 1,
       "range": 3,
       "bonus": 0.05,
-      "blurb": "White noise nobody actually asked for."
+      "sleep_dampen": 0.1,
+      "blurb": "White noise nobody actually asked for. Nobody nods off in the breeze."
     },
     "paper_mobile": {
       "name": "Paper Mobile",
@@ -1414,11 +1420,13 @@
     "talk_max_slowdown": 0.5
   },
   "sleep": {
-    "_note": "Dozing off at the desk. Every child has a sleepiness scale from 1 to scale_max; every tick_seconds during a lesson each working child rolls against sleepiness * chance_per_level (1 -> 10%, 2 -> 20%, 3 -> 30%). While asleep their work stops until nap_seconds elapses or the teacher wakes them at the desk, calls Class, class!, or raises their voice within earshot. Pace only: ticked by the room, never tools/sim.gd.",
+    "_note": "Dozing off at the desk. Every child has a sleepiness scale from 1 to scale_max; every tick_seconds during a lesson each working child rolls against sleepiness * chance_per_level (1 -> 10%, 2 -> 20%, 3 -> 30%). While asleep their work stops until nap_seconds elapses or the teacher wakes them at the desk, calls Class, class!, or raises their voice within earshot. The roll is then eased by what the room and the child have going for them: a veteran child sleeps less (tenure.resilience_per_level per level), each item with a sleep_dampen in range of the desk cuts the chance by that share (water cooler, standing fan; together never below room_mult_floor of the base), and a peppermint or brain snack in their pocket (consumables.*.sleep_proof) makes them immune for its duration. A high school (age_tiers.high.morning_fatigue_mult) is sleepier early in the lesson, for the first morning_window of the clock. Pace only: ticked by the room, never tools/sim.gd.",
     "tick_seconds": 15.0,
     "chance_per_level": 0.1,
     "nap_seconds": 8.0,
-    "scale_max": 3
+    "scale_max": 3,
+    "room_mult_floor": 0.4,
+    "morning_window": 0.4
   },
   "zpd": {
     "_note": "Vygotsky's Zone of Proximal Development on collaborative assignments (Investigation, Project, or hands-on/discussion/game-based styles). Every roam_interval_seconds during a collaborative lesson, seated working children get up, walk to a classmate's desk, and work together for interact_seconds. When paired with a peer who is moderately ahead (ability/progress gap between gap_min and gap_max), scaffolding speeds learning by boost_mult and awards bonus_xp; when mismatched outside the zone (too far apart, or neither ahead enough to scaffold), learning slows by mismatch_mult. Pace and XP only: ticked by the room, never tools/sim.gd.",
@@ -1878,6 +1886,7 @@
       "promotion_min_term_grade": 0.85
     }
   },
+  "_consumables_note": "What the teacher carries from the supply stash to one child's desk (Oct 2026, learning-system-plan.md). Taking one is free and can be put back; it is paid for (cost, in coins) when it is handed over. duration is lesson seconds. wake_immediate wakes a child who is asleep; distraction_dampen shrinks their distraction radius for the duration; sleep_proof stops them dozing off for the duration; clears_stall frees a stuck child on the spot (no help is counted). Pace only: never graded, never touched by tools/sim.gd.",
   "consumables": {
     "mint": {
       "name": "Peppermint",
@@ -1885,7 +1894,9 @@
       "cost": 5,
       "duration": 45.0,
       "wake_immediate": true,
-      "distraction_dampen": 0
+      "distraction_dampen": 0,
+      "sleep_proof": true,
+      "clears_stall": false
     },
     "fidget_cube": {
       "name": "Fidget Cube",
@@ -1893,7 +1904,9 @@
       "cost": 8,
       "duration": 60.0,
       "wake_immediate": false,
-      "distraction_dampen": 1
+      "distraction_dampen": 1,
+      "sleep_proof": false,
+      "clears_stall": false
     },
     "brain_snack": {
       "name": "Brain Snack",
@@ -1901,19 +1914,28 @@
       "cost": 12,
       "duration": 60.0,
       "wake_immediate": true,
-      "distraction_dampen": 0
+      "distraction_dampen": 0,
+      "sleep_proof": true,
+      "clears_stall": true
     }
   },
+  "_distraction_note": "Distraction radius (learning-system-plan.md): how far a child's whispering carries. The default radius is today's behaviour exactly -- desks that touch get talking (chat.reach_tiles). Each step of radius above or below the default widens or narrows that reach by one tile, within min_radius..max_radius. A child's base radius comes from their school's age tier (age_tiers.*.base_distraction_radius) and shrinks while a fidget cube is in their pocket (consumables.*.distraction_dampen), while a pencil caddy stands on their desk (desk_dampen), and while a dampener item (items.*.dampener: bookcase or wall) stands within dampen_range tiles of their seat. A pair can talk only when the narrowest of the two says so; if neither is narrowed, the wider of the two decides. Pace only, ticked by the room.",
   "distraction": {
     "default_radius": 2,
     "min_radius": 1,
     "max_radius": 3,
     "wall_dampen": 1,
-    "bookcase_dampen": 1
+    "bookcase_dampen": 1,
+    "desk_dampen": 1,
+    "dampen_range": 2
   },
+  "_tenure_note": "Tenure (learning-system-plan.md): level = 1 + days_enrolled / days_per_level + lessons graded / lessons_per_level. A veteran sleeps less and, when a chat nobody broke up turns loud, is less likely to be the one who kicks off: resilience = (level - 1) * resilience_per_level, capped at resilience_cap. Peer tutoring: when a child works with a classmate who is further along in tenure (a ZPD pair), their pace gains tutor_per_level for every level of lead, up to tutor_cap, on top of the ordinary scaffolding. Pace only, ticked by the room.",
   "tenure": {
     "days_per_level": 5,
     "lessons_per_level": 3,
-    "resilience_per_level": 0.05
+    "resilience_per_level": 0.05,
+    "resilience_cap": 0.5,
+    "tutor_per_level": 0.06,
+    "tutor_cap": 0.5
   }
 }

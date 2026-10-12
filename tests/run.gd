@@ -293,6 +293,7 @@ func _main() -> void:
 	await test_fight_music()
 	test_portraits()
 	test_tiered_learning_and_dossier()
+	await test_environment_and_tenure()
 	test_walkthrough()
 
 	print("")
@@ -14735,9 +14736,6 @@ func test_portraits() -> void:
 		return a.get_data() == b.get_data()).call())
 
 
-## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
-##
-## Not a test of the game -- a test of the thing that tests the game, and
 func test_tiered_learning_and_dossier() -> void:
 	section("TIERED LEARNING & STUDENT DOSSIER")
 	chk("balance.json has age_tiers table", Balance.age_tiers.has("elementary") and Balance.age_tiers.has("college"))
@@ -14777,6 +14775,228 @@ func test_tiered_learning_and_dossier() -> void:
 	chk("consumable_left round-trips through dictionary", loaded.consumable_left == 15.0)
 
 
+## Tenure, the room's say over dozing off and whispering, and peer tutoring
+## (learning-system-plan.md). All of it is pace only: the room ticks it and
+## tools/sim.gd never does, so the three contract rows cannot see any of it.
+func test_environment_and_tenure() -> void:
+	section("ENVIRONMENT & TENURE")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	chk("the tenure, sleep and distraction tunables are read from balance.json",
+		Balance.tenure_resilience_cap > 0.0 and Balance.tenure_tutor_per_level > 0.0
+		and Balance.tenure_tutor_cap > 0.0 and Balance.sleep_room_mult_floor > 0.0
+		and Balance.sleep_room_mult_floor < 1.0 and Balance.sleep_morning_window > 0.0
+		and Balance.distraction_dampen_range >= 1 and Balance.distraction_desk_dampen >= 1)
+	chk("the dampening items are in the shop's own table",
+		String(Items.get_def("bookshelf").get("dampener", "")) == "bookcase"
+		and String(Items.get_def("low_shelf").get("dampener", "")) == "bookcase"
+		and String(Items.get_def("display_rack").get("dampener", "")) == "wall"
+		and String(Items.get_def("desk_caddy").get("dampener", "")) == "desk"
+		and float(Items.get_def("water_cooler").get("sleep_dampen", 0.0)) > 0.0
+		and float(Items.get_def("desk_fan").get("sleep_dampen", 0.0)) > 0.0)
+	chk("a peppermint and a brain snack stop dozing; a fidget cube does not",
+		bool(Balance.consumables["mint"].get("sleep_proof", false))
+		and bool(Balance.consumables["brain_snack"].get("sleep_proof", false))
+		and not bool(Balance.consumables["fidget_cube"].get("sleep_proof", true)))
+	chk("only a brain snack clears a stall",
+		bool(Balance.consumables["brain_snack"].get("clears_stall", false))
+		and not bool(Balance.consumables["mint"].get("clears_stall", true)))
+
+	# --- tenure: days here and lessons graded make a level; a level is a step
+	# of resilience, up to a cap ---
+	var v := StudentData.new()
+	chk("a new face is level one and shrugs nothing off",
+		v.student_level() == 1 and is_zero_approx(v.resilience()), v.student_level())
+	v.days_enrolled = 1 + 4 * Balance.tenure_days_per_level
+	chk("every tenure_days_per_level of days here is a level", v.student_level() == 5,
+		v.student_level())
+	chk("a level of tenure is a step of resilience", is_equal_approx(v.resilience(),
+		minf(Balance.tenure_resilience_cap, 4.0 * Balance.tenure_resilience_per_level)),
+		v.resilience())
+	v.days_enrolled = 100000
+	chk("and resilience stops at its cap",
+		is_equal_approx(v.resilience(), Balance.tenure_resilience_cap), v.resilience())
+	var kept_days := Balance.tenure_days_per_level
+	Balance.tenure_days_per_level = 1
+	v.days_enrolled = 3
+	chk("the level reads the tunable, not a number in the script", v.student_level() == 4,
+		v.student_level())
+	Balance.tenure_days_per_level = kept_days
+
+	var seen := Game.roster[0] as StudentData
+	var days_before := seen.days_enrolled
+	Game.advance_day()
+	chk("every day they stay adds a day to their tenure", seen.days_enrolled == days_before + 1,
+		seen.days_enrolled)
+	Game.new_run(SEED)
+	await step(2)
+
+	# --- dozing off: their own sleepiness, then the room, a veteran, a mint ---
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	var ready := func() -> void:
+		for c: StudentData in [a, b]:
+			c.reset_lesson()
+			c.days_enrolled = 1
+			c.transcript.clear()
+			c.sleepiness = 3
+			c.work_state = StudentData.Work.WORKING
+			c.work_total = 20.0
+			c.work_timer = 20.0
+	ready.call()
+	var base_chance := a.sleep_chance()
+	chk("in a bare room a new face dozes at their own sleepiness",
+		is_equal_approx(Game.sleep_chance_for(a), base_chance), Game.sleep_chance_for(a))
+	var near_a := Layout.seat(a.seat_index) + Vector2i(1, 0)
+	Game.room_items.append({"id": "water_cooler", "tile": near_a})
+	var cut: float = float(Items.get_def("water_cooler").get("sleep_dampen", 0.0))
+	chk("a water cooler in reach cuts the chance by its share",
+		is_equal_approx(Game.sleep_chance_for(a), base_chance * (1.0 - cut)),
+		Game.sleep_chance_for(a))
+	Game.room_items.append({"id": "desk_fan", "tile": near_a})
+	var cut_fan: float = float(Items.get_def("desk_fan").get("sleep_dampen", 0.0))
+	chk("a second one stacks", is_equal_approx(Game.sleep_room_mult(a),
+		(1.0 - cut) * (1.0 - cut_fan)), Game.sleep_room_mult(a))
+	for i in 12:
+		Game.room_items.append({"id": "water_cooler", "tile": near_a})
+	chk("but the room can never do more than the floor",
+		is_equal_approx(Game.sleep_room_mult(a), Balance.sleep_room_mult_floor),
+		Game.sleep_room_mult(a))
+	Game.room_items.clear()
+	Game.room_items.append({"id": "water_cooler", "tile": Vector2i(60, 60)})
+	chk("out of reach it does nothing", is_equal_approx(Game.sleep_room_mult(a), 1.0))
+	Game.room_items.clear()
+
+	a.days_enrolled = 1 + 4 * Balance.tenure_days_per_level
+	chk("a veteran dozes less", is_equal_approx(Game.sleep_chance_for(a),
+		base_chance * (1.0 - a.resilience())) and Game.sleep_chance_for(a) < base_chance,
+		Game.sleep_chance_for(a))
+	a.days_enrolled = 1
+
+	a.give_consumable("mint", 30.0, false)
+	chk("a peppermint in the pocket makes them immune",
+		a.sleep_proof() and is_zero_approx(Game.sleep_chance_for(a)) and not a.fall_asleep())
+	b.give_consumable("fidget_cube", 30.0, false)
+	chk("a fidget cube does not", not b.sleep_proof() and Game.sleep_chance_for(b) > 0.0)
+	a.tick_consumable(31.0)
+	b.tick_consumable(31.0)
+	chk("and it wears off", not a.sleep_proof() and Game.sleep_chance_for(a) > 0.0)
+
+	var kept_chance := Balance.sleep_chance_per_level
+	Balance.sleep_chance_per_level = 1.0
+	a.give_consumable("mint", 99.0, false)
+	Game.tick_sleep(Balance.sleep_tick_seconds, Game.rng)
+	chk("on a sure-thing tick the unprotected child nods off and the protected one cannot",
+		b.sleeping() and not a.sleeping(), [a.sleeping(), b.sleeping()])
+	Balance.sleep_chance_per_level = kept_chance
+	ready.call()
+
+	# --- the distraction radius moves the chat reach a tile a step ---
+	Layout.set_seats([Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	var rd := Balance.distraction_default_radius
+	chk("the default radius is the reach the game always had",
+		Game.pair_reach(rd, rd) == Balance.chat_reach_tiles)
+	chk("a wider child reaches a tile further",
+		Game.pair_reach(rd + 1, rd) == Balance.chat_reach_tiles + 1)
+	chk("a narrowed child screens the pair, however loud the other is",
+		Game.pair_reach(rd - 1, rd + 1) == maxi(0, Balance.chat_reach_tiles - 1))
+	chk("touching desks are too close at the default radius",
+		Game.too_close(a) and Game.too_close(b))
+	chk("...and crowding costs them pace", Game.talk_proximity_rate_mult(a) < 1.0)
+	chk("a desk on its own has the default radius",
+		Game.distraction_radius_of(Game.roster[2]) == rd)
+
+	Game.room_items.append({"id": "bookshelf", "tile": Layout.seat(a.seat_index) + Vector2i(-1, 0)})
+	chk("a bookshelf at their elbow narrows their radius",
+		Game.distraction_radius_of(a) == rd - Balance.distraction_bookcase_dampen,
+		Game.distraction_radius_of(a))
+	chk("...which screens the pair", not Game.too_close(a) and not Game.too_close(b))
+	chk("...and so the crowding costs nothing", is_equal_approx(Game.talk_proximity_rate_mult(a), 1.0))
+	chk("the file says so, in words", (StudentRead.acting_on(a).get("helping", []) as Array).has(
+		"Something beside their desk muffles the whispering."))
+	Game.room_items.clear()
+	Game.room_items.append({"id": "bookshelf", "tile": Vector2i(60, 60)})
+	chk("a bookshelf out of reach does nothing", Game.too_close(a))
+	Game.room_items.clear()
+	chk("with the shelf gone they are too close again", Game.too_close(a))
+
+	a.give_consumable("fidget_cube", 30.0, false)
+	chk("a fidget cube in their pocket screens them too", not Game.too_close(a)
+		and Game.distraction_radius_of(a) == rd - 1)
+	a.tick_consumable(31.0)
+	chk("until it wears off", Game.too_close(a))
+
+	Game.desk_items[a.seat_index] = "desk_caddy"
+	chk("a pencil caddy on the desk narrows the radius and screens them",
+		Game.distraction_radius_of(a) == rd - Balance.distraction_desk_dampen
+		and not Game.too_close(a))
+	Game.desk_items.erase(a.seat_index)
+	chk("lifted off, they are back", Game.too_close(a))
+
+	Layout.set_seats([Vector2i(3, 4), Vector2i(5, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7),
+		Vector2i(7, 4)])
+	chk("an aisle between them is enough at the default radius", not Game.too_close(a))
+	a.distraction_radius = rd + 1
+	chk("one loud child reaches across the aisle",
+		Game.too_close(a) and Game.too_close(b))
+	a.distraction_radius = rd
+	a.reset_lesson()
+	chk("and a radius of one lets nobody whisper across touching desks",
+		Game.pair_reach(Balance.distraction_min_radius, rd) < Balance.chat_reach_tiles + 1
+		and Game.pair_reach(Balance.distraction_min_radius, Balance.distraction_min_radius)
+		== maxi(0, Balance.chat_reach_tiles + Balance.distraction_min_radius - rd))
+
+	# --- peer tutoring: a classmate who has been here longer shows them the ropes ---
+	var tutor: StudentData = Game.roster[2]
+	var pupil: StudentData = Game.roster[3]
+	for c: StudentData in [tutor, pupil]:
+		c.days_enrolled = 1
+		c.transcript.clear()
+	tutor.days_enrolled = 1 + 4 * Balance.tenure_days_per_level
+	var lead_bonus := minf(Balance.tenure_tutor_cap, 4.0 * Balance.tenure_tutor_per_level)
+	chk("a classmate four levels ahead tutors in proportion",
+		is_equal_approx(Game.peer_tutoring_bonus(pupil, tutor), lead_bonus),
+		Game.peer_tutoring_bonus(pupil, tutor))
+	chk("nobody tutors someone further along",
+		is_zero_approx(Game.peer_tutoring_bonus(tutor, pupil)))
+	var zm := Game.zpd_multiplier_between(pupil, tutor)
+	chk("the ZPD pace carries the bonus on top of the scaffolding",
+		is_equal_approx(zm, Balance.zpd_boost_mult + lead_bonus)
+		or is_equal_approx(zm, Balance.zpd_mismatch_mult + lead_bonus), zm)
+	tutor.days_enrolled = 100000
+	chk("the bonus stops at its cap", is_equal_approx(
+		Game.peer_tutoring_bonus(pupil, tutor), Balance.tenure_tutor_cap))
+	pupil.zpd_partner_id = tutor.id
+	pupil.zpd_left = 5.0
+	chk("the file says who is showing them the ropes", (StudentRead.acting_on(pupil).get(
+		"helping", []) as Array).has("A classmate who has been here longer is showing them the ropes."))
+
+	# --- prose, never numbers; and the contract simulator cannot see any of it ---
+	var all_prose := true
+	for c: StudentData in [a, b, pupil, tutor]:
+		var read := StudentRead.acting_on(c)
+		for line: String in (read.get("against", []) as Array) + (read.get("helping", []) as Array):
+			for ch in line:
+				if ch >= "0" and ch <= "9":
+					all_prose = false
+	chk("the new lines on a child's file carry no digit", all_prose)
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never reaches the sleep, radius or tutoring code",
+		sim_src != "" and not sim_src.contains("tick_buffs")
+		and not sim_src.contains("sleep_chance_for") and not sim_src.contains("peer_tutoring")
+		and not sim_src.contains("distraction_radius_of") and not sim_src.contains("pair_reach"))
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
+##
+## Not a test of the game -- a test of the thing that tests the game, and
 ## the two failures it pins down are both ones this repo actually had.
 ##
 ## walk_to() lived in playterm.gd and playtrace.gd, byte-identical. A real

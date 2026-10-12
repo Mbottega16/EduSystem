@@ -339,6 +339,8 @@ static var sleep_tick_seconds: float = 15.0
 static var sleep_chance_per_level: float = 0.1
 static var sleep_nap_seconds: float = 8.0
 static var sleep_scale_max: int = 3
+static var sleep_room_mult_floor: float = 0.4
+static var sleep_morning_window: float = 0.4
 
 # --- Vygotsky ZPD & collaborative roaming (Game.tick_zpd) ---------------
 static var zpd_roam_interval_seconds: float = 8.0
@@ -457,9 +459,14 @@ static var distraction_min_radius: int = 1
 static var distraction_max_radius: int = 3
 static var distraction_wall_dampen: int = 1
 static var distraction_bookcase_dampen: int = 1
+static var distraction_desk_dampen: int = 1
+static var distraction_dampen_range: int = 2
 static var tenure_days_per_level: int = 5
 static var tenure_lessons_per_level: int = 3
 static var tenure_resilience_per_level: float = 0.05
+static var tenure_resilience_cap: float = 0.5
+static var tenure_tutor_per_level: float = 0.06
+static var tenure_tutor_cap: float = 0.5
 
 
 static func ensure_loaded() -> void:
@@ -751,6 +758,8 @@ static func apply(d: Dictionary) -> void:
 	sleep_chance_per_level = float(slp.get("chance_per_level", sleep_chance_per_level))
 	sleep_nap_seconds = float(slp.get("nap_seconds", sleep_nap_seconds))
 	sleep_scale_max = int(slp.get("scale_max", sleep_scale_max))
+	sleep_room_mult_floor = float(slp.get("room_mult_floor", sleep_room_mult_floor))
+	sleep_morning_window = float(slp.get("morning_window", sleep_morning_window))
 
 	var zp: Dictionary = d.get("zpd", {})
 	zpd_roam_interval_seconds = float(zp.get("roam_interval_seconds", zpd_roam_interval_seconds))
@@ -863,11 +872,16 @@ static func apply(d: Dictionary) -> void:
 	distraction_max_radius = int(dis.get("max_radius", distraction_max_radius))
 	distraction_wall_dampen = int(dis.get("wall_dampen", distraction_wall_dampen))
 	distraction_bookcase_dampen = int(dis.get("bookcase_dampen", distraction_bookcase_dampen))
+	distraction_desk_dampen = int(dis.get("desk_dampen", distraction_desk_dampen))
+	distraction_dampen_range = int(dis.get("dampen_range", distraction_dampen_range))
 
 	var ten: Dictionary = d.get("tenure", {})
 	tenure_days_per_level = int(ten.get("days_per_level", tenure_days_per_level))
 	tenure_lessons_per_level = int(ten.get("lessons_per_level", tenure_lessons_per_level))
 	tenure_resilience_per_level = float(ten.get("resilience_per_level", tenure_resilience_per_level))
+	tenure_resilience_cap = float(ten.get("resilience_cap", tenure_resilience_cap))
+	tenure_tutor_per_level = float(ten.get("tutor_per_level", tenure_tutor_per_level))
+	tenure_tutor_cap = float(ten.get("tutor_cap", tenure_tutor_cap))
 
 
 ## Named access for the live debug panel. Object.get()/set() cannot be

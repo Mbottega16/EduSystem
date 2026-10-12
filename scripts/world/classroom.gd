@@ -573,6 +573,8 @@ func _physics_process(delta: float) -> void:
 		lesson_left = maxf(0.0, lesson_left - delta)
 		Game.answer_all_cooldown = maxf(0.0, Game.answer_all_cooldown - delta)
 		Game.tick_boost(delta)
+		# A peppermint or a fidget cube in a pocket wears off in lesson seconds.
+		Game.tick_buffs(delta)
 		lesson_tick.emit(lesson_left)
 		_tick_weather(delta)
 		# Passing a null rng is what makes a test silent: tick_work() only

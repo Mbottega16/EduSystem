@@ -109,6 +109,18 @@ static func acting_on(s: StudentData) -> Dictionary:
 	elif Game.desk_work_mult(s) > 1.0:
 		var dname := String(Game.desk_item_def(s).get("name", "study aid")).to_lower()
 		helping.append("The %s on their desk speeds their work along." % dname)
+	# What muffles the whispering, what keeps them awake, and what you slipped
+	# them -- each one something a player can place, buy or carry over.
+	if Game.distraction_dampen_at(s) > 0:
+		helping.append("Something beside their desk muffles the whispering.")
+	if Game.sleep_room_mult(s) < 1.0:
+		helping.append("The room has something in it that keeps them awake.")
+	var pocket := s.consumable_def()
+	if not pocket.is_empty():
+		helping.append("The %s you gave them is still working." % String(
+			pocket.get("name", "treat")).to_lower())
+	if s.resilience() > 0.0:
+		helping.append("They have been here a while, so a bad day bothers them less.")
 
 	# --- where YOU are, right now ---
 	if s.seat_index >= 0:
@@ -146,6 +158,8 @@ static func acting_on(s: StudentData) -> Dictionary:
 			helping.append("Working with a classmate inside their zone of proximal development.")
 		else:
 			against.append("Working with a classmate whose pace does not match theirs.")
+		if Game.peer_tutoring_bonus(s, Game.student_by_id(s.zpd_partner_id)) > 0.0:
+			helping.append("A classmate who has been here longer is showing them the ropes.")
 	if s.copied:
 		against.append("They have copied their way past it, so the gap is hidden.")
 	if s.quiz_flagged:

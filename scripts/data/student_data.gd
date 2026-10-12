@@ -241,6 +241,8 @@ func fall_asleep(seconds: float = -1.0) -> bool:
 	Balance.ensure_loaded()
 	if work_state != Work.WORKING or disrupting or flaring() or chatting() or sleeping():
 		return false
+	if sleep_proof():
+		return false
 	sleeping_left = Balance.sleep_nap_seconds if seconds < 0.0 else seconds
 	return sleeping_left > 0.0
 
@@ -257,16 +259,40 @@ func wake_up(by_teacher: bool = false) -> bool:
 
 ## Effective student level based on tenure and completed lessons.
 func student_level() -> int:
-	var lessons_done := transcript.size()
-	return 1 + int(days_enrolled / 5) + int(lessons_done / 3)
+	Balance.ensure_loaded()
+	var per_day := maxi(1, Balance.tenure_days_per_level)
+	var per_lesson := maxi(1, Balance.tenure_lessons_per_level)
+	return 1 + int(days_enrolled / per_day) + int(transcript.size() / per_lesson)
 
 
-## Distraction radius accounting for active consumables and trait modifiers.
+## How much a veteran shrugs off: 0 for a new face, up to
+## Balance.tenure_resilience_cap for one who has been here a long time. It
+## eases dozing off and a chat turning loud, never the grade.
+func resilience() -> float:
+	Balance.ensure_loaded()
+	return clampf(float(student_level() - 1) * Balance.tenure_resilience_per_level,
+		0.0, Balance.tenure_resilience_cap)
+
+
+## The data row of the consumable in their pocket, or {} when there is none.
+func consumable_def() -> Dictionary:
+	Balance.ensure_loaded()
+	if active_consumable == "" or consumable_left <= 0.0:
+		return {}
+	return Balance.consumables.get(active_consumable, {})
+
+
+## A peppermint or a brain snack in their pocket: they cannot doze off.
+func sleep_proof() -> bool:
+	return bool(consumable_def().get("sleep_proof", false))
+
+
+## Distraction radius accounting for what is in their pocket. The room and the
+## desk shrink it further in Game.distraction_radius_of().
 func effective_distraction_radius() -> int:
-	var r := distraction_radius
-	if active_consumable == "fidget_cube" and consumable_left > 0.0:
-		r = maxi(1, r - 1)
-	return r
+	Balance.ensure_loaded()
+	var r := distraction_radius - int(consumable_def().get("distraction_dampen", 0))
+	return maxi(Balance.distraction_min_radius, r)
 
 
 ## Apply a consumable carried from the Supply Stash.
@@ -383,6 +409,8 @@ func reset_lesson() -> void:
 	zpd_partner_id = -1
 	zpd_left = 0.0
 	zpd_roaming = false
+	active_consumable = ""
+	consumable_left = 0.0
 	_since_stall = 0.0
 	_hidden_for = 0.0
 

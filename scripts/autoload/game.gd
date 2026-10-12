@@ -1163,24 +1163,112 @@ signal chat_started(a_id: int, b_id: int)
 signal chat_ended(a_id: int, b_id: int, why: String)
 
 
-## Who this child could talk to: everyone seated within Balance.chat_reach_tiles
-## of them, corners counting. Read live from the seating, like neighbours_of(),
-## so moving a desk changes it at once. Corners count because a staggered
-## block of desks is every bit as crammed as a straight row, and the old
-## penalty, which only looked along the row, let it through.
+## Who this child could talk to: everyone seated within reach of them, corners
+## counting. Read live from the seating, like neighbours_of(), so moving a desk
+## changes it at once. Corners count because a staggered block of desks is
+## every bit as crammed as a straight row, and the old penalty, which only
+## looked along the row, let it through. The reach is Balance.chat_reach_tiles
+## at the default distraction radius and moves a tile for each step of either
+## child's radius above or below it -- see pair_reach().
 func chat_partners(s: StudentData) -> Array[StudentData]:
 	Balance.ensure_loaded()
 	var out: Array[StudentData] = []
 	if s == null or s.seat_index < 0:
 		return out
 	var here: Vector2i = Layout.seat(s.seat_index)
+	var damp := _dampeners()
+	var mine := _radius_with(s, damp)
+	var ceiling := Balance.chat_reach_tiles \
+		+ maxi(0, Balance.distraction_max_radius - Balance.distraction_default_radius)
 	for other: StudentData in roster:
 		if other == s or other.seat_index < 0:
 			continue
 		var there: Vector2i = Layout.seat(other.seat_index)
-		if maxi(absi(there.x - here.x), absi(there.y - here.y)) <= Balance.chat_reach_tiles:
+		var dist := maxi(absi(there.x - here.x), absi(there.y - here.y))
+		if dist > ceiling:
+			continue
+		if dist <= pair_reach(mine, _radius_with(other, damp)):
 			out.append(other)
 	return out
+
+
+# --- distraction radius -----------------------------------------------------
+#
+# How far a child's whispering carries (learning-system-plan.md). The radius
+# is a per-child number between Balance.distraction_min_radius and
+# _max_radius whose DEFAULT is today's behaviour exactly: desks that touch get
+# talking. Each step above or below the default moves the reach by one tile.
+# What shrinks it: a fidget cube in their pocket (StudentData), a pencil caddy
+# on their desk, and a bookcase or divider standing near their seat. What sets
+# it to begin with: their school's age tier (tier_base_radius()).
+#
+# Room-only, like the chat it feeds: never read by tools/sim.gd.
+
+## The reach, in tiles, between two children whose radii are `ra` and `rb`.
+## A narrowed child screens the pair (the narrowest wins, the way a study
+## folder does); when neither is narrowed the wider of the two decides, so one
+## loud child can reach across an aisle.
+func pair_reach(ra: int, rb: int) -> int:
+	var base := Balance.distraction_default_radius
+	var da := ra - base
+	var db := rb - base
+	var d := mini(da, db)
+	if d >= 0:
+		d = maxi(da, db)
+	return maxi(0, Balance.chat_reach_tiles + d)
+
+
+## The placed items that muffle whispering, with their footprints worked out
+## once so a loop over the whole class does not redo it per child.
+func _dampeners() -> Array:
+	var out: Array = []
+	for placed: Dictionary in room_items:
+		var def := Items.get_def(String(placed.get("id", "")))
+		var amount := dampener_amount(def)
+		if amount > 0:
+			out.append({"amount": amount,
+				"tiles": Items.reach_footprint(String(placed["id"]), placed["tile"])})
+	return out
+
+
+## How many steps of radius an item takes off, by its `dampener` kind.
+func dampener_amount(def: Dictionary) -> int:
+	match String(def.get("dampener", "")):
+		"bookcase": return Balance.distraction_bookcase_dampen
+		"wall": return Balance.distraction_wall_dampen
+		"desk": return Balance.distraction_desk_dampen
+	return 0
+
+
+## What the room and their desk take off this child's radius.
+func distraction_dampen_at(s: StudentData) -> int:
+	return _dampen_with(s, _dampeners())
+
+
+func _dampen_with(s: StudentData, damp: Array) -> int:
+	if s == null or s.seat_index < 0:
+		return 0
+	var total := dampener_amount(desk_item_def(s))
+	var seat: Vector2i = Layout.seat(s.seat_index)
+	for d: Dictionary in damp:
+		for t: Vector2i in d["tiles"]:
+			if absi(t.x - seat.x) + absi(t.y - seat.y) <= Balance.distraction_dampen_range:
+				total += int(d["amount"])
+				break
+	return total
+
+
+func _radius_with(s: StudentData, damp: Array) -> int:
+	return clampi(s.effective_distraction_radius() - _dampen_with(s, damp),
+		Balance.distraction_min_radius, Balance.distraction_max_radius)
+
+
+## How far this child's whispering carries right now, in steps of radius.
+func distraction_radius_of(s: StudentData) -> int:
+	Balance.ensure_loaded()
+	if s == null:
+		return Balance.distraction_default_radius
+	return _radius_with(s, _dampeners())
 
 
 ## Sitting close enough to someone to get talking: the warm outline in build
@@ -1269,8 +1357,9 @@ func tick_chat(delta: float, rng: RandomNumberGenerator, teacher_tile: Vector2i)
 			if s.chat_left <= 0.0:
 				# Nobody came. Sometimes that is the end of it, and sometimes
 				# it gets loud -- and then it is ordinary messing about, which
-				# spreads and wants settling.
-				if rng.randf() < Balance.chat_noise_chance:
+				# spreads and wants settling. A veteran is less likely to be
+				# the one who kicks off (StudentData.resilience()).
+				if rng.randf() < Balance.chat_noise_chance * (1.0 - s.resilience()):
 					s.disrupting = true
 					end_chat(s, "loud")
 				else:
@@ -1381,9 +1470,51 @@ func tick_sleep(delta: float, r: RandomNumberGenerator) -> void:
 				continue
 			if s.sleeping() or s.disrupting or s.flaring() or s.chatting() or s.is_struggling():
 				continue
-			if r.randf() < s.sleep_chance():
+			if r.randf() < sleep_chance_for(s):
 				if s.fall_asleep():
 					student_fell_asleep.emit(s.id)
+
+
+## The chance this child dozes off on a sleep tick, with everything that eases
+## or sharpens it: their own sleepiness (StudentData.sleep_chance()), how long
+## they have been here (a veteran sleeps less), the room (a water cooler or a
+## standing fan within reach of the desk), and a peppermint in the pocket.
+func sleep_chance_for(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	if s == null or s.sleep_proof():
+		return 0.0
+	return clampf(s.sleep_chance() * (1.0 - s.resilience()) * sleep_room_mult(s), 0.0, 1.0)
+
+
+## The share of their sleep chance that is left once the room has had its say:
+## 1.0 in a bare room, never below Balance.sleep_room_mult_floor however many
+## items stand about. Each item with a `sleep_dampen` cuts by that share when
+## the seat is within the item's own `range`, measured exactly the way
+## room_score() measures it.
+func sleep_room_mult(s: StudentData) -> float:
+	Balance.ensure_loaded()
+	if s == null or s.seat_index < 0:
+		return 1.0
+	var seat: Vector2i = Layout.seat(s.seat_index)
+	var mult := 1.0
+	for placed: Dictionary in room_items:
+		var def := Items.get_def(String(placed.get("id", "")))
+		var cut := float(def.get("sleep_dampen", 0.0))
+		if cut <= 0.0:
+			continue
+		var best := 9999
+		for t: Vector2i in Items.reach_footprint(String(placed["id"]), placed["tile"]):
+			best = mini(best, absi(t.x - seat.x) + absi(t.y - seat.y))
+		if best <= int(def.get("range", 0)):
+			mult *= (1.0 - cut)
+	return maxf(Balance.sleep_room_mult_floor, mult)
+
+
+## What each child has in their pocket ticks down once a frame during a lesson
+## the room is running (not the boss paper, which has its own clock).
+func tick_buffs(delta: float) -> void:
+	for s: StudentData in roster:
+		s.tick_consumable(delta)
 
 
 # --- Vygotsky ZPD & collaborative roaming ----------------------------------
@@ -1417,9 +1548,25 @@ func zpd_multiplier_between(learner: StudentData, peer: StudentData) -> float:
 	if learner == null or peer == null or learner == peer:
 		return 1.0
 	var gap := absf(zpd_competence(peer) - zpd_competence(learner))
+	var mult := Balance.zpd_mismatch_mult
 	if gap >= Balance.zpd_gap_min and gap <= Balance.zpd_gap_max:
-		return Balance.zpd_boost_mult
-	return Balance.zpd_mismatch_mult
+		mult = Balance.zpd_boost_mult
+	return mult + peer_tutoring_bonus(learner, peer)
+
+
+## Peer tutoring: a classmate who has been here longer shows `learner` the
+## ropes. The bonus grows with every level of tenure the peer leads by
+## (Balance.tenure_tutor_per_level), up to Balance.tenure_tutor_cap, and is
+## nothing when the peer is no further along. It sits on top of the
+## scaffolding, so a veteran can turn even a mismatched pair into a useful one.
+func peer_tutoring_bonus(learner: StudentData, peer: StudentData) -> float:
+	Balance.ensure_loaded()
+	if learner == null or peer == null:
+		return 0.0
+	var lead := peer.student_level() - learner.student_level()
+	if lead <= 0:
+		return 0.0
+	return minf(Balance.tenure_tutor_cap, float(lead) * Balance.tenure_tutor_per_level)
 
 
 func zpd_multiplier(s: StudentData) -> float:
@@ -3219,6 +3366,7 @@ func advance_day() -> Dictionary:
 				s.hw_state = (StudentData.HW.NONE if Balance.not_done_forgiveness
 					else StudentData.HW.NOT_DONE)
 		s.reset_lesson()
+		s.days_enrolled += 1
 
 	# Read BEFORE day advances -- pacing_report() judges the day that just
 	# ended, and `day` is about to become tomorrow's number.
