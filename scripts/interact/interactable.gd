@@ -61,12 +61,19 @@ func set_pick_radius(r: float) -> void:
 ##               opened on E only once the sheets were gone would pop up in
 ##               the middle of a mash -- the shape of collision this list
 ##               exists to prevent.
-enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH, RESPOND, ANSWER_ALL, GRADES }
+##   SUPPLY    - take a treat from the supply cupboard (the back-wall cabinet),
+##               carry it, and hand it over at a child's desk (Oct 2026,
+##               learning-system-plan.md). The one verb that lives at TWO
+##               landmarks, which is exactly what a shared key cannot say: E
+##               at the cupboard would have to mean "take", E at a desk
+##               "help", and a mashed E would hand out treats it was never
+##               meant to.
+enum Key { USE, MANAGE, QUIZ, HOMEWORK, MOVE_DESK, TEACH, RESPOND, ANSWER_ALL, GRADES, SUPPLY }
 
 ## Every action a landmark can be bound to, in the same order as the enum
 ## above -- the one place that mapping lives, so action_name() is a lookup
 ## rather than a chain of special cases that could disagree with itself.
-const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach", "respond", "answer_all", "grades"]
+const KEY_ACTIONS := ["interact", "manage", "quiz", "homework", "move_desk", "teach", "respond", "answer_all", "grades", "supply"]
 
 ## Seconds the button must be HELD. Zero is instant. Anything irreversible
 ## gets a hold, so a stray press cannot cost you a lesson.

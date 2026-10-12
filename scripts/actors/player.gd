@@ -31,7 +31,7 @@ signal carrying_changed(count: int)
 var targets: Dictionary = {
 	"interact": null, "manage": null,
 	"quiz": null, "homework": null, "move_desk": null, "teach": null,
-	"respond": null, "answer_all": null, "grades": null,
+	"respond": null, "answer_all": null, "grades": null, "supply": null,
 }
 
 ## The one to describe in the prompt. USE wins when both are live: it is the
@@ -104,6 +104,7 @@ const _KEY_PROMPT_COLORS := {
 	"teach": Color(1.0, 0.55, 0.75), "quiz": Color(0.7, 0.6, 1.0),
 	"homework": Color(0.6, 1.0, 0.65), "move_desk": Color(0.85, 0.85, 0.6),
 	"respond": Color(1.0, 0.55, 0.4), "answer_all": Color(0.55, 0.8, 0.85),
+	"supply": Color(0.95, 0.85, 0.5),
 }
 const _BADGE_FONT := preload("res://fonts/Galmuri9.ttf")
 var _key_prompts_root: Node2D = null
@@ -283,10 +284,28 @@ func _ready() -> void:
 	_refresh_carry_icon()
 	refresh_hat()
 	_build_key_prompts_root()
+	_build_treat_icon()
+
+
+## The treat from the podium's stash, held at your hand while you carry it to a
+## desk (Game.carried). Built in code, like the key badges.
+const TREAT_ICON_SCRIPT := preload("res://scripts/world/treat_icon.gd")
+var _treat_icon: Node2D = null
+
+
+func _build_treat_icon() -> void:
+	_treat_icon = Node2D.new()
+	_treat_icon.set_script(TREAT_ICON_SCRIPT)
+	_treat_icon.position = Vector2(15, -16)
+	_treat_icon.z_index = 3
+	add_child(_treat_icon)
+	_treat_icon.call("set_treat", Game.carried)
 
 
 func _physics_process(delta: float) -> void:
 	tick_pose(delta)
+	if _treat_icon != null and _treat_icon.get("treat") != Game.carried:
+		_treat_icon.call("set_treat", Game.carried)
 	var dir := Vector2.ZERO
 	if _walking_scripted:
 		dir = _scripted_walk_direction()

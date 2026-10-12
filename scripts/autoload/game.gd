@@ -878,6 +878,7 @@ func new_run(seed_value: int = 0) -> void:
 	tier_graduates = 0
 	captains.clear()
 	lesson_progress = 1.0
+	set_carried("")
 	# meta is NOT cleared here -- it outlives the run. This only tops up a
 	# key a mid-upgrade save might be missing, so the block is always whole.
 	_ensure_meta_keys()
@@ -2969,6 +2970,97 @@ func _reset_consumables() -> void:
 	_consumable_homework_sure = false
 	consumables_used_today.clear()
 
+
+# --- the supply stash: treats carried from the cupboard to a desk -----------
+#
+# learning-system-plan.md: "no magical hotbars" -- you walk to the supply
+# cupboard (the back-wall cabinet), take a treat, walk to a child's desk and
+# hand it over. The treats are
+# Balance.consumables (a peppermint, a fidget cube, a brain snack); what each
+# does lives in balance.json and in StudentData (wake, sleep-proof, a smaller
+# radius, a stall cleared). Taking one is free and can be put back; it is
+# paid for when it is handed over. Pace only -- never graded, never ticked by
+# tools/sim.gd, and never offered mid-test or mid-paper.
+
+## The id of the treat in your hands, or "". Not saved: a lesson is the only
+## place it means anything, and it goes when the lesson does.
+var carried: String = ""
+
+signal carried_changed(id: String)
+signal treat_given(student_id: int, id: String)
+
+
+## The treats on the stash, in the order the cupboard offers them.
+func stash_ids() -> Array:
+	Balance.ensure_loaded()
+	return Balance.consumables.keys()
+
+
+func treat_name(id: String) -> String:
+	Balance.ensure_loaded()
+	return String(Balance.consumables.get(id, {}).get("name", id)).to_lower()
+
+
+func treat_cost(id: String) -> int:
+	Balance.ensure_loaded()
+	return int(Balance.consumables.get(id, {}).get("cost", 0))
+
+
+## The stash and the desks answer only in a lesson you are teaching.
+func treats_available() -> bool:
+	return phase == Phase.LESSON and not test_active and not fight_active() \
+		and not stash_ids().is_empty()
+
+
+func set_carried(id: String) -> void:
+	if id == carried:
+		return
+	carried = id
+	carried_changed.emit(id)
+
+
+## One press at the cupboard: empty hands take the first treat, a held one is
+## swapped for the next, and after the last you put it back. Returns what you
+## are holding now.
+func cycle_carried() -> String:
+	var ids := stash_ids()
+	if ids.is_empty():
+		return ""
+	var i := ids.find(carried)
+	set_carried("" if i >= ids.size() - 1 and i >= 0 else String(ids[i + 1]))
+	return carried
+
+
+## Hand the treat in your hands to this child. Returns "" on success, or why
+## not. It is paid for here; a child who is asleep wakes at once (a peppermint
+## or a brain snack), a brain snack frees a stuck child without a help being
+## counted, and a fidget cube narrows how far their whispering carries.
+func give_treat(s: StudentData) -> String:
+	Balance.ensure_loaded()
+	if carried == "":
+		return "You are not carrying anything."
+	if s == null or s.seat_index < 0:
+		return "Nobody is sitting there."
+	if not treats_available():
+		return "Not now."
+	var def: Dictionary = Balance.consumables.get(carried, {})
+	if def.is_empty():
+		return "That is not on the stash."
+	if not spend(int(def.get("cost", 0))):
+		return "Not enough coins."
+	var id := carried
+	var was_asleep := s.sleeping()
+	s.give_consumable(id, float(def.get("duration", 0.0)), bool(def.get("wake_immediate", false)))
+	if was_asleep and not s.sleeping():
+		student_woke_up.emit(s.id, "desk")
+	if bool(def.get("clears_stall", false)):
+		s.clear_stall()
+	consumables_used_today.append(String(def.get("name", id)))
+	set_carried("")
+	treat_given.emit(s.id, id)
+	return ""
+
+
 signal aide_hired(on: bool)
 signal janitor_hired(on: bool)
 ## `which` is "aide" or "janitor".
@@ -3354,6 +3446,9 @@ func set_phase(p: int) -> void:
 	if p == phase:
 		return
 	phase = p
+	# A treat is carried within a lesson; it does not follow you out of one.
+	if p != Phase.LESSON:
+		set_carried("")
 	phase_changed.emit(phase)
 
 

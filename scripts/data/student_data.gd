@@ -794,6 +794,17 @@ func work_it_out() -> bool:
 	return true
 
 
+## Freed on the spot, with nobody's help counted and nothing written into their
+## story: a brain snack from the stash. Returns false if they were not stuck.
+func clear_stall() -> bool:
+	if not is_struggling():
+		return false
+	confusion = 0.0
+	_since_stall = 0.0
+	_hidden_for = 0.0
+	return true
+
+
 ## The paper has frozen them. Visible AT ONCE, whatever their trait: a
 ## Quiet child hides an ordinary stall for a few seconds, but a freeze in
 ## an exam hall is the whole room's business. Same state as being stuck

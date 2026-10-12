@@ -73,6 +73,9 @@ const TEST_CALLER_SCRIPT := preload("res://scripts/interact/test_caller.gd")
 const MARKING_DESK_SCRIPT := preload("res://scripts/interact/marking_desk.gd")
 const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
 const GRADE_BOOK_SCRIPT := preload("res://scripts/interact/grade_book.gd")
+const SUPPLY_STASH_SCRIPT := preload("res://scripts/interact/supply_stash.gd")
+const DESK_TREAT_SCRIPT := preload("res://scripts/interact/desk_treat.gd")
+const STASH_TRAY_SCRIPT := preload("res://scripts/world/stash_tray.gd")
 const DESK_INTERRUPTION_SCRIPT := preload("res://scripts/interact/desk_interruption.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
@@ -331,6 +334,14 @@ static func build_desks(parent: Node2D, grid: Grid) -> Array:
 		# and curriculum board already use: shrink what shares a border.
 		mover.set_pick_radius(16.0)
 
+		# And the same desk once more, for a treat carried from the podium
+		# (SUPPLY, its own key). Only offered while you are carrying one.
+		var treat := Interactable.new()
+		treat.set_script(DESK_TREAT_SCRIPT)
+		treat.seat_index = i
+		body.add_child(treat)
+		treat.set_pick_radius(16.0)
+
 		grid.set_cell(seat, Grid.Cell.SEAT)
 		grid.set_cell(desk, Grid.Cell.BLOCKED)
 	return stations
@@ -548,6 +559,20 @@ static func build_cabinet(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(CABINET_SCRIPT)
 	body.add_child(it)
+	# The supply cupboard (Oct 2026): the same cabinet holds a tray of treats
+	# for a lesson, on its own key (O). The cabinet itself offers nothing
+	# DURING a lesson, so this gives it a use there, and it stands well clear
+	# of the podium, whose four verbs already fill the badge row.
+	var stash := Interactable.new()
+	stash.set_script(SUPPLY_STASH_SCRIPT)
+	stash.add_to_group("supply_stash")
+	body.add_child(stash)
+	stash.set_pick_radius(24.0)
+	var tray := Node2D.new()
+	tray.set_script(STASH_TRAY_SCRIPT)
+	tray.position = Vector2(0, -34)
+	tray.z_index = 2
+	body.add_child(tray)
 	grid.set_cell(Layout.CABINET, Grid.Cell.BLOCKED)
 	return it
 

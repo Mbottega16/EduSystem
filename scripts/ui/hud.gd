@@ -1273,6 +1273,7 @@ const HELP_LINES := {
 	"answer_all": "Unstick the whole room at once. Long wait after.",
 	"homework": "Mark the homework you collected, at your desk.",
 	"grades": "Every grade you have given, read at your desk.",
+	"supply": "Take a treat from the cupboard, then hand it to a child's desk.",
 	"move_desk": "Move a desk. Desks that touch get talking.",
 	"voice": "Settle the desks within earshot.",
 	"call_response": "Class, class! The room is with you a while, anywhere.",

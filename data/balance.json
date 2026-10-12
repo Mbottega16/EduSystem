@@ -1886,7 +1886,7 @@
       "promotion_min_term_grade": 0.85
     }
   },
-  "_consumables_note": "What the teacher carries from the supply stash to one child's desk (Oct 2026, learning-system-plan.md). Taking one is free and can be put back; it is paid for (cost, in coins) when it is handed over. duration is lesson seconds. wake_immediate wakes a child who is asleep; distraction_dampen shrinks their distraction radius for the duration; sleep_proof stops them dozing off for the duration; clears_stall frees a stuck child on the spot (no help is counted). Pace only: never graded, never touched by tools/sim.gd.",
+  "_consumables_note": "What the teacher carries from the supply stash to one child's desk (Oct 2026, learning-system-plan.md). Taking one is free and can be put back; it is paid for (cost, in coins) when it is handed over. duration is lesson seconds. wake_immediate wakes a child who is asleep; distraction_dampen shrinks their distraction radius for the duration; sleep_proof stops them dozing off for the duration; clears_stall frees a stuck child on the spot (no help is counted); pop is the word that floats up from the desk. Taken at the supply cupboard (the back-wall cabinet, key O) and handed over at a desk, only during a lesson. Pace only: never graded, never touched by tools/sim.gd.",
   "consumables": {
     "mint": {
       "name": "Peppermint",
@@ -1896,7 +1896,8 @@
       "wake_immediate": true,
       "distraction_dampen": 0,
       "sleep_proof": true,
-      "clears_stall": false
+      "clears_stall": false,
+      "pop": "minty fresh!"
     },
     "fidget_cube": {
       "name": "Fidget Cube",
@@ -1906,7 +1907,8 @@
       "wake_immediate": false,
       "distraction_dampen": 1,
       "sleep_proof": false,
-      "clears_stall": false
+      "clears_stall": false,
+      "pop": "fidget-proof"
     },
     "brain_snack": {
       "name": "Brain Snack",
@@ -1916,7 +1918,8 @@
       "wake_immediate": true,
       "distraction_dampen": 0,
       "sleep_proof": true,
-      "clears_stall": true
+      "clears_stall": true,
+      "pop": "brain food!"
     }
   },
   "_distraction_note": "Distraction radius (learning-system-plan.md): how far a child's whispering carries. The default radius is today's behaviour exactly -- desks that touch get talking (chat.reach_tiles). Each step of radius above or below the default widens or narrows that reach by one tile, within min_radius..max_radius. A child's base radius comes from their school's age tier (age_tiers.*.base_distraction_radius) and shrinks while a fidget cube is in their pocket (consumables.*.distraction_dampen), while a pencil caddy stands on their desk (desk_dampen), and while a dampener item (items.*.dampener: bookcase or wall) stands within dampen_range tiles of their seat. A pair can talk only when the narrowest of the two says so; if neither is narrowed, the wider of the two decides. Pace only, ticked by the room.",

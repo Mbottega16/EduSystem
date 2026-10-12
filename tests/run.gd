@@ -295,6 +295,7 @@ func _main() -> void:
 	test_tiered_learning_and_dossier()
 	await test_environment_and_tenure()
 	await test_age_tiers()
+	await test_supply_stash()
 	test_walkthrough()
 
 	print("")
@@ -15241,6 +15242,174 @@ func test_age_tiers() -> void:
 	chk("tools/sim.gd never reads the stage, the Hall or the captains",
 		sim_src != "" and not sim_src.contains("age_tier") and not sim_src.contains("promotion_preview")
 		and not sim_src.contains("captains") and not sim_src.contains("tier_"))
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The supply stash (learning-system-plan.md): treats taken from the podium,
+## carried, and handed over at a child's desk, on their own key. Pace only: a
+## treat never touches a grade, and tools/sim.gd never reaches the stash.
+func test_supply_stash() -> void:
+	section("SUPPLY STASH")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	var p: Node = world.player
+	p.input_locked = false
+	var ids: Array = Game.stash_ids()
+
+	# --- the key, the data, the words ---
+	chk("the stash has its own dedicated key, one nothing else uses",
+		Interactable.KEY_ACTIONS.back() == "supply"
+		and Interactable.Key.SUPPLY == Interactable.KEY_ACTIONS.find("supply")
+		and Settings.DEFAULTS.has("supply") and InputMap.has_action("supply")
+		and hud.HELP_LINES.has("supply") and (func() -> bool:
+			var mine: Array = Settings.DEFAULTS["supply"]
+			for k: String in Settings.DEFAULTS:
+				if k != "supply":
+					for code in Settings.DEFAULTS[k]:
+						if mine.has(code):
+							return false
+			return true).call())
+	chk("three treats are on it, each with a price, a time and a word",
+		ids == ["mint", "fidget_cube", "brain_snack"] and (func() -> bool:
+			for id: String in ids:
+				var d: Dictionary = Balance.consumables[id]
+				if int(d.get("cost", 0)) <= 0 or float(d.get("duration", 0.0)) <= 0.0 \
+						or String(d.get("pop", "")) == "":
+					return false
+			return true).call())
+	chk("a treat's name and price are read from the data",
+		Game.treat_name("mint") == "peppermint"
+		and Game.treat_cost("mint") == int(Balance.consumables["mint"]["cost"]))
+
+	# --- only in a lesson you are teaching ---
+	chk("the stash is not on offer in the morning", not Game.treats_available())
+	world.start_lesson()
+	await step(2)
+	chk("...but it is during a lesson", Game.treats_available())
+	Game.test_active = true
+	chk("...and never during a written test", not Game.treats_available())
+	Game.test_active = false
+
+	# --- one press at a time: take, swap, put back; all of it free ---
+	var seen: Array = []
+	var on_carried := func(id: String) -> void: seen.append(id)
+	Game.carried_changed.connect(on_carried)
+	Game.coins = 50
+	chk("empty hands take the first treat", Game.cycle_carried() == "mint" and Game.carried == "mint")
+	chk("the next press swaps it for the one after", Game.cycle_carried() == "fidget_cube")
+	chk("...and the next", Game.cycle_carried() == "brain_snack")
+	chk("after the last you put it back", Game.cycle_carried() == "" and Game.carried == "")
+	chk("every change was announced", seen == ["mint", "fidget_cube", "brain_snack", ""], seen)
+	chk("taking, swapping and putting back cost nothing", Game.coins == 50, Game.coins)
+	Game.carried_changed.disconnect(on_carried)
+	Game.set_carried("mint")
+	Game.set_phase(Game.Phase.AFTERNOON)
+	chk("a treat does not follow you out of the lesson", Game.carried == "")
+	world.start_lesson()
+	await step(2)
+
+	# --- handing one over: paid then, and what it does ---
+	var a: StudentData = Game.roster[0]
+	var b: StudentData = Game.roster[1]
+	var c: StudentData = Game.roster[2]
+	var given: Array = []
+	var on_given := func(sid: int, id: String) -> void: given.append([sid, id])
+	Game.treat_given.connect(on_given)
+	Game.coins = 50
+	a.sleepiness = 3
+	chk("a child nods off at their desk", a.fall_asleep() and a.sleeping())
+	Game.set_carried("mint")
+	chk("a peppermint is handed over", Game.give_treat(a) == "")
+	chk("it is paid for then, not before", Game.coins == 50 - Game.treat_cost("mint"), Game.coins)
+	chk("the sleeper is awake, and cannot nod off again",
+		not a.sleeping() and a.sleep_proof() and not a.fall_asleep())
+	chk("the hands are empty, and the day report names it",
+		Game.carried == "" and Game.consumables_used_today.has("Peppermint"))
+	chk("the room heard it", given == [[a.id, "mint"]], given)
+	Game.set_carried("fidget_cube")
+	var radius_before := Game.distraction_radius_of(b)
+	chk("a fidget cube is handed over", Game.give_treat(b) == "")
+	chk("it narrows how far their whispering carries",
+		Game.distraction_radius_of(b) == radius_before - 1, Game.distraction_radius_of(b))
+	chk("but does not keep them awake", not b.sleep_proof())
+	c.confusion = 1.0
+	var helps_before := c.helps_total
+	Game.set_carried("brain_snack")
+	chk("a brain snack is handed over", Game.give_treat(c) == "")
+	chk("it frees a stuck child on the spot, with no help counted",
+		not c.is_struggling() and c.helps_total == helps_before and c.sleep_proof())
+	Game.treat_given.disconnect(on_given)
+
+	# --- the refusals ---
+	Game.coins = 0
+	Game.set_carried("brain_snack")
+	chk("without the coins it is refused, and stays in your hands",
+		Game.give_treat(a) == "Not enough coins." and Game.carried == "brain_snack"
+		and Game.coins == 0)
+	Game.coins = 50
+	chk("an empty desk refuses", Game.give_treat(null) == "Nobody is sitting there."
+		and Game.carried == "brain_snack")
+	Game.set_carried("")
+	chk("with nothing in your hands there is nothing to give",
+		Game.give_treat(a) == "You are not carrying anything.")
+	Game.set_carried("mint")
+	Game.test_active = true
+	chk("and nothing is handed over mid-test", Game.give_treat(a) == "Not now.")
+	Game.test_active = false
+	Game.set_carried("")
+	for s: StudentData in [a, b, c]:
+		s.active_consumable = ""
+		s.consumable_left = 0.0
+
+	# --- the real thing, walked and pressed ---
+	Game.coins = 50
+	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	var stash: Interactable = p.targets["supply"]
+	chk("at the cabinet, the supply cupboard is on offer on its own key", stash != null
+		and stash.action_name() == "supply"
+		and stash.prompt_text() == "Take a peppermint from the cupboard",
+		stash.prompt_text() if stash != null else null)
+	chk("...and the badge over the teacher says so", (p.badge_texts() as Array).any(
+		func(t: Variant) -> bool: return String(t).contains("cupboard")), p.badge_texts())
+	chk("the cabinet offers nothing else mid-lesson, so it is the only badge",
+		p.badge_texts().size() == 1, p.badge_texts())
+	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	chk("the podium is well clear of it: no cupboard badge to crowd its own four",
+		p.targets["supply"] == null, p.targets["supply"])
+	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	await tap("supply")
+	chk("pressing it takes the first treat", Game.carried == "mint", Game.carried)
+	await step(2)
+	chk("...which the teacher is now holding", p._treat_icon.treat == "mint"
+		and p._treat_icon.visible)
+	chk("...and the cupboard now offers to swap it", p.targets["supply"] != null
+		and p.targets["supply"].prompt_text() == "Swap the peppermint for a fidget cube",
+		p.targets["supply"].prompt_text() if p.targets["supply"] != null else null)
+	await place_player(Layout.seat(0) + Vector2i(1, 1), Actor.DIR_LEFT)
+	await step(2)
+	var desk: Interactable = p.targets["supply"]
+	chk("at a desk, it offers to hand the treat over", desk != null and desk.action_name() == "supply"
+		and desk.prompt_text() == "Give %s a peppermint (%d coins)" % [
+			a.first_name(), Game.treat_cost("mint")],
+		desk.prompt_text() if desk != null else null)
+	await tap("supply")
+	chk("pressing it hands it over", Game.carried == "" and a.sleep_proof()
+		and Game.coins == 50 - Game.treat_cost("mint"), Game.carried)
+	await step(2)
+	chk("and the teacher's hands are empty again", not p._treat_icon.visible)
+	chk("with nothing in your hands, the desk offers nothing on that key",
+		p.targets["supply"] == null)
+
+	var sim_src := FileAccess.get_file_as_string("res://tools/sim.gd")
+	chk("tools/sim.gd never reaches the stash",
+		sim_src != "" and not sim_src.contains("give_treat") and not sim_src.contains("stash_ids")
+		and not sim_src.contains("carried") and not sim_src.contains("treats_available"))
 	Game.new_run(SEED)
 	await step(2)
 
