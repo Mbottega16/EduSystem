@@ -1887,12 +1887,15 @@ func show_student(s: StudentData) -> void:
 	var lines: Array[String] = []
 	lines.append("Seat %d, day %d · Lv.%d · %s" % [
 		s.seat_index + 1, s.joined_day, s.student_level(), _bio_scales_line(s)])
-	if s.active_consumable != "":
-		lines.append("Buff: %s (%.0fs) · Distract: %d tiles" % [
-			s.active_consumable.capitalize(), s.consumable_left, s.effective_distraction_radius()])
+	if not s.consumable_def().is_empty():
+		lines.append("%s (%.0fs) · Whispers: %dt · Best: %s" % [
+			String(s.consumable_def().get("name", "Treat")), s.consumable_left,
+			s.effective_distraction_radius(),
+			s.best_subject().capitalize() if s.best_subject() != "" else "All"])
 	else:
-		lines.append("Distract radius: %d tiles · Best: %s" % [
-			s.effective_distraction_radius(), s.best_subject().capitalize() if s.best_subject() != "" else "All"])
+		lines.append("Whispers reach %d tiles · Best: %s" % [
+			s.effective_distraction_radius(),
+			s.best_subject().capitalize() if s.best_subject() != "" else "All"])
 	lines.append(_ability_line(s))
 	lines.append(_grades_line(s))
 	lines.append(_homework_line(s))
@@ -4213,18 +4216,18 @@ func _render_hall() -> void:
 	var lines: Array[String] = []
 	lines.append("[color=#%s]%s is ready for %s.[/color]" % [
 		C_GOOD, Game.tier_name(), to_name])
-	lines.append("[color=#%s]Pick up to %d to come with you.[/color]" % [
-		DIM, Balance.tier_captains_max])
+	lines.append("[color=#%s]Pick up to %d of the %d who qualified.[/color]" % [
+		DIM, Balance.tier_captains_max, _hall_rows.size()])
 	lines.append("")
 	var per := 6
 	var top := clampi(_sel - (per - 1), 0, maxi(0, _hall_rows.size() - per))
 	for i in range(top, mini(top + per, _hall_rows.size())):
 		var row: Dictionary = _hall_rows[i]
 		var s: StudentData = row["student"]
-		lines.append("%s %s %-8s %s" % [
+		lines.append("%s %s %s  %s" % [
 			">" if i == _sel else " ",
 			"(x)" if _hall_picked.has(s.id) else "( )",
-			s.first_name().substr(0, 8), String(row.get("letter", "?"))])
+			String(row.get("letter", "?")), s.first_name().substr(0, 10)])
 	lines.append("")
 	lines.append("[color=#%s]The rest are sent up, and fresh faces take their desks.[/color]" % DIM)
 	rich.text = "\n".join(lines)

@@ -54,6 +54,13 @@ const EMPTY_SEAT := Color(0.85, 0.85, 0.9, 0.35)
 ## kind of fact from range -- a seat can be both reached and crowded at
 ## once, and the two must not look like one thing.
 const CROWD_EDGE := Color(1.0, 0.55, 0.3, 0.9)
+## The whisper aura (learning-system-plan.md): how far the whispering of the
+## child at the cursor carries -- a soft wash over every tile in reach, and a
+## trail of dashes to each desk it touches. Lilac, like the chatter bubble,
+## because it is the same thing seen from above.
+const AURA_FILL := Color(0.72, 0.6, 0.95, 0.16)
+const AURA_EDGE := Color(0.8, 0.7, 1.0, 0.65)
+const AURA_LINK := Color(0.86, 0.76, 1.0, 0.95)
 
 var _grid: Grid = null
 var _ghost: Sprite2D = null
@@ -403,6 +410,7 @@ func _draw() -> void:
 				if Game.desk_top_free(dt):
 					draw_rect(Rect2(Vector2(dt) * Grid.TILE + Vector2(2, 2),
 						Vector2(Grid.TILE - 4, Grid.TILE - 4)), Color(1, 1, 1, 0.5), false, 2.0)
+	_draw_aura()
 	_draw_crowding()
 
 
@@ -420,6 +428,77 @@ func _draw_crowding() -> void:
 			Vector2(Layout.seat(i)) * Grid.TILE + Vector2(2, 2),
 			Vector2(Grid.TILE - 4, Grid.TILE - 4))
 		draw_rect(r, CROWD_EDGE, false, 2.0)
+
+
+## The whisper aura of the child whose desk the cursor is on, or whose desk
+## you are carrying: {} when there is none, otherwise {seat, centre, reach,
+## links} -- the seat index, the tile it is (or would be) at, how many tiles
+## their whispering carries, and the seat tile of every desk it reaches. Read
+## from the same rules the chatter itself uses (Game.pair_reach()), so what it
+## shows is what will happen. While a desk is carried it follows the cursor, so
+## the answer to "what would this crowd?" is on screen before you put it down.
+func aura() -> Dictionary:
+	var idx := desk_index
+	if idx < 0:
+		if not browsing:
+			return {}
+		idx = Layout.seat_at_tile(tile)
+	if idx < 0:
+		return {}
+	var s := Game.student_in_seat(idx)
+	if s == null:
+		return {}
+	var centre: Vector2i = tile if desk_index >= 0 else Layout.seat(idx)
+	var mine := Game.distraction_radius_of(s)
+	var links: Array[Vector2i] = []
+	for o: StudentData in Game.roster:
+		if o == s or o.seat_index < 0:
+			continue
+		var there: Vector2i = Layout.seat(o.seat_index)
+		var d := maxi(absi(there.x - centre.x), absi(there.y - centre.y))
+		if d <= Game.pair_reach(mine, Game.distraction_radius_of(o)):
+			links.append(there)
+	return {"seat": idx, "centre": centre, "reach": Game.pair_reach(mine, mine),
+		"links": links}
+
+
+func _draw_aura() -> void:
+	var a := aura()
+	if a.is_empty():
+		return
+	var centre: Vector2i = a["centre"]
+	var reach: int = a["reach"]
+	var tile_px := Vector2(Grid.TILE, Grid.TILE)
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			if dx == 0 and dy == 0:
+				continue
+			var t := centre + Vector2i(dx, dy)
+			if Grid.in_bounds(t):
+				draw_rect(Rect2(Vector2(t) * Grid.TILE, tile_px), AURA_FILL)
+	draw_rect(Rect2(Vector2(centre - Vector2i(reach, reach)) * Grid.TILE,
+		tile_px * float(2 * reach + 1)), AURA_EDGE, false, 2.0)
+	var from := Vector2(centre) * Grid.TILE + tile_px / 2.0
+	# Running dashes: the trail moves from the whisperer towards each desk.
+	var phase := fmod(float(Time.get_ticks_msec()) * 0.03, 11.0)
+	for there: Vector2i in a["links"]:
+		_draw_trail(from, Vector2(there) * Grid.TILE + tile_px / 2.0, phase)
+
+
+## A dashed line from `a` to `b`, the dashes slid along by `phase`.
+func _draw_trail(a: Vector2, b: Vector2, phase: float) -> void:
+	var length := a.distance_to(b)
+	if length < 1.0:
+		return
+	var dir := (b - a) / length
+	var at := -phase
+	while at < length:
+		var from_at := maxf(at, 0.0)
+		var to_at := minf(at + 6.0, length)
+		if to_at > from_at:
+			draw_line(a + dir * from_at, a + dir * to_at, AURA_LINK, 3.0)
+		at += 11.0
+	draw_circle(b, 4.0, AURA_LINK)
 
 
 ## What build mode can pick up under the cursor: a piece on the floor or the
@@ -464,6 +543,9 @@ func _process(delta: float) -> void:
 		move_by(d)
 		Sfx.play("blip")
 		_repeat = 0.14
+	# The aura's trail runs, so it is redrawn while it is up.
+	if desk_index >= 0 or browsing:
+		queue_redraw()
 
 
 ## Polled, not event-driven — see the note in scripts/ui/hud.gd. This is

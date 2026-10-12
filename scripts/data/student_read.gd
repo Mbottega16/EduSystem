@@ -120,7 +120,7 @@ static func acting_on(s: StudentData) -> Dictionary:
 		helping.append("The %s you gave them is still working." % String(
 			pocket.get("name", "treat")).to_lower())
 	if s.resilience() > 0.0:
-		helping.append("They have been here a while, so a bad day bothers them less.")
+		helping.append("They have been here a while and shrug off bad days.")
 
 	# --- where YOU are, right now ---
 	if s.seat_index >= 0:
@@ -155,11 +155,11 @@ static func acting_on(s: StudentData) -> Dictionary:
 			talker.first_name() if talker != null else "the next desk"))
 	if s.zpd_active():
 		if Game.zpd_multiplier(s) > 1.0:
-			helping.append("Working with a classmate inside their zone of proximal development.")
+			helping.append("Working with a classmate at just the right level.")
 		else:
-			against.append("Working with a classmate whose pace does not match theirs.")
+			against.append("Working with a classmate whose pace is a poor match.")
 		if Game.peer_tutoring_bonus(s, Game.student_by_id(s.zpd_partner_id)) > 0.0:
-			helping.append("A classmate who has been here longer is showing them the ropes.")
+			helping.append("A longer-serving classmate is showing them the ropes.")
 	if s.copied:
 		against.append("They have copied their way past it, so the gap is hidden.")
 	if s.quiz_flagged:

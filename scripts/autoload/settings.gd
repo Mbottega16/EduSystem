@@ -69,9 +69,10 @@ const DEFAULTS := {
 	# mark what came in, read back what you gave. G (for grades) was already
 	# letting a hired teacher go.
 	"grades": [KEY_U],
-	# O for "offer": one verb at two landmarks -- take a treat from the stash
-	# on the podium, then hand it over at a child's desk.
-	"supply": [KEY_O],
+	# X, the letter nothing else wanted (O is a zero in the pixel font): one
+	# verb at two landmarks -- take a treat from the supply cupboard, then hand
+	# it over at a child's desk.
+	"supply": [KEY_X],
 	"move_desk": [KEY_M],
 	"voice": [KEY_C],
 	# Y for "Yes, yes!" -- what the room shouts back. One of the few letters

@@ -296,6 +296,7 @@ func _main() -> void:
 	await test_environment_and_tenure()
 	await test_age_tiers()
 	await test_supply_stash()
+	await test_whisper_aura()
 	test_walkthrough()
 
 	print("")
@@ -14976,7 +14977,7 @@ func test_environment_and_tenure() -> void:
 	pupil.zpd_partner_id = tutor.id
 	pupil.zpd_left = 5.0
 	chk("the file says who is showing them the ropes", (StudentRead.acting_on(pupil).get(
-		"helping", []) as Array).has("A classmate who has been here longer is showing them the ropes."))
+		"helping", []) as Array).has("A longer-serving classmate is showing them the ropes."))
 
 	# --- prose, never numbers; and the contract simulator cannot see any of it ---
 	var all_prose := true
@@ -15410,6 +15411,89 @@ func test_supply_stash() -> void:
 	chk("tools/sim.gd never reaches the stash",
 		sim_src != "" and not sim_src.contains("give_treat") and not sim_src.contains("stash_ids")
 		and not sim_src.contains("carried") and not sim_src.contains("treats_available"))
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The whisper aura in build mode (learning-system-plan.md): the child under
+## the cursor -- or whose desk you are carrying -- shows how far their
+## whispering carries and which desks it reaches, read from the same rules the
+## chatter uses, so what it shows is what will happen.
+func test_whisper_aura() -> void:
+	section("WHISPER AURA")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	Game.add_coins(4000)
+	Game.set_phase(Game.Phase.AFTERNOON)
+	await step(2)
+	var main: Node = world.get_parent()
+	var near_seats: Array[Vector2i] = [Vector2i(3, 4), Vector2i(4, 4), Vector2i(13, 8),
+		Vector2i(15, 4), Vector2i(3, 7), Vector2i(7, 7), Vector2i(11, 7), Vector2i(7, 4)]
+	Layout.set_seats(near_seats)
+	Game.room_items.clear()
+	main._toggle_build()
+	await step(2)
+	var pl: Node = main.placement
+	chk("build mode is browsing", pl.active and pl.browsing)
+
+	pl.tile = Layout.seat(0)
+	pl._refresh()
+	var a: Dictionary = pl.aura()
+	chk("a desk under the cursor has an aura", not a.is_empty() and a["seat"] == 0, a)
+	chk("at the default radius it reaches as far as touching desks",
+		a["reach"] == Balance.chat_reach_tiles, a)
+	chk("and links the one desk it touches, and no other",
+		(a["links"] as Array).size() == 1 and (a["links"] as Array).has(Layout.seat(1)), a)
+	pl.tile = Layout.desk_tile(0)
+	pl._refresh()
+	chk("the desk itself, not only its chair, finds the same child",
+		pl.aura().get("seat", -1) == 0)
+	pl.tile = Layout.seat(2)
+	pl._refresh()
+	a = pl.aura()
+	chk("a desk on its own reaches nobody", not a.is_empty() and (a["links"] as Array).is_empty(), a)
+	pl.tile = Vector2i(17, 9)
+	pl._refresh()
+	chk("bare floor has no aura", pl.aura().is_empty())
+
+	Game.add_item("bookshelf", Layout.seat(0) + Vector2i(-1, 0))
+	pl.tile = Layout.seat(0)
+	pl._refresh()
+	a = pl.aura()
+	chk("a bookshelf at their elbow shrinks it to nothing, and the trail goes",
+		a["reach"] == 0 and (a["links"] as Array).is_empty(), a)
+	Game.room_items.clear()
+
+	pl.tile = Layout.seat(0)
+	pl._refresh()
+	var loud: StudentData = Game.student_in_seat(0)
+	loud.distraction_radius = Balance.distraction_default_radius + 1
+	a = pl.aura()
+	chk("a louder child reaches a tile further",
+		a["reach"] == Balance.chat_reach_tiles + 1, a)
+	loud.distraction_radius = Balance.distraction_default_radius
+
+	# carrying a desk: the aura goes where the desk would go
+	pl.finish()
+	main._unlock()
+	pl.begin_desk(0, world.grid)
+	pl.tile = Layout.seat(2) + Vector2i(1, 0)
+	pl._refresh()
+	a = pl.aura()
+	chk("a carried desk's aura follows the cursor, not the chair it left",
+		a["seat"] == 0 and a["centre"] == Layout.seat(2) + Vector2i(1, 0), a)
+	chk("and links whoever it would crowd there", (a["links"] as Array).has(Layout.seat(2)), a)
+	pl.finish()
+	main._unlock()
+	pl.item_id = "bookshelf"
+	pl.browsing = false
+	pl.desk_index = -1
+	pl.active = true
+	pl.tile = Layout.seat(0)
+	chk("carrying a piece of furniture shows no aura", pl.aura().is_empty())
+	pl.finish()
+	main._unlock()
+
 	Game.new_run(SEED)
 	await step(2)
 

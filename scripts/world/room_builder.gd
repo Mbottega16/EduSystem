@@ -560,7 +560,7 @@ static func build_cabinet(parent: Node2D, grid: Grid) -> Interactable:
 	it.set_script(CABINET_SCRIPT)
 	body.add_child(it)
 	# The supply cupboard (Oct 2026): the same cabinet holds a tray of treats
-	# for a lesson, on its own key (O). The cabinet itself offers nothing
+	# for a lesson, on its own key (X). The cabinet itself offers nothing
 	# DURING a lesson, so this gives it a use there, and it stands well clear
 	# of the podium, whose four verbs already fill the badge row.
 	var stash := Interactable.new()

@@ -760,6 +760,93 @@ func _open_screen(main: Node, screen: String) -> void:
 					Game.log_grades("test" if i == 4 else "lesson",
 						String(pages[i][0]), String(pages[i][1]), res)
 			hud.open_grade_book()
+		"hall", "hall_new_term":
+			# The Graduation & Transfer Hall (hud.show_graduation_hall()): a
+			# class that has all cleared the bar, two picked to stay on and the
+			# cursor on the next. hall_new_term: the screen after it, which
+			# welcomes the new school and names the captains. Both build the
+			# exam by hand rather than sit it, so every child qualifies.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			Game.term_path = {}
+			while Game.enrol() != null:
+				pass
+			var hall_rows: Array = []
+			var place := 0
+			for s: StudentData in Game.roster:
+				var score := 0.92 - 0.03 * float(place)
+				hall_rows.append({"student": s, "score": score,
+					"letter": Game.grade_letter(score), "passed": true})
+				place += 1
+			Game.exam_result = {"rows": hall_rows, "average": 0.85, "letter": "B",
+				"passed": hall_rows.size(), "total": hall_rows.size()}
+			Game.age_tier = 0
+			Game.tier_graduates = maxi(0, Game.tier_graduates_needed() - hall_rows.size())
+			var first: StudentData = hall_rows[0]["student"]
+			var third: StudentData = hall_rows[2]["student"]
+			if screen == "hall":
+				hud.show_graduation_hall(Game.promotion_preview())
+				hud._hall_picked.append(first.id)
+				hud._hall_picked.append(third.id)
+				hud._sel = 1
+				hud._render_hall()
+			else:
+				Game.captains = [first.id, third.id]
+				hud.show_new_term(Game.next_term())
+		"treat", "treat_desk":
+			# The supply cupboard (Game.carried): a lesson running with one child
+			# asleep at their desk. treat: the teacher at the cabinet with a
+			# fidget cube in hand and the badge offering to swap it.
+			# treat_desk: stood at the sleeper's desk with a peppermint, the
+			# badge offering to hand it over.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			Game.coins = maxi(Game.coins, 50)
+			world.start_lesson()
+			var sleeper: StudentData = Game.roster[0]
+			sleeper.sleepiness = 3
+			sleeper.fall_asleep(120.0)
+			if screen == "treat":
+				world.player.global_position = Grid.tile_to_world(Layout.CABINET + Vector2i(0, 1))
+				world.player.facing = Actor.DIR_UP
+				Game.set_carried("fidget_cube")
+			else:
+				world.player.global_position = Grid.tile_to_world(
+					Layout.seat(sleeper.seat_index) + Vector2i(1, 1))
+				world.player.facing = Actor.DIR_LEFT
+				Game.set_carried("mint")
+		"aura", "aura_shelf":
+			# The whisper aura in build mode (Placement.aura()): the cursor on
+			# one of a touching pair, with a second pair an aisle apart for
+			# contrast. aura_shelf: the same with a bookshelf at the first
+			# desk's elbow, which narrows it to nothing.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			world.move_desk(1, Layout.seat(0) + Vector2i(1, 0))
+			world.move_desk(3, Layout.seat(2) + Vector2i(2, 0))
+			if screen == "aura_shelf":
+				Game.add_item("bookshelf", Layout.seat(0) + Vector2i(-1, 0))
+			main._toggle_build()
+			main.placement.tile = Layout.seat(0)
+			main.placement.move_by(Vector2i.ZERO)
+		"file_influences":
+			# Page three of a child's file with a few things going for them: a
+			# water cooler and a bookshelf beside the desk, a peppermint in the
+			# pocket, and a veteran's resilience.
+			Game.intro_seen = true
+			Game.auto_teach = false
+			hud.close()
+			Game.add_item("water_cooler", Layout.seat(0) + Vector2i(1, 0))
+			Game.add_item("bookshelf", Layout.seat(0) + Vector2i(-1, 0))
+			var veteran: StudentData = Game.roster[0]
+			veteran.days_enrolled = 16
+			veteran.give_consumable("mint", 30.0)
+			hud.show_student(veteran)
+			hud._bio_page = hud.BIO_ACTING
+			hud.show_student(veteran)
 		"folder", "folder_place", "folder_shop":
 			# The study folder (Game.desk_items). folder: two pairs of desks
 			# pushed together in a lesson. The pair with a folder between them
