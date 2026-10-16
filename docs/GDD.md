@@ -117,6 +117,45 @@ your real room, and you can watch it happen rather than trust a number.
 Stepping outside the rule on purpose, once, with the reasoning written
 down, is not the same as the rule quietly eroding.
 
+### Friction is player-made, not a clock
+*(Oct 2026 — answers the "difficulty options, or one curve?" open question
+below, for mid-lesson friction specifically.)* Chat and disruption are the
+two sources of mid-lesson friction, and both trace back to a choice the
+player made, never to the day number. `data/balance.json`'s
+`disruption._note`:
+
+> *"Both sources are things the player caused: boredom is finished work you
+> never came to collect, frustration is a child left stuck too long.
+> Neither is bad luck."*
+
+The same is true of chat: it only starts between desks the player placed
+within `chat.reach_tiles` of each other, and never on the opening layout
+(`room._note`). **There is no day- or week-indexed difficulty ramp, and
+there should not be one.** A room that gets harder on a clock, independent
+of anything the player did, reads as the game being unfair rather than a
+real room being a real room — the thing "never cynical about education"
+rules out. The back half of a term (days 11-20 — "weeks 3-4" to a player
+counting in five-day weeks) already plays harder than the front half,
+because by then the room is bigger and the roster fuller: both bought,
+both built, both visible, and both the ordinary cost of growing rather
+than a penalty for lasting that long.
+
+**Where the line sits today**, for a pair of touching desks the teacher
+never visits all lesson: a chat cycle runs ~17s waiting
+(`1/chat.start_per_second`) + `chat.seconds` 5.0 talking +
+`chat.grace_seconds` 6.0 recovering, so roughly 18% of that pair's time is
+lost to the chat itself, plus a `chat.noise_chance` 0.25 chance it escalates
+into disruption, which then costs their neighbours too
+(`disruption.neighbour_stall_mult` 2.0). That is a real, felt cost for
+crowding a room — and one the teacher can always walk off on the spot
+(`chat.hush_tiles` 2 stops it at a glance). **Recommendation: keep it
+there.** Raising `noise_chance` or `chat.talk_max_slowdown` to make a
+packed room bite harder in the back half of a term would turn a management
+problem into a wall; lowering them would make desk placement a
+non-decision either way. If a room ever feels too forgiving or too harsh
+in practice, retune those two knobs directly — never add a day-based
+multiplier on top of them, which is the thing this pillar forbids.
+
 ### Prose, not numbers
 The player is never shown a decimal. `scripts/ui/hud.gd`:
 
@@ -950,7 +989,9 @@ if Phase 1's gate fails.
 - Is there a timetable, or does each room teach one lesson a day?
 - Do children persist across rooms as they move up year groups? *(Powerful,
   and expensive — the transcript system already supports it.)*
-- Difficulty options, or one curve?
+- Difficulty options, or one curve? *(Mid-lesson friction answered —
+  one curve, player-made rather than clock-made. See "Friction is
+  player-made, not a clock" under Pillars.)*
 - Save slots, or one run?
 
 ---
