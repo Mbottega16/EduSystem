@@ -1,0 +1,343 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/save_manager_ui.gd" id="1_script"]
+[ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="2_font"]
+[ext_resource type="Theme" path="res://fonts/ui_theme.tres" id="3_theme"]
+[ext_resource type="Texture2D" path="res://art/ui_frame.png" id="4_frame"]
+
+[node name="SaveManager" type="Control"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -176.0
+offset_right = 320.0
+offset_bottom = 176.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_theme")
+script = ExtResource("1_script")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.07, 0.1, 0.82)
+
+[node name="PanelFrame" type="NinePatchRect" parent="."]
+texture_filter = 1
+layout_mode = 0
+offset_left = 32.0
+offset_top = 16.0
+offset_right = 608.0
+offset_bottom = 336.0
+texture = ExtResource("4_frame")
+patch_margin_left = 12
+patch_margin_top = 12
+patch_margin_right = 12
+patch_margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="PanelFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="PanelFrame/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 20
+text = "SELECT SAVE SLOT"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="PanelFrame/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.78, 0.72, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "Choose a save slot to continue your run"
+horizontal_alignment = 1
+
+[node name="SlotsContainer" type="HBoxContainer" parent="PanelFrame/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Slot0" type="Button" parent="PanelFrame/VBox/SlotsContainer"]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+clip_text = true
+
+[node name="Margin" type="MarginContainer" parent="PanelFrame/VBox/SlotsContainer/Slot0"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="SaveName" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "Slot 1"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+text = "[Empty / Locked]"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TimeBox" type="HBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="TimeTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Play Time: "
+
+[node name="PlayTimeLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "--:--"
+
+[node name="DateBox" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="DateTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Last Played:"
+horizontal_alignment = 1
+
+[node name="TimestampLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot0/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "--"
+horizontal_alignment = 1
+
+[node name="Slot1" type="Button" parent="PanelFrame/VBox/SlotsContainer"]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+clip_text = true
+
+[node name="Margin" type="MarginContainer" parent="PanelFrame/VBox/SlotsContainer/Slot1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="SaveName" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "Slot 2"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+text = "[Empty / Locked]"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TimeBox" type="HBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="TimeTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Play Time: "
+
+[node name="PlayTimeLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "--:--"
+
+[node name="DateBox" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="DateTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Last Played:"
+horizontal_alignment = 1
+
+[node name="TimestampLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot1/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "--"
+horizontal_alignment = 1
+
+[node name="Slot2" type="Button" parent="PanelFrame/VBox/SlotsContainer"]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+clip_text = true
+
+[node name="Margin" type="MarginContainer" parent="PanelFrame/VBox/SlotsContainer/Slot2"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="SaveName" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.87, 0.42, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "Slot 3"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+text = "[Empty / Locked]"
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TimeBox" type="HBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="TimeTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Play Time: "
+
+[node name="PlayTimeLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content/TimeBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+text = "--:--"
+
+[node name="DateBox" type="VBoxContainer" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="DateTitle" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "Last Played:"
+horizontal_alignment = 1
+
+[node name="TimestampLabel" type="Label" parent="PanelFrame/VBox/SlotsContainer/Slot2/Margin/Content/DateBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+text = "--"
+horizontal_alignment = 1
+
+[node name="BottomBar" type="HBoxContainer" parent="PanelFrame/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="PanelFrame/VBox/BottomBar"]
+custom_minimum_size = Vector2(120, 28)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 14
+text = "Close (Esc)"

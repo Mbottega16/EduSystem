@@ -180,6 +180,7 @@ func _main() -> void:
 	await test_confusion()
 	await test_placement()
 	await test_save_slots()
+	await test_save_manager_slot_picker()
 	await test_mess()
 	test_events()
 	test_economy()
@@ -2085,6 +2086,84 @@ func test_save_slots() -> void:
 	Game.delete_slot(1)
 
 	Game.new_run(SEED)
+
+
+func test_save_manager_slot_picker() -> void:
+	section("SAVE MANAGER SLOT PICKER")
+	# Clean slots 0, 1, 2 to guarantee clean slate
+	SaveManager.delete_slot(0)
+	SaveManager.delete_slot(1)
+	SaveManager.delete_slot(2)
+
+	# 1. Formatting helpers
+	chk("formats zero play time to 00:00", SaveManager.format_play_time(0) == "00:00")
+	chk("formats minutes and hours properly (HH:MM)", SaveManager.format_play_time(3720) == "01:02")
+	chk("formats timestamp to YYYY-MM-DD HH:MM", SaveManager.format_timestamp(1700000000).length() >= 16)
+
+	# 2. Scene loading
+	var scn: PackedScene = load("res://scenes/ui/save_manager.tscn")
+	chk("SaveManager scene loads from res://scenes/ui/save_manager.tscn", scn != null)
+	var scn_compat: PackedScene = load("res://scenes/save_manager.tscn")
+	chk("SaveManager scene loads from res://scenes/save_manager.tscn", scn_compat != null)
+
+	var ui := scn.instantiate() as Control
+	add_child(ui)
+	await step(2)
+
+	chk("SaveManager UI has exactly 3 visual save-slot buttons", ui.slot_buttons.size() == 3, ui.slot_buttons.size())
+
+	# 3. Empty/locked UI when no saves exist
+	chk("slot 0 is disabled/locked when empty", ui.slot_buttons[0].disabled)
+	chk("slot 1 is disabled/locked when empty", ui.slot_buttons[1].disabled)
+	chk("slot 2 is disabled/locked when empty", ui.slot_buttons[2].disabled)
+	chk("slot 0 shows empty status", ui.slot_buttons[0].text.contains("[Empty]"))
+	chk("slot 0 metadata flags empty and locked",
+		bool(ui.slot_buttons[0].get_meta("is_empty", false)) and bool(ui.slot_buttons[0].get_meta("is_locked", false)))
+
+	# 4. Save metadata creation and population
+	var test_data: Dictionary = {
+		"day": 6,
+		"coins": 300,
+		"save_name": "Class 4A",
+		"play_time": 4920,
+		"timestamp": 1729000000,
+		"last_played": "2024-10-15 14:30"
+	}
+	SaveManager.save(0, test_data)
+	chk("SaveManager has slot 0 after save", SaveManager.has_slot(0))
+
+	var meta: Dictionary = SaveManager.get_slot_metadata(0)
+	chk("slot metadata has save name", String(meta.get("save_name", "")) == "Class 4A")
+	chk("slot metadata has formatted play time (01:22)", String(meta.get("play_time_formatted", "")) == "01:22")
+	chk("slot metadata has timestamp string", String(meta.get("last_played", "")) == "2024-10-15 14:30")
+	chk("slot metadata exists flag is true", bool(meta.get("exists", false)))
+
+	# 5. UI refresh with populated save
+	ui.refresh_slots()
+	var b0: Button = ui.slot_buttons[0]
+	chk("populated slot 0 button is enabled", not b0.disabled)
+	chk("slot 0 button shows save name", b0.text.contains("Class 4A"))
+	chk("slot 0 button shows play time HH:MM", b0.text.contains("01:22"))
+	chk("slot 0 button shows last-played timestamp", b0.text.contains("2024-10-15 14:30"))
+	chk("slot 1 remains empty/locked", ui.slot_buttons[1].disabled and ui.slot_buttons[1].text.contains("[Empty]"))
+	chk("slot 2 remains empty/locked", ui.slot_buttons[2].disabled and ui.slot_buttons[2].text.contains("[Empty]"))
+
+	# 6. Click button to load and close
+	var events := {"loaded": -1, "closed": false}
+	ui.slot_loaded.connect(func(idx: int) -> void: events["loaded"] = idx)
+	ui.closed.connect(func() -> void: events["closed"] = true)
+
+	b0.emit_signal("pressed")
+	chk("clicking slot button loads the saved game", events["loaded"] == 0)
+	chk("clicking slot button closes the SaveManager", events["closed"])
+	chk("SaveManager UI becomes invisible when closed", not ui.visible)
+
+	# Clean up
+	SaveManager.delete_slot(0)
+	SaveManager.delete_slot(1)
+	SaveManager.delete_slot(2)
+	ui.queue_free()
+	await step(2)
 
 
 ## Deep compare allowing float drift, for anything that has been through JSON.
