@@ -199,6 +199,7 @@ func _main() -> void:
 	await test_study_folder()
 	await test_grade_book()
 	await test_back_wall()
+	await test_ambient_touches()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -3586,6 +3587,8 @@ func test_panels_fit() -> void:
 		Game.record_taught(String(Curriculum.lessons[i % Curriculum.lessons.size()]
 			.get("id", "")))
 	hud.show_curriculum()
+	chk("the curriculum is read from the GREEN book, the lesson plans from the red",
+		hud.book.texture == hud.BOOK_GREEN and hud.BOOK_RED != hud.BOOK_GREEN)
 	chk("the curriculum fits every subject in the panel",
 		(hud.rich.text.split("\n").size() <= RICH_ROWS and not hud._rich_overflows()),
 		"%d rows" % hud.rich.text.split("\n").size())
@@ -8867,6 +8870,12 @@ func test_shop() -> void:
 	await tap("manage")
 	chk("the shop opens on the BUY list",
 		hud.mode == hud.Mode.CATALOGUE and hud._shop == hud.Shop.BUY)
+	chk("the shop is a BLUE book with the picture framed on its left page",
+		hud.book.visible and hud.book.texture == hud.BOOK_BLUE
+		and hud.rich_left.visible and hud._slot.visible)
+	chk("and its list fits the right page",
+		not hud._rich_overflows() and hud.rich.offset_left == hud.BOOK_RIGHT.position.x,
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
 	await tap("menu")
 	chk("Tab switches to the CABINET list", hud._shop == hud.Shop.CABINET)
 	chk("the cabinet list shows what you actually own",
@@ -11425,6 +11434,111 @@ func test_back_wall() -> void:
 
 
 # ============================================ furniture lanes and clutter
+
+func test_ambient_touches() -> void:
+	section("AMBIENT TOUCHES")
+	Game.new_run(SEED)
+	Game.phase = Game.Phase.MORNING
+	await step(3)
+	var nodes := get_tree().get_nodes_in_group("ambient_touches")
+	chk("the idle room has exactly one set of ambient touches", nodes.size() == 1, nodes.size())
+	if nodes.size() != 1:
+		return
+	var amb: Node2D = nodes[0]
+	var T: Variant = amb.get_script()
+	chk("they survive the room being rebuilt, still one set", (func() -> bool:
+		world.rebuild_room()
+		return get_tree().get_nodes_in_group("ambient_touches").size() == 1).call())
+	amb = get_tree().get_nodes_in_group("ambient_touches")[0]
+
+	# --- no randomness, nothing for the balance contract to see ---
+	var src := FileAccess.get_file_as_string("res://scripts/world/ambient_touches.gd")
+	chk("the touches use no random call and never Game.rng",
+		not src.contains("randf(") and not src.contains("randi(") and not src.contains("Game.rng."))
+	var rng_before: int = Game.rng.state
+	var money_before: int = Game.coins
+	for i in 600:
+		amb.step(float(i) * 0.1)
+	chk("stepping a minute of them leaves Game.rng and the coins untouched",
+		Game.rng.state == rng_before and Game.coins == money_before)
+	chk("they take no floor: no body, no collider, no interactable, only art and a drawing layer",
+		amb.get_children().all(func(c: Node) -> bool: return c is Sprite2D or c.name == "Outside")
+		and not amb.has_method("prompt_text"))
+
+	# --- the window: shut, open for a while, shut again ---
+	chk("the first window is shut at the start of its cycle", not T.window_is_open(0.0) and not amb._open.visible)
+	chk("it swings open and shuts again, cycle after cycle",
+		T.window_is_open(12.0) and not T.window_is_open(22.0)
+		and T.window_is_open(12.0 + T.WIN_CYCLE) and not T.window_is_open(22.0 + T.WIN_CYCLE))
+	amb.step(12.0)
+	chk("the open window's art shows while it is open and is gone when shut",
+		amb._open.visible and (func() -> bool:
+			amb.step(22.0)
+			return not amb._open.visible).call())
+	var seen_leaf := false
+	var seen_bird := false
+	var only_open := true
+	var inside := true
+	var grown: Rect2 = amb.opening.grow(8.0)
+	for i in 270:
+		var t := float(i) * 0.1
+		var lp: Vector2 = amb.leaf_pos(t)
+		var bp: Vector2 = amb.bird_pos(t)
+		if lp.x >= 0.0:
+			seen_leaf = true
+			only_open = only_open and T.window_is_open(t)
+			inside = inside and grown.has_point(lp)
+		if bp.x >= 0.0:
+			seen_bird = true
+			only_open = only_open and T.window_is_open(t)
+			inside = inside and grown.has_point(bp)
+	chk("a leaf and a bird both go past the window", seen_leaf and seen_bird)
+	chk("they only show while the window is open, and stay at the opening", only_open and inside)
+	chk("the window opening is on the first window's wall columns, clear of the back-wall fixtures",
+		RoomBuilder.is_window_col(int(amb.window_pos.x / Grid.TILE))
+		and not Layout.wall_taken_cols().has(int(amb.window_pos.x / Grid.TILE)))
+
+	# --- the drip, the spider and the intercom lights ---
+	var order: Array = []
+	for i in 54:
+		var st: String = T.drip_state(float(i) * 0.1)[0]
+		if order.is_empty() or order[order.size() - 1] != st:
+			order.append(st)
+	chk("a drop swells, falls, splashes and waits, in that order", order == ["swell", "fall", "splash", ""], order)
+	chk("the drip repeats on its cycle", T.drip_state(1.0)[0] == T.drip_state(1.0 + T.DRIP_CYCLE)[0])
+	chk("the drip and the spider start below the wall's foot, under every hung piece",
+		T.DRIP_TOP >= Layout.WALL_HANG_Y and T.SPIDER_TOP >= Layout.WALL_HANG_Y)
+	chk("the puddle is on the floor, off the wall",
+		T.DRIP_PUDDLE_Y >= float(Layout.TOP_WALL * Grid.TILE))
+	var lo := 999.0
+	var hi := -1.0
+	for i in 200:
+		var y: float = T.spider_y(float(i) * 0.1)
+		lo = minf(lo, y)
+		hi = maxf(hi, y)
+	chk("the spider goes right up out of sight and comes down a thread's length, no more",
+		is_zero_approx(lo) and hi > 20.0 and hi <= T.SPIDER_DROP + 3.5, [lo, hi])
+	var lit := {}
+	for i in 140:
+		lit[T.light_on(float(i) * 0.1)] = true
+	chk("the intercom's four lights each come on in turn, and go out again",
+		lit.has(0) and lit.has(1) and lit.has(2) and lit.has(3) and lit.has(-1))
+	var bell_x := float(Layout.BELL.x * Grid.TILE)
+	chk("every light sits on the intercom's own art, on the wall",
+		(T.LIGHT_DX as Array).all(func(dx: float) -> bool:
+			return amb.intercom.x + dx >= bell_x and amb.intercom.x + dx + 4.0 <= bell_x + Grid.TILE * 1.0 + 1.0)
+		and Layout.WALL_HANG_Y + T.LIGHT_DY + 4.0 < Layout.WALL_HANG_Y)
+
+	# --- off during a lesson ---
+	var t_before: float = amb._t
+	Game.phase = Game.Phase.LESSON
+	amb._process(1.0)
+	chk("during a lesson they are hidden and do not tick", not amb.visible and is_equal_approx(amb._t, t_before),
+		[amb.visible, amb._t, t_before])
+	Game.phase = Game.Phase.MORNING
+	amb._process(1.0)
+	chk("and they come back, ticking, when it ends", amb.visible and amb._t > t_before)
+
 
 func test_dash_lanes() -> void:
 	section("DASH LANES")
@@ -14047,7 +14161,7 @@ func test_room_ideas() -> void:
 	await tap("menu")
 	chk("one more Tab goes back to the buy list and puts the picture away",
 		hud._shop == hud.Shop.BUY and not hud._preview.visible and not hud._info.visible
-		and is_equal_approx(hud.rich.offset_right, 608.0), [hud._shop, hud.rich.offset_right])
+		and is_equal_approx(hud.rich.offset_right, hud.BOOK_RIGHT.end.x), [hud._shop, hud.rich.offset_right])
 	hud.close()
 
 
@@ -14089,9 +14203,13 @@ func test_shop_and_staff() -> void:
 	# runs last and exposed it: the leftover text stopped containing
 	# "helps" and the assertion failed for a reason that had nothing to do
 	# with the shop. Checking the control the shop actually writes to.
+	# (The effect words moved from the rows to the caption under the picture
+	# when the shop became a book: the right page is only wide enough for a
+	# name and a price.)
 	chk("effects read as words, not decimals",
-		hud.rich.text.contains("helps") and not hud.rich.text.contains("+0."),
-		hud.rich.text)
+		hud._caption.text.contains("helps") and not hud._caption.text.contains("+0.")
+		and not hud.rich.text.contains("+0."),
+		hud._caption.text)
 
 	await tap("menu")
 	chk("Tab moves to the cabinet", hud._shop == hud.Shop.CABINET)

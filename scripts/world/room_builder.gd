@@ -103,6 +103,7 @@ const MESS_SCRIPT := preload("res://scripts/interact/mess.gd")
 const SPEECH_BUBBLE_SCENE := preload("res://scenes/actors/speech_bubble.tscn")
 const PROP_ANIM_SCRIPT := preload("res://scripts/world/prop_anim.gd")
 const BUTTERFLY_SCRIPT := preload("res://scripts/world/window_butterfly.gd")
+const AMBIENT_SCRIPT := preload("res://scripts/world/ambient_touches.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -779,6 +780,12 @@ static func visible_seeds(hung: Array[int]) -> Array:
 		if not covered:
 			out.append(row)
 	return out
+
+
+## The idle room's small moving touches (ambient_touches.gd): a drip, a leaf and a
+## bird at the window, a spider, the intercom's lights.
+static func build_ambient(parent: Node2D) -> Node2D:
+	return AMBIENT_SCRIPT.build(parent)
 
 
 static func build_decor(parent: Node2D, _grid: Grid) -> Array:

@@ -147,7 +147,28 @@ def _cover_weave(im, x, y):
     im.putpixel((x, y), _shift((r, g, b), d) + (a,))
 
 
-def book_open():
+# Cover cloth for the other two books: the furniture catalogue is BLUE, the
+# curriculum GREEN. Same weave, same boards, same cream paper -- only the
+# cloth changes, so they read as the same family as the red lesson book.
+BLUE_COVER = ((44, 72, 124), (70, 106, 168))
+GREEN_COVER = ((52, 96, 62), (78, 132, 88))
+
+
+def book_open(cover=None):
+    """The spread. `cover` is (COVER, COVER_L) for a variant, or None for the
+    house red. The helpers read the module-level COVER, so it is swapped for
+    the duration of the draw and put back."""
+    global COVER, COVER_L
+    saved = (COVER, COVER_L)
+    if cover is not None:
+        COVER, COVER_L = cover
+    try:
+        return _book_open()
+    finally:
+        COVER, COVER_L = saved
+
+
+def _book_open():
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
 
     # ---------------------------------------------------------- the boards
@@ -445,6 +466,10 @@ def make_all():
     made = []
     save_png(scale2x(book_open()), "book_open")
     made.append("book_open")
+    save_png(scale2x(book_open(BLUE_COVER)), "book_open_blue")
+    made.append("book_open_blue")
+    save_png(scale2x(book_open(GREEN_COVER)), "book_open_green")
+    made.append("book_open_green")
     for i in range(4):
         save_png(scale2x(page_flip(i)), "book_flip%d" % i)
         made.append("book_flip%d" % i)

@@ -165,6 +165,7 @@ var _frame: NinePatchRect = null     ## the bamboo border round the overlay
 var _slot: NinePatchRect = null      ## the cream slot behind a shop item's picture
 var _preview: RoomPreview = null     ## the Ideas tab's half-size room picture
 var _ideas_frame: NinePatchRect = null
+var _caption: RichTextLabel = null   ## the catalogue's left-page caption under the picture
 var _info: RichTextLabel = null      ## the Ideas tab's blurb / pieces / cost lines
 ## What the highlighted item is for, shown on the hint bar.
 var _shop_blurb: String = ""
@@ -321,6 +322,25 @@ func _ready() -> void:
 	_info.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	_info.add_theme_constant_override("line_separation", 0)
 	overlay.add_child(_info)
+	# The catalogue's caption, on the left page under the picture.
+	_caption = RichTextLabel.new()
+	_caption.bbcode_enabled = true
+	_caption.scroll_active = false
+	_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_caption.position = Vector2(BOOK_LEFT.position.x, 208.0)
+	_caption.size = Vector2(BOOK_LEFT.size.x, 84.0)
+	_caption.add_theme_color_override("default_color", Color(0.24, 0.2, 0.16))
+	_caption.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_caption.add_theme_constant_override("line_separation", 0)
+	_caption.visible = false
+	overlay.add_child(_caption)
+	# The slot, the ideas frame and the room picture were added BEHIND the
+	# scene's own nodes, which put them under the book once the shop moved
+	# onto one. They belong on top of it.
+	var above := book.get_index() + 1
+	for n: Node in [_slot, _ideas_frame, _preview]:
+		overlay.move_child(n, above)
+		above += 1
 	_set_ideas_ui(false)
 	# A new run must not inherit the last one's screen.
 	Game.run_started.connect(func() -> void:
@@ -360,7 +380,19 @@ func _set_ideas_ui(on: bool) -> void:
 	_preview.visible = on
 	_ideas_frame.visible = on
 	_info.visible = on
-	rich.offset_right = 278.0 if on else 608.0
+	if on:
+		# On the right-hand page of the catalogue: the room picture at three
+		# quarters of its half size (240 wide, to fit a page), then the lines
+		# beneath it in small print, in ink.
+		_ideas_frame.position = Vector2(336, 64)
+		_ideas_frame.size = Vector2(252, 144)
+		_preview.position = Vector2(342, 70)
+		_preview.scale = Vector2(0.75, 0.75)
+		_preview.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_info.position = Vector2(338, 212)
+		_info.size = Vector2(250, 80)
+		_info.add_theme_font_size_override("normal_font_size", UI_SMALL)
+		_info.add_theme_color_override("default_color", Color(0.24, 0.2, 0.16))
 
 
 ## `tex` enlarged by the biggest WHOLE number that still fits `w` x `h`
@@ -1000,6 +1032,17 @@ const BOOK_RIGHT := Rect2(334, 64, 256, 228)
 ## (40..314 since the pixel font, Oct 2026: its title line is shorter than
 ## the old font's at 24, and the hint sits lower, so the body gained a row.)
 const BOOK_RICH_HOME := Rect2(32, 40, 576, 274)
+## The same spread in three cloths: the red lesson-plan and grade books, the
+## BLUE furniture catalogue, the GREEN curriculum. Preloaded for the same
+## reason as the flip frames below (the art audit reads literal paths).
+const BOOK_RED := preload("res://art/book_open.png")
+const BOOK_BLUE := preload("res://art/book_open_blue.png")
+const BOOK_GREEN := preload("res://art/book_open_green.png")
+## The left page, where rich_left sits (the scene's own offsets).
+const BOOK_LEFT := Rect2(60, 64, 240, 228)
+## Furniture rows a catalogue page holds, and cabinet rows. The right page is
+## 256px wide, so a row is a name and a price; the rest rides on the left.
+const SHOP_ROWS := 6
 ## Preloaded, not load()ed by name: the art audit scans the source for
 ## literal paths, and a frame built by string interpolation is invisible to
 ## it -- which is exactly the sort of orphan that scan exists to catch.
@@ -1025,11 +1068,18 @@ var _book_page_shown: int = -1
 ## pasted over it. Only the text moves -- onto the right-hand page, with the
 ## heading on the left, which is why neither screen had to be rewritten,
 ## only re-laid-out.
-func _book(on: bool) -> void:
+func _book(on: bool, cover: Texture2D = BOOK_RED) -> void:
 	book.visible = on
 	rich_left.visible = on
-	if on and book.texture == null:
-		book.texture = load("res://art/book_open.png")
+	if on:
+		book.texture = cover
+		# the shop borrows the left page for a caption; every other book
+		# leaves it alone, so it is put away whenever a book is (re)opened
+		if _caption != null:
+			_caption.visible = false
+	else:
+		if _caption != null:
+			_caption.visible = false
 	if on:
 		rich.offset_left = BOOK_RIGHT.position.x
 		rich.offset_top = BOOK_RIGHT.position.y
@@ -4648,7 +4698,7 @@ func show_curriculum() -> void:
 	_open(Mode.CURRICULUM)
 	body.visible = false
 	rich.visible = true
-	_book(true)
+	_book(true, BOOK_GREEN)
 	rich.add_theme_constant_override("line_separation", 1)
 	# 11, not the 12 every other book screen uses: this is the one with four
 	# columns on a row. Confirmed by screenshot, not by counting characters.
@@ -5378,13 +5428,52 @@ func _shop_rows() -> Array:
 	return Game.cabinet_ids()
 
 
+## The shop's sections, in the order Tab turns through them. The left page
+## lists them like the contents of a catalogue, with a mark on the open one.
+const SHOP_SECTIONS := ["Furniture", "Your cabinet", "Staff room", "The room",
+	"Lesson crafting", "Room ideas"]
+
+
+## Every [color=#hex] in `text` re-mixed to read as ink on the cream page.
+## The shop's row builders were written for a dark panel; rather than fork
+## all of them, the finished text is converted once. DIM is the one grey
+## with its own paper twin.
+func _inkify(text: String) -> String:
+	var rx := RegEx.new()
+	rx.compile("\\[color=#([0-9a-fA-F]{6})\\]")
+	var out := ""
+	var at := 0
+	for m: RegExMatch in rx.search_all(text):
+		out += text.substr(at, m.get_start() - at)
+		var hex := m.get_string(1)
+		out += "[color=#%s]" % (INK_DIM if hex == DIM else _on_paper(hex))
+		at = m.get_end()
+	return out + text.substr(at)
+
+
+## The contents list on the left page of every shop section but the first.
+func _shop_contents() -> String:
+	var out: Array[String] = []
+	for i in SHOP_SECTIONS.size():
+		if i == _shop:
+			out.append("> %s" % SHOP_SECTIONS[i])
+		else:
+			out.append("[color=#%s]  %s[/color]" % [DIM, SHOP_SECTIONS[i]])
+	return "\n".join(out)
+
+
 func _render_catalogue() -> void:
-	# The shop is a list of five KINDS of thing at four different prices --
-	# exactly what colour is for, and a Label is one colour by definition.
+	# The shop is a BLUE catalogue: an open book, ink on cream. The left page
+	# is the contents and the picture of what you are looking at; the right
+	# page is the list with prices. Same keys and rows as the old dark panel.
 	body.visible = false
 	rich.visible = true
+	_book(true, BOOK_BLUE)
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	rich_left.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	rich_left.add_theme_constant_override("line_separation", 0)
+	_caption.text = ""
 	# The shop grew a blurb line and the staff room lists five perks, so the
 	# default font 10 (about 6 lines in a 128px body) ran under the hint bar.
 	body.add_theme_font_size_override("font_size", UI_SIZE)
@@ -5392,22 +5481,30 @@ func _render_catalogue() -> void:
 	var rows := _shop_rows()
 	_sel = 0 if rows.is_empty() else clampi(_sel, 0, rows.size() - 1)
 	_set_ideas_ui(_shop == Shop.IDEAS)
+	# Turning to another tab or category turns the page; moving the cursor
+	# on one page does not.
+	_book_turned(_shop * 100 + (_cat if _shop == Shop.BUY else 0))
 
 	var tabs := ""
+	var strip := ""
 	if _shop == Shop.BUY:
 		var cats := Items.categories()
 		for i in cats.size():
 			# Every tab in its own colour, so the strip is the key to the
-			# rows below it. The one you are on gets the full word and the
-			# brackets; the rest get three letters, because they are there
-			# to be aimed at rather than read.
+			# rows beside it. The one you are on gets the full word and the
+			# brackets; the rest get three letters, small, because they are
+			# there to be aimed at rather than read.
 			var label := Items.category_label(String(cats[i]))
 			var hue := cat_colour(String(cats[i]))
+			# The open category is named in full on its own line; the strip
+			# under it marks where it sits among the others.
 			if i == _cat:
-				tabs += "[color=#%s][%s][/color]" % [hue, label]
+				tabs = "[color=#%s]%s[/color]" % [hue, label]
+				strip += "[color=#%s][%s][/color]" % [hue, label.substr(0, 3)]
 			else:
-				tabs += "[color=#%s] %s [/color]" % [hue, label.substr(0, 3)]
-	var heading := "BUY FURNITURE"
+				strip += "[color=#%s] %s [/color]" % [hue, label.substr(0, 3)]
+		tabs += "\n[font_size=%d]%s[/font_size]" % [UI_SMALL, strip]
+	var heading := "FURNITURE CATALOGUE"
 	if _shop == Shop.CABINET:
 		heading = "YOUR CABINET"
 	elif _shop == Shop.STAFF:
@@ -5421,22 +5518,24 @@ func _render_catalogue() -> void:
 	title.text = "%s  -  %d coins" % [heading, Game.coins]
 
 	# Show the thing you are buying. You used to be choosing furniture you
-	# had never seen, described by a decimal.
+	# had never seen, described by a decimal. It sits framed on the left page.
 	portrait.visible = false
 	if _shop == Shop.BUY and not rows.is_empty():
 		var art := String(Items.get_def(String(rows[_sel])).get("art", ""))
 		if art != "" and ResourceLoader.exists("res://art/%s.png" % art):
 			# A whole-number scale, centred, so the pixels stay square: fitting
-			# a 30x38 sprite to a 96x140 box by stretching gave uneven pixels.
-			portrait.texture = _scaled_whole(load("res://art/%s.png" % art), 96, 140)
+			# a 30x38 sprite to a box by stretching gave uneven pixels.
+			portrait.texture = _scaled_whole(load("res://art/%s.png" % art), 104, 82)
 			portrait.set_meta("art", art)     # which item this is (the texture may be a scaled copy)
 			portrait.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+			_portrait_at(Rect2(128, 112, 104, 82))
 			portrait.visible = true
+	_slot.position = Vector2(116, 100)
+	_slot.size = Vector2(128, 106)
 	_slot.visible = portrait.visible
 
+	var left := ""
 	var lines: Array[String] = []
-	if _shop == Shop.BUY and tabs != "":
-		lines.append(tabs)
 	if _shop == Shop.STAFF:
 		lines = _render_staff()
 	elif _shop == Shop.ROOM:
@@ -5444,17 +5543,18 @@ func _render_catalogue() -> void:
 	elif _shop == Shop.CRAFT:
 		lines = _render_craft(rows)
 	elif _shop == Shop.IDEAS:
-		lines = _render_ideas(rows)
+		# the list of ideas is the left page; the picture is the right
+		left = "\n".join(_render_ideas(rows))
 	elif rows.is_empty():
 		lines.append("   The cabinet is empty. Buy something first.")
 	elif _shop == Shop.BUY:
-		# A window, not the whole list. The Learning category alone has ten
-		# items and the body is about eleven lines -- printing them all ran
-		# straight under the hint bar.
-		var lo := _window_start(rows.size(), LIST_ROWS)
+		left = tabs
+		# A window, not the whole list: a category can hold more than a
+		# page does.
+		var lo := _window_start(rows.size(), SHOP_ROWS)
 		if lo > 0:
 			lines.append("   ...")
-		for i in range(lo, mini(rows.size(), lo + LIST_ROWS)):
+		for i in range(lo, mini(rows.size(), lo + SHOP_ROWS)):
 			var id: String = rows[i]
 			var d := Items.get_def(id)
 			var price := Game.shop_price(id)
@@ -5462,20 +5562,16 @@ func _render_catalogue() -> void:
 			var hue := cat_colour(Items.category_of(id))
 			# The price is the thing you are actually deciding on, so it
 			# carries the yes/no colour rather than the name doing it.
+			var mark := ">" if i == _sel else " "
 			if String(d.get("cat", "")) == "consumable":
-				# No range, no bonus -- it is not placed anywhere, so the
-				# worth-bar and reach-words that describe FURNITURE would
-				# both crash reading fields a consumable does not have.
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [color=#%s]today only[/color]" % [
-					">" if i == _sel else " ", hue if afford else DIM,
-					String(d["name"]).substr(0, 13),
-					C_GOOD if afford else C_BAD, price, DIM])
+				# No range, no bonus -- it is not placed anywhere.
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]today[/color][/font_size]" % [
+					mark, hue if afford else DIM, String(d["name"]).substr(0, 13),
+					C_GOOD if afford else C_BAD, price, UI_SMALL, DIM])
 			elif Items.is_desk_top(id):
-				# Stands on one child's desk (the study folder or a learning aid):
-				# it reaches nobody else, so the worth-bar and reach-words -- which
-				# describe what a piece does for the desks AROUND it -- would
-				# both be wrong. Says where it goes, and when you have all the
-				# copies a decision about WHO is worth.
+				# Stands on one child's desk: it reaches nobody else, so it
+				# says where it goes, and when you have all the copies a
+				# decision about WHO is worth.
 				var cap := Items.max_owned(id)
 				var full: bool = cap > 0 and Game.owned_count(id) >= cap
 				var tag := "on one desk, no chatting"
@@ -5483,44 +5579,49 @@ func _render_catalogue() -> void:
 					tag = "you have them all"
 				elif not bool(d.get("screens_neighbours", false)) and float(d.get("desk_work_mult", 1.0)) > 1.0:
 					tag = "on one desk, +%d%% work speed" % int(round((float(d.get("desk_work_mult", 1.0)) - 1.0) * 100.0))
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]%s[/color][/font_size]" % [
-					">" if i == _sel else " ", hue if afford and not full else DIM,
-					String(d["name"]).substr(0, 13),
-					C_GOOD if afford and not full else C_BAD, price, UI_SMALL, DIM,
-					tag])
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color]\n     [font_size=%d][color=#%s]%s[/color][/font_size]" % [
+					mark, hue if afford and not full else DIM, String(d["name"]).substr(0, 13),
+					C_GOOD if afford and not full else C_BAD, price, UI_SMALL, DIM, tag])
 			else:
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] %s %s" % [
-					">" if i == _sel else " ", hue if afford else DIM,
-					String(d["name"]).substr(0, 13),
-					C_GOOD if afford else C_BAD, price,
-					_worth_bar(float(d["bonus"])),
-					# Small print beside the bar: at full size the row ran
-					# under the item's picture on the right.
-					"[font_size=%d][color=#%s]%s[/color][/font_size]" % [UI_SMALL, DIM,
-						_reach_words(int(d["range"]), float(d["bonus"]))]])
-		if lo + LIST_ROWS < rows.size():
+				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color]" % [
+					mark, hue if afford else DIM, String(d["name"]).substr(0, 13),
+					C_GOOD if afford else C_BAD, price])
+		if lo + SHOP_ROWS < rows.size():
 			lines.append("   ...")
-		# The blurb rides on the HINT bar rather than taking a body line. The
-		# tab strip plus four rows is already everything the panel holds, and
-		# the blurb was landing on top of the hint text.
-		_shop_blurb = String(Items.get_def(rows[_sel]).get("blurb", ""))
+		# The caption under the picture: what it is, what it is for, and
+		# (for furniture) how much it helps and how far it reaches.
+		var cur := String(rows[_sel])
+		var cd := Items.get_def(cur)
+		var cap_lines: Array[String] = ["[color=#%s]%s[/color]" % [
+			cat_colour(Items.category_of(cur)), String(cd.get("name", cur))]]
+		_shop_blurb = String(cd.get("blurb", ""))
+		cap_lines.append("[font_size=%d]%s[/font_size]" % [UI_SMALL, _shop_blurb])
+		if String(cd.get("cat", "")) != "consumable" and not Items.is_desk_top(cur):
+			cap_lines.append("%s [font_size=%d][color=#%s]%s[/color][/font_size]" % [
+				_worth_bar(float(cd["bonus"])), UI_SMALL, DIM,
+				_reach_words(int(cd["range"]), float(cd["bonus"]))])
+		_caption.text = _inkify("\n".join(cap_lines))
+		_caption.visible = true
 	else:
 		# CABINET: everything you own and have not placed. Windowed the same
-		# way the buy list is -- storage can hold more than the panel shows.
-		var lo2 := _window_start(rows.size(), LIST_ROWS)
+		# way the buy list is -- storage can hold more than the page shows.
+		var lo2 := _window_start(rows.size(), SHOP_ROWS)
 		if lo2 > 0:
 			lines.append("   ...")
-		for i in range(lo2, mini(rows.size(), lo2 + LIST_ROWS)):
+		for i in range(lo2, mini(rows.size(), lo2 + SHOP_ROWS)):
 			var cid := String(rows[i])
 			var cn := Game.cabinet_count(cid)
-			lines.append(_clip("%s %-13s  x%d   sell %3d" % [
+			lines.append("%s %-12s x%d  sell %3d" % [
 				">" if i == _sel else " ",
-				String(Items.get_def(cid).get("name", cid)),
-				cn, Game.sell_value(cid)]))
-		if lo2 + LIST_ROWS < rows.size():
+				String(Items.get_def(cid).get("name", cid)).substr(0, 12),
+				cn, Game.sell_value(cid)])
+		if lo2 + SHOP_ROWS < rows.size():
 			lines.append("   ...")
-		lines.append("E takes one out to place.  Left sells one for half.")
-	rich.text = "\n".join(lines)
+		lines.append("[font_size=%d]E takes one out to place.  Left sells one for half.[/font_size]" % UI_SMALL)
+	if _shop != Shop.BUY and _shop != Shop.IDEAS:
+		left = _shop_contents()
+	rich_left.text = _inkify(left)
+	rich.text = _inkify("\n".join(lines))
 	# NO reveal here. The catalogue re-renders on every keypress, so a
 	# wipe would restart under your fingers each time you moved the
 	# selection. Animate results you are handed, never a list you are
@@ -5532,7 +5633,7 @@ func _render_catalogue() -> void:
 		hint.text = "Up/Down browse   Tab buy list   Esc close"
 		return
 	if _shop == Shop.BUY:
-		hint.text = _hint_clip(_shop_blurb) if _shop_blurb != "" 			else "Up/Down pick   Left/Right category   E buy to cabinet   Esc close"
+		hint.text = "Up/Down pick   Left/Right category   Tab cabinet   E buy   Esc close"
 		return
 	if _shop == Shop.CABINET:
 		hint.text = "Up/Down choose   E place   Left sell   Tab staff room   Esc close"
@@ -5582,10 +5683,9 @@ func _render_ideas(rows: Array) -> Array[String]:
 	var owned := RoomTemplates.owned_count(cur)
 	var left := RoomTemplates.missing_cost(cur)
 	# One line each, fitted: three lines is all the space under the picture.
-	_info.text = "%s\n[color=#%s]%s[/color]\nYou own %d of its %d pieces. %s" % [
-		_fit_or_small(String(cur.get("blurb", "")), _info.size.x), DIM,
-		_fit_or_small(shown, _info.size.x), owned, total,
-		"That is all of it." if left == 0 else "The rest: [color=#%s]%d[/color] coins." % [C_COIN, left]]
+	_info.text = _inkify("%s\n[color=#%s]%s[/color]\nYou own %d of its %d pieces. %s" % [
+		String(cur.get("blurb", "")), DIM, shown, owned, total,
+		"That is all of it." if left == 0 else "The rest: [color=#%s]%d[/color] coins." % [C_COIN, left]])
 	return lines
 
 
@@ -5598,7 +5698,7 @@ func _render_ideas(rows: Array) -> Array[String]:
 func _render_room() -> Array[String]:
 	Balance.ensure_loaded()
 	var out: Array[String] = []
-	out.append("   Your classroom is %d by %d tiles." % [Grid.W, Grid.H])
+	out.append("Your classroom is %d by %d tiles." % [Grid.W, Grid.H])
 	out.append("")
 	for i in ROOM_ROWS.size():
 		var axis := String(ROOM_ROWS[i])
@@ -5610,14 +5710,14 @@ func _render_room() -> Array[String]:
 		else:
 			label = "One column wider" if axis == "wide" else "One row longer"
 			tail = "%d coins" % Game.expand_cost(axis) if Game.can_expand(axis) 				else "at its limit"
-		out.append("%s %-22s %s" % [">" if i == _sel else " ", label, tail])
+		# the name on one line, the price under it: a page is 256px wide
+		out.append("%s %s\n     [color=#%s]%s[/color]" % [
+			">" if i == _sel else " ", label, C_COIN, tail])
 	out.append("")
 	if Grid.W > Grid.BASE_W or Grid.H > Grid.BASE_H:
-		out.append("   The view follows you now the room is bigger")
-		out.append("   than the screen.")
+		out.append("[font_size=%d]The view follows you now the room is bigger than the screen.[/font_size]" % UI_SMALL)
 	else:
-		out.append("   A bigger room holds more desks -- and the view")
-		out.append("   will start to follow you rather than sitting still.")
+		out.append("[font_size=%d]A bigger room holds more desks -- and the view will start to follow you rather than sitting still.[/font_size]" % UI_SMALL)
 	return out
 
 
@@ -5653,8 +5753,8 @@ func _staff_row(idx: int, label: String, hired: bool, level: int,
 	var dots := ""
 	if hired:
 		dots = " " + _cells(BAR_FULL, level) + _cells(BAR_EMPTY, Balance.staff_level_max - level)
-	return "%s [color=#%s]%-17s[/color]%s [color=#%s]%s[/color]" % [
-		">" if _sel == idx else " ", C_ROOM, label, dots,
+	return "%s [color=#%s]%s[/color]\n     %s[font_size=%d][color=#%s]%s[/color][/font_size]" % [
+		">" if _sel == idx else " ", C_ROOM, label, dots.strip_edges(), UI_SMALL,
 		C_GOOD if hired else C_COIN, status]
 
 
@@ -5716,12 +5816,14 @@ func _render_craft(rows: Array) -> Array[String]:
 		# A crafted lesson's bar tints to its own style's colour rather than
 		# the flat C_LESSON every other row uses -- the one bit of UI
 		# appearance a style carries today. See docs/CRAFT_STYLES.md.
-		lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%s[/color] [color=#%s]%4d[/color]" % [
+		# The name on one line and the bar and price under it: the page is
+		# 256px wide and a lesson's name is long.
+		lines.append("%s [color=#%s]%s[/color]\n     [color=#%s]%s[/color] [font_size=%d][color=#%s]%d coins[/color][/font_size]" % [
 			">" if i == _sel else " ", C_LESSON,
-			String(d.get("name", lesson_id)).substr(0, 13),
+			String(d.get("name", lesson_id)).substr(0, 18),
 			craft_style_colour(style) if level > 0 else DIM,
 			_cells(BAR_FULL, mini(level, cap)) + _cells(BAR_EMPTY, maxi(0, cap - level)),
-			C_GOOD if afford else C_BAD, cost])
+			UI_SMALL, C_GOOD if afford else C_BAD, cost])
 	if lo + LIST_ROWS < rows.size():
 		lines.append("   ...")
 	return lines
@@ -5730,10 +5832,9 @@ func _render_craft(rows: Array) -> Array[String]:
 func _render_staff() -> Array[String]:
 	Balance.ensure_loaded()
 	var lines: Array[String] = []
-	lines.append("[color=#%s]Level %d[/color]    %d point%s to spend" % [
-		C_KNOW, Game.teacher_level, Game.perk_points_free(),
+	lines.append("[color=#%s]Level %d[/color]  [font_size=%d]%d point%s to spend[/font_size]" % [
+		C_KNOW, Game.teacher_level, UI_SMALL, Game.perk_points_free(),
 		"" if Game.perk_points_free() == 1 else "s"])
-	lines.append("")
 
 	# rows 0-1: the aide and the janitor, same shape, same controls
 	lines.append(_staff_row(0, "Teacher's aide", Game.has_aide,
@@ -5759,26 +5860,29 @@ func _render_staff() -> Array[String]:
 		var d := Progress.perk_def(id)
 		var have := Game.perk_rank(id)
 		var cap := Progress.max_rank(id)
-		lines.append("%s %-17s [color=#%s]%s[/color]" % [
+		lines.append("%s %s [color=#%s]%s[/color]" % [
 			">" if i + 2 == _sel else " ", String(d.get("name", id)),
 			C_LESSON if have > 0 else DIM,
 			_cells(BAR_FULL, have) + _cells(BAR_EMPTY, cap - have)])
 	if perk_lo + STAFF_PERK_ROWS < order.size():
 		lines.append("   ...")
-	lines.append("")
+	# What the marked row does goes in the caption on the left page: the
+	# right page is only wide enough for the list itself.
+	var note := ""
 	if _sel == 0 or _sel == 1:
 		var hired: bool = Game.has_aide if _sel == 0 else Game.has_janitor
 		var maxed: bool = (Game.aide_level if _sel == 0 else Game.janitor_level) \
 			>= Balance.staff_level_max
 		var blurb := "They collect finished work so you can stay at the front." \
 			if _sel == 0 else "They clean the room's mess for you, any time of day."
-		lines.append("[color=#%s]%s[/color]" % [DIM, _fit_or_small(
-			blurb if not hired
-			else ("Fully trained." if maxed else "E again to train them up a level.")
-			+ ("" if not hired else "  Left arrow to let them go."), rich.size.x)])
+		note = blurb if not hired \
+			else ("Fully trained." if maxed else "E again to train them up a level.") \
+			+ ("" if not hired else "  Left arrow to let them go.")
 	elif not order.is_empty():
-		lines.append("[color=#%s]%s[/color]" % [DIM, _fit_or_small(
-			String(Progress.perk_def(order[_sel - 2]).get("blurb", "")), rich.size.x)])
+		note = String(Progress.perk_def(order[_sel - 2]).get("blurb", ""))
+	if note != "":
+		_caption.text = "[font_size=%d]%s[/font_size]" % [UI_SMALL, note]
+		_caption.visible = true
 	return lines
 
 

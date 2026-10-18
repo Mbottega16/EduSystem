@@ -206,6 +206,7 @@ func build() -> void:
 	curriculum = RoomBuilder.build_curriculum(self, grid)
 	treat_shelf = RoomBuilder.build_treat_shelf(self, grid)
 	RoomBuilder.build_decor(self, grid)
+	RoomBuilder.build_ambient(self)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
@@ -476,6 +477,7 @@ func rebuild_room() -> void:
 	curriculum = RoomBuilder.build_curriculum(self, grid)
 	treat_shelf = RoomBuilder.build_treat_shelf(self, grid)
 	RoomBuilder.build_decor(self, grid)
+	RoomBuilder.build_ambient(self)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
 		if c is Interactable and not c.curriculum_opened.is_connected(_on_curriculum_requested):
