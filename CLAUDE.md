@@ -401,6 +401,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
 *Vault summary: `~/OneDrive/Desktop/AI Projects/my-brain/projects/edusystem/context.md` (and `history.md` for pre-October build logs).*
 
 - **Last Worked On:**
+  - **Reverse-Engineered Sim Formulas & Pokemon Dialogue Pacing & LimeZu Generator (2026-10-17):**
+    - Extracted and codified clean-room simulation math in `docs/SIM_FORMULAS.md`: differential attention decay equation $A(t)$, diminishing-returns reaction curve $R(\ell)$, 5-tier pedagogy progression tree for `RoomSim`, and ZPD scaffolding multipliers.
+    - Fine-tuned authentic Pokemon Gen 4/5 NDS dialogue and UI pacing in `scripts/ui/hud.gd`: sentence terminator pauses (-6.0 ticks / ~0.16s), phrase separator pauses (-3.0 ticks / ~0.08s), non-whitespace alternating sound blips, and pixel-snapped integer indicator bounce.
+    - Built procedural student generator `tools/limezu_random_student.py` adhering to LimeZu generator layering rules, palette constraints, and role balance.
   - **Title Screen Controls Footer Polish (2026-10-17):** Fixed pagination overlap on Title screen Controls rebind page (`scripts/ui/title.gd`); integrated page range cleanly into `footer.text` rather than appending extra lines into the non-scrolling menu Label.
   - **SaveManager Slot-Picker UI (`c92f44b`):** Implemented 3 visual save slots with metadata in the UI.
   - **Desks that touch get talking (`accdd57`, 2026-10-10):** Adjacent/diagonal seated students can start a 5s lilac-bubble conversation (replaces hidden 12% `room.cluster_penalty`; broken up by walking within 2 tiles, calling *Class, class!*, or raising voice; traits carry `chat_mult`).
@@ -411,5 +415,6 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   - Suite green: **2,781 assertions** in 138 sections, docs 315/315, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
 - **What Needs To Be Worked On Next:**
   1. Owner playtest feedback on desk chatter frequency, Study Folder balance (`balance.json` -> `chat`, `items.study_folder`), and Grade Book UX.
-  2. Remaining tiers of `[limezu-build-plan.md]` (sleep row for stuck students, cast variation juice pass, Modern Farm animal cosmetics) as directed by the owner.
+  2. Implement upcoming Admin Coaching layer using the clean-room math in `docs/SIM_FORMULAS.md`.
+  3. Remaining tiers of `[limezu-build-plan.md]` (sleep row for stuck students, cast variation juice pass, Modern Farm animal cosmetics) as directed by the owner.
 

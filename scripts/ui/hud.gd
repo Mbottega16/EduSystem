@@ -496,17 +496,24 @@ func _process(_delta: float) -> void:
 			_dialogue_char_timer += _delta * 38.0
 			while _dialogue_char_timer >= 1.0 and _dialogue_visible_chars < _dialogue_full_text.length():
 				_dialogue_char_timer -= 1.0
+				var ch := _dialogue_full_text[_dialogue_visible_chars]
 				_dialogue_visible_chars += 1
 				dialogue_text.text = _dialogue_full_text.substr(0, _dialogue_visible_chars)
-				_blip_counter += 1
-				if _blip_counter % 3 == 0:
-					Sfx.play("blip")
+				if not ch.strip_edges().is_empty():
+					_blip_counter += 1
+					if _blip_counter % 2 == 0:
+						Sfx.play("blip", 1.15)
+				# Authentic Pokemon DS punctuation pacing pauses
+				if ch in [".", "!", "?"]:
+					_dialogue_char_timer -= 6.0
+				elif ch in [",", ";", ":", "—", "-"]:
+					_dialogue_char_timer -= 3.0
 			if _dialogue_visible_chars >= _dialogue_full_text.length():
 				_dialogue_typing = false
 				dialogue_advance.visible = true
 		if dialogue_advance.visible and dialogue_arrow != null:
 			_arrow_bob += _delta * 6.0
-			dialogue_arrow.position.y = sin(_arrow_bob) * 3.0
+			dialogue_arrow.position.y = roundf(sin(_arrow_bob) * 2.0)
 
 	# Every face on screen blinks now and then. Real play only: the suite and
 	# the screenshot tools must see the face they asked for, not whichever
