@@ -1,0 +1,12 @@
+# EduSystem — ignore Godot engine cache, screenshots, audio binaries, and Python caches
+.git/
+.godot/
+.agents/
+shots/
+**/__pycache__/
+*.import
+*.uid
+*.ogg
+*.wav
+*.mp3
+*.zip

@@ -469,10 +469,12 @@ func _render() -> void:
 						else Settings.binding_text(id)
 					lines.append("%s %-13s %s" % [
 						">" if i == sel else " ", _label_for(id), shown])
+			var prompt := message if message != "" else "E to rebind, Esc to go back"
 			if rows.size() > shown_rows:
-				lines.append("")
-				lines.append("  %d-%d of %d" % [lo + 1, mini(rows.size(), lo + shown_rows), rows.size()])
-			footer.text = message if message != "" else "E to rebind, Esc to go back"
+				footer.text = "%s  (%d-%d of %d)" % [
+					prompt, lo + 1, mini(rows.size(), lo + shown_rows), rows.size()]
+			else:
+				footer.text = prompt
 
 		Page.HOWTO:
 			menu.offset_top = 80.0   # doubled Aug 2026

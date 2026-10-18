@@ -383,3 +383,33 @@ write PNGs but do not import them, and Godot cannot load an unimported
 texture. After adding or editing art run `godot --headless --path .
 --import` (or `Reimport Art.bat`). The suite now *loads* every PNG rather
 than checking it exists.
+
+---
+
+## Never Read / Noise Zones (Do Not Scan)
+
+To avoid wasting context or slowing down searches, **never read or grep inside**:
+- `.godot/` — 2,018+ Godot internal cache, shader, and imported texture files.
+- `shots/` — generated screenshot PNGs (inspect only the specific screenshot you just captured).
+- `art/*.import`, `*.uid`, `audio/*.wav`, `audio/*.ogg` — binary/import metadata files.
+- `tools/__pycache__/` — Python bytecode caches.
+
+---
+
+## Session Handoff (Last Worked On · Current State · Next Up)
+
+*Vault summary: `~/OneDrive/Desktop/AI Projects/my-brain/projects/edusystem/context.md` (and `history.md` for pre-October build logs).*
+
+- **Last Worked On:**
+  - **Title Screen Controls Footer Polish (2026-10-17):** Fixed pagination overlap on Title screen Controls rebind page (`scripts/ui/title.gd`); integrated page range cleanly into `footer.text` rather than appending extra lines into the non-scrolling menu Label.
+  - **SaveManager Slot-Picker UI (`c92f44b`):** Implemented 3 visual save slots with metadata in the UI.
+  - **Desks that touch get talking (`accdd57`, 2026-10-10):** Adjacent/diagonal seated students can start a 5s lilac-bubble conversation (replaces hidden 12% `room.cluster_penalty`; broken up by walking within 2 tiles, calling *Class, class!*, or raising voice; traits carry `chat_mult`).
+  - **The Study Folder (`8414c57`):** Desk-top item (`Game.desk_items`, Learning tab, 60 coins, max 2) that lets a stuck child look up their own answer after 6s and prevents chatting/copying across that desk.
+  - **The Grade Book (Key `U`):** Open register on the teacher's desk showing 5 lessons per page across `Game.grade_log` (lessons, unit tests, term exams).
+  - **Explorable School & Animated Room (2026-10-08/09):** Walkable staffed rooms replaying yesterday's `RoomSim`, hallway trophy case, principal's office room, event-day desk props (`RoomBuilder.EVENT_DESK`), blinking cast (`18x4` sheets), and 13 animated shop items.
+- **Current State (2026-10-17):**
+  - Suite green: **2,781 assertions** in 138 sections, docs 315/315, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
+- **What Needs To Be Worked On Next:**
+  1. Owner playtest feedback on desk chatter frequency, Study Folder balance (`balance.json` -> `chat`, `items.study_folder`), and Grade Book UX.
+  2. Remaining tiers of `[limezu-build-plan.md]` (sleep row for stuck students, cast variation juice pass, Modern Farm animal cosmetics) as directed by the owner.
+
