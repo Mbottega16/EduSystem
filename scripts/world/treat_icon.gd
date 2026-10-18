@@ -1,10 +1,11 @@
 extends Node2D
 
-## A treat from the supply cupboard, drawn in code: three small pixel icons on
+## A treat from the treat shelf, drawn in code: three small pixel icons on
 ## the room's own grid (two screen pixels to a pixel of art), built in the
 ## room's keyline colour. Placeholder art until a pack sprite is chosen -- it is
-## shown over the teacher's hand while a treat is carried, and on the stash
-## tray on the cabinet.
+## shown over the teacher's hand while a treat is carried. (The shelf itself
+## is LimeZu's jars, art/treat_shelf.png; the tray that drew these round the
+## locker is gone.)
 
 const KEYLINE := Color(0.227, 0.227, 0.314)
 ## Screen pixels per pixel of art -- the room is authored at 16px a tile and

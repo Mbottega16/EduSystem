@@ -85,6 +85,10 @@ var bell: Interactable = null
 var noticeboard: Interactable = null
 var ad_poster: Interactable = null
 var cabinet: Interactable = null
+## The alphabet poster: what you can teach (E). Its own fixture since Oct 2026.
+var curriculum: Interactable = null
+## The treat shelf the treats are taken from (X).
+var treat_shelf: Interactable = null
 ## The way out, at the hole already in the left wall. Leads to the hallway.
 var hall_door: Interactable = null
 ## Standing at the back on inspection days. Not in `students`, so nothing
@@ -199,6 +203,8 @@ func build() -> void:
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
 	cabinet = RoomBuilder.build_cabinet(self, grid)
+	curriculum = RoomBuilder.build_curriculum(self, grid)
+	treat_shelf = RoomBuilder.build_treat_shelf(self, grid)
 	RoomBuilder.build_decor(self, grid)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):
@@ -467,6 +473,8 @@ func rebuild_room() -> void:
 	bell = RoomBuilder.build_bell(self, grid)
 	noticeboard = RoomBuilder.build_noticeboard(self, grid)
 	cabinet = RoomBuilder.build_cabinet(self, grid)
+	curriculum = RoomBuilder.build_curriculum(self, grid)
+	treat_shelf = RoomBuilder.build_treat_shelf(self, grid)
 	RoomBuilder.build_decor(self, grid)
 	ad_poster = RoomBuilder.build_ad_poster(self, grid)
 	for c in get_tree().get_nodes_in_group("curriculum_board"):

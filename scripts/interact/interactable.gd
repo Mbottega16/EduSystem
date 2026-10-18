@@ -61,7 +61,7 @@ func set_pick_radius(r: float) -> void:
 ##               opened on E only once the sheets were gone would pop up in
 ##               the middle of a mash -- the shape of collision this list
 ##               exists to prevent.
-##   SUPPLY    - take a treat from the supply cupboard (the back-wall cabinet),
+##   SUPPLY    - take a treat from the treat shelf (on the back wall),
 ##               carry it, and hand it over at a child's desk (Oct 2026,
 ##               learning-system-plan.md). The one verb that lives at TWO
 ##               landmarks, which is exactly what a shared key cannot say: E

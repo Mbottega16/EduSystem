@@ -1,10 +1,12 @@
 extends Interactable
 
-## The supply cupboard (learning-system-plan.md): a tray of treats a teacher
+## The treat shelf (learning-system-plan.md): three jars of treats a teacher
 ## carries to a child's desk, with no hotbar -- you walk to it, take one, walk
-## to the desk and hand it over (desk_treat.gd). It lives on the back-wall
-## cabinet, which offers nothing during a lesson, and well clear of the
-## podium, whose four verbs already fill the badge row.
+## to the desk and hand it over (desk_treat.gd). Since Oct 2026 it is its own
+## shelf on the back wall, between the second window and the shop: the treats
+## used to be drawn floating round the locker's shoulders, where nobody could
+## tell what they were for. It is well clear of the podium, whose four verbs
+## already fill the badge row.
 ##
 ## One press takes the first treat, the next swaps it for the one after, and
 ## after the last you put it back. Free to take and free to put back: it is
@@ -28,7 +30,7 @@ func prompt_text() -> String:
 		return ""
 	var i := ids.find(Game.carried)
 	if i < 0:
-		return "Take a %s from the cupboard" % Game.treat_name(String(ids[0]))
+		return "Take a %s from the shelf" % Game.treat_name(String(ids[0]))
 	if i >= ids.size() - 1:
 		return "Put the %s back" % Game.treat_name(Game.carried)
 	return "Swap the %s for a %s" % [Game.treat_name(Game.carried),

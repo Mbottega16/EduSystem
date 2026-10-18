@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-12**, against build `b45`, with **2781 assertions
+> **Measured on 2026-10-12**, against build `b45`, with **2831 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -414,7 +414,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **2781 assertions** across **138 sections** |
+| Tests | **2831 assertions** across **139 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

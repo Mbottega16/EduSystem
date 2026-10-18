@@ -555,6 +555,10 @@ def build_prop(spec, manifest):
 
     "minus": ref keeps only what the spec's image draws differently from that single
     (see minus()) -- an object LimeZu drew standing on something, lifted off it.
+
+    "fill": [[x, y, w, h, "#rrggbb"], ...] paints those rects (art pixels, in the
+    single's own frame, before any trim) one flat colour -- how the teacher's desk
+    loses its pencil pot: the desktop's own green, painted over where the pot stood.
     """
     if "join" in spec:
         # "join": [ref, ref, ...] -- numbered singles set side by side, bottoms aligned
@@ -574,6 +578,10 @@ def build_prop(spec, manifest):
     else:
         pack, member = resolve(spec["ref"], manifest)
         im = pack.image(member)
+    if "fill" in spec:
+        im = im.convert("RGBA")
+        for x, y, w, h, colour in spec["fill"]:
+            im.paste(parse_hex(colour) + (255,), (x, y, x + w, y + h))
     if "crop" in spec:
         im = im.crop(tuple(spec["crop"]))
     if "rows" in spec:

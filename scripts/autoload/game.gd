@@ -2681,7 +2681,8 @@ func grade_test() -> Array:
 		s.record_result(lesson, g, day, true)
 		s.add_xp(Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
-	log_grades("test", String(lesson.get("name", "Lesson")), lesson_strand(), out)
+	log_grades("test", String(lesson.get("name", "Lesson")), lesson_strand(), out,
+		String(lesson.get("id", "")))
 	test_active = false
 	return out
 
@@ -2971,7 +2972,7 @@ func _reset_consumables() -> void:
 	consumables_used_today.clear()
 
 
-# --- the supply stash: treats carried from the cupboard to a desk -----------
+# --- the supply stash: treats carried from the shelf to a desk -----------
 #
 # learning-system-plan.md: "no magical hotbars" -- you walk to the supply
 # cupboard (the back-wall cabinet), take a treat, walk to a child's desk and
@@ -3849,7 +3850,10 @@ var grade_log: Array = []
 
 ## Write one page of the book: `results` as grade_class()/grade_test() return
 ## them ({student, grade}) or as the exam's rows ({student, score}).
-func log_grades(kind: String, title: String, strand: String, results: Array) -> void:
+## `lesson_id` names the lesson an entry is for (Oct 2026), so the grade book's
+## subjects page can find it again; older entries only have its name.
+func log_grades(kind: String, title: String, strand: String, results: Array,
+		lesson_id: String = "") -> void:
 	var rows: Array = []
 	for r: Dictionary in results:
 		var s: StudentData = r.get("student", null)
@@ -3859,8 +3863,11 @@ func log_grades(kind: String, title: String, strand: String, results: Array) -> 
 			"grade": float(r.get("grade", r.get("score", 0.0)))})
 	if rows.is_empty():
 		return
-	grade_log.append({"term": term, "day": day, "kind": kind, "name": title,
-		"strand": strand, "rows": rows})
+	var entry := {"term": term, "day": day, "kind": kind, "name": title,
+		"strand": strand, "rows": rows}
+	if lesson_id != "":
+		entry["lesson"] = lesson_id
+	grade_log.append(entry)
 
 
 ## A save from before the book existed: write this term back into it from the
@@ -3883,6 +3890,8 @@ func _grade_log_from_transcripts() -> Array:
 					"kind": "test" if test else "lesson",
 					"name": String(row.get("name", "Lesson")),
 					"strand": String(l.get("strand", "")), "rows": []}
+				if not l.is_empty():
+					pages[key]["lesson"] = String(l.get("id", ""))
 				order.append(key)
 			(pages[key]["rows"] as Array).append({"id": s.id, "name": s.first_name(),
 				"grade": float(row.get("grade", 0.0))})
@@ -3938,7 +3947,8 @@ func grade_class() -> Array:
 	_sleep_tick_accum = 0.0
 	_zpd_tick_accum = 0.0
 	end_all_zpd()
-	log_grades("lesson", String(lesson.get("name", "Lesson")), strand, out)
+	log_grades("lesson", String(lesson.get("name", "Lesson")), strand, out,
+		String(lesson.get("id", "")))
 	record_taught(String(lesson.get("id", "")))
 	return out
 
@@ -3980,11 +3990,17 @@ func free_wall_slot(id: String) -> Vector2i:
 
 ## A save from before wall pieces hung had its clock and banner standing on the
 ## floor. Put each one up on the wall; if the wall has no room it goes back in
-## the cabinet rather than vanishing.
+## the cabinet rather than vanishing. The same for a piece hung where the wall
+## is no longer free: the Oct 2026 back wall gave the curriculum poster, the
+## treat shelf and the intercom columns of their own, and a clock a save hung
+## there moves along to the next free spot.
 func rehang_wall_items() -> void:
 	for placed: Dictionary in room_items.duplicate():
 		var id := String(placed["id"])
-		if not Items.is_wall(id) or (placed["tile"] as Vector2i).y == Layout.WALL_ROW:
+		if not Items.is_wall(id):
+			continue
+		var at := placed["tile"] as Vector2i
+		if at.y == Layout.WALL_ROW and Layout.wall_slot_ok(id, at):
 			continue
 		room_items.erase(placed)
 		var slot := free_wall_slot(id)

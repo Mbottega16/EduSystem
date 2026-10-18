@@ -70,7 +70,7 @@ const DEFAULTS := {
 	# letting a hired teacher go.
 	"grades": [KEY_U],
 	# X, the letter nothing else wanted (O is a zero in the pixel font): one
-	# verb at two landmarks -- take a treat from the supply cupboard, then hand
+	# verb at two landmarks -- take a treat from the treat shelf, then hand
 	# it over at a child's desk.
 	"supply": [KEY_X],
 	"move_desk": [KEY_M],

@@ -603,10 +603,30 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = Grid.tile_to_world(
 				Layout.TEACHER_DESK[0] + Vector2i(0, 1))
 		"at_board":
-			# standing at the noticeboard: BOTH buttons must be named
+			# standing at the corkboard: the furniture shop, and only the shop
 			Game.set_phase(Game.Phase.AFTERNOON)
 			world.player.global_position = Grid.tile_to_world(
 				Layout.BOARD + Vector2i(0, 1))
+		"at_curriculum":
+			# standing under the alphabet poster: the curriculum, on E
+			Game.set_phase(Game.Phase.AFTERNOON)
+			world.player.global_position = Grid.tile_to_world(
+				Layout.CURRICULUM[0] + Vector2i(0, 1))
+			world.player.facing = Actor.DIR_UP
+		"butterfly_out", "butterfly_in":
+			# The butterfly at the second window (window_butterfly.gd), stopped
+			# at a moment of its round: butterfly_out -- the window open and it
+			# outside, going; butterfly_in -- back in, looping over the front row.
+			Game.set_phase(Game.Phase.AFTERNOON)
+			for b: Node in world.get_tree().get_nodes_in_group("window_butterfly"):
+				var at: float = b.REST + b.OUT_FLY + 0.4
+				if screen == "butterfly_in":
+					at = b.REST + b.OUT_FLY + b.OUT_FADE + b.AWAY + b.IN_FADE + b.IN_LOOP * 0.45
+				b._t = at
+				b.set_process(false)
+				b._step(at)
+				b.z_index = 1 if (b._flying and not b._outside) else 0
+				b.queue_redraw()
 		"at_bell":
 			Game.set_phase(Game.Phase.AFTERNOON)
 			world.player.global_position = Grid.tile_to_world(
@@ -733,7 +753,7 @@ func _open_screen(main: Node, screen: String) -> void:
 				hud.show_student(Game.roster[0])
 				hud._bio_page = hud.BIO_ACTING
 				hud.show_student(Game.roster[0])
-		"grade_book", "grade_book_empty":
+		"grade_book", "grade_book_empty", "grade_book_register":
 			# The grade book on the teacher's desk (hud.show_grade_book()).
 			# grade_book: a page of five -- four lessons and a unit test --
 			# written through Game.log_grades(), the function the real
@@ -743,13 +763,16 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.intro_seen = true
 			hud.close()
 			Game.grade_log.clear()
-			if screen == "grade_book":
+			if screen in ["grade_book", "grade_book_register"]:
+				# Real lessons, taught and graded: on the subjects page they are
+				# written in their subject's colour with the class's letter.
 				var gone := StudentData.new()
 				gone.id = 9999
 				gone.display_name = "Mo Pike"
-				var pages := [["Fractions", "math"], ["Phonics", "ela"],
-					["Habitats", "science"], ["Our Town", "social"], ["Fractions", "math"]]
+				var pages := ["fractions", "phonics", "life_cycles", "map_geography",
+					"fractions", "reading_fluency", "shapes"]
 				for i in pages.size():
+					var l := Curriculum.by_id(String(pages[i]))
 					var res: Array = []
 					for s: StudentData in Game.roster:
 						res.append({"student": s,
@@ -757,9 +780,15 @@ func _open_screen(main: Node, screen: String) -> void:
 					if i < 2:
 						res.append({"student": gone, "grade": 0.7})
 					Game.day = 3 + i
+					if i != 4:
+						Game.record_taught(String(pages[i]))
 					Game.log_grades("test" if i == 4 else "lesson",
-						String(pages[i][0]), String(pages[i][1]), res)
+						String(l.get("name", "")), String(l.get("strand", "")), res,
+						String(pages[i]))
 			hud.open_grade_book()
+			if screen == "grade_book_register":
+				hud._gb_view = hud.GBView.REGISTER
+				hud.show_grade_book()
 		"hall", "hall_new_term":
 			# The Graduation & Transfer Hall (hud.show_graduation_hall()): a
 			# class that has all cleared the bar, two picked to stay on and the
@@ -795,8 +824,8 @@ func _open_screen(main: Node, screen: String) -> void:
 				Game.captains = [first.id, third.id]
 				hud.show_new_term(Game.next_term())
 		"treat", "treat_desk":
-			# The supply cupboard (Game.carried): a lesson running with one child
-			# asleep at their desk. treat: the teacher at the cabinet with a
+			# The treat shelf (Game.carried): a lesson running with one child
+			# asleep at their desk. treat: the teacher under the shelf with a
 			# fidget cube in hand and the badge offering to swap it.
 			# treat_desk: stood at the sleeper's desk with a peppermint, the
 			# badge offering to hand it over.
@@ -809,7 +838,7 @@ func _open_screen(main: Node, screen: String) -> void:
 			sleeper.sleepiness = 3
 			sleeper.fall_asleep(120.0)
 			if screen == "treat":
-				world.player.global_position = Grid.tile_to_world(Layout.CABINET + Vector2i(0, 1))
+				world.player.global_position = Grid.tile_to_world(Layout.SUPPLY[0] + Vector2i(0, 1))
 				world.player.facing = Actor.DIR_UP
 				Game.set_carried("fidget_cube")
 			else:

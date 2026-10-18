@@ -1280,7 +1280,7 @@ const HELP_LINES := {
 	"answer_all": "Unstick the whole room at once. Long wait after.",
 	"homework": "Mark the homework you collected, at your desk.",
 	"grades": "Every grade you have given, read at your desk.",
-	"supply": "Take a treat from the cupboard, then hand it to a child's desk.",
+	"supply": "Take a treat from the shelf, then hand it to a child's desk.",
 	"move_desk": "Move a desk. Desks that touch get talking.",
 	"voice": "Settle the desks within earshot.",
 	"call_response": "Class, class! The room is with you a while, anywhere.",
@@ -4037,10 +4037,21 @@ static func _book_day(entry: Dictionary) -> String:
 	return str(int(entry.get("day", 0)))
 
 
-## Opened at the desk: on the newest page, from the top of the class.
+## Opened at the desk: on the subjects page, at the lesson you are teaching;
+## the register (Tab) on its newest page, from the top of the class.
 func open_grade_book() -> void:
 	_gb_page = -1
 	_gb_top = 0
+	_gb_view = GBView.SUBJECTS
+	_gb_col = 0
+	_gb_row = 0
+	var now := String(Game.lesson.get("id", ""))
+	var subjects := grade_book_subjects()
+	for c in subjects.size():
+		for r in (subjects[c][1] as Array).size():
+			if String((subjects[c][1][r] as Dictionary).get("id", "")) == now:
+				_gb_col = c
+				_gb_row = r
 	show_grade_book()
 
 
@@ -4052,13 +4063,16 @@ func show_grade_book() -> void:
 	rich.add_theme_constant_override("line_separation", 0)
 	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "THE GRADE BOOK"
+	if _gb_view == GBView.SUBJECTS:
+		_show_grade_subjects()
+		return
 	var pages := grade_book_pages()
 	if pages.is_empty():
 		_gb_page = -1
 		rich_left.text = "[color=#%s]Nothing written in it yet.[/color]" % INK_DIM
 		rich.text = "Every grade you give goes in here, lesson by lesson, and stays after the child has moved on."
 		_reveal_rich(0.2)
-		hint.text = "Esc - close"
+		hint.text = "Tab - the subjects   Esc - close"
 		return
 	if _gb_page < 0 or _gb_page >= pages.size():
 		_gb_page = pages.size() - 1
@@ -4122,8 +4136,203 @@ func show_grade_book() -> void:
 		right.append("[center][color=#%s]v more below[/color][/center]" % INK_DIM)
 	rich.text = "\n".join(right)
 	_reveal_rich(0.25)
-	hint.text = _hint_clip("Left/Right - turn the page%s   Esc - close" % (
+	hint.text = _hint_clip("Left/Right - turn the page%s   Tab - the subjects   Esc - close" % (
 		"   Up/Down - more names" if kids.size() > GRADE_BOOK_ROWS else ""))
+
+
+## --- The subjects page (Oct 2026, the owner's ask) -------------------------
+##
+## "Similar to the lesson choosing screen ... color-coded visuals for each of
+## the subjects, and I want to be able to see all the lessons in one screen ...
+## categorized by subject. As far as what's been taught yet and what hasn't."
+##
+## So the book opens on the whole curriculum at once: the four subjects as four
+## columns across the two pages, each headed by its own mark and colour (the
+## same STRAND_COLOUR and icon the curriculum screen uses), every lesson under
+## its subject in the small type. A lesson you have taught is written in its
+## subject's colour, with the letter the class last came out at beside it; one
+## you have not is in faded ink with nothing beside it. The register -- a row
+## per child, a letter per lesson -- is a page turn away on Tab.
+
+enum GBView { SUBJECTS, REGISTER }
+var _gb_view: int = GBView.SUBJECTS
+## The selected lesson on the subjects page: which subject column, which row.
+var _gb_col: int = 0
+var _gb_row: int = 0
+## Each name gets this much of its column, in px at UI_SMALL, before it is cut.
+const GB_NAME_PX := 84.0
+## A lesson not taught yet: fainter than INK_DIM, so taught and not taught
+## part at a glance -- the subject's colour against pencil.
+const INK_FAINT := "a2947a"
+
+
+## The curriculum by subject, in the order the curriculum lists them:
+## [[strand, [lesson, ...]], ...].
+func grade_book_subjects() -> Array:
+	var out: Array = []
+	for strand: String in Curriculum.strands():
+		var rows: Array = []
+		for l: Dictionary in Curriculum.lessons:
+			if String(l.get("strand", "")) == strand:
+				rows.append(l)
+		out.append([strand, rows])
+	return out
+
+
+## Every lesson-kind entry of the book for lesson `l`, oldest first. Entries
+## written since Oct 2026 carry the lesson's id; older ones only its name.
+static func _gb_entries_for(l: Dictionary) -> Array:
+	var lid := String(l.get("id", ""))
+	var lname := String(l.get("name", ""))
+	var out: Array = []
+	for e: Dictionary in Game.grade_log:
+		if String(e.get("kind", "")) != "lesson":
+			continue
+		if String(e.get("lesson", "")) == lid \
+				or (not e.has("lesson") and String(e.get("name", "")) == lname):
+			out.append(e)
+	return out
+
+
+## The class's grade the last time lesson `l` was taught, or -1 if the book
+## has none: every child's grade on that day, averaged.
+static func grade_book_class_grade(l: Dictionary) -> float:
+	var entries := _gb_entries_for(l)
+	if entries.is_empty():
+		return -1.0
+	var rows: Array = (entries[entries.size() - 1] as Dictionary).get("rows", [])
+	if rows.is_empty():
+		return -1.0
+	var total := 0.0
+	for r: Dictionary in rows:
+		total += float(r.get("grade", 0.0))
+	return total / float(rows.size())
+
+
+## Taught at all: by you this career (Game.taught), or written in the book.
+static func grade_book_taught(l: Dictionary) -> bool:
+	return Game.times_taught(String(l.get("id", ""))) > 0 or not _gb_entries_for(l).is_empty()
+
+
+## A subject's colour as ink on the page, lighter than _on_paper(): that one
+## is dark enough to read as any colour at all only in the big type, and in the
+## small type the four subjects all came out near-black.
+func _on_paper_soft(hex: String) -> String:
+	var c := Color.from_string("#" + hex, Color(0.2, 0.18, 0.14))
+	while c.get_luminance() > 0.45:
+		c = c.darkened(0.15)
+	return c.to_html(false)
+
+
+## The subject's mark at half size -- exactly its own art pixels, since the
+## icon is drawn at twice its pixel size -- faded on a lesson not taught yet.
+static func _gb_mark(strand: String, taught: bool) -> String:
+	if not STRAND_ICON_PATH.has(strand):
+		return ""
+	return "[img width=8 height=8 color=#ffffff%s]%s[/img]" % [
+		"ff" if taught else "55", String(STRAND_ICON_PATH[strand])]
+
+
+## One subject column's cells for row `i`: the header (row -1) or a lesson.
+func _gb_cell(subject: Array, i: int, col: int) -> String:
+	var strand := String(subject[0])
+	var pad := "[cell padding=0,0,10,2]"
+	if i < 0:
+		return "%s%s [color=#%s]%s[/color][/cell]" % [pad, strand_icon(strand),
+			_on_paper_soft(strand_colour(strand)), Curriculum.strand_label(strand)]
+	var lessons: Array = subject[1]
+	if i >= lessons.size():
+		return "%s [/cell]" % pad
+	var l: Dictionary = lessons[i]
+	var mark := ">" if (col == _gb_col and i == _gb_row) else " "
+	var name := _fit_px(Curriculum.short_name(l), GB_NAME_PX, UI_SMALL)
+	if not grade_book_taught(l):
+		return "%s[color=#%s]%s[/color]%s[color=#%s] %s[/color][/cell]" % [pad, INK_PLAIN, mark,
+			_gb_mark(strand, false), INK_FAINT, name]
+	var g := grade_book_class_grade(l)
+	return "%s[color=#%s]%s[/color]%s[color=#%s] %s[/color] %s[/cell]" % [pad, INK_PLAIN, mark,
+		_gb_mark(strand, true), _on_paper_soft(strand_colour(strand)), name,
+		_book_letter(g) if g >= 0.0 else ""]
+
+
+## Two subjects side by side, as one table: their headers, then their lessons.
+func _gb_page_table(subjects: Array, first_col: int) -> String:
+	var n := 0
+	for s: Array in subjects:
+		n = maxi(n, (s[1] as Array).size())
+	var cells := ""
+	for i in range(-1, n):
+		for k in subjects.size():
+			cells += _gb_cell(subjects[k], i, first_col + k)
+	return "[font_size=%d][table=%d]%s[/table][/font_size]" % [UI_SMALL, subjects.size(), cells]
+
+
+func _show_grade_subjects() -> void:
+	var subjects := grade_book_subjects()
+	if subjects.is_empty():
+		return
+	_gb_col = clampi(_gb_col, 0, subjects.size() - 1)
+	var col_lessons: Array = subjects[_gb_col][1]
+	_gb_row = clampi(_gb_row, 0, maxi(0, col_lessons.size() - 1))
+	_book_turned(0)
+	title.text = "THE GRADE BOOK"
+	rich.add_theme_constant_override("line_separation", 2)
+	var half := (subjects.size() + 1) / 2
+
+	# The selected lesson, under the left page's subjects.
+	var pick: Dictionary = col_lessons[_gb_row] if not col_lessons.is_empty() else {}
+	var left: Array[String] = [_gb_page_table(subjects.slice(0, half), 0)]
+	if not pick.is_empty():
+		var strand := String(pick.get("strand", ""))
+		var said := "not taught yet."
+		var g := grade_book_class_grade(pick)
+		if g >= 0.0:
+			var l := Game.grade_letter(g)
+			said = "%s. Last time the class came out at %s %s." % [
+				_taught_words(String(pick.get("id", ""))),
+				"an" if l in ["A", "E", "F"] else "a", l]
+		elif grade_book_taught(pick):
+			said = "%s; no grade written in this book." % _taught_words(String(pick.get("id", "")))
+		left.append("[font_size=%d][color=#%s]%s:[/color] [color=#%s]%s[/color][/font_size]" % [
+			UI_SMALL, _on_paper_soft(strand_colour(strand)), Curriculum.short_name(pick),
+			INK_DIM, said])
+	rich_left.text = "\n".join(left)
+
+	# What the colours mean, and how far through it all you are -- a count of
+	# what YOU have done, the sanctioned side of the prose-never-numbers rule.
+	var taught := 0
+	var total := 0
+	for s: Array in subjects:
+		for l: Dictionary in s[1]:
+			total += 1
+			if grade_book_taught(l):
+				taught += 1
+	var right: Array[String] = [_gb_page_table(subjects.slice(half), half)]
+	right.append("[font_size=%d][color=#%s]Taught %d of %d. In colour: taught, with the class's last grade. Faded: not yet.[/color][/font_size]" % [
+		UI_SMALL, INK_DIM, taught, total])
+	rich.text = "\n".join(right)
+	_reveal_rich(0.25)
+	hint.text = _hint_clip("Arrows - choose   Tab - the register   Esc - close")
+
+
+func _handle_grade_subjects_input() -> void:
+	var subjects := grade_book_subjects()
+	if subjects.is_empty():
+		return
+	var n := subjects.size()
+	if Input.is_action_just_pressed("move_left"):
+		_gb_col = (_gb_col - 1 + n) % n
+	elif Input.is_action_just_pressed("move_right"):
+		_gb_col = (_gb_col + 1) % n
+	elif Input.is_action_just_pressed("move_down"):
+		_gb_row = (_gb_row + 1) % maxi(1, (subjects[_gb_col][1] as Array).size())
+	elif Input.is_action_just_pressed("move_up"):
+		var m := maxi(1, (subjects[_gb_col][1] as Array).size())
+		_gb_row = (_gb_row - 1 + m) % m
+	else:
+		return
+	Sfx.play("blip")
+	show_grade_book()
 
 
 func _handle_grade_book_input() -> void:
@@ -4132,6 +4341,14 @@ func _handle_grade_book_input() -> void:
 			or Game.claim_action("grades"):
 		Sfx.play("blip")
 		close()
+	elif Input.is_action_just_pressed("menu"):
+		# Tab: the subjects page <-> the register, the way Tab turns every other
+		# two-page screen.
+		_gb_view = GBView.REGISTER if _gb_view == GBView.SUBJECTS else GBView.SUBJECTS
+		Sfx.play("paper")
+		show_grade_book()
+	elif _gb_view == GBView.SUBJECTS:
+		_handle_grade_subjects_input()
 	elif pages > 0 and Input.is_action_just_pressed("move_left"):
 		if _gb_page > 0:
 			_gb_page -= 1

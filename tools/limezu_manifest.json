@@ -113,7 +113,16 @@
     },
     "teacher_desk": {
       "ref": "classroom#25",
-      "why": "green-topped desk with the open register and a pencil pot"
+      "fill": [
+        [
+          21,
+          12,
+          7,
+          8,
+          "#447e70"
+        ]
+      ],
+      "why": "green-topped desk with the open register; its pencil pot is painted out (desktop green over art x21-27, rows 12-19) so the teacher's mug stands on a clear corner (Oct 2026, owner's ask)"
     },
     "podium": {
       "ref": "museum#131",
@@ -134,9 +143,24 @@
       "hue": 95,
       "why": "the same locker, hue-rotated to green so a bought one is not the landmark twice"
     },
-    "supply_shelf": {
-      "ref": "classroom#56",
-      "why": "two-wide library shelf of supplies"
+    "treat_shelf": {
+      "ref": "kitchen#127",
+      "trim": "xy",
+      "why": "a shelf of three jars on the back wall: the treat shelf the teacher takes a treat from (key X). Replaced the three hand-drawn treats that floated round the locker (Oct 2026)"
+    },
+    "curriculum_poster": {
+      "ref": "classroom#32",
+      "rows": [
+        [
+          8,
+          23
+        ],
+        [
+          28,
+          29
+        ]
+      ],
+      "why": "what you can teach: the alphabet poster, its last row of letters left off so it clears the status strip and is not the shop's Letter Frieze twice. A fixture since Oct 2026 (it was the corkboard's other key)"
     },
     "bookshelf": {
       "ref": "classroom#59",
@@ -562,6 +586,41 @@
       },
       "trim": "xy",
       "why": "a mug of coffee, steaming, on the teacher's own desk (a fixture, not an item)"
+    },
+    "bell": {
+      "ref": "jail#124",
+      "trim": "xy",
+      "why": "the school intercom on the wall: the bell that ends the day rings through it. Replaced the hand-drawn hand bell that stood on the floor by the furniture shop (Oct 2026, owner's ask)"
+    },
+    "ad_poster": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_clothing_store_advertising_monitor.png",
+      "rect": [
+        0,
+        0,
+        16,
+        48
+      ],
+      "anim": {
+        "frames": 57,
+        "fps": 8
+      },
+      "why": "the pack's advertising screen, cycling its adverts (57 frames): the optional reward video. Replaced the hand-drawn poster (Oct 2026, owner's ask)"
+    },
+    "butterfly_fly": {
+      "pack": "interiors",
+      "sheet": "3_Animated_objects/16x16/spritesheets/animated_butterfly_3.png",
+      "rect": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "anim": {
+        "frames": 4,
+        "fps": 10
+      },
+      "why": "the same red butterfly as window_butterfly (the idle sheet's colours exactly), in flight: it flies out through the window and back in (Oct 2026, owner's ask)"
     },
     "desk_fan": {
       "ref": "kitchen#203",

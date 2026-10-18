@@ -485,8 +485,8 @@ func _render() -> void:
 				"A ? means that student is STUCK and their",
 				"work has stopped. Walk over, press %s." % Settings.binding_text("interact"),
 				"Collect finished work, hand it in at YOUR",
-				"desk, then ring the BELL to end the day.",
-				"Buy furniture at the NOTICEBOARD - it only",
+				"desk. The INTERCOM, top left, ends the day.",
+				"Buy furniture at the CORKBOARD - it only",
 				"helps the desks in range, shown in green.",
 				"A term is %d days, then they sit an exam." % Balance.term_days,
 			]

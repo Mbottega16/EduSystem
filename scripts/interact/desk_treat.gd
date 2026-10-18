@@ -1,6 +1,6 @@
 extends Interactable
 
-## The other end of the supply cupboard: with a treat in your hands, a child's
+## The other end of the treat shelf: with a treat in your hands, a child's
 ## desk offers to take it. The same key as the cupboard (SUPPLY) -- the
 ## cupboard is on the back wall and the desk is where the child is, so the
 ## picker takes whichever you stand beside and face.

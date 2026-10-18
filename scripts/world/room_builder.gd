@@ -47,18 +47,34 @@ const EVENT_DESK := {
 	"parents_evening": ["donut_plate", 1, 0.0],
 	"new_face": ["flower_vase", 1, 0.0],
 }
-## Where a desk-top piece stands: bottom-centre, on the front of the desk's
-## top at its left end -- the register lies open in the middle and the mug and
-## pen pot hold the right, so it rests on the register's near corner.
-const EVENT_DESK_SPOT := Vector2(-14, -16)
+## Where a desk-top piece stands: bottom-centre, on the desk's top at its left
+## end -- the register lies open there and the mug holds the right, so it rests
+## on the register's near corner. The desktop runs from y -42 to -20 (its front
+## lip is -20..-14); -22 stands a piece ON the top, where -16 left it teetering
+## on the lip.
+const EVENT_DESK_SPOT := Vector2(-14, -22)
+## The mug's bottom edge on the desk: well onto the top, not on the front lip
+## (it sat at -17 and looked as if it was sliding off -- Oct 2026, the owner).
+const TEACHER_COFFEE_SPOT := Vector2(17, -24)
 ## Sunlight through each window, lying on the floor below it (build_sunlight).
 const SUN_COLOUR := Color(1.0, 0.93, 0.72, 0.16)
 const SUN_DEPTH := 96            # px down the floor it reaches (3 tiles)
 const SUN_LEAN := 28             # px it slides right over that depth
 const PROP_PAPER := preload("res://art/paper.png")
+## The intercom the end-of-day bell rings through (LimeZu, Oct 2026 -- it was a
+## hand-drawn hand bell). Still called the bell everywhere: that is its job.
 const PROP_BELL := preload("res://art/bell.png")
 const PROP_BOARD := preload("res://art/noticeboard.png")
+## The curriculum: the alphabet poster, a fixture since Oct 2026 -- three rows
+## of letters, not the shop's four-row Letter Frieze, so it clears the strip.
+const PROP_CURRICULUM := preload("res://art/curriculum_poster.png")
+## The treat shelf: three jars the teacher takes a treat from.
+const PROP_TREAT_SHELF := preload("res://art/treat_shelf.png")
+## The reward-video screen, cycling its adverts (LimeZu's advertising monitor).
 const PROP_AD_POSTER := preload("res://art/ad_poster.png")
+const PROP_AD_POSTER_ANIM := preload("res://art/ad_poster_anim.png")
+const AD_POSTER_FRAMES := 57
+const AD_POSTER_FPS := 8.0
 const PROP_CABINET := preload("res://art/cabinet_body.png")
 const PROP_MESS_TRASH := preload("res://art/mess_trash.png")
 const PROP_MESS_SPILL := preload("res://art/mess_spill.png")
@@ -75,7 +91,6 @@ const HOMEWORK_DESK_SCRIPT := preload("res://scripts/interact/homework_desk.gd")
 const GRADE_BOOK_SCRIPT := preload("res://scripts/interact/grade_book.gd")
 const SUPPLY_STASH_SCRIPT := preload("res://scripts/interact/supply_stash.gd")
 const DESK_TREAT_SCRIPT := preload("res://scripts/interact/desk_treat.gd")
-const STASH_TRAY_SCRIPT := preload("res://scripts/world/stash_tray.gd")
 const DESK_INTERRUPTION_SCRIPT := preload("res://scripts/interact/desk_interruption.gd")
 const BELL_SCRIPT := preload("res://scripts/interact/bell.gd")
 const BOARD_SCRIPT := preload("res://scripts/interact/noticeboard.gd")
@@ -87,6 +102,7 @@ const PLACED_SCRIPT := preload("res://scripts/interact/placed_item.gd")
 const MESS_SCRIPT := preload("res://scripts/interact/mess.gd")
 const SPEECH_BUBBLE_SCENE := preload("res://scenes/actors/speech_bubble.tscn")
 const PROP_ANIM_SCRIPT := preload("res://scripts/world/prop_anim.gd")
+const BUTTERFLY_SCRIPT := preload("res://scripts/world/window_butterfly.gd")
 
 
 static func make_box(size: Vector2, at: Vector2) -> CollisionShape2D:
@@ -440,11 +456,12 @@ static func build_teacher_desk(parent: Node2D, grid: Grid) -> Interactable:
 	body.add_child(gb)
 	# A mug of coffee on the right of the desk, steaming. The room had
 	# nothing that moved on its own but a fish tank and a butterfly; a
-	# teacher's desk with a hot drink on it is lived in. Sits on the desk's
-	# top edge, in front of the pen pot.
+	# teacher's desk with a hot drink on it is lived in. It stands on the
+	# corner the pen pot used to fill (the pot is painted out of the desk art,
+	# tools/limezu_manifest.json "fill").
 	var mug := Sprite2D.new()
 	mug.texture = TEACHER_COFFEE
-	mug.position = Vector2(17, -17 - TEACHER_COFFEE.get_height() / 2.0)
+	mug.position = TEACHER_COFFEE_SPOT - Vector2(0, TEACHER_COFFEE.get_height() / 2.0)
 	mug.name = "Coffee"
 	body.add_child(mug)
 	var steam := Node.new()
@@ -542,12 +559,61 @@ static func build_sunlight(parent: Node2D) -> Array:
 	return out
 
 
-static func build_bell(parent: Node2D, grid: Grid) -> Interactable:
-	var body := add_prop(parent, PROP_BELL, Grid.tile_to_world(Layout.BELL), Vector2(24, 16))   # doubled, was 12,8
+## --- What hangs on the back wall for good (Oct 2026) ----------------------
+##
+## The furniture shop's corkboard, the curriculum poster, the treat shelf and
+## the intercom that rings the bell. Each one's body sits ON the wall, with its
+## art's bottom edge on Layout.WALL_HANG_Y like every hung piece, so it sorts
+## behind anybody standing on the floor in front of it (a body down on the
+## floor tile drew the board over the heads of children walking under it). Its
+## Interactable is moved down to the floor tile you stand on to use it.
+##
+## Each row: [texture, the floor tiles it hangs over, x nudge in px]. The nudge
+## keeps a piece clear of its neighbours, on the room's 2px art grid: the
+## corkboard sits square over its own two columns rather than half a column
+## left of them, which is what put it on top of the alphabet poster.
+static func hung_fixtures() -> Array:
+	return [
+		[PROP_BOARD, [Layout.BOARD, Layout.BOARD + Vector2i(1, 0)], -2.0],
+		[PROP_CURRICULUM, Layout.CURRICULUM, -4.0],
+		[PROP_TREAT_SHELF, Layout.SUPPLY, -5.0],
+		[PROP_BELL, [Layout.BELL], 1.0],
+	]
+
+
+## Where a hung fixture's art goes: bottom-centre, on the wall.
+static func hung_fixture_anchor(tiles: Array, nudge: float) -> Vector2:
+	return Vector2(_tiles_anchor(tiles).x + nudge, Layout.WALL_HANG_Y)
+
+
+static func _tiles_anchor(tiles: Array) -> Vector2:
+	var typed: Array[Vector2i] = []
+	for t: Vector2i in tiles:
+		typed.append(t)
+	return Layout.span_anchor(typed)
+
+
+## Hang fixture `row` (one of hung_fixtures()) and give it `script` as an
+## Interactable down on the floor tile in front of it.
+static func _hang_fixture(parent: Node2D, row: Array, script: Script) -> Interactable:
+	var tiles: Array = row[1]
+	var at := hung_fixture_anchor(tiles, float(row[2]))
+	var body := add_prop(parent, row[0] as Texture2D, at, Vector2.ZERO, 0.0, false)
+	body.add_to_group("wall_fixture")
 	var it := Interactable.new()
-	it.set_script(BELL_SCRIPT)
+	it.set_script(script)
+	it.position = _tiles_anchor(tiles) - at
 	body.add_child(it)
-	grid.set_cell(Layout.BELL, Grid.Cell.BLOCKED)
+	return it
+
+
+## The intercom: hold F and the bell rings through it, and the day is over.
+## On the wall over the top-left corner, so it blocks no floor.
+static func build_bell(parent: Node2D, _grid: Grid) -> Interactable:
+	var it := _hang_fixture(parent, hung_fixtures()[3], BELL_SCRIPT)
+	# It hangs beside the teacher's desk: at the default reach it answered from
+	# the desk's own tile and took the selection off the desk.
+	it.set_pick_radius(16.0)
 	return it
 
 
@@ -559,52 +625,53 @@ static func build_cabinet(parent: Node2D, grid: Grid) -> Interactable:
 	var it := Interactable.new()
 	it.set_script(CABINET_SCRIPT)
 	body.add_child(it)
-	# The supply cupboard (Oct 2026): the same cabinet holds a tray of treats
-	# for a lesson, on its own key (X). The cabinet itself offers nothing
-	# DURING a lesson, so this gives it a use there, and it stands well clear
-	# of the podium, whose four verbs already fill the badge row.
-	var stash := Interactable.new()
-	stash.set_script(SUPPLY_STASH_SCRIPT)
-	stash.add_to_group("supply_stash")
-	body.add_child(stash)
-	stash.set_pick_radius(24.0)
-	var tray := Node2D.new()
-	tray.set_script(STASH_TRAY_SCRIPT)
-	tray.position = Vector2(0, -34)
-	tray.z_index = 2
-	body.add_child(tray)
+	# The treats used to be taken from here, off a tray drawn floating round
+	# the locker's shoulders; they have their own shelf now (build_treat_shelf).
 	grid.set_cell(Layout.CABINET, Grid.Cell.BLOCKED)
 	return it
 
 
+## The furniture shop: the corkboard, and only the shop (Oct 2026 -- the
+## curriculum was on its other key, and the hand bell stood beside it, so the
+## owner could not tell which thing did what). It keeps the floor tile it
+## always blocked, so no saved room changes shape under it.
 static func build_noticeboard(parent: Node2D, grid: Grid) -> Interactable:
-	# The board art is two tiles wide and hangs UP on the brick: art_offset
-	# lifts the sprite ~a tile clear of the floor while the body, collider
-	# and both Interactables stay on the tile you walk up to. No floor
-	# contact shadow either -- it is on the wall, not standing on the floor.
-	var body := add_prop(parent, PROP_BOARD, Grid.tile_to_world(Layout.BOARD),
-		Vector2(24, 16), 0.0, false, Vector2(0, -34))
-	var it := Interactable.new()
-	it.set_script(BOARD_SCRIPT)
-	body.add_child(it)
-	# Same reason as the curriculum board it shares a tile with: at the
-	# default the shop answered from the BELL's square two tiles away, so
-	# the morning offered "Furniture shop" while standing at the bell.
+	var it := _hang_fixture(parent, hung_fixtures()[0], BOARD_SCRIPT)
+	# The Interactable stands between the board's two columns; the tile it
+	# blocks, and is reached from, is still Layout.BOARD.
+	it.position = Grid.tile_to_world(Layout.BOARD) - (it.get_parent() as Node2D).position
+	# You have to be at the board to read the board: the default reach
+	# answered from two tiles away.
 	it.set_pick_radius(24.0)   # doubled Aug 2026, was 12.0
-
-	# Same board, other button: E is the shop, F is what you have learned to
-	# teach. Both are always live, which is fine -- the picker only has to
-	# choose between things that share an action.
-	var cur := Interactable.new()
-	cur.set_script(CURRICULUM_SCRIPT)
-	cur.add_to_group("curriculum_board")
-	body.add_child(cur)
-	# The board sits two tiles from the BELL, and reach is the sum of both
-	# circles -- so at the default it answered from the bell's own tile and
-	# took the prompt with it. You have to be at the board to read the board.
-	cur.set_pick_radius(18.0)   # doubled Aug 2026, was 9.0
-
+	var body := it.get_parent() as Node2D
+	body.add_child(make_box(Vector2(24, 16), it.position + Vector2(0, -8)))
 	grid.set_cell(Layout.BOARD, Grid.Cell.BLOCKED)
+	return it
+
+
+## What you can teach, and choosing what to teach next (E): the alphabet
+## poster, between the first window and the podium. Hung, so it takes no floor.
+static func build_curriculum(parent: Node2D, _grid: Grid) -> Interactable:
+	var it := _hang_fixture(parent, hung_fixtures()[1], CURRICULUM_SCRIPT)
+	it.add_to_group("curriculum_board")
+	# Reached from under the poster's left end, and only there: a step to the
+	# right is the podium's reach, whose own E (the quiz, the unit test) must
+	# never be a coin toss with this one.
+	it.position = Grid.tile_to_world(Layout.CURRICULUM[0]) - (it.get_parent() as Node2D).position
+	it.set_pick_radius(4.0)
+	return it
+
+
+## The treat shelf (key X): three jars over the floor between the second
+## window and the shop. A lesson's treats are taken from here and handed over
+## at a desk (desk_treat.gd). Hung, so it takes no floor.
+static func build_treat_shelf(parent: Node2D, _grid: Grid) -> Interactable:
+	var it := _hang_fixture(parent, hung_fixtures()[2], SUPPLY_STASH_SCRIPT)
+	it.add_to_group("supply_stash")
+	# Reached from under its left end, so it does not reach the corkboard's
+	# tile two columns over.
+	it.position = Grid.tile_to_world(Layout.SUPPLY[0]) - (it.get_parent() as Node2D).position
+	it.set_pick_radius(24.0)
 	return it
 
 
@@ -615,6 +682,15 @@ static func build_ad_poster(parent: Node2D, grid: Grid) -> Interactable:
 	# exact tile the "left wall stops the player" test walks through -- a
 	# 24x16 collider there stopped the player a tile short of the wall.
 	var body := add_prop(parent, PROP_AD_POSTER, Grid.tile_to_world(Layout.AD_POSTER), Vector2.ZERO)
+	# A screen cycling its adverts (Oct 2026): the still frame is what add_prop
+	# sized the shadow by; the strip plays over it.
+	for c: Node in body.get_children():
+		if c is Sprite2D and (c as Sprite2D).texture == PROP_AD_POSTER:
+			var ads := Node.new()
+			ads.set_script(PROP_ANIM_SCRIPT)
+			body.add_child(ads)
+			ads.setup(c as Sprite2D, PROP_AD_POSTER_ANIM,
+				{"frames": AD_POSTER_FRAMES, "fps": AD_POSTER_FPS}, 0.0)
 	var it := Interactable.new()
 	it.set_script(AD_POSTER_SCRIPT)
 	body.add_child(it)
@@ -652,20 +728,32 @@ static func build_mess(parent: Node2D, tile: Vector2i, kind: String) -> Interact
 ## They HANG: on the wall row (Layout.WALL_ROW == 1, written as a literal here
 ## so these two scripts do not reference each other's constants; the suite
 ## asserts they agree), in the wall's own band, not on the first row of floor
-## where they used to stand like furniture. The frieze sits at 14-15 because
-## the second window covers 12-13.
+## where they used to stand like furniture.
 ## The butterfly is the first of these that MOVES, and the first that was
 ## never for sale (`"shop": false` -- see Items.in_shop()). It sits on the
 ## window columns, which no bought piece may cover, so it is the one seed
-## that can never be hung over.
+## that can never be hung over. Since Oct 2026 it flies out through its
+## window and back in (window_butterfly.gd).
 ## The clock is the second (Oct 2026): a cuckoo clock whose pendulum swings,
-## in place of the still square one -- which is still in the shop.
+## in place of the still square one -- which is still in the shop. It hangs
+## at the far end, by the corkboard, since the curriculum poster took its old
+## spot at 8 (Oct 2026); the alphabet poster is that fixture now
+## (RoomBuilder.build_curriculum), not decor, and the treat shelf hangs where
+## it used to, at 14-15.
 const DECOR_SEED := [
-	["cuckoo_clock", Vector2i(8, 1)],
+	["cuckoo_clock", Vector2i(18, 1)],
 	["class_banner", Vector2i(10, 1)],
 	["window_butterfly", Vector2i(13, 1)],
-	["alphabet_frieze", Vector2i(14, 1)],
 ]
+
+## The window's art inside its 2x2 bay of wall tiles, in room pixels: 25x20 art
+## pixels, centred across the two columns, its top 5 art pixels down
+## (tools/limezu_room.json "window": "top"). WINDOW_OPENING is the part of it
+## you see out of once it is open (art/window_open.png), in the window's own
+## pixels: between the swung sashes and inside the rails.
+const WINDOW_INSET := Vector2(6, 10)
+const WINDOW_SIZE := Vector2(50, 40)
+const WINDOW_OPENING := Rect2(10, 6, 30, 26)
 
 ## The wall columns the player has hung something on.
 static func hung_cols() -> Array[int]:
@@ -709,11 +797,35 @@ static func build_decor(parent: Node2D, _grid: Grid) -> Array:
 		var body := add_prop(parent, tex, Layout.wall_anchor(tiles),
 			Vector2.ZERO, 0.0, false)
 		body.add_to_group("seeded_decor")
+		if id == "window_butterfly" and _fly_butterfly(body, row[1] as Vector2i):
+			nodes.append(body)
+			continue
 		# Seeded decor animates on the same hook a bought piece does, so the
 		# room's own pieces are not second-class: one `anim` block and it moves.
 		_animate_if_it_moves(body, def, row[1] as Vector2i)
 		nodes.append(body)
 	return nodes
+
+
+## The butterfly at the window it sits on: window_butterfly.gd takes over its
+## sprite and flies it out through the window and back. False (and it just
+## rests, wings going, like any animated piece) if its column has no window.
+static func _fly_butterfly(body: Node2D, tile: Vector2i) -> bool:
+	var half := _window_col(tile.x, Grid.W)
+	if half < 0:
+		return false
+	for c: Node in body.get_children():
+		if c is Sprite2D:
+			(c as Sprite2D).visible = false
+	var fly := Node2D.new()
+	fly.name = "Butterfly"
+	fly.set_script(BUTTERFLY_SCRIPT)
+	fly.add_to_group("window_butterfly")
+	body.add_child(fly)
+	var window := Rect2(Vector2((tile.x - half) * Grid.TILE, 0) + WINDOW_INSET, WINDOW_SIZE)
+	window.position -= body.position
+	fly.setup(window, WINDOW_OPENING)
+	return true
 
 
 ## The hole in the left wall, which is already a walkable gap students spawn

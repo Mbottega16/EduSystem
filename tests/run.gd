@@ -198,6 +198,7 @@ func _main() -> void:
 	await test_chatter()
 	await test_study_folder()
 	await test_grade_book()
+	await test_back_wall()
 	await test_dash_lanes()
 	await test_bell_rush()
 	await test_buttons()
@@ -659,7 +660,7 @@ func test_scene() -> void:
 			for t: Vector2i in Items.footprint(seed_id, row[1] as Vector2i):
 				if RoomBuilder.is_window_col(t.x) and not on_the_glass.has(seed_id):
 					return false
-				if [Layout.CABINET.x, Layout.PODIUM.x, Layout.BOARD.x, Layout.BOARD.x + 1, Layout.BELL.x].has(t.x):
+				if Layout.wall_taken_cols().has(t.x):
 					return false
 		return true).call())
 
@@ -1002,6 +1003,9 @@ func test_work_loop() -> void:
 	chk("its prompt counts what you're carrying",
 		world.teacher_desk.prompt_text().contains(str(p.carrying)),
 		world.teacher_desk.prompt_text())
+	# The day's mess lands on any free floor tile, by the seeded dice, and one
+	# beside the desk offers E too; this is about the desk, so sweep it away.
+	world._clear_mess()
 	await place_player(Vector2i(3, 3), Actor.DIR_UP)
 	chk("standing at your own desk selects it", p.target == world.teacher_desk, p.target)
 	var carried: int = p.carrying
@@ -1928,7 +1932,16 @@ func test_placement() -> void:
 	wall.tile = Vector2i(16, Layout.WALL_ROW)
 	wall._refresh()
 	chk("...or the catalogue board's wall", not wall.is_valid())
-	wall.tile = Vector2i(8, Layout.WALL_ROW)
+	# The Oct 2026 back wall: the curriculum poster, the treat shelf and the
+	# intercom hang there for good, so their columns are taken too.
+	for fixed: Vector2i in [Layout.CURRICULUM[1], Layout.SUPPLY[0], Layout.BELL]:
+		wall.tile = Vector2i(fixed.x, Layout.WALL_ROW)
+		wall._refresh()
+		chk("...or a column a wall fixture hangs on (%d)" % fixed.x, not wall.is_valid())
+	wall.tile = Vector2i(Layout.TEACHER_DESK[0].x, Layout.WALL_ROW)
+	wall._refresh()
+	chk("...but the wall over the teacher's desk is free", wall.is_valid())
+	wall.tile = Vector2i((RoomBuilder.DECOR_SEED[0][1] as Vector2i).x, Layout.WALL_ROW)
 	wall._refresh()
 	chk("...but it may go where the room's starting clock hangs (that gives way)", wall.is_valid())
 	wall.tile = Vector2i(2, 6)
@@ -1946,10 +1959,12 @@ func test_placement() -> void:
 	chk("and a floor piece cannot go up on the wall row", not wall.is_valid())
 	wall.queue_free()
 
-	var under := Vector2i(4, Layout.TOP_WALL)
+	# Column 10, over free floor and away from the starting clock, so the
+	# test below still finds that clock in its own spot.
+	var under := Vector2i(10, Layout.TOP_WALL)
 	var floor_free_before: bool = world.grid.is_free(under)
 	var wall_before: int = get_tree().get_nodes_in_group("hung").size()
-	Game.place_item("wall_clock", Vector2i(4, Layout.WALL_ROW))
+	Game.place_item("wall_clock", Vector2i(10, Layout.WALL_ROW))
 	await step(3)
 	chk("a bought wall piece is hung on the wall",
 		get_tree().get_nodes_in_group("hung").size() == wall_before + 1,
@@ -1957,24 +1972,24 @@ func test_placement() -> void:
 	chk("...and uses up no floor: the tile beneath it is exactly as free as before",
 		world.grid.is_free(under) == floor_free_before and floor_free_before)
 	chk("...and it is not allowed to land on top of itself",
-		not Layout.wall_slot_ok("wall_clock", Vector2i(4, Layout.WALL_ROW))
-		or not Game.item_fits("wall_clock", Vector2i(4, Layout.WALL_ROW)))
+		not Layout.wall_slot_ok("wall_clock", Vector2i(10, Layout.WALL_ROW))
+		or not Game.item_fits("wall_clock", Vector2i(10, Layout.WALL_ROW)))
 
 	# the room's starting decor gives way to a bought piece, and comes back
 	var seeds_before: int = get_tree().get_nodes_in_group("seeded_decor").size()
-	Game.place_item("world_map", Vector2i(7, Layout.WALL_ROW))
+	Game.place_item("certificate", (RoomBuilder.DECOR_SEED[0][1] as Vector2i))
 	await step(3)
-	chk("hanging a map where the starting clock hung takes the clock down",
+	chk("hanging a certificate where the starting clock hung takes the clock down",
 		get_tree().get_nodes_in_group("seeded_decor").size() == seeds_before - 1,
 		get_tree().get_nodes_in_group("seeded_decor").size())
-	Game.remove_item(Vector2i(7, Layout.WALL_ROW))
+	Game.remove_item((RoomBuilder.DECOR_SEED[0][1] as Vector2i))
 	await step(3)
 	chk("...and the wall stays solid after the rebuild: no wall cell was handed back as floor", (func() -> bool:
 		for tx in range(1, Grid.W - 1):
 			if world.grid.is_free(Vector2i(tx, Layout.WALL_ROW)):
 				return false
 		return true).call())
-	chk("...and taking the map down puts the starting clock back",
+	chk("...and taking it down puts the starting clock back",
 		get_tree().get_nodes_in_group("seeded_decor").size() == seeds_before,
 		get_tree().get_nodes_in_group("seeded_decor").size())
 
@@ -3236,6 +3251,7 @@ func test_two_buttons_one_landmark() -> void:
 	s0.hw_true_accuracy = 0.9
 	s0.hw_sheet = Questions.make_sheet(0.9, Game.rng)
 	p.carry_homework(1)
+	world._clear_mess()
 	await place_player(Layout.TEACHER_DESK[0] + Vector2i(0, 1), Actor.DIR_UP)
 	await step(2)
 	chk("carrying homework, USE offers nothing (you have no classwork)",
@@ -3672,9 +3688,25 @@ func test_panels_fit() -> void:
 	# one clean re-pick against the facing actually asked for.
 	world.player._repick()
 	world.player._update_key_prompts()
-	chk("both buttons are named at the noticeboard", (func() -> bool:
+	# The corkboard is the furniture shop and nothing else (Oct 2026, the
+	# owner's ask): the curriculum moved onto the alphabet poster beside it.
+	chk("at the corkboard the shop is on offer, and only the shop", (func() -> bool:
 		var all := " ".join(world.player.badge_texts())
-		return all.contains("Curriculum") and all.contains("shop")).call(),
+		return all.contains("Furniture shop") and not all.contains("Curriculum") and not all.contains("bell")).call(),
+		world.player.badge_texts())
+	await place_player(Layout.CURRICULUM[0] + Vector2i(0, 1), Actor.DIR_UP)
+	world.player._repick()
+	world.player._update_key_prompts()
+	chk("under the alphabet poster, the curriculum is on offer instead", (func() -> bool:
+		var all := " ".join(world.player.badge_texts())
+		return all.contains("Curriculum") and not all.contains("shop")).call(),
+		world.player.badge_texts())
+	await place_player(Layout.BELL + Vector2i(0, 1), Actor.DIR_UP)
+	world.player._repick()
+	world.player._update_key_prompts()
+	chk("and the bell is across the room from the shop, under the intercom", (func() -> bool:
+		var all := " ".join(world.player.badge_texts())
+		return all.contains("Ring the bell") and not all.contains("shop")).call(),
 		world.player.badge_texts())
 	# Both keys must still be NAMED at a crowded spot, and a held one must
 	# keep its words -- the bar used to leave a hold meter with none.
@@ -8534,8 +8566,7 @@ func test_overlays() -> void:
 	# to E. That separation is the point: E is mashed all lesson long and
 	# must never reach anything session-level.
 	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
-	# The board carries two things now -- the shop on F, the curriculum on E
-	# -- so the question is which BUTTON offers the shop.
+	# The board is the shop and only the shop (Oct 2026): which BUTTON offers it.
 	chk("standing at the noticeboard offers the catalogue", (func() -> bool:
 		var t: Interactable = p.targets["manage"]
 		return t != null and t.prompt_text().begins_with("Furniture")).call(),
@@ -8546,13 +8577,18 @@ func test_overlays() -> void:
 	await tap("interact")
 	chk("pressing the USE button does NOT open the shop",
 		hud.mode != hud.Mode.CATALOGUE, hud.mode)
-	chk("it opens the curriculum instead, which costs you nothing",
+	chk("...nor anything else: the curriculum is the poster's now",
+		hud.mode == hud.Mode.NONE, hud.mode)
+	await place_player(Layout.CURRICULUM[0] + Vector2i(0, 1), Actor.DIR_UP)
+	await tap("interact")
+	chk("under the alphabet poster, E opens the curriculum, which costs you nothing",
 		hud.title.text.begins_with("WHAT YOU CAN TEACH"), hud.title.text)
 	# Closed directly rather than with a key: a REPORT closes on E, and
-	# tapping E while standing at the board would simply reopen it.
+	# tapping E while standing at the poster would simply reopen it.
 	hud.close()
 	await step(2)
 	chk("and it really did close", hud.mode == hud.Mode.NONE, hud.mode)
+	await place_player(Layout.BOARD + Vector2i(0, 1), Actor.DIR_UP)
 	await tap("manage")
 	chk("pressing the MANAGE button opens the catalogue",
 		hud.mode == hud.Mode.CATALOGUE,
@@ -11050,8 +11086,11 @@ func test_grade_book() -> void:
 
 	# --- the page ---
 	hud.open_grade_book()
-	chk("an empty book says so rather than showing a blank page",
-		hud.mode == hud.Mode.GRADE_BOOK and hud.rich.text.contains("Every grade you give"))
+	chk("the book opens on the subjects page", hud.mode == hud.Mode.GRADE_BOOK
+		and hud._gb_view == hud.GBView.SUBJECTS, hud._gb_view)
+	await tap("menu")
+	chk("an empty register says so rather than showing a blank page",
+		hud._gb_view == hud.GBView.REGISTER and hud.rich.text.contains("Every grade you give"))
 	hud.close()
 	# seven entries: a full page and two on the next, and one child who has
 	# moved on before the last of them
@@ -11070,7 +11109,8 @@ func test_grade_book() -> void:
 	chk("five lessons to a page", hud.grade_book_pages().size() == 2
 		and (hud.grade_book_pages()[0] as Array).size() == hud.GRADE_BOOK_COLS)
 	hud.open_grade_book()
-	chk("the book opens on the newest page", hud._gb_page == 1, hud._gb_page)
+	await tap("menu")
+	chk("the register opens on the newest page", hud._gb_page == 1, hud._gb_page)
 	chk("...its lessons named on the left page", hud.rich_left.text.contains("Lesson F")
 		and hud.rich_left.text.contains("Lesson G") and not hud.rich_left.text.contains("Lesson A"))
 	var strip_tags := RegEx.new()
@@ -11110,6 +11150,7 @@ func test_grade_book() -> void:
 	big.append({"student": gone, "grade": 0.6})
 	Game.log_grades("lesson", "Lesson H", "math", big)
 	hud.open_grade_book()
+	await tap("menu")
 	chk("a long class says there is more below", hud.rich.text.contains("more below"),
 		Game.roster.size())
 	chk("...and still fits", not hud._rich_overflows(), hud.rich.get_content_height())
@@ -11142,12 +11183,243 @@ func test_grade_book() -> void:
 		func(b: Variant) -> bool: return String(b).contains("grade book")), p.badge_texts())
 	await tap("grades")
 	chk("pressing it opens the book", hud.mode == hud.Mode.GRADE_BOOK, hud.mode)
+	chk("...on the subjects page, every time", hud._gb_view == hud.GBView.SUBJECTS)
 	await tap("grades")
 	chk("...and pressing it again closes it", hud.mode == hud.Mode.NONE, hud.mode)
 	await place_player(Vector2i(14, 9), Actor.DIR_UP)
 	await step(2)
 	chk("across the room it is not on offer", p.targets["grades"] == null)
 
+	# --- the subjects page (Oct 2026, the owner's ask: every lesson on one
+	# screen, by subject, in the subjects' colours, taught or not) ---
+	Game.new_run(SEED)
+	await step(2)
+	var taught_l: Dictionary = Curriculum.by_id("fractions")
+	var graded: Array = []
+	for s: StudentData in Game.roster:
+		graded.append({"student": s, "grade": 0.9})
+	Game.record_taught("fractions")
+	Game.log_grades("lesson", String(taught_l.get("name", "")), "math", graded, "fractions")
+	Game.record_taught("phonics")          # taught, but not in this book
+	hud.open_grade_book()
+	var left_plain := strip_tags.sub(hud.rich_left.text, "", true)
+	var right_plain2 := strip_tags.sub(hud.rich.text, "", true)
+	var both := left_plain + " " + right_plain2
+	chk("every lesson in the curriculum is on the one screen", (func() -> Array:
+		var missing: Array = []
+		for l: Dictionary in Curriculum.lessons:
+			if not both.contains(hud._fit_px(Curriculum.short_name(l), hud.GB_NAME_PX, hud.UI_SMALL)):
+				missing.append(Curriculum.short_name(l))
+		return missing).call().is_empty(), both)
+	chk("...under its subject, each subject headed by its own name, mark and colour",
+		(func() -> bool:
+			for subj: Array in hud.grade_book_subjects():
+				var strand := String(subj[0])
+				var page: String = hud.rich_left.text + hud.rich.text
+				if not page.contains(String(hud.STRAND_ICON_PATH[strand])) \
+						or not page.contains("[color=#%s]%s[/color]" % [
+							hud._on_paper_soft(hud.strand_colour(strand)), Curriculum.strand_label(strand)]):
+					return false
+				for l: Dictionary in subj[1]:
+					if String(l.get("strand", "")) != strand:
+						return false
+			return hud.grade_book_subjects().size() == Curriculum.strands().size()).call())
+	var short_f: String = hud._fit_px(Curriculum.short_name(taught_l), hud.GB_NAME_PX, hud.UI_SMALL)
+	chk("a lesson taught and graded is written in its subject's colour, with the class's letter",
+		hud.rich_left.text.contains("[color=#%s] %s[/color] [color=#%s]A[/color]" % [
+			hud._on_paper_soft(hud.strand_colour("math")), short_f, hud._on_paper(hud.C_GOOD)]),
+		hud.rich_left.text)
+	chk("...and every row carries its subject's mark, full for taught, faded for not yet",
+		hud.rich_left.text.contains(hud._gb_mark("math", true))
+		and hud.rich_left.text.contains(hud._gb_mark("math", false))
+		and hud._gb_mark("math", true) != hud._gb_mark("math", false))
+	var phon: Dictionary = Curriculum.by_id("phonics")
+	chk("a lesson taught but not graded here is still in colour, with no letter",
+		hud.rich_left.text.contains("[color=#%s] %s[/color] [/cell]" % [
+			hud._on_paper_soft(hud.strand_colour("ela")),
+			hud._fit_px(Curriculum.short_name(phon), hud.GB_NAME_PX, hud.UI_SMALL)]))
+	var never: Dictionary = Curriculum.by_id("statistics")
+	var never_txt := "[color=#%s] %s[/color]" % [hud.INK_FAINT, hud._fit_px(
+		Curriculum.short_name(never), hud.GB_NAME_PX, hud.UI_SMALL)]
+	chk("a lesson not taught yet is in faded ink",
+		hud.rich.text.contains(never_txt) or hud.rich_left.text.contains(never_txt))
+	chk("...and the page says how much is taught, a count of what you have done",
+		right_plain2.contains("Taught 2 of %d" % Curriculum.lessons.size()), right_plain2)
+	chk("...in letters and counts, never the number behind a grade",
+		decimal.search(both) == null, both)
+	chk("both pages fit their paper", not hud._rich_overflows()
+		and hud.rich_left.get_content_height() <= int(hud.rich_left.size.y),
+		[hud.rich.get_content_height(), hud.rich_left.get_content_height()])
+	var col0: int = hud._gb_col
+	await tap("move_right")
+	chk("Right moves to the next subject", hud._gb_col == (col0 + 1) % hud.grade_book_subjects().size())
+	await tap("move_down")
+	chk("Down moves down its lessons", hud._gb_row >= 0 and hud.rich_left.text.contains(">")
+		or hud.rich.text.contains(">"))
+	await tap("menu")
+	chk("Tab turns to the register", hud._gb_view == hud.GBView.REGISTER)
+	await tap("menu")
+	chk("...and back to the subjects", hud._gb_view == hud.GBView.SUBJECTS)
+	hud.close()
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## THE BACK WALL (Oct 2026, the owner's list): nothing on the wall touches the
+## skirting and nothing on it overlaps anything else; the corkboard is the shop
+## and nothing more; the treats sit on a shelf instead of floating round the
+## locker; the mug stands on the desk and the pen pot behind it is gone; the
+## work bars are outlined in LimeZu's keyline; the reward screen plays its
+## adverts; and the butterfly flies out through its window and back.
+func test_back_wall() -> void:
+	section("BACK WALL")
+	Game.new_run(SEED)
+	await step(3)
+
+	# --- everything on the wall, as rects in room pixels ---
+	var spans: Array = []      # [what, Rect2]
+	for g: String in ["wall_fixture", "seeded_decor"]:
+		for n: Node in get_tree().get_nodes_in_group(g):
+			for c: Node in n.get_children():
+				if c is Sprite2D and (c as Sprite2D).visible and c.name != "WindowOpen":
+					var spr := c as Sprite2D
+					var r := spr.get_rect()
+					r.position += spr.global_position
+					spans.append([String(spr.texture.resource_path.get_file()), r])
+	for tx in Grid.W:
+		if RoomBuilder._window_col(tx, Grid.W) == 0:
+			spans.append(["window %d" % tx, Rect2(Vector2(tx * Grid.TILE, 0)
+				+ RoomBuilder.WINDOW_INSET, RoomBuilder.WINDOW_SIZE)])
+	chk("the wall has its fixtures, its starting decor and its windows on it",
+		spans.size() >= 8, spans.size())
+	chk("nothing on the back wall reaches the skirting: two art pixels of wall under each",
+		spans.all(func(s: Array) -> bool:
+			return (s[1] as Rect2).end.y <= Layout.WALL_TRIM_Y - 4.0),
+		spans.filter(func(s: Array) -> bool:
+			return (s[1] as Rect2).end.y > Layout.WALL_TRIM_Y - 4.0))
+	chk("nothing on the back wall overlaps anything else on it", (func() -> Array:
+		var hits: Array = []
+		for i in spans.size():
+			for j in range(i + 1, spans.size()):
+				if (spans[i][1] as Rect2).intersects(spans[j][1] as Rect2):
+					hits.append([spans[i][0], spans[j][0]])
+		return hits).call().is_empty(), spans)
+	var top1 := RoomBuilder._tile_img("tile_wall_top1")
+	chk("the window's own art stops above the skirting (its tiles keep the wall's trim)",
+		(func() -> bool:
+			for n: String in ["tile_window_l1", "tile_window_r1"]:
+				var w := RoomBuilder._tile_img(n)
+				for y in range(int(Layout.WALL_TRIM_Y) - Grid.TILE - 4, Grid.TILE):
+					for x in Grid.TILE:
+						if w.get_pixel(x, y) != top1.get_pixel(x, y):
+							return false
+			return true).call())
+	var open_img: Image = (load("res://art/window_open.png") as Texture2D).get_image()
+	var l0 := RoomBuilder._tile_img("tile_window_l0")
+	var r1 := RoomBuilder._tile_img("tile_window_r1")
+	chk("the open window lines up with the closed one, frame for frame",
+		open_img.get_size() == Vector2i(RoomBuilder.WINDOW_SIZE)
+		and open_img.get_pixel(0, 0) == l0.get_pixel(int(RoomBuilder.WINDOW_INSET.x), int(RoomBuilder.WINDOW_INSET.y))
+		and open_img.get_pixel(49, 39) == r1.get_pixel(int(RoomBuilder.WINDOW_INSET.x) + 49 - Grid.TILE,
+			int(RoomBuilder.WINDOW_INSET.y) + 39 - Grid.TILE))
+
+	# --- the fixtures that hang: they take no floor, except the shop's own tile ---
+	chk("the intercom, the curriculum poster and the treat shelf take no floor",
+		world.grid.is_free(Layout.BELL) and Layout.CURRICULUM.all(
+			func(t: Vector2i) -> bool: return world.grid.is_free(t))
+		and Layout.SUPPLY.all(func(t: Vector2i) -> bool: return world.grid.is_free(t)))
+	chk("the corkboard keeps the floor tile it always blocked, so no saved room changes shape",
+		not world.grid.is_free(Layout.BOARD))
+	chk("they hang on the wall like every hung piece, so anyone walking under them is drawn in front",
+		get_tree().get_nodes_in_group("wall_fixture").all(func(n: Node) -> bool:
+			return is_equal_approx((n as Node2D).position.y, Layout.WALL_HANG_Y))
+		and get_tree().get_nodes_in_group("wall_fixture").size() == 4)
+	chk("the bell is the intercom on the wall, not a hand bell on the floor",
+		world.bell != null and (world.bell.get_parent() as Node2D).position.y < float(Layout.TOP_WALL * Grid.TILE)
+		and world.bell.prompt_text().begins_with("Ring the bell") == (Game.phase != Game.Phase.LESSON))
+	chk("the furniture shop and the bell are at opposite ends of the room",
+		absi(Layout.BOARD.x - Layout.BELL.x) >= 12, [Layout.BOARD, Layout.BELL])
+
+	# --- the treats are on a shelf, not floating round the locker ---
+	var stash: Array = get_tree().get_nodes_in_group("supply_stash")
+	chk("there is one place to take a treat from, and it is the shelf on the wall",
+		stash.size() == 1 and (stash[0] as Node).get_parent().is_in_group("wall_fixture"))
+	chk("...and nothing is drawn round the locker any more", (func() -> bool:
+		for c: Node in (world.cabinet.get_parent() as Node).get_children():
+			if c is Node2D and not (c is Sprite2D or c is Interactable or c is CollisionShape2D):
+				return false
+		return true).call())
+
+	# --- the teacher's desk ---
+	var mug: Sprite2D = (world.teacher_desk.get_parent() as Node).get_node_or_null("Coffee")
+	chk("the mug stands on the desktop, not on its front edge",
+		mug != null and mug.position.y + mug.get_rect().size.y / 2.0 <= -20.0
+		and mug.position.y + mug.get_rect().size.y / 2.0 >= -42.0,
+		mug.position if mug != null else null)
+	var desk_img: Image = (load("res://art/teacher_desk.png") as Texture2D).get_image()
+	chk("the pen pot that stood behind it is painted out: that corner is plain desktop",
+		(func() -> bool:
+			var green := Color8(68, 126, 112)
+			for y in range(10, 26):
+				for x in range(42, 56):
+					if not desk_img.get_pixel(x, y).is_equal_approx(green):
+						return false
+			return true).call())
+
+	# --- the children's work bars ---
+	chk("the work bars are outlined in LimeZu's keyline, the dark blue every sprite wears",
+		(func() -> bool:
+			var k: Dictionary = (load("res://scripts/actors/student.gd") as GDScript).get_script_constant_map()
+			return k["BAR_BG"] == Color("3a3a50") and (k["BAR_BG"] as Color).a == 1.0).call())
+
+	# --- the reward screen ---
+	chk("the reward screen plays its adverts", (func() -> bool:
+		for c: Node in (world.ad_poster.get_parent() as Node).get_children():
+			if c.get_script() == RoomBuilder.PROP_ANIM_SCRIPT and int(c.get("frames")) == RoomBuilder.AD_POSTER_FRAMES:
+				return true
+		return false).call())
+
+	# --- the butterfly ---
+	var flies: Array = get_tree().get_nodes_in_group("window_butterfly")
+	chk("the butterfly at the window is the flying kind", flies.size() == 1)
+	if flies.size() == 1:
+		var b: Node2D = flies[0]
+		chk("...and the part of the window it flies through is inside the window",
+			(b.window_rect as Rect2).encloses(b.opening as Rect2))
+		var before := Game.rng.state
+		var opened := false
+		var went_out := false
+		var shut_while_away := false
+		var flew_round_the_room := false
+		b._t = 0.0
+		var t := 0.0
+		while t < b.CYCLE - 0.05:
+			b._process(0.05)
+			t += 0.05
+			opened = opened or b.is_open()
+			went_out = went_out or b.is_out()
+			if b._alpha <= 0.0 and not b.is_open():
+				shut_while_away = true
+			if b._flying and not b._outside and b.z_index == 1 \
+					and (b._pos as Vector2).y > 0.0:
+				flew_round_the_room = true
+		chk("over one cycle the window opens", opened)
+		chk("...it goes out through it", went_out)
+		chk("...the window is shut while it is away", shut_while_away)
+		chk("...and it comes back in, round the front of the room in front of everyone",
+			flew_round_the_room)
+		b._process(0.1)
+		chk("...and settles on the sill again, the window shut",
+			not b._flying and not b.is_open() and b._pos == b.SILL, [b._pos, b._flying])
+		chk("it never touches the game's dice", Game.rng.state == before)
+
+	# --- a save that hung something where a fixture hangs now ---
+	Game.room_items.append({"id": "wall_clock", "tile": Vector2i(Layout.SUPPLY[0].x, Layout.WALL_ROW)})
+	Game.rehang_wall_items()
+	chk("a piece a save hung where a fixture hangs now moves along to a free spot",
+		Game.room_items.all(func(p: Dictionary) -> bool:
+			return not Items.is_wall(String(p["id"])) or Layout.wall_slot_ok(String(p["id"]), p["tile"])))
 	Game.new_run(SEED)
 	await step(2)
 
@@ -15446,29 +15718,33 @@ func test_supply_stash() -> void:
 
 	# --- the real thing, walked and pressed ---
 	Game.coins = 50
-	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	await place_player(Layout.SUPPLY[0] + Vector2i(0, 1), Actor.DIR_UP)
 	await step(2)
 	var stash: Interactable = p.targets["supply"]
-	chk("at the cabinet, the supply cupboard is on offer on its own key", stash != null
+	chk("under the treat shelf, the treats are on offer on their own key", stash != null
 		and stash.action_name() == "supply"
-		and stash.prompt_text() == "Take a peppermint from the cupboard",
+		and stash.prompt_text() == "Take a peppermint from the shelf",
 		stash.prompt_text() if stash != null else null)
 	chk("...and the badge over the teacher says so", (p.badge_texts() as Array).any(
-		func(t: Variant) -> bool: return String(t).contains("cupboard")), p.badge_texts())
-	chk("the cabinet offers nothing else mid-lesson, so it is the only badge",
+		func(t: Variant) -> bool: return String(t).contains("shelf")), p.badge_texts())
+	chk("the shelf offers nothing else mid-lesson, so it is the only badge",
 		p.badge_texts().size() == 1, p.badge_texts())
+	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	await step(2)
+	chk("the locker no longer hands out treats: they float round it no more",
+		p.targets["supply"] == null, p.targets["supply"])
 	await place_player(Layout.PODIUM + Vector2i(0, 1), Actor.DIR_UP)
 	await step(2)
-	chk("the podium is well clear of it: no cupboard badge to crowd its own four",
+	chk("the podium is well clear of it: no shelf badge to crowd its own four",
 		p.targets["supply"] == null, p.targets["supply"])
-	await place_player(Layout.CABINET + Vector2i(0, 1), Actor.DIR_UP)
+	await place_player(Layout.SUPPLY[0] + Vector2i(0, 1), Actor.DIR_UP)
 	await step(2)
 	await tap("supply")
 	chk("pressing it takes the first treat", Game.carried == "mint", Game.carried)
 	await step(2)
 	chk("...which the teacher is now holding", p._treat_icon.treat == "mint"
 		and p._treat_icon.visible)
-	chk("...and the cupboard now offers to swap it", p.targets["supply"] != null
+	chk("...and the shelf now offers to swap it", p.targets["supply"] != null
 		and p.targets["supply"].prompt_text() == "Swap the peppermint for a fidget cube",
 		p.targets["supply"].prompt_text() if p.targets["supply"] != null else null)
 	await place_player(Layout.seat(0) + Vector2i(1, 1), Actor.DIR_LEFT)

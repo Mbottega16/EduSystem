@@ -14,7 +14,7 @@ trusting it's still accurate.
 > --list` prints every owned sprite and where it came from. The generators below
 > stand down for those names and still draw everything else: **still procedural** --
 > the book and its page turns, the logo and title backdrop, the exterior backdrop tile,
-> `shadow`, `dust`, `paper`, the bell, `ad_poster`, the two floor-mess sprites, the bow
+> `shadow`, `dust`, `paper`, the two floor-mess sprites, the bow
 > and mortarboard hats, the subject icons and mood faces, and 8 shop items (maths_tiles,
 > abacus, microscope, sound_cards, number_line, rock_tray, vote_box, season_wheel).
 > Credit to limezu.itch.io is a licence condition and is on the credits page.
@@ -38,6 +38,17 @@ trusting it's still accurate.
 > (`balloon_red`, `balloon_blue`, `balloon_yellow`, + `_anim`) bob over the
 > teacher's desk. Everyone blinks: LimeZu's idle-row blink is baked into the
 > character sheets as columns 16-17.
+>
+> **The back wall, 2026-10-18.** The bell and the reward poster are LimeZu's now: `bell` is
+> the school intercom on the wall (jail#124) that rings the end of the day, and `ad_poster`
+> (+ `_anim`, 57 frames) is the pack's advertising screen cycling its adverts. New:
+> `treat_shelf` (three jars, kitchen#127 -- the treats used to float round the locker),
+> `curriculum_poster` (the alphabet poster with its last row of letters left off: the
+> curriculum's own fixture, so it is not the shop's Letter Frieze twice), `butterfly_fly`
+> (+ `_anim`, the window butterfly in flight) and `window_open` (`limezu_room.py`: the
+> window opened, sky and trees through it, which the butterfly flies out of).
+> `teacher_desk` has its pencil pot painted out (the manifest's new `fill`), and the window
+> quarters sit two art pixels higher, clear of the skirting.
 > The other spaces caught up: the hallway (`hallway.gd`) and the mentor's room
 > (`mentor_room.gd`) were flat dark rectangles with props on them. Both are now
 > painted from the classroom's own tiles -- walls, floor, skirting, the door --

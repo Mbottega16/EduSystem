@@ -1886,7 +1886,7 @@
       "promotion_min_term_grade": 0.85
     }
   },
-  "_consumables_note": "What the teacher carries from the supply stash to one child's desk (Oct 2026, learning-system-plan.md). Taking one is free and can be put back; it is paid for (cost, in coins) when it is handed over. duration is lesson seconds. wake_immediate wakes a child who is asleep; distraction_dampen shrinks their distraction radius for the duration; sleep_proof stops them dozing off for the duration; clears_stall frees a stuck child on the spot (no help is counted); pop is the word that floats up from the desk. Taken at the supply cupboard (the back-wall cabinet, key X) and handed over at a desk, only during a lesson. Pace only: never graded, never touched by tools/sim.gd.",
+  "_consumables_note": "What the teacher carries from the supply stash to one child's desk (Oct 2026, learning-system-plan.md). Taking one is free and can be put back; it is paid for (cost, in coins) when it is handed over. duration is lesson seconds. wake_immediate wakes a child who is asleep; distraction_dampen shrinks their distraction radius for the duration; sleep_proof stops them dozing off for the duration; clears_stall frees a stuck child on the spot (no help is counted); pop is the word that floats up from the desk. Taken from the treat shelf on the back wall (key X) and handed over at a desk, only during a lesson. Pace only: never graded, never touched by tools/sim.gd.",
   "consumables": {
     "mint": {
       "name": "Peppermint",

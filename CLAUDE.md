@@ -148,7 +148,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2781 assertions — must pass, count must not drop
+Run Tests.bat            2831 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -266,14 +266,14 @@ still looks armed is how the last one got missed.
 |---|---|
 | `scripts/autoload/game.gd` | The run: day, coins, roster, grading, terms, school. The big one. |
 | `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones |
-| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold), trophy_case (the hallway's, a place per boss trophy), mentor_room, principal_office and visit_room (rooms off the corridor you visit but never run; visit_room is any room you hold, its last day replayed) |
+| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold), trophy_case (the hallway's, a place per boss trophy), window_butterfly (the butterfly that flies out of the second window and back), mentor_room, principal_office and visit_room (rooms off the corridor you visit but never run; visit_room is any room you hold, its last day replayed) |
 | `scripts/actors/` | actor, player, student |
 | `scripts/interact/` | one file per landmark verb |
 | `scripts/ui/hud.gd` | Every screen. 23 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2781 assertions, 138 sections |
+| `tests/run.gd` | The suite — 2831 assertions, 139 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -401,6 +401,11 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
 *Vault summary: `~/OneDrive/Desktop/AI Projects/my-brain/projects/edusystem/context.md` (and `history.md` for pre-October build logs).*
 
 - **Last Worked On:**
+  - **The back wall, the grade book, the bars (2026-10-18, the owner's list):**
+    - Nothing on the back wall touches the skirting or anything else: windows two art pixels higher (`limezu_room.json` "top" 5), every hung piece's bottom on `Layout.WALL_HANG_Y` 50 (was 62, on the trim). Hung fixtures (`RoomBuilder.hung_fixtures()`): the corkboard is the furniture shop and ONLY the shop; the curriculum moved to the alphabet poster at 7-8 (`curriculum_poster`, E, beside the podium); the hand bell became LimeZu's wall intercom at column 1 (`Layout.BELL`), across the room from the shop; the treats sit on a jar shelf at 14-15 (`treat_shelf`, X) instead of floating round the locker; the locker moved to column 4, off the first window; the cuckoo clock hangs at 18. A save with a piece on a now-taken column is rehung (`Game.rehang_wall_items`); the seven room ideas were re-slotted.
+    - Teacher's desk: pencil pot painted out of the art (manifest `fill`), mug moved onto the desktop. Work bars outlined in LimeZu's keyline `#3a3a50`. Reward poster is LimeZu's animated advertising screen (57 frames).
+    - The butterfly (`scripts/world/window_butterfly.gd`): the second window opens (`art/window_open.png`), it flies out, comes back, loops over the front row, lands. Fixed timetable, no rng.
+    - The grade book opens on a subjects page: all 40 lessons in four subject columns, subject colours and icons, taught lessons in colour with the class's last letter, untaught in faint ink, a cursor with the selected lesson's detail. Tab turns to the old register. `log_grades()` now records the lesson id.
   - **Reverse-Engineered Sim Formulas & Pokemon Dialogue Pacing & LimeZu Generator (2026-10-17):**
     - Extracted and codified clean-room simulation math in `docs/SIM_FORMULAS.md`: differential attention decay equation $A(t)$, diminishing-returns reaction curve $R(\ell)$, 5-tier pedagogy progression tree for `RoomSim`, and ZPD scaffolding multipliers.
     - Fine-tuned authentic Pokemon Gen 4/5 NDS dialogue and UI pacing in `scripts/ui/hud.gd`: sentence terminator pauses (-6.0 ticks / ~0.16s), phrase separator pauses (-3.0 ticks / ~0.08s), non-whitespace alternating sound blips, and pixel-snapped integer indicator bounce.
@@ -411,10 +416,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   - **The Study Folder (`8414c57`):** Desk-top item (`Game.desk_items`, Learning tab, 60 coins, max 2) that lets a stuck child look up their own answer after 6s and prevents chatting/copying across that desk.
   - **The Grade Book (Key `U`):** Open register on the teacher's desk showing 5 lessons per page across `Game.grade_log` (lessons, unit tests, term exams).
   - **Explorable School & Animated Room (2026-10-08/09):** Walkable staffed rooms replaying yesterday's `RoomSim`, hallway trophy case, principal's office room, event-day desk props (`RoomBuilder.EVENT_DESK`), blinking cast (`18x4` sheets), and 13 animated shop items.
-- **Current State (2026-10-17):**
-  - Suite green: **2,781 assertions** in 138 sections, docs 315/315, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
+- **Current State (2026-10-18):**
+  - Suite green: **2831 assertions** in 139 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
 - **What Needs To Be Worked On Next:**
-  1. Owner playtest feedback on desk chatter frequency, Study Folder balance (`balance.json` -> `chat`, `items.study_folder`), and Grade Book UX.
+  1. Owner look at the new back wall, the butterfly and the grade book's subjects page in the real game; then playtest feedback on desk chatter frequency and Study Folder balance (`balance.json` -> `chat`, `items.study_folder`).
   2. Implement upcoming Admin Coaching layer using the clean-room math in `docs/SIM_FORMULAS.md`.
   3. Remaining tiers of `[limezu-build-plan.md]` (sleep row for stuck students, cast variation juice pass, Modern Farm animal cosmetics) as directed by the owner.
 

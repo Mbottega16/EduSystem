@@ -97,19 +97,37 @@ const PODIUM: Vector2i = Vector2i(9, 2)
 ## between them rather than on one.
 const TEACHER_DESK: Array[Vector2i] = [Vector2i(2, 2), Vector2i(3, 2)]
 
-## Ends the day. Deliberately across the room from the podium so ending the
-## day is a walk, not a reflex.
-const BELL: Vector2i = Vector2i(18, 2)
+## Ends the day: the school intercom on the wall, top-left by the door the
+## class goes home through. Deliberately across the room from the podium so
+## ending the day is a walk, not a reflex. (Oct 2026: it was a hand bell on
+## the floor at column 18, right beside the furniture shop, and the owner read
+## the two as one thing. Now they are at opposite ends of the room.) It hangs,
+## so it blocks no floor; you reach it from the tile below.
+const BELL: Vector2i = Vector2i(1, 2)
 
-## The furniture catalogue.
+## The furniture shop: the corkboard, and nothing else (Oct 2026, the owner's
+## ask -- it used to be the curriculum as well, on the other key).
 const BOARD: Vector2i = Vector2i(16, 2)
+
+## What you can teach, and choosing what to teach next: the alphabet poster
+## on the back wall, two tiles wide, beside the podium you then start it at
+## (Oct 2026 -- it moved here off the corkboard). Hung, so it takes no floor;
+## these are the floor tiles under it, where you stand to read it.
+const CURRICULUM: Array[Vector2i] = [Vector2i(7, 2), Vector2i(8, 2)]
+
+## The treat shelf: three jars on the back wall the teacher takes a treat
+## from (key X), between the second window and the shop -- well clear of the
+## podium, whose verbs fill the badge row mid-lesson. Hung, like the poster:
+## these are the tiles under it.
+const SUPPLY: Array[Vector2i] = [Vector2i(14, 2), Vector2i(15, 2)]
 
 ## The storage cabinet. Everything you buy waits here until you place it;
 ## you open it to take furniture out, and it is where the opening scene
-## has the teacher pull the desks from. Back wall, between the teacher's
-## desk and the podium -- clear of column 6, which test_movement walks up
-## as its known-clear column.
-const CABINET: Vector2i = Vector2i(5, 2)
+## has the teacher pull the desks from. Back wall, right beside the teacher's
+## desk -- clear of column 6, which test_movement walks up as its known-clear
+## column, and (since Oct 2026) clear of the first window too: at column 5 the
+## locker stood in front of half of it.
+const CABINET: Vector2i = Vector2i(4, 2)
 
 ## The optional reward-video poster. Down in the bottom-left corner, away
 ## from the podium / board / bell cluster on the back wall so its prompt
@@ -158,10 +176,15 @@ static func wall_segments() -> Array[Rect2i]:
 ## The back wall is two tiles tall (TOP_WALL). A hung piece takes the LOWER of
 ## those rows as its tile, so it is never confused with a floor tile: it blocks
 ## no floor, casts no shadow, and a desk or a child can stand right under it.
-## The status strip covers the top of the wall, so a piece hangs from the
-## wall's foot (WALL_HANG_Y -- where the catalogue board's own art ends).
+## The status strip covers the top of the wall, so a piece hangs low on it --
+## but never ON the skirting. WALL_HANG_Y is a piece's bottom edge: the brown
+## trim starts at y 54, so 50 leaves two art pixels of plain wall under every
+## piece, the same gap the windows keep (tools/limezu_room.json "top"). It was
+## 62, which sat every clock and banner on the trim (Oct 2026, the owner's ask).
 const WALL_ROW := 1
-const WALL_HANG_Y := 62.0
+const WALL_HANG_Y := 50.0
+## The skirting's top edge, which nothing on the wall may reach.
+const WALL_TRIM_Y := 54.0
 
 
 ## Where a hung piece's sprite goes: centred over its tiles, bottom edge on the
@@ -171,11 +194,15 @@ static func wall_anchor(tiles: Array[Vector2i]) -> Vector2:
 
 
 ## Wall columns that can never hold a hung piece: the things that stand against
-## the back wall and cover it (the cabinet, the podium, the catalogue board, the
-## bell). The pieces the room STARTS with (RoomBuilder.DECOR_SEED) are not in
-## this list on purpose: hang something on their spot and they give way.
+## the back wall or hang on it for good (the cabinet, the podium, the furniture
+## shop's corkboard, the intercom, the curriculum poster, the treat shelf). The
+## pieces the room STARTS with (RoomBuilder.DECOR_SEED) are not in this list on
+## purpose: hang something on their spot and they give way.
 static func wall_taken_cols() -> Array[int]:
-	return [CABINET.x, PODIUM.x, BOARD.x, BOARD.x + 1, BELL.x]
+	var out: Array[int] = [CABINET.x, PODIUM.x, BOARD.x, BOARD.x + 1, BELL.x]
+	for t: Vector2i in CURRICULUM + SUPPLY:
+		out.append(t.x)
+	return out
 
 
 ## Can this hung piece go here? On the wall row, inside the side walls, not over

@@ -27,7 +27,14 @@ HOW THE PIECES COME OUT OF THE PACKS
     door    a Generic-sheet door (14x21) stood on the floor line of the 2-tile doorway,
             over the same plain wall.
     window  a Generic-sheet window (25x20) pasted under the wall's cap, across the 2x2
-            tiles it spans, then cut into the four quarters the game expects.
+            tiles it spans, then cut into the four quarters the game expects. "top" is
+            its top row in the bay: 5 keeps two art pixels of wall between its sill
+            and the skirting (it was 9, and the sill sat on the trim).
+    window_open  the same window, opened: both sashes swung out (seen edge on, a
+            sliver of frame and glass down each side of the opening), and through it
+            the sky and the tops of the trees. The classroom's butterfly flies out
+            through it and back in (scripts/world/window_butterfly.gd). One image,
+            the classroom's only, drawn over the closed window while it is open.
 Everything is built in 16x16 art space and doubled with NEAREST at the end.
 """
 import json
@@ -77,6 +84,49 @@ def _outputs():
 
 
 OUTPUTS = _outputs()
+# Built once, from the classroom's own config -- not a tile, and not per look.
+EXTRA = ["window_open"]
+OUTPUTS += EXTRA
+
+# What you see through the open window, all from LimeZu's palette
+# (tools/limezu_palette.json): sky darker up top, then the tree line.
+SKY = ["#accfda", "#accfda", "#bddae4", "#bddae4", "#cce6ec", "#cce6ec", "#cce6ec"]
+TREES = {"d": "#529760", "m": "#74b453", "l": "#9bc246"}
+# The tree line, one row per string, under the sky: rows 10.. of the 25x20 window,
+# columns 2..22 (the opening). "." is still sky.
+TREE_ROWS = [
+    "..l.......ll......l..",
+    ".lml...l.lmml....lml.",
+    "lmmml.lmllmmmml.lmmml",
+    "mmdmmmmmmmdmmmmmmmdmm",
+    "mdmmdmmdmmmmdmmdmmmdm",
+    "ddmddmdddmddmddmdddmd",
+]
+
+
+def open_window(cfg, pack):
+    """The window, opened (see window_open in the module notes). 25x20 art pixels,
+    doubled: the same size and place as the closed one, frame for frame."""
+    generic = pack.image(cfg["generic"])
+    wx, wy, ww, wh = cfg["window"]["rect"]
+    win = generic.crop((wx, wy, wx + ww, wy + wh)).convert("RGBA")
+    px = win.load()
+    hexc = lambda h: limezu.parse_hex(h) + (255,)
+    # the opening: everything between the frame's sides and its top and bottom rails
+    for y in range(3, 16):
+        for x in range(2, 23):
+            px[x, y] = hexc(SKY[min(y - 3, len(SKY) - 1)])
+    for i, row in enumerate(TREE_ROWS):
+        for j, c in enumerate(row):
+            if c != ".":
+                px[2 + j, 10 + i] = hexc(TREES[c])
+    # the two sashes, swung out and seen edge on: wood, then a sliver of glass
+    sash = [hexc("#b5754d"), hexc("#ebe4f2"), hexc("#d8d0e0")]
+    for y in range(3, 16):
+        for k, col in enumerate(sash):
+            px[2 + k, y] = col
+            px[22 - k, y] = col
+    return limezu.up2(win)
 
 
 def build_all(cfg, pack):
@@ -85,6 +135,7 @@ def build_all(cfg, pack):
     for lk in looks(cfg):
         for n, im in build(look_cfg(cfg, lk), pack).items():
             tiles["%s_%s" % (n, lk)] = im
+    tiles["window_open"] = open_window(cfg, pack)
     return tiles
 
 

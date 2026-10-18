@@ -72,21 +72,21 @@
     {
      "id": "coat_hooks",
      "tile": [
-      1,
+      2,
       1
      ]
     },
     {
      "id": "alphabet_frieze",
      "tile": [
-      3,
+      10,
       1
      ]
     },
     {
      "id": "certificate",
      "tile": [
-      14,
+      18,
       1
      ]
     }
@@ -170,28 +170,21 @@
     {
      "id": "coat_hooks",
      "tile": [
-      1,
+      2,
       1
      ]
     },
     {
      "id": "certificate",
      "tile": [
-      3,
+      18,
       1
      ]
     },
     {
      "id": "world_map",
      "tile": [
-      7,
-      1
-     ]
-    },
-    {
-     "id": "duty_roster",
-     "tile": [
-      14,
+      10,
       1
      ]
     }
@@ -282,14 +275,14 @@
     {
      "id": "duty_roster",
      "tile": [
-      4,
+      2,
       1
      ]
     },
     {
      "id": "wall_clock",
      "tile": [
-      8,
+      3,
       1
      ]
     },
@@ -303,7 +296,7 @@
     {
      "id": "certificate",
      "tile": [
-      14,
+      18,
       1
      ]
     }
@@ -317,7 +310,7 @@
     {
      "id": "globe",
      "tile": [
-      4,
+      5,
       2
      ]
     },
@@ -385,16 +378,9 @@
      ]
     },
     {
-     "id": "coat_hooks",
-     "tile": [
-      1,
-      1
-     ]
-    },
-    {
      "id": "world_map",
      "tile": [
-      7,
+      2,
       1
      ]
     },
@@ -408,7 +394,7 @@
     {
      "id": "certificate",
      "tile": [
-      14,
+      18,
       1
      ]
     }
@@ -506,21 +492,21 @@
     {
      "id": "coat_hooks",
      "tile": [
-      1,
+      2,
       1
      ]
     },
     {
      "id": "wall_clock",
      "tile": [
-      8,
+      18,
       1
      ]
     },
     {
      "id": "alphabet_frieze",
      "tile": [
-      14,
+      10,
       1
      ]
     }
@@ -611,14 +597,14 @@
     {
      "id": "duty_roster",
      "tile": [
-      3,
+      2,
       1
      ]
     },
     {
      "id": "wall_clock",
      "tile": [
-      8,
+      3,
       1
      ]
     },
@@ -632,7 +618,7 @@
     {
      "id": "certificate",
      "tile": [
-      14,
+      18,
       1
      ]
     }
@@ -716,21 +702,14 @@
     {
      "id": "world_map",
      "tile": [
-      1,
+      2,
       1
      ]
     },
     {
      "id": "certificate",
      "tile": [
-      3,
-      1
-     ]
-    },
-    {
-     "id": "wall_clock",
-     "tile": [
-      8,
+      18,
       1
      ]
     },
@@ -738,13 +717,6 @@
      "id": "class_banner",
      "tile": [
       10,
-      1
-     ]
-    },
-    {
-     "id": "alphabet_frieze",
-     "tile": [
-      14,
       1
      ]
     }

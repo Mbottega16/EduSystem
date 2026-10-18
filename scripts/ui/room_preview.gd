@@ -12,8 +12,6 @@ const PROP_CHAIR := preload("res://art/chair.png")
 const PROP_DESK := preload("res://art/desk.png")
 const PROP_PODIUM := preload("res://art/podium.png")
 const PROP_TEACHER_DESK := preload("res://art/teacher_desk.png")
-const PROP_BELL := preload("res://art/bell.png")
-const PROP_BOARD := preload("res://art/noticeboard.png")
 const PROP_CABINET := preload("res://art/cabinet_body.png")
 
 var template: Dictionary = {}
@@ -84,8 +82,11 @@ func _draw() -> void:
 			var a := Layout.span_anchor(tiles)
 			standing.append([a.y, tex, a])
 
-	# on the wall: the board, the starting decor that has not given way, then the template's own
-	_put(PROP_BOARD, Grid.tile_to_world(Layout.BOARD), 34.0)
+	# on the wall: the fixtures that hang there for good (the shop's corkboard, the
+	# curriculum poster, the treat shelf, the intercom), the starting decor that
+	# has not given way, then the template's own
+	for f: Array in RoomBuilder.hung_fixtures():
+		_put(f[0] as Texture2D, RoomBuilder.hung_fixture_anchor(f[1] as Array, float(f[2])))
 	for seed_row: Array in RoomBuilder.visible_seeds(hung_cols):
 		var sid := String(seed_row[0])
 		var stex: Texture2D = _tex(sid)
@@ -99,7 +100,6 @@ func _draw() -> void:
 		standing.append([Grid.tile_to_world(seat + Layout.DESK_OFFSET).y, PROP_DESK,
 			Grid.tile_to_world(seat + Layout.DESK_OFFSET)])
 	standing.append([Grid.tile_to_world(Layout.PODIUM).y, PROP_PODIUM, Grid.tile_to_world(Layout.PODIUM)])
-	standing.append([Grid.tile_to_world(Layout.BELL).y, PROP_BELL, Grid.tile_to_world(Layout.BELL)])
 	standing.append([Grid.tile_to_world(Layout.CABINET).y, PROP_CABINET, Grid.tile_to_world(Layout.CABINET)])
 	var td := Layout.span_anchor(Layout.TEACHER_DESK)
 	standing.append([td.y, PROP_TEACHER_DESK, td])

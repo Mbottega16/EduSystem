@@ -202,8 +202,11 @@ const BAR_W := 26.0
 const BAR_H := 4.0
 const BAR_Y := -30.0
 const BAR_PAD := 2.0
-const BAR_BG := Color(0.10, 0.09, 0.12, 0.85)
-const BAR_TRACK := Color(0.30, 0.29, 0.34)
+## LimeZu's keyline (#3a3a50), the dark blue every sprite in the room is
+## outlined in -- not black (Oct 2026, the owner's ask). The empty track is a
+## cool grey from his palette (#6c6e85), light enough to read against it.
+const BAR_BG := Color("3a3a50")
+const BAR_TRACK := Color("6c6e85")
 const BAR_FILL := Color(0.42, 0.78, 0.45)
 const BAR_STUCK := Color(0.86, 0.42, 0.36)
 ## The line back down to whoever a shifted notice belongs to. Only drawn
