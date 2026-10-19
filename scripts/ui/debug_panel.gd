@@ -13,6 +13,13 @@ extends CanvasLayer
 
 enum Page { TUNING, CHEATS }
 
+const FONT := preload("res://fonts/Galmuri9.ttf")
+const FRAME := preload("res://art/ui_frame.png")
+const FRAME_MARGIN := 12
+const SIZE := 20
+## Rows shown at once. The list scrolls so the cursor row is always inside.
+const WINDOW := 8
+
 const ROWS := [
 	{"label": "work seconds", "key": "work_seconds", "step": 1.0},
 	{"label": "lesson seconds", "key": "lesson_seconds", "step": 5.0},
@@ -59,18 +66,33 @@ func open_cheats() -> void:
 func _ready() -> void:
 	add_to_group("debug_panel")
 	layer = 20
+	# Dressed like the game's own screens: the dark overlay, LimeZu's bamboo
+	# frame, and the pixel font at 20, so it reads as part of the game.
 	_panel = ColorRect.new()
-	_panel.color = Color(0.05, 0.05, 0.08, 0.94)
-	_panel.size = Vector2(460, 336)   # doubled Aug 2026
-	_panel.position = Vector2(8, 12)   # doubled Aug 2026
+	_panel.color = Color(0.06, 0.05, 0.08, 0.93)
+	_panel.size = Vector2(640, 352)
 	_panel.visible = false
 	add_child(_panel)
 
+	var frame := NinePatchRect.new()
+	frame.texture = FRAME
+	frame.position = Vector2(2, 2)
+	frame.size = Vector2(636, 348)
+	for side in ["left", "top", "right", "bottom"]:
+		frame.set("patch_margin_" + side, FRAME_MARGIN)
+	frame.draw_center = false
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(frame)
+
 	_label = Label.new()
-	_label.position = Vector2(12, 6)   # doubled Aug 2026
-	_label.size = Vector2(444, 324)   # doubled Aug 2026
-	_label.add_theme_font_size_override("font_size", 16)   # doubled Aug 2026
-	_label.add_theme_color_override("font_color", Color(0.75, 1.0, 0.8))
+	_label.position = Vector2(24, 16)
+	_label.size = Vector2(592, 320)
+	_label.clip_text = true
+	_label.add_theme_font_override("font", FONT)
+	_label.add_theme_font_size_override("font_size", SIZE)
+	_label.add_theme_constant_override("line_spacing", 6)
+	_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
 	_panel.add_child(_label)
 
 
@@ -289,31 +311,28 @@ func _free_spot(id: String) -> Vector2i:
 
 
 func _render() -> void:
+	var rows: Array = _rows()
+	var first := clampi(_sel - WINDOW / 2, 0, maxi(0, rows.size() - WINDOW))
 	var lines: Array[String] = [
-		"F1/`/Shift+D toggle  Tab page  %s" % (
-			"[TUNING] cheats" if page == Page.TUNING else "tuning [CHEATS]"),
-		"",
-	]
-	if page == Page.TUNING:
-		for i in ROWS.size():
+		"%s    Tab: %s" % [
+			"CHEATS" if page == Page.CHEATS else "TUNING",
+			"tuning" if page == Page.CHEATS else "cheats"]]
+	for i in range(first, mini(first + WINDOW, rows.size())):
+		var cur := ">" if i == _sel else " "
+		if page == Page.TUNING:
 			var row: Dictionary = ROWS[i]
-			lines.append("%s %-15s %s" % [
-				">" if i == _sel else " ", String(row["label"]),
+			lines.append("%s %s  %s" % [cur, String(row["label"]),
 				"%.3f" % Balance.get_value(String(row["key"]))])
-		lines.append("")
-		lines.append("Left/Right adjust")
-	else:
-		for i in CHEATS.size():
+		else:
 			var mark := ""
 			if String(CHEATS[i]["id"]) == "coins" and Game.unlimited_coins:
-				mark = "  ON"
-			lines.append("%s %s%s" % [">" if i == _sel else " ",
-				String(CHEATS[i]["label"]), mark])
-		lines.append("")
-		lines.append("E to use.  " + ("CHEATED" if Game.cheated else "clean run"))
-	lines.append("")
-	lines.append("day %d  coins %d  items %d  lv %d" % [
-		Game.day, Game.coins, Game.room_items.size(), Game.teacher_level])
-	if _msg != "":
-		lines.append(_msg)
+				mark = "  (on)"
+			lines.append("%s %s%s" % [cur, String(CHEATS[i]["label"]), mark])
+	var more := ""
+	if rows.size() > WINDOW:
+		more = "  (%d-%d of %d)" % [first + 1, mini(first + WINDOW, rows.size()), rows.size()]
+	lines.append("%s%s" % ["Left/Right adjusts." if page == Page.TUNING
+		else "E uses it. %s." % ("CHEATED" if Game.cheated else "Clean run"), more])
+	lines.append(_msg if _msg != "" else "Day %d  coins %d  level %d   Esc closes" % [
+		Game.day, Game.coins, Game.teacher_level])
 	_label.text = "\n".join(lines)

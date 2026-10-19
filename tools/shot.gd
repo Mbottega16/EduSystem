@@ -633,6 +633,8 @@ func _open_screen(main: Node, screen: String) -> void:
 				Layout.BELL + Vector2i(0, 1))
 		"title":
 			hud.show_title()
+		"cheats":
+			get_tree().get_first_node_in_group("debug_panel").open_cheats()
 		"pause":
 			hud.show_pause()
 		"pause_settings":

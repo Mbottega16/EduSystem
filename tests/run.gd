@@ -8546,6 +8546,21 @@ func test_dev_panel() -> void:
 	# for them; backtick does BOTH jobs on one key, so it needs the edge
 	# of the press rather than the level, or it would flap open/closed
 	# every frame the key stayed down. This is that bug, caught directly.
+	dbg.open_cheats()
+	dbg._render()
+	chk("the pause menu's Cheats row opens the cheats page",
+		dbg.open and dbg.page == dbg.Page.CHEATS and dbg._label.text.begins_with("CHEATS"),
+		dbg._label.text)
+	chk("and the panel is drawn in the game's pixel font at size 20",
+		dbg._label.get_theme_font("font") == dbg.FONT
+		and dbg._label.get_theme_font_size("font_size") == 20)
+	chk("and it fits the screen",
+		dbg._label.text.split("\n").size() <= 11, dbg._label.text.split("\n").size())
+	dbg._sel = dbg.CHEATS.size() - 1
+	dbg._render()
+	chk("the list scrolls to keep the cursor row on screen",
+		dbg._label.text.contains(String(dbg.CHEATS[dbg.CHEATS.size() - 1]["label"])))
+	dbg._toggle(false)
 	dbg.open = false
 	if dbg._backtick_edge(true):
 		dbg._toggle(not dbg.open)
