@@ -633,6 +633,11 @@ func _open_screen(main: Node, screen: String) -> void:
 				Layout.BELL + Vector2i(0, 1))
 		"title":
 			hud.show_title()
+		"exam_picks":
+			for l: Dictionary in Curriculum.lessons:
+				if String(l.get("strand", "")) == "math":
+					Game.taught[String(l.get("id", ""))] = 3
+			hud.show_exam_picks()
 		"lesson_plans":
 			for l: Dictionary in Curriculum.lessons:
 				if String(l.get("strand", "")) == "math":

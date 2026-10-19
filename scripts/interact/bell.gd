@@ -10,6 +10,8 @@ func _init() -> void:
 	uses_key = Key.MANAGE
 	hold_time = 0.55      # ending the day is irreversible
 signal term_ended(result: Dictionary)
+## The last bell of a term needs the final assessment's lessons first.
+signal exam_picks_needed()
 
 
 func _classroom() -> Node:
@@ -27,6 +29,8 @@ func prompt_text() -> String:
 	if Game.phase == Game.Phase.LESSON:
 		return ""
 	if Game.day >= Balance.term_days:
+		if not Game.exam_picks_complete():
+			return "Choose the exam lessons — LAST DAY OF TERM"
 		return "Ring the bell — LAST DAY OF TERM"
 	return "Ring the bell — end day %d" % Game.day
 
@@ -34,6 +38,12 @@ func prompt_text() -> String:
 func interact(by: Node) -> void:
 	var room := _classroom()
 	if room == null:
+		return
+	# The last day of a term: the paper covers one lesson per subject, and
+	# you choose them before the bell goes.
+	if Game.day >= Balance.term_days and not Game.exam_picks_complete():
+		Sfx.play("confirm")
+		exam_picks_needed.emit()
 		return
 	Sfx.play("bell")
 	# ...and it SWINGS. The bell was the loudest thing in the room and the

@@ -278,6 +278,7 @@ func _main() -> void:
 	await test_mentor()
 	await test_dev_panel()
 	await test_prestige()
+	await test_exam_picks()
 	await test_teaching()
 	await test_weather()
 	await test_voice()
@@ -8509,6 +8510,68 @@ func test_mentor() -> void:
 ## pressing E on it set Game.cheated and did nothing else. Caught only by
 ## actually calling it and checking the room got bigger, which a headless
 ## boot check never would have.
+func test_exam_picks() -> void:
+	section("FINAL ASSESSMENT PICKS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	var p: Actor = world.player
+	var strands := Curriculum.strands()
+	chk("four subjects, so four picks", strands.size() == 4, strands)
+	chk("no picks to begin with", not Game.exam_picks_complete())
+	var s0: StudentData = Game.roster[0]
+	s0.favourite = ""
+	var base := Game.exam_score_for(s0)
+	chk("with no picks the paper is unmoved", is_equal_approx(Game.exam_pick_delta(s0), 0.0))
+	chk("a lesson from the wrong subject is refused",
+		not Game.pick_exam_lesson("math", "reading_fluency"))
+	# well-taught picks lift the paper, never past the cap
+	for st: String in strands:
+		var lid := Game.best_taught_lesson(st)
+		Game.taught[lid] = 5
+		chk("%s can be picked" % st, Game.pick_exam_lesson(st, lid))
+	chk("all four in makes it complete", Game.exam_picks_complete())
+	chk("well-taught picks lift the exam a little",
+		Game.exam_pick_delta(s0) > 0.0 and Game.exam_pick_delta(s0) <= Balance.exam_pick_swing,
+		Game.exam_pick_delta(s0))
+	chk("and the paper moves with it", Game.exam_score_for(s0) >= base)
+	# untaught picks lower it, never past the cap
+	Game.taught.clear()
+	chk("untaught picks lower it",
+		Game.exam_pick_delta(s0) < 0.0 and Game.exam_pick_delta(s0) >= -Balance.exam_pick_swing,
+		Game.exam_pick_delta(s0))
+	# survives a save, cleared with a new run
+	var saved := Game.to_dict()
+	Game.exam_picks.clear()
+	Game.from_dict(saved)
+	chk("the picks survive a save", Game.exam_picks_complete())
+	Game.new_run(SEED)
+	chk("and a new run starts with none", Game.exam_picks.is_empty())
+	await step(2)
+
+	# the bell on the last day asks for them first, then rings
+	Game.day = Balance.term_days
+	Game.set_phase(Game.Phase.AFTERNOON)
+	chk("the last bell offers to choose the lessons",
+		world.bell.prompt_text().contains("Choose the exam lessons"), world.bell.prompt_text())
+	world.bell.interact(p)
+	await step(2)
+	chk("ringing it opens the pick screen instead of ending the term",
+		hud.mode == hud.Mode.EXAM_PICK and not Game.term_over, hud.mode)
+	chk("the page names the subject and fits",
+		hud.title.text.contains("FINAL ASSESSMENT") and _fits(hud.body, PANEL_LINES_SMALL),
+		hud.body.text)
+	for i in strands.size():
+		await tap("interact")
+	chk("four picks later every subject is chosen", Game.exam_picks_complete(), Game.exam_picks)
+	chk("and the bell then rang: the exam is up", Game.exam_result.size() > 0
+		or hud.mode == hud.Mode.REPORT, hud.mode)
+	hud.close()
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_prestige() -> void:
 	section("PRESTIGE LESSONS")
 	Balance.ensure_loaded()

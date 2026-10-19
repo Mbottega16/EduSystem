@@ -281,6 +281,13 @@ func _play() -> void:
 				% [player.input_locked, hud.mode, Game.phase, _offer("manage")])
 			break
 		await hold("manage", 0.9)
+		# the last bell of a term asks which lesson from each subject the
+		# paper covers: the cursor already sits on the most-taught one, so
+		# a steady teacher just agrees four times and the bell then rings
+		var picks_guard := 0
+		while hud.mode == hud.Mode.EXAM_PICK and picks_guard < 8:
+			picks_guard += 1
+			await tap("interact")
 
 		if Game.day == day and not Game.term_over and Game.term == 1:
 			_fail(day, "the bell did not ring (F=[%s])" % _offer("manage"))

@@ -910,6 +910,7 @@ func new_run(seed_value: int = 0) -> void:
 	# ordinary numbers, silently, rather than inheriting a finished run's
 	# chaotic_term.
 	term_path = {}
+	exam_picks.clear()
 	term_path_hand.clear()
 	bell_rush_left = 0.0
 	_bell_rush_done.clear()
@@ -1948,6 +1949,65 @@ func lesson_length() -> float:
 ## The room's contribution is normalised to what YOU ADDED (room_score above
 ## room_base, over the range you can actually buy), so a bare room changes
 ## nothing at all and a finished one is worth about half a letter.
+## The final assessment's lessons: subject (strand) id -> lesson id, one of
+## each. Empty until the player has chosen. Cleared when a term closes.
+var exam_picks: Dictionary = {}
+
+
+func exam_picks_complete() -> bool:
+	var strands := Curriculum.strands()
+	if strands.is_empty():
+		return true
+	for st: String in strands:
+		if String(exam_picks.get(st, "")) == "":
+			return false
+	return true
+
+
+## Choose the lesson that stands for one subject on the exam.
+func pick_exam_lesson(strand: String, lesson_id: String) -> bool:
+	var l := Curriculum.by_id(lesson_id)
+	if l.is_empty() or String(l.get("id", "")) != lesson_id \
+			or String(l.get("strand", "")) != strand:
+		return false
+	exam_picks[strand] = lesson_id
+	return true
+
+
+## The lesson in this subject you have taught most (first in the book on a
+## tie): where the pick screen starts the cursor.
+func best_taught_lesson(strand: String) -> String:
+	var best := ""
+	var most := -1
+	for l: Dictionary in Curriculum.lessons:
+		if String(l.get("strand", "")) != strand:
+			continue
+		var n := int(taught.get(String(l.get("id", "")), 0))
+		if n > most:
+			most = n
+			best = String(l.get("id", ""))
+	return best
+
+
+## How the chosen lessons move one child's paper: a little up for lessons you
+## taught well, down for ones you never did, up again in a subject they love.
+## Zero until all the picks are in, and never more than exam_pick_swing.
+func exam_pick_delta(s: StudentData) -> float:
+	if exam_picks.is_empty() or not exam_picks_complete():
+		return 0.0
+	Balance.ensure_loaded()
+	var tot := 0.0
+	for st: String in exam_picks:
+		var prep := clampf(float(taught.get(String(exam_picks[st]), 0))
+			/ float(Balance.exam_pick_taught_full), 0.0, 1.0)
+		if s.favourite != "" and s.favourite == st:
+			prep += Balance.exam_pick_favourite
+		tot += prep
+	var mean := tot / float(exam_picks.size())
+	return clampf((mean - 0.5) * Balance.exam_pick_swing,
+		-Balance.exam_pick_swing, Balance.exam_pick_swing)
+
+
 func exam_score_for(s: StudentData) -> float:
 	Balance.ensure_loaded()
 	var span: float = maxf(0.01, Balance.room_cap - Balance.room_base)
@@ -1957,7 +2017,7 @@ func exam_score_for(s: StudentData) -> float:
 	# ordinary term, and never more than fight.max_swing either way. See
 	# BossFight.finish().
 	return clampf(s.average_grade() + built * Balance.exam_room_bonus
-		+ s.boss_delta, 0.0, 1.0)
+		+ s.boss_delta + exam_pick_delta(s), 0.0, 1.0)
 
 
 ## How many children have to pass THIS term for you to keep the job.
@@ -4391,6 +4451,7 @@ func to_dict() -> Dictionary:
 		"teacher_xp": teacher_xp,
 		"perk_ranks": perk_ranks,
 		"term_path": term_path,
+		"exam_picks": exam_picks.duplicate(),
 		"graduated": graduated,
 		"meta": meta,
 		"cheated": cheated,
@@ -4484,6 +4545,7 @@ func from_dict(d: Dictionary) -> void:
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()
+	exam_picks = (d.get("exam_picks", {}) as Dictionary).duplicate()
 	graduated = d.get("graduated", []).duplicate()
 	# The career block that survives new_run(). An older save has no "meta"
 	# key -- _ensure_meta_keys() then fills a fresh one, exactly like every

@@ -61,6 +61,10 @@ func _ready() -> void:
 			"They are with you for a few breaths, wherever you walk. Make the trip count."))
 
 	hud.item_chosen.connect(_start_placing)
+	# once the exam lessons are in, the bell the player already pressed rings
+	hud.exam_picks_done.connect(func() -> void:
+		if world.bell != null and is_instance_valid(world.bell):
+			world.bell.interact(world.player))
 	hud.assignment_chosen.connect(_start_chosen_lesson)
 	hud.perk_bought.connect(func() -> void: world.player._apply_reach())
 	world.add_to_group("classroom")
@@ -288,6 +292,7 @@ func _wire_room() -> void:
 		[world.podium, "fight_started", _on_fight_started],
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],
+		[world.bell, "exam_picks_needed", hud.show_exam_picks],
 		[world.noticeboard, "catalogue_opened", hud.open_catalogue],
 		[world.cabinet, "cabinet_opened", func() -> void: hud.open_catalogue(hud.Shop.CABINET)],
 		[world.ad_poster, "ad_poster_opened", hud.show_ads],

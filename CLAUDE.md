@@ -148,7 +148,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2854 assertions — must pass, count must not drop
+Run Tests.bat            2906 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -273,7 +273,7 @@ still looks armed is how the last one got missed.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2854 assertions, 140 sections |
+| `tests/run.gd` | The suite — 2906 assertions, 140 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -416,8 +416,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   - **The Study Folder (`8414c57`):** Desk-top item (`Game.desk_items`, Learning tab, 60 coins, max 2) that lets a stuck child look up their own answer after 6s and prevents chatting/copying across that desk.
   - **The Grade Book (Key `U`):** Open register on the teacher's desk showing 5 lessons per page across `Game.grade_log` (lessons, unit tests, term exams).
   - **Explorable School & Animated Room (2026-10-08/09):** Walkable staffed rooms replaying yesterday's `RoomSim`, hallway trophy case, principal's office room, event-day desk props (`RoomBuilder.EVENT_DESK`), blinking cast (`18x4` sheets), and 13 animated shop items.
+  - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
+  - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
 - **Current State (2026-10-18):**
-  - Suite green: **2854 assertions** in 140 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
+  - Suite green: **2906 assertions** in 140 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
 - **What Needs To Be Worked On Next:**
   1. Owner look at the new back wall, the butterfly and the grade book's subjects page in the real game; then playtest feedback on desk chatter frequency and Study Folder balance (`balance.json` -> `chat`, `items.study_folder`).
   2. Implement upcoming Admin Coaching layer using the clean-room math in `docs/SIM_FORMULAS.md`.

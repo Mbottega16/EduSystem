@@ -18,7 +18,8 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
-	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL }
+	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL,
+	EXAM_PICK }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -4953,6 +4954,81 @@ func show_curriculum() -> void:
 			else "") + ("   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else "")])
 
 
+## THE FINAL ASSESSMENT'S LESSONS. One page per subject, one lesson chosen on
+## each; the paper covers those four. The cursor starts on the lesson you have
+## taught most, so a player who has been teaching steadily can press E four
+## times and be done.
+signal exam_picks_done()
+var _exam_strand: int = 0
+var _exam_rows: Array = []
+
+
+func show_exam_picks() -> void:
+	_open(Mode.EXAM_PICK)
+	_exam_strand = 0
+	Game.exam_picks.clear()
+	_exam_page()
+
+
+func _exam_page() -> void:
+	var strands := Curriculum.strands()
+	var st: String = strands[_exam_strand]
+	_exam_rows = []
+	for l: Dictionary in Curriculum.lessons:
+		if String(l.get("strand", "")) == st:
+			_exam_rows.append(l)
+	var best := Game.best_taught_lesson(st)
+	_sel = 0
+	for i in _exam_rows.size():
+		if String((_exam_rows[i] as Dictionary).get("id", "")) == best:
+			_sel = i
+	_render_exam_pick()
+
+
+func _render_exam_pick() -> void:
+	var strands := Curriculum.strands()
+	var st: String = strands[_exam_strand]
+	title.text = "FINAL ASSESSMENT  -  %s  (%d of %d)" % [
+		Curriculum.strand_label(st), _exam_strand + 1, strands.size()]
+	var lines: Array[String] = ["      Choose the lesson the paper asks about.", ""]
+	var lo := _window_start(_exam_rows.size(), 7)
+	for i in range(lo, mini(_exam_rows.size(), lo + 7)):
+		var l: Dictionary = _exam_rows[i]
+		var n := Game.times_taught(String(l.get("id", "")))
+		lines.append("      %s %s %s" % [">" if i == _sel else " ",
+			Curriculum.short_name(l).rpad(14),
+			"never taught" if n == 0 else "taught %d time%s" % [n, "" if n == 1 else "s"]])
+	body.text = "\n".join(lines)
+	hint.text = "Up/Down choose   E picks   Esc decide later"
+
+
+func _exam_pick_input() -> void:
+	var n := _exam_rows.size()
+	if Input.is_action_just_pressed("cancel"):
+		Game.exam_picks.clear()
+		Sfx.play("blip")
+		close()
+	elif n > 0 and Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % n
+		Sfx.play("blip")
+		_render_exam_pick()
+	elif n > 0 and Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + n) % n
+		Sfx.play("blip")
+		_render_exam_pick()
+	elif Game.claim_interact() and n > 0:
+		var strands := Curriculum.strands()
+		var l: Dictionary = _exam_rows[_sel]
+		Game.pick_exam_lesson(strands[_exam_strand], String(l.get("id", "")))
+		Sfx.play("confirm")
+		_exam_strand += 1
+		if _exam_strand >= strands.size():
+			close()
+			exam_picks_done.emit()
+		else:
+			_exam_page()
+
+
 ## Prestige, for the lesson under the cursor: what it is, or how far off.
 func _prestige_words(l: Dictionary) -> String:
 	var lid := String(l.get("id", ""))
@@ -6543,6 +6619,10 @@ func _handle_input() -> void:
 			_adjust_wardrobe(1)
 		elif _dash == Dash.WARDROBE and Input.is_action_just_pressed("move_left"):
 			_adjust_wardrobe(-1)
+		return
+
+	if mode == Mode.EXAM_PICK:
+		_exam_pick_input()
 		return
 
 	if mode == Mode.CURRICULUM:

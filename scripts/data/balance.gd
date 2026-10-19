@@ -64,6 +64,9 @@ static var term_days: int = 20
 static var exam_pass: float = 0.62
 ## What a fully furnished room is worth ON TOP of a child's own record.
 static var exam_room_bonus: float = 0.08
+static var exam_pick_swing: float = 0.06
+static var exam_pick_taught_full: int = 3
+static var exam_pick_favourite: float = 0.25
 ## Does passing move a child up and out of your class at the end of term?
 static var term_pass_moves_up: bool = true
 ## How many must pass in term 1, and how much that rises each term after.
@@ -537,6 +540,9 @@ static func apply(d: Dictionary) -> void:
 	term_days = int(tm.get("days", term_days))
 	exam_pass = float(tm.get("exam_pass", exam_pass))
 	exam_room_bonus = float(tm.get("exam_room_bonus", exam_room_bonus))
+	exam_pick_swing = float(tm.get("exam_pick_swing", exam_pick_swing))
+	exam_pick_taught_full = maxi(1, int(tm.get("exam_pick_taught_full", exam_pick_taught_full)))
+	exam_pick_favourite = float(tm.get("exam_pick_favourite", exam_pick_favourite))
 	term_pass_moves_up = bool(tm.get("pass_moves_them_up", term_pass_moves_up))
 	term_target_base = int(tm.get("target_base", term_target_base))
 	term_target_growth = int(tm.get("target_growth", term_target_growth))
