@@ -453,6 +453,14 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = world.teacher_start_world()
 			hud._sel = hud.INTRO_PAGES.size() - 1
 			hud._render_intro()
+		"mentor_talk":
+			# The mentor's words on the cream paper, over the live classroom.
+			Game.intro_seen = true
+			hud.close()
+			Game.dash_taught = false
+			hud.show_mentor()
+			hud._sel = 3
+			hud._render_mentor()
 		"office":
 			for m: Dictionary in Milestones.all():
 				if Game.milestones.size() >= 6:

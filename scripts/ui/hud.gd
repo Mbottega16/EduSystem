@@ -169,6 +169,17 @@ var _slot: NinePatchRect = null      ## the cream slot behind a shop item's pict
 var pause_panel: NinePatchRect = null
 var pause_label: Label = null        ## title line plus a window of rows
 var pause_hint: Label = null         ## small print under the rows
+## The cream paper the talk screens sit on (office, mentor, caller). A child of
+## the overlay, so it hides with it. _paper_on() sizes it; _open() puts the
+## overlay's own look back.
+var _paper: NinePatchRect = null
+const PAPER_W := 560.0
+const PAPER_LINES := 5                ## most text lines on one page
+const PAPER_DIM := 0.22               ## the room shows through; at most a quarter dim
+const PAPER_FACE := 72.0
+const PAPER_PAD := 22.0
+## Width a line of paper text may use: the panel less its padding and the face.
+const PAPER_TEXT_W := PAPER_W - PAPER_PAD * 2.0 - PAPER_FACE - 14.0
 var _preview: RoomPreview = null     ## the Ideas tab's half-size room picture
 var _ideas_frame: NinePatchRect = null
 var _caption: RichTextLabel = null   ## the catalogue's left-page caption under the picture
@@ -313,6 +324,12 @@ func _ready() -> void:
 	overlay.move_child(_slot, 1)
 	_slot.visible = false
 	_build_pause_panel()
+	_paper = _nine_patch(UI_FRAME, Rect2(40, 56, 560, 240), true)
+	# 16, not the 12 of the border: the 4px of shade just inside it must not stretch
+	for side: String in ["left", "top", "right", "bottom"]:
+		_paper.set("patch_margin_" + side, 16)
+	_paper.visible = false
+	overlay.add_child(_paper)
 	_ideas_frame = _nine_patch(UI_FRAME, Rect2(282, 40, 344, 200), false)
 	overlay.add_child(_ideas_frame)
 	overlay.move_child(_ideas_frame, 2)
@@ -350,6 +367,8 @@ func _ready() -> void:
 		overlay.move_child(n, above)
 		above += 1
 	_set_ideas_ui(false)
+	# the paper sits behind the overlay's own text, in front of the bamboo frame
+	overlay.move_child(_paper, 1)
 	# A new run must not inherit the last one's screen.
 	Game.run_started.connect(func() -> void:
 		if mode != Mode.TITLE:
@@ -1181,6 +1200,166 @@ func _build_pause_panel() -> void:
 	pause_panel.add_child(pause_hint)
 
 
+## PAPER SCREENS. The principal's office, the mentor and a caller at the desk
+## used to be a wall of cream text on a near-black fill. They are now a cream
+## paper panel with dark ink and the speaker's face, over the live room with
+## at most a quarter dim. They reuse the overlay's own title, body, rich and
+## hint nodes (so every screen keeps one set of nodes) and move them onto the
+## paper; _paper_off() puts them back, and _open() calls it for every screen.
+func _paper_off() -> void:
+	if _paper == null or not _paper.visible:
+		return
+	_paper.visible = false
+	_frame.visible = true
+	title.offset_left = 0.0
+	title.offset_top = 12.0
+	title.offset_right = 640.0
+	title.offset_bottom = 40.0
+	title.remove_theme_color_override("font_color")
+	for n: Control in [body, rich]:
+		n.offset_left = 32.0
+		n.offset_top = 40.0
+		n.offset_right = 608.0
+		n.offset_bottom = 314.0
+	body.autowrap_mode = TextServer.AUTOWRAP_OFF
+	body.remove_theme_color_override("font_color")
+	rich.remove_theme_color_override("default_color")
+	hint.offset_left = 0.0
+	hint.offset_top = 316.0
+	hint.offset_right = 640.0
+	hint.offset_bottom = 340.0
+	hint.remove_theme_color_override("font_color")
+	portrait.expand_mode = TextureRect.EXPAND_KEEP_SIZE
+
+
+## Put the open screen's nodes on a cream paper panel with `rows` lines of
+## text, the speaker's `face` beside them. Idempotent: a page turn calls it again.
+func _paper_on(face: Texture2D, rows: int) -> void:
+	var lh := ceilf(SPEECH_FONT.get_height(UI_SIZE))
+	var h := 44.0 + float(rows) * lh + 40.0
+	var x := roundf((640.0 - PAPER_W) * 0.5)
+	var y := roundf((352.0 - h) * 0.5)
+	overlay.color = Color(0.04, 0.03, 0.06, PAPER_DIM)
+	_frame.visible = false
+	_paper.position = Vector2(x, y)
+	_paper.size = Vector2(PAPER_W, h)
+	_paper.visible = true
+	title.offset_left = x
+	title.offset_right = x + PAPER_W
+	title.offset_top = y + 12.0
+	title.offset_bottom = y + 38.0
+	title.add_theme_color_override("font_color", Color(0.36, 0.24, 0.1))
+	var tx := x + PAPER_PAD + (PAPER_FACE + 14.0 if face != null else 0.0)
+	var tw := PAPER_W - PAPER_PAD * 2.0 - (PAPER_FACE + 14.0 if face != null else 0.0)
+	for n: Control in [body, rich]:
+		n.offset_left = tx
+		n.offset_top = y + 44.0
+		n.offset_right = tx + tw
+		n.offset_bottom = y + 44.0 + float(rows) * lh + 4.0
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_color_override("font_color", INK)
+	rich.add_theme_color_override("default_color", INK)
+	hint.offset_left = x
+	hint.offset_right = x + PAPER_W
+	hint.offset_top = y + h - 36.0
+	hint.offset_bottom = y + h - 12.0
+	hint.add_theme_color_override("font_color", Color(0.34, 0.3, 0.26))
+	if face != null:
+		portrait.texture = face
+		portrait.visible = true
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_portrait_at(Rect2(x + PAPER_PAD, y + 48.0, PAPER_FACE, PAPER_FACE))
+	else:
+		portrait.visible = false
+
+
+## How many lines `text` takes when wrapped to `width` px in the speech font.
+func paper_line_count(text: String, width: float = PAPER_TEXT_W) -> int:
+	if text.is_empty():
+		return 1
+	var h := SPEECH_FONT.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT,
+		width, UI_SIZE).y
+	return maxi(1, roundi(h / SPEECH_FONT.get_height(UI_SIZE)))
+
+
+## Cut `lines` (a screen's old fixed-width lines; "" starts a new paragraph)
+## into pages of at most PAPER_LINES wrapped lines, breaking at a sentence.
+## Returns Array of String.
+func paper_pages(lines: Array, width: float = PAPER_TEXT_W) -> Array:
+	# 1. paragraphs, with the old hard line breaks folded into spaces
+	var units: Array = []          # [text, starts_paragraph]
+	var cur := ""
+	var para_start := false
+	for l: Variant in lines:
+		var s := String(l)
+		if s.strip_edges().is_empty():
+			if cur != "":
+				units.append_array(_paper_sentences(cur, para_start))
+				cur = ""
+			para_start = true
+		else:
+			cur = s if cur == "" else cur + " " + s
+	if cur != "":
+		units.append_array(_paper_sentences(cur, para_start))
+	# 2. greedy fill
+	var pages: Array = []
+	var page := ""
+	for u: Array in units:
+		var t: String = u[0]
+		var cand := t if page == "" else page + ("\n\n" if u[1] else " ") + t
+		if page != "" and paper_line_count(cand, width) > PAPER_LINES:
+			pages.append(page)
+			page = t
+		else:
+			page = cand
+		# a single sentence longer than a page: split it at words
+		while paper_line_count(page, width) > PAPER_LINES:
+			var words := page.split(" ")
+			var head := ""
+			var used := 0
+			for w in words.size():
+				var c2 := String(words[w]) if head == "" else head + " " + String(words[w])
+				if paper_line_count(c2, width) > PAPER_LINES:
+					break
+				head = c2
+				used = w + 1
+			if used <= 0 or used >= words.size():
+				break
+			pages.append(head)
+			page = " ".join(words.slice(used))
+	if page != "":
+		pages.append(page)
+	if pages.is_empty():
+		pages.append("")
+	return pages
+
+
+## `text` as sentences (kept with their end mark), the first flagged as the
+## start of a paragraph. Closing quotes stay with the sentence they end.
+func _paper_sentences(text: String, para_start: bool) -> Array:
+	var out: Array = []
+	var start := 0
+	var i := 0
+	while i < text.length():
+		var ch := text[i]
+		if ch in [".", "!", "?"]:
+			var j := i + 1
+			while j < text.length() and text[j] == "\"":
+				j += 1
+			if j >= text.length() or text[j] == " ":
+				out.append([text.substr(start, j - start).strip_edges(),
+					para_start and out.is_empty()])
+				start = j
+				i = j
+				continue
+		i += 1
+	var rest := text.substr(start).strip_edges()
+	if rest != "":
+		out.append([rest, para_start and out.is_empty()])
+	return out
+
+
 func _open(m: int) -> void:
 	# Which page the book is showing survives a re-open of the SAME screen,
 	# because that is what a page turn is: show_curriculum()/show_hand() are
@@ -1213,6 +1392,7 @@ func _open(m: int) -> void:
 	rich_left.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	sheet.visible = false
 	body.visible = true
+	_paper_off()
 	# ...and the intro slate's see-through backing and hidden hint, which it
 	# only puts back when it moves on to its own next page. Any screen opened
 	# with the slate still up -- or after it was closed from outside -- used to
@@ -3546,7 +3726,7 @@ func _render_intro() -> void:
 		body.add_theme_constant_override("line_spacing", 0)
 		body.text = "\n".join(INTRO_SLATE)
 		hint.text = "E - go on"
-		overlay.color = Color(0.04, 0.03, 0.06, 0.45)
+		overlay.color = Color(0.04, 0.03, 0.06, PAPER_DIM)
 		body.visible = false
 		hint.visible = false
 		say_dialogue("Ms. Clara", PLAYER_PORTRAIT,
@@ -3769,6 +3949,7 @@ signal mentor_call_demo_requested()
 
 func show_mentor() -> void:
 	_open(Mode.MENTOR)
+	_sub_key = -1
 	if not Game.dash_taught:
 		_mentor_talk = MentorTalk.TEACH
 		_sel = 0
@@ -3834,30 +4015,29 @@ func _render_caller() -> void:
 	body.add_theme_font_size_override("font_size", UI_SIZE)
 	body.add_theme_constant_override("line_spacing", 0)
 	# The same busts every other screen showing a face already uses.
+	var face: Texture2D = PRINCIPAL_PORTRAIT
 	if String(_caller_row.get("speaker", "")) == "student" and _caller_who != null:
-		portrait.texture = load("res://art/portrait_%s.png" % _caller_who.art)
-	else:
-		portrait.texture = PRINCIPAL_PORTRAIT
-	portrait.visible = true
+		face = load("res://art/portrait_%s.png" % _caller_who.art)
 	title.text = _caller_name()
-	var rows: Array[String] = []
+	var text := ""
 	if _caller_said != "":
 		# Answered. Their reply, and nothing to choose any more.
-		rows.append(_caller_said)
-		body.text = "
-".join(rows)
+		text = _caller_said
 		hint.text = "E - back to it"
-		return
-	rows.append("\"%s\"" % String(_caller_row.get("line", "")))
-	rows.append("")
-	var choices: Array = _caller_row.get("choices", [])
-	for i in choices.size():
-		var c: Dictionary = choices[i]
-		rows.append("%s %s" % [">" if i == _caller_sel else " ",
-			String(c.get("label", ""))])
-	body.text = "
+	else:
+		var rows: Array[String] = []
+		rows.append("\"%s\"" % String(_caller_row.get("line", "")))
+		rows.append("")
+		var choices: Array = _caller_row.get("choices", [])
+		for i in choices.size():
+			var c: Dictionary = choices[i]
+			rows.append("%s %s" % [">" if i == _caller_sel else " ",
+				String(c.get("label", ""))])
+		text = "
 ".join(rows)
-	hint.text = "W/S - choose    E - say it"
+		hint.text = "W/S - choose    E - say it"
+	_paper_on(face, clampi(paper_line_count(text), 3, 9))
+	body.text = text
 
 
 ## Selection then confirmation, the same idiom the student file uses for its
@@ -3892,6 +4072,14 @@ func caller_replied(said: String) -> void:
 	_render_caller()
 
 
+## Which sub-page of the current mentor page is showing. A mentor page is a
+## whole thought (the flags that unlock a verb hang off it), cut here into
+## paper pages of at most PAPER_LINES lines.
+var _sub: int = 0
+var _sub_key: int = -1
+var _sub_count: int = 1
+
+
 func _render_mentor() -> void:
 	overlay.visible = true
 	body.visible = true
@@ -3900,15 +4088,33 @@ func _render_mentor() -> void:
 	body.add_theme_constant_override("line_spacing", 0)
 	# The mentor's own bust -- a recolour of the one character model, same
 	# as show_student() does for a child.
-	portrait.texture = load("res://art/portrait_mentor.png")
-	portrait.visible = true
+	_paper_on(load("res://art/portrait_mentor.png"), PAPER_LINES)
+	var src: Array = []
+	var last_page := true
 	match _mentor_talk:
 		MentorTalk.TEACH, MentorTalk.CHAIN_INTRO, MentorTalk.CHAIN_AFTER, MentorTalk.CALL:
 			var pages := _mentor_pages()
 			_sel = clampi(_sel, 0, pages.size() - 1)
 			title.text = "THE MENTOR"
-			body.text = "\n".join(pages[_sel])
-			var last := _sel >= pages.size() - 1
+			src = pages[_sel]
+			last_page = _sel >= pages.size() - 1
+		MentorTalk.READ:
+			title.text = "A WORD BEFORE THE PAPER"
+			src = (_mentor_readiness_text() + _mentor_tactic_text()).split("\n")
+		_:
+			title.text = "THE MENTOR"
+			src = _MENTOR_IDLE
+	var key := _mentor_talk * 100 + _sel
+	if key != _sub_key:
+		_sub_key = key
+		_sub = 0
+	var subs := paper_pages(src)
+	_sub_count = subs.size()
+	_sub = clampi(_sub, 0, _sub_count - 1)
+	body.text = String(subs[_sub])
+	var last := last_page and _sub >= _sub_count - 1
+	match _mentor_talk:
+		MentorTalk.TEACH, MentorTalk.CHAIN_INTRO, MentorTalk.CHAIN_AFTER, MentorTalk.CALL:
 			if (_mentor_talk == MentorTalk.CHAIN_INTRO \
 					or _mentor_talk == MentorTalk.CALL) and last:
 				hint.text = "E - watch"
@@ -3917,14 +4123,8 @@ func _render_mentor() -> void:
 				hint.text = "E - go on"
 			else:
 				hint.text = "E - go on" if not last else "E - back to it"
-		MentorTalk.READ:
-			title.text = "A WORD BEFORE THE PAPER"
-			body.text = _mentor_readiness_text() + _mentor_tactic_text()
-			hint.text = "E - close"
 		_:
-			title.text = "THE MENTOR"
-			body.text = "\n".join(_MENTOR_IDLE)
-			hint.text = "E - close"
+			hint.text = "E - go on" if _sub < _sub_count - 1 else "E - close"
 
 
 ## RoomSim, run against the player's OWN roster and room, phrased as a tier
@@ -3994,6 +4194,7 @@ func _mentor_pages() -> Array:
 ## what the player just watched.
 func show_mentor_after_demo() -> void:
 	_open(Mode.MENTOR)
+	_sub_key = -1
 	_mentor_talk = MentorTalk.CHAIN_AFTER
 	_sel = 0
 	_render_mentor()
@@ -4003,6 +4204,11 @@ func _handle_mentor_input() -> void:
 	if not Game.claim_interact():
 		return
 	Sfx.play("blip")
+	# more paper on this same page first
+	if _sub < _sub_count - 1:
+		_sub += 1
+		_render_mentor()
+		return
 	if _mentor_talk == MentorTalk.CHAIN_INTRO \
 			or _mentor_talk == MentorTalk.CHAIN_AFTER:
 		_handle_chain_page()
@@ -4060,54 +4266,38 @@ func _handle_chain_page() -> void:
 
 
 func show_office() -> void:
+	if mode != Mode.OFFICE:
+		_sel = 0
 	_open(Mode.OFFICE)
 	body.visible = false
 	rich.visible = true
 	rich.add_theme_constant_override("line_separation", 0)
 	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "THE PRINCIPAL'S OFFICE"
-	# No portrait here, on purpose -- Rich runs the full body height in
-	# this screen (a list this long has nowhere else to go), and the
-	# portrait box sits square inside that rectangle. On the student bio
-	# screen the text is written to start BELOW the portrait; a list
-	# screen like this one cannot promise the same and a portrait UNDER
-	# wrapped text is worse than no portrait, confirmed by screenshot
-	# rather than assumed. The corner popup (principal_says) is where the
-	# face actually appears now.
+	# A cream paper panel over the live room, the principal beside the words.
+	# Page 0 is how the school stands; each page after it is one tip from the
+	# shelf, whole. Up and Down turn the pages. Never more than five lines.
+	_paper_on(PRINCIPAL_PORTRAIT, PAPER_LINES)
 
 	var all := Milestones.all()
 	var earned := Game.milestones.size()
 	var n := clampi(int(round(float(earned) / float(maxi(1, all.size())) * 20.0)), 0, 20)
 
+	_sel = clampi(_sel, 0, TUTORIALS.size())
 	var lines: Array[String] = []
-	lines.append("[color=#%s]The school is %s, and that is because of you.[/color]" % [
-		DIM, Game.reputation_words()])
-	lines.append("[color=#%s]Milestones[/color]  [color=#%s]%s[/color][color=#3a3a42]%s[/color]  %d/%d" % [
-		C_COIN, C_COIN, _cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n), earned, all.size()])
-	lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
-		DIM, Game.term_history.size(), Game.graduated.size()])
-	lines.append("")
-
-	# TUTORIALS is windowed, the same way Career pages past thirty
-	# milestones -- confirmed by screenshot rather than assumed: with all
-	# ten printed flat, the panel cut off after the fourth with no sign
-	# anything was missing, the exact silent-clip failure mode this
-	# project keeps a rule against. A shelf that is meant to grow with the
-	# game cannot be a fixed list that quietly stops being fully visible
-	# the day it does.
-	var shown := 5
-	_sel = clampi(_sel, 0, maxi(0, TUTORIALS.size() - 1))
-	var lo := _window_start(TUTORIALS.size(), shown)
-	lines.append("[color=#%s]TUTORIALS[/color]  [color=#%s]%d-%d of %d[/color]" % [
-		C_COIN, DIM, lo + 1, mini(TUTORIALS.size(), lo + shown), TUTORIALS.size()])
-	# The tip under the cursor is printed whole; the others are one line each,
-	# cut at a word, so the list keeps its shape in the pixel font.
-	for i in range(lo, mini(TUTORIALS.size(), lo + shown)):
-		var tip := String(TUTORIALS[i]) if i == _sel \
-			else _fit_px(String(TUTORIALS[i]), rich.size.x - 16.0)
-		lines.append("[color=#%s]%s%s[/color]" % [
-			C_LESSON if i == _sel else DIM, ">" if i == _sel else " ", tip])
-	rich.text = "\n".join(lines)
+	var ink := "5a4a38"
+	if _sel == 0:
+		lines.append("[color=#%s]The school is %s, and that is because of you.[/color]" % [
+			ink, Game.reputation_words()])
+		lines.append("[color=#8a5a10]Milestones[/color]  [color=#8a5a10]%s[/color][color=#b8a890]%s[/color]  %d/%d" % [
+			_cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n), earned, all.size()])
+		lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
+			ink, Game.term_history.size(), Game.graduated.size()])
+	else:
+		lines.append("[color=#8a5a10]TIP %d of %d[/color]" % [_sel, TUTORIALS.size()])
+		lines.append(String(TUTORIALS[_sel - 1]))
+	rich.text = "
+".join(lines)
 	_reveal_rich(0.3)
 	hint.text = "Up/Down more tips   E - full career list   Esc - close"
 
