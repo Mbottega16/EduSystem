@@ -148,7 +148,7 @@ PASSED** — a broken script can still print PASSED with a silently lower
 count. That has happened three times.
 
 ```
-Run Tests.bat            2931 assertions — must pass, count must not drop
+Run Tests.bat            3024 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
 Trace a Day.bat          walks a real day through the real buttons
@@ -273,7 +273,8 @@ still looks armed is how the last one got missed.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `tests/run.gd` | The suite — 2931 assertions, 140 sections |
+| `data/tutorials.json` | **Tutorial cutscenes**: ten short scripts (id, title, trigger event, 3-6 steps of speaker + text + optional pointer + optional demo). `scripts/data/tutorials.gd` (`TutorialData`) reads and checks it; `scripts/ui/tutorial.gd` (`Tutorial`) plays one over the room. State: `Game.tutorials_seen`, `Game.tutorials_enabled` (off in every headless run and tool; `main.gd` turns it on for a real player) |
+| `tests/run.gd` | The suite — 3024 assertions, 145 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/BRIEFING.md` | Context pack for external AIs |
@@ -401,6 +402,7 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
 *Vault summary: `~/OneDrive/Desktop/AI Projects/my-brain/projects/edusystem/context.md` (and `history.md` for pre-October build logs).*
 
 - **Last Worked On:**
+  - **Paper screens and tutorial cutscenes (2026-10-19):** The principal's office, the mentor and the desk caller are now cream paper panels over the live room (`hud._paper_on`, 22% dim at most), with the speaker's face. Mentor pages cut to five lines at a sentence (`hud.paper_pages`). New tutorial system: `data/tutorials.json` (ten tutorials), `scripts/ui/tutorial.gd` runner (panel, face, pointer ring and arrow, E next, Esc skip), `Game.tutorials_seen` saved, older saves grandfathered by use. `Game.fire_tutorial(event)` queues one; it plays when the room is free (`hud.tutorial_room_free`), or before a screen the player opens. Pause menu has a Tutorials page for replays (seen set unchanged). Shots: `tutorial_quiz`, `tutorial_homework`, `tutorial_pick`, `mentor_talk`.
   - **The back wall, the grade book, the bars (2026-10-18, the owner's list):**
     - Nothing on the back wall touches the skirting or anything else: windows two art pixels higher (`limezu_room.json` "top" 5), every hung piece's bottom on `Layout.WALL_HANG_Y` 50 (was 62, on the trim). Hung fixtures (`RoomBuilder.hung_fixtures()`): the corkboard is the furniture shop and ONLY the shop; the curriculum moved to the alphabet poster at 7-8 (`curriculum_poster`, E, beside the podium); the hand bell became LimeZu's wall intercom at column 1 (`Layout.BELL`), across the room from the shop; the treats sit on a jar shelf at 14-15 (`treat_shelf`, X) instead of floating round the locker; the locker moved to column 4, off the first window; the cuckoo clock hangs at 18. A save with a piece on a now-taken column is rehung (`Game.rehang_wall_items`); the seven room ideas were re-slotted.
     - Teacher's desk: pencil pot painted out of the art (manifest `fill`), mug moved onto the desktop. Work bars outlined in LimeZu's keyline `#3a3a50`. Reward poster is LimeZu's animated advertising screen (57 frames).
@@ -419,7 +421,7 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
   - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
 - **Current State (2026-10-18):**
-  - Suite green: **2931 assertions** in 140 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
+  - Suite green: **3024 assertions** in 145 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
 - **What Needs To Be Worked On Next:**
   1. Owner look at the new back wall, the butterfly and the grade book's subjects page in the real game; then playtest feedback on desk chatter frequency and Study Folder balance (`balance.json` -> `chat`, `items.study_folder`).
   2. Implement upcoming Admin Coaching layer using the clean-room math in `docs/SIM_FORMULAS.md`.

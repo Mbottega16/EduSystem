@@ -453,6 +453,14 @@ func _open_screen(main: Node, screen: String) -> void:
 			world.player.global_position = world.teacher_start_world()
 			hud._sel = hud.INTRO_PAGES.size() - 1
 			hud._render_intro()
+		"tutorial_quiz", "tutorial_homework", "tutorial_pick":
+			# A tutorial cutscene mid-way: the panel, the speaker and the ring
+			# and arrow on the thing it points at. Step 0 of each points at
+			# something in the room (the podium, the teacher's desk, the bell).
+			Game.intro_seen = true
+			hud.close()
+			var tid := String(screen).trim_prefix("tutorial_")
+			hud.play_tutorial("exam_picks" if tid == "pick" else tid)
 		"mentor_talk":
 			# The mentor's words on the cream paper, over the live classroom.
 			Game.intro_seen = true
@@ -666,6 +674,13 @@ func _open_screen(main: Node, screen: String) -> void:
 			get_tree().get_first_node_in_group("debug_panel").open_cheats()
 		"pause":
 			hud.show_pause()
+		"pause_tutorials":
+			Game.tutorials_seen.clear()
+			Game.mark_tutorial_seen("quiz")
+			hud.show_pause()
+			hud._pause_go(hud.PauseMenu.TUTORIALS)
+			hud._pause_sel = 3
+			hud._render_pause()
 		"pause_settings":
 			hud.show_pause()
 			hud._pause_go(hud.PauseMenu.SETTINGS)

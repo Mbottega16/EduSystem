@@ -280,6 +280,7 @@ func _main() -> void:
 	await test_dev_panel()
 	await test_prestige()
 	await test_exam_picks()
+	await test_tutorials()
 	await test_teaching()
 	await test_weather()
 	await test_voice()
@@ -303,8 +304,8 @@ func _main() -> void:
 	await test_age_tiers()
 	await test_supply_stash()
 	await test_whisper_aura()
-	test_walkthrough()
 	await test_review_fixes()
+	test_walkthrough()
 
 	print("")
 	if failed == 0:
@@ -3133,8 +3134,8 @@ func test_unit_test() -> void:
 	chk("but the room you built counts", Game.test_grade_for(a) > bare,
 		"%.3f -> %.3f" % [bare, Game.test_grade_for(a)])
 
-	var furnished := Game.test_grade_for(a)
 	a.work_state = StudentData.Work.COLLECTED   # the bonus pays on work done
+	var furnished := Game.test_grade_for(a)
 	for l: Dictionary in Curriculum.lessons:
 		for i in 10:
 			Game.record_taught(String(l.get("id", "")))
@@ -8131,10 +8132,25 @@ func test_hallway() -> void:
 	# kept both -- its words straight on the room, no hint line.
 	hud.show_intro()
 	hud.close()
-	hud.show_office()
+	hud.show_help()
 	chk("a screen opened after the intro's slate gets its own backing and footer back",
 		hud.overlay.color == hud.OVERLAY_COLOUR and hud.hint.visible,
 		[hud.overlay.color, hud.hint.visible])
+	hud.show_office()
+	chk("the office is a cream paper panel over the room, at most a quarter dim",
+		hud._paper.visible and hud.overlay.color.a <= 0.25 and hud.hint.visible
+		and not hud._frame.visible and hud.portrait.visible,
+		[hud.overlay.color, hud._paper.visible])
+	chk("...with dark ink, not the old cream-on-black",
+		hud.rich.get_theme_color("default_color").get_luminance() < 0.3)
+	for pg in hud.TUTORIALS.size() + 1:
+		hud._sel = pg
+		hud.show_office()
+		chk("office page %d fits five lines" % pg,
+			hud.rich.get_content_height() <= int(hud.rich.size.y), hud.rich.text)
+	hud.show_help()
+	chk("and leaving it gives the next screen its dark backing and bamboo frame back",
+		hud.overlay.color == hud.OVERLAY_COLOUR and hud._frame.visible and not hud._paper.visible)
 	hud.close()
 	var way_out: Node2D = null
 	for c in office.get_children():
@@ -8549,8 +8565,10 @@ func test_mentor() -> void:
 	var call_demo := [false]
 	var on_call_demo := func() -> void: call_demo[0] = true
 	hud.mentor_call_demo_requested.connect(on_call_demo)
-	for i in hud.MENTOR_CALL.size():
+	var call_taps := 0
+	while hud.mode == hud.Mode.MENTOR and call_taps < 30:
 		await tap("interact")
+		call_taps += 1
 	hud.mentor_call_demo_requested.disconnect(on_call_demo)
 	chk("closing the last page teaches it", Game.call_response_taught)
 	chk("and hands over to her own class answering her", call_demo[0])
@@ -8583,6 +8601,221 @@ func test_mentor() -> void:
 		return hud.body.text.strip_edges() != "").call())
 	hud.close()
 
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The tutorial cutscenes (data/tutorials.json, scripts/ui/tutorial.gd):
+## the data, the seen set, the queue that waits for a free room, Esc to skip,
+## the pause menu's page, and the paper screens' five-line pages.
+func test_tutorials() -> void:
+	section("TUTORIALS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	var hud := _hud()
+	# earlier sections can leave the teacher in the mentor's room or the hall
+	var main_node: Node = world.get_parent()
+	if world.player.get_parent() == main_node.get_node("MentorRoom"):
+		main_node._leave_mentor()
+	if world.player.get_parent() == main_node.get_node("Hallway"):
+		main_node._return_home()
+	await step(2)
+	chk("a headless run starts with tutorials off, so none can hold it up",
+		not Game.tutorials_enabled)
+
+	# --- the data ---
+	chk("the tutorial file loads and checks clean", TutorialData.problems().is_empty(),
+		TutorialData.problems())
+	var all := TutorialData.all()
+	chk("there is a tutorial for each first-time moment", all.size() >= 10, all.size())
+	var triggers := all.map(func(t: Dictionary) -> String: return String(t["trigger"]))
+	for ev: String in ["quiz_available", "homework_collected", "test_offered", "plans_opened",
+			"prestige_ready", "cabinet_opened", "ideas_opened", "exam_picks_needed",
+			"study_folder_placed", "grade_book_opened"]:
+		chk("trigger %s has a tutorial" % ev, triggers.has(ev))
+	var steps_ok := true
+	var speakers_ok := true
+	var fits_ok := true
+	var short_ok := true
+	var worst := ""
+	for t: Dictionary in all:
+		var steps: Array = t["steps"]
+		steps_ok = steps_ok and steps.size() >= 3 and steps.size() <= 6
+		for st: Dictionary in steps:
+			speakers_ok = speakers_ok and TutorialData.SPEAKERS.has(String(st["speaker"]))
+			var text := String(st["text"])
+			if Tutorial.lines_for(text) > Tutorial.MAX_LINES:
+				fits_ok = false
+				worst = text
+			var ends := 0
+			for ch in text:
+				if ch in [".", "!", "?"]:
+					ends += 1
+			short_ok = short_ok and ends <= 2
+	chk("every tutorial has three to six steps", steps_ok)
+	chk("every step has a known speaker", speakers_ok)
+	chk("every step's text fits the panel in five lines", fits_ok, worst)
+	chk("and is one or two sentences", short_ok)
+	var numbers_ok := true
+	for t: Dictionary in all:
+		for st: Dictionary in t["steps"]:
+			for ch in "0123456789":
+				if String(st["text"]).contains(ch):
+					numbers_ok = false
+	chk("no number stands in for a child's ability in any tutorial text", numbers_ok)
+
+	# --- the seen set saves, loads, clears, and grandfathers an old save ---
+	Game.tutorials_seen.clear()
+	Game.mark_tutorial_seen("quiz")
+	var saved := Game.to_dict()
+	Game.tutorials_seen.clear()
+	Game.from_dict(saved)
+	chk("the seen set survives a save", Game.tutorial_seen("quiz")
+		and not Game.tutorial_seen("homework"))
+	Game.new_run(SEED)
+	chk("a brand new run clears it", Game.tutorials_seen.is_empty())
+	var old := Game.to_dict()
+	old.erase("tutorials_seen")
+	old["taught"] = {"reading_fluency": 2}
+	Game.from_dict(old)
+	chk("an older save that already taught a lesson is not shown the quiz or the plans",
+		Game.tutorial_seen("quiz") and Game.tutorial_seen("lesson_plans"))
+	chk("...and is still shown what it never used", not Game.tutorial_seen("prestige")
+		and not Game.tutorial_seen("grade_book"))
+	Game.new_run(SEED)
+	await step(2)
+
+	# --- a trigger queues, and plays only when the room is free ---
+	Game.tutorials_enabled = true
+	hud.close()
+	# corner hints and the day's beat go first; a tutorial waits for them
+	hud._queued_hint.clear()
+	hud._queued_beat = ""
+	hud._hint_until = 0.0
+	chk("the room is free in the morning with nothing open", hud.tutorial_room_free(),
+		hud.tutorial_blocker())
+	Game.test_active = true
+	chk("...but not during a test", not hud.tutorial_room_free())
+	Game.test_active = false
+	hud.show_help()
+	chk("a screen being open is not a free room", not hud.tutorial_room_free())
+	Game.fire_tutorial("quiz_available")
+	chk("the event queues the tutorial", hud._tutorial_queue.has("quiz"), hud._tutorial_queue)
+	await step(120)
+	chk("and nothing plays over the open screen",
+		hud.mode == hud.Mode.HELP and not Game.tutorial_seen("quiz"))
+	hud.close()
+	await step(20)
+	chk("it waits a beat after the screen shuts", hud.mode == hud.Mode.NONE)
+	await step(90)
+	chk("then plays, as a cutscene over the room", hud.mode == hud.Mode.TUTORIAL
+		and hud.tutorial.playing and not hud.overlay.visible, hud.mode)
+	chk("the player is locked while it plays", world.player.input_locked)
+	chk("it is marked seen as it starts", Game.tutorial_seen("quiz"))
+	chk("the first step shows the podium pointer", hud.tutorial._target != null)
+	var first: String = hud.tutorial.current_text()
+	await tap("interact")
+	chk("E goes to the next step", hud.tutorial.step == 1
+		and hud.tutorial.current_text() != first, hud.tutorial.step)
+	await tap("cancel")
+	chk("Esc skips the rest and shuts it", hud.mode == hud.Mode.NONE and not hud.tutorial.playing)
+	chk("a skipped tutorial still counts as seen", Game.tutorial_seen("quiz"))
+	chk("the player is free again", not world.player.input_locked)
+	Game.fire_tutorial("quiz_available")
+	chk("a seen tutorial never queues again", hud._tutorial_queue.is_empty())
+
+	# --- the other first-time moments queue theirs ---
+	Game.add_item("study_folder", Layout.seat(0))
+	chk("putting a study folder on a desk queues its tutorial",
+		hud._tutorial_queue.has("study_folder"), hud._tutorial_queue)
+	Game.desk_items.erase(0)
+	world.player.carrying_hw = 1
+	hud._tutorial_poll()
+	world.player.carrying_hw = 0
+	chk("carrying homework queues the marking tutorial", hud._tutorial_queue.has("homework"))
+	var some_lesson := String(Curriculum.lessons[0].get("id", ""))
+	Game.taught[some_lesson] = Balance.test_requires_taught
+	hud._tutorial_poll()
+	Game.taught.erase(some_lesson)
+	chk("a unit ready to test queues the unit test tutorial",
+		hud._tutorial_queue.has("unit_test"), hud._tutorial_queue)
+	hud._tutorial_queue.clear()
+
+	# --- a screen the player opens plays its tutorial FIRST, then opens ---
+	Game.tutorials_seen.erase("exam_picks")
+	hud.show_exam_picks()
+	chk("the exam picks screen starts with its tutorial", hud.mode == hud.Mode.TUTORIAL)
+	await tap("cancel")
+	chk("and the picks open when it ends", hud.mode == hud.Mode.EXAM_PICK, hud.mode)
+	hud.close()
+	Game.tutorials_enabled = false
+	hud.show_curriculum()
+	chk("with tutorials off a screen just opens", hud.mode == hud.Mode.CURRICULUM)
+	hud.close()
+
+	# --- the pause menu's page: lists all, replay leaves the seen set alone ---
+	hud.show_pause()
+	hud._pause_go(hud.PauseMenu.TUTORIALS)
+	hud._render_pause()
+	chk("the pause menu has a Tutorials row", hud.PAUSE_MAIN.has("tutorials"))
+	chk("its page lists every tutorial and a way back",
+		hud._pause_rows().size() == all.size() + 1, hud._pause_rows().size())
+	var listed := true
+	for i in all.size():
+		hud._pause_sel = i
+		listed = listed and hud._pause_row_text(String(hud._pause_rows()[i])).begins_with(
+			String((all[i] as Dictionary)["title"]))
+	chk("each row is a tutorial's title", listed)
+	chk("the page fits the panel", _pause_fits(hud), _pause_overflow(hud))
+	Game.tutorials_seen.clear()
+	Game.mark_tutorial_seen("cabinet")
+	hud._pause_sel = 1
+	await tap("interact")
+	chk("E replays the one under the cursor", hud.mode == hud.Mode.TUTORIAL
+		and String(hud.tutorial.tutorial["id"]) == String((all[1] as Dictionary)["id"]),
+		hud.mode)
+	await tap("cancel")
+	chk("a replay does not change what has been seen",
+		Game.tutorials_seen.size() == 1 and Game.tutorial_seen("cabinet"),
+		Game.tutorials_seen)
+	chk("and it comes back to the pause menu's page",
+		hud.mode == hud.Mode.PAUSE and hud._pause_page == hud.PauseMenu.TUTORIALS
+		and hud._pause_sel == 1)
+	hud.close()
+
+	# --- the pointer finds the room's things ---
+	hud.play_tutorial("quiz", true)
+	chk("the pointer can name the podium", hud.tutorial.target_node("podium") != null)
+	chk("...the teacher's desk", hud.tutorial.target_node("teacher_desk") != null)
+	chk("...the bell", hud.tutorial.target_node("bell") != null)
+	chk("...a student desk", hud.tutorial._point_for("desk:0") != null)
+	chk("...and says nothing for a name it does not know",
+		hud.tutorial._point_for("nowhere") == null)
+	hud.tutorial.skip()
+	hud.close()
+
+	# --- the paper screens cut their words into pages of five lines ---
+	var sets := [hud.MENTOR_CHAIN_INTRO, hud.MENTOR_CHAIN_AFTER, hud.MENTOR_CALL, hud.MENTOR_PAGES]
+	var pages_ok := true
+	var n_pages := 0
+	for set: Array in sets:
+		for page: Array in set:
+			for pg: String in hud.paper_pages(page):
+				n_pages += 1
+				pages_ok = pages_ok and hud.paper_line_count(pg) <= hud.PAPER_LINES
+	for pg: String in hud.paper_pages(hud._MENTOR_IDLE):
+		pages_ok = pages_ok and hud.paper_line_count(pg) <= hud.PAPER_LINES
+	chk("every mentor page is cut to five lines or fewer", pages_ok and n_pages > 0, n_pages)
+	var long_page: Array = ["One. Two. Three. Four. Five. Six. Seven. Eight. Nine. Ten.",
+		"Eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty.",
+		"", "Twenty-one twenty-two twenty-three twenty-four twenty-five twenty-six."]
+	var cut: Array = hud.paper_pages(long_page)
+	chk("a long page is cut into several", cut.size() >= 2, cut.size())
+	chk("none of them is over five lines", cut.all(func(pg: String) -> bool:
+		return hud.paper_line_count(pg) <= hud.PAPER_LINES))
+
+	Game.tutorials_enabled = false
 	Game.new_run(SEED)
 	await step(2)
 
@@ -16288,102 +16521,6 @@ func test_whisper_aura() -> void:
 	await step(2)
 
 
-## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
-##
-## Not a test of the game -- a test of the thing that tests the game, and
-## the two failures it pins down are both ones this repo actually had.
-##
-## walk_to() lived in playterm.gd and playtrace.gd, byte-identical. A real
-## fix landed in one copy; the other kept a comment saying so and stayed
-## broken. And playterm.gd exited 0 whatever happened, so a failed day 18,
-## a clean run, and a script that never compiled were indistinguishable
-## from the outside -- which is how a regression sat for four days while
-## the suite below it stayed green. A green suite cannot say anything
-## about a tool that never reports failure, so it says it here instead.
-func test_walkthrough() -> void:
-	section("WALKTHROUGH")
-	var drive := FileAccess.get_file_as_string("res://tools/playdrive.gd")
-	var term := FileAccess.get_file_as_string("res://tools/playterm.gd")
-	var trace := FileAccess.get_file_as_string("res://tools/playtrace.gd")
-	chk("all three walkthrough scripts are there to scan",
-		drive != "" and term != "" and trace != "")
-
-	# --- one copy of the keyboard, not two ---
-	chk("walk_to() lives in playdrive.gd", drive.count("func walk_to(") == 1)
-	chk("...and playterm.gd does not redefine it",
-		term.count("func walk_to(") == 0)
-	chk("...and neither does playtrace.gd -- the copy that missed the fix",
-		trace.count("func walk_to(") == 0)
-	chk("both tools inherit the shared base rather than copying it",
-		term.contains('extends "res://tools/playdrive.gd"')
-		and trace.contains('extends "res://tools/playdrive.gd"'))
-	chk("the one walk_to() still arrives by TILE, not only by 5px centre",
-		drive.contains("Grid.world_to_tile(player.global_position) == tile"))
-	for fn: String in ["func tap(", "func hold(", "func frames(", "func _release("]:
-		chk("%s() is shared too, not copied back into a tool" % fn.substr(5).rstrip("("),
-			drive.count(fn) == 1 and term.count(fn) == 0 and trace.count(fn) == 0)
-
-	# --- a walkthrough that fails has to SAY so, in the exit code ---
-	chk("playterm.gd quits with a real code",
-		term.contains("get_tree().quit(0 if _verdict() else 1)"))
-	chk("...and never with the bare quit() that made every run look fine",
-		not term.contains("get_tree().quit()"))
-	chk("it prints a verdict line either way",
-		term.contains('VERDICT_PASS := "WALKTHROUGH PASSED"')
-		and term.contains('VERDICT_FAIL := "WALKTHROUGH FAILED"'))
-	chk("a failure names the day it broke on",
-		term.contains('[VERDICT_FAIL, _fail_day, _fail_why]'))
-	chk("competence stays reported, not gated, until a marking policy exists",
-		term.contains("const GATE_COMPETENCE := false"))
-	chk("and it cannot hang whatever is waiting on it",
-		term.contains("watchdog(WATCHDOG_SECONDS"))
-
-	# --- and whatever RUNS it must read that line, not the exit code alone ---
-	var bat := FileAccess.get_file_as_string("res://Play a Whole Term.bat")
-	var hook := FileAccess.get_file_as_string("res://.githooks/pre-push")
-	chk("the launcher is there to scan", bat != "")
-	chk("the pre-push hook is TRACKED, not hidden in .git/hooks where it died",
-		hook != "")
-	chk("the launcher checks the verdict line", bat.contains("WALKTHROUGH PASSED"))
-	# Case-insensitively: Godot prints "Parse Error:" on one line and
-	# "with error \"Parse error\"" on the next, and this check quietly
-	# passed on the second one until both guards were made /I and -i.
-	chk("...and the parse-error trap", bat.to_lower().contains("parse error"))
-	chk("the hook actually runs the walkthrough", hook.contains("playterm.tscn"))
-	chk("...and blocks on its verdict",
-		hook.contains("WALKTHROUGH PASSED") and hook.contains("WALKTHROUGH FAILED"))
-	chk("...and guards the same parse-error trap",
-		hook.to_lower().contains("parse error"))
-
-	# --- the gates are DISARMED on purpose; say it out loud ---
-	# Step 0 of the ten-commit queue turned both hooks off by default: two
-	# minutes on every commit and three and a half on every push was
-	# costing more than the breakage it caught. The bodies are intact and
-	# EDUSYSTEM_GATE=1 brings either one back for a single command.
-	#
-	# This is asserted rather than left to the files, because the last time
-	# a gate in this repo stopped running, nothing said so for weeks. Two
-	# of these pin the disarm as a DELIBERATE, documented state; the third
-	# stops Verify.bat quietly losing the walkthrough it inherited from the
-	# pre-push hook, which would leave nothing running it at all.
-	var commit_hook := FileAccess.get_file_as_string("res://.githooks/pre-commit")
-	chk("the pre-commit gate is opt-in via EDUSYSTEM_GATE, not automatic",
-		commit_hook.contains("EDUSYSTEM_GATE"))
-	chk("...and so is pre-push", hook.contains("EDUSYSTEM_GATE"))
-	chk("...and Verify.bat runs the walkthrough the hook no longer does",
-		FileAccess.get_file_as_string("res://Verify.bat").contains("Play a Whole Term.bat"))
-
-	# --- a dev tool must never write the player's save (CLAUDE.md) ---
-	chk("both walkthroughs redirect the save away from the player's",
-		drive.contains('Game.save_path = "user://edusystem_WALKTHROUGH_save.json"'))
-	# The screenshot harness boots the REAL game against the real save, which
-	# is the point of it -- but "day"/"new_term" advance that run, and an
-	# advance can write. Reading the player's save is fine; writing it is the
-	# thing the rule forbids.
-	var shot := FileAccess.get_file_as_string("res://tools/shot.gd")
-	chk("...and so does the screenshot harness, which boots the real run",
-		shot.contains('const SHOT_SAVE := "user://edusystem_SHOT_save.json"')
-		and shot.contains("Game.save_path = SHOT_SAVE"))
 ## Fixes from a code review: the unit test farm, the test grade, inspections
 ## on a test day, a save mid-test, skipped-day homework, a sticky misjudged
 ## flag and stale homework sheets.
@@ -16491,3 +16628,99 @@ func test_review_fixes() -> void:
 	Game.new_run(SEED)
 
 
+## The walkthrough tools: ONE walk_to, and a verdict a machine can read.
+##
+## Not a test of the game -- a test of the thing that tests the game, and
+## the two failures it pins down are both ones this repo actually had.
+##
+## walk_to() lived in playterm.gd and playtrace.gd, byte-identical. A real
+## fix landed in one copy; the other kept a comment saying so and stayed
+## broken. And playterm.gd exited 0 whatever happened, so a failed day 18,
+## a clean run, and a script that never compiled were indistinguishable
+## from the outside -- which is how a regression sat for four days while
+## the suite below it stayed green. A green suite cannot say anything
+## about a tool that never reports failure, so it says it here instead.
+func test_walkthrough() -> void:
+	section("WALKTHROUGH")
+	var drive := FileAccess.get_file_as_string("res://tools/playdrive.gd")
+	var term := FileAccess.get_file_as_string("res://tools/playterm.gd")
+	var trace := FileAccess.get_file_as_string("res://tools/playtrace.gd")
+	chk("all three walkthrough scripts are there to scan",
+		drive != "" and term != "" and trace != "")
+
+	# --- one copy of the keyboard, not two ---
+	chk("walk_to() lives in playdrive.gd", drive.count("func walk_to(") == 1)
+	chk("...and playterm.gd does not redefine it",
+		term.count("func walk_to(") == 0)
+	chk("...and neither does playtrace.gd -- the copy that missed the fix",
+		trace.count("func walk_to(") == 0)
+	chk("both tools inherit the shared base rather than copying it",
+		term.contains('extends "res://tools/playdrive.gd"')
+		and trace.contains('extends "res://tools/playdrive.gd"'))
+	chk("the one walk_to() still arrives by TILE, not only by 5px centre",
+		drive.contains("Grid.world_to_tile(player.global_position) == tile"))
+	for fn: String in ["func tap(", "func hold(", "func frames(", "func _release("]:
+		chk("%s() is shared too, not copied back into a tool" % fn.substr(5).rstrip("("),
+			drive.count(fn) == 1 and term.count(fn) == 0 and trace.count(fn) == 0)
+
+	# --- a walkthrough that fails has to SAY so, in the exit code ---
+	chk("playterm.gd quits with a real code",
+		term.contains("get_tree().quit(0 if _verdict() else 1)"))
+	chk("...and never with the bare quit() that made every run look fine",
+		not term.contains("get_tree().quit()"))
+	chk("it prints a verdict line either way",
+		term.contains('VERDICT_PASS := "WALKTHROUGH PASSED"')
+		and term.contains('VERDICT_FAIL := "WALKTHROUGH FAILED"'))
+	chk("a failure names the day it broke on",
+		term.contains('[VERDICT_FAIL, _fail_day, _fail_why]'))
+	chk("competence stays reported, not gated, until a marking policy exists",
+		term.contains("const GATE_COMPETENCE := false"))
+	chk("and it cannot hang whatever is waiting on it",
+		term.contains("watchdog(WATCHDOG_SECONDS"))
+
+	# --- and whatever RUNS it must read that line, not the exit code alone ---
+	var bat := FileAccess.get_file_as_string("res://Play a Whole Term.bat")
+	var hook := FileAccess.get_file_as_string("res://.githooks/pre-push")
+	chk("the launcher is there to scan", bat != "")
+	chk("the pre-push hook is TRACKED, not hidden in .git/hooks where it died",
+		hook != "")
+	chk("the launcher checks the verdict line", bat.contains("WALKTHROUGH PASSED"))
+	# Case-insensitively: Godot prints "Parse Error:" on one line and
+	# "with error \"Parse error\"" on the next, and this check quietly
+	# passed on the second one until both guards were made /I and -i.
+	chk("...and the parse-error trap", bat.to_lower().contains("parse error"))
+	chk("the hook actually runs the walkthrough", hook.contains("playterm.tscn"))
+	chk("...and blocks on its verdict",
+		hook.contains("WALKTHROUGH PASSED") and hook.contains("WALKTHROUGH FAILED"))
+	chk("...and guards the same parse-error trap",
+		hook.to_lower().contains("parse error"))
+
+	# --- the gates are DISARMED on purpose; say it out loud ---
+	# Step 0 of the ten-commit queue turned both hooks off by default: two
+	# minutes on every commit and three and a half on every push was
+	# costing more than the breakage it caught. The bodies are intact and
+	# EDUSYSTEM_GATE=1 brings either one back for a single command.
+	#
+	# This is asserted rather than left to the files, because the last time
+	# a gate in this repo stopped running, nothing said so for weeks. Two
+	# of these pin the disarm as a DELIBERATE, documented state; the third
+	# stops Verify.bat quietly losing the walkthrough it inherited from the
+	# pre-push hook, which would leave nothing running it at all.
+	var commit_hook := FileAccess.get_file_as_string("res://.githooks/pre-commit")
+	chk("the pre-commit gate is opt-in via EDUSYSTEM_GATE, not automatic",
+		commit_hook.contains("EDUSYSTEM_GATE"))
+	chk("...and so is pre-push", hook.contains("EDUSYSTEM_GATE"))
+	chk("...and Verify.bat runs the walkthrough the hook no longer does",
+		FileAccess.get_file_as_string("res://Verify.bat").contains("Play a Whole Term.bat"))
+
+	# --- a dev tool must never write the player's save (CLAUDE.md) ---
+	chk("both walkthroughs redirect the save away from the player's",
+		drive.contains('Game.save_path = "user://edusystem_WALKTHROUGH_save.json"'))
+	# The screenshot harness boots the REAL game against the real save, which
+	# is the point of it -- but "day"/"new_term" advance that run, and an
+	# advance can write. Reading the player's save is fine; writing it is the
+	# thing the rule forbids.
+	var shot := FileAccess.get_file_as_string("res://tools/shot.gd")
+	chk("...and so does the screenshot harness, which boots the real run",
+		shot.contains('const SHOT_SAVE := "user://edusystem_SHOT_save.json"')
+		and shot.contains("Game.save_path = SHOT_SAVE"))

@@ -16,7 +16,19 @@ extends Node2D
 var placement: Placement = null
 
 
+## Tutorial cutscenes are for a player at the real game. A tool, the suite and
+## a headless process never get them, so none can hold up a run.
+func _is_real_play() -> bool:
+	if DisplayServer.get_name() == "headless":
+		return false
+	for arg: String in OS.get_cmdline_args():
+		if arg.begins_with("res://tools/") or arg.begins_with("res://tests/"):
+			return false
+	return true
+
+
 func _ready() -> void:
+	Game.tutorials_enabled = _is_real_play()
 	placement = Placement.new()
 	placement.visible = false
 	world.add_child(placement)
@@ -250,6 +262,13 @@ func _on_lesson_ended(results: Array) -> void:
 	hud.show_lesson_report(results)
 
 
+## Same as a lesson: an inspector's verdict replaces the test report.
+func _on_test_ended(results: Array) -> void:
+	if Game.being_inspected():
+		return
+	hud.show_test_report(results)
+
+
 ## The bell and the exam get a bump. These are the two moments a day and a
 ## term actually resolve, and a shake reserved for them keeps meaning "that
 ## mattered" -- one fired on every event would mean nothing.
@@ -261,13 +280,6 @@ func _on_day_ended(report: Dictionary) -> void:
 func _on_term_ended(result: Dictionary) -> void:
 	_bump(3.5)
 	hud.show_exam(result)
-
-## Same as a lesson: an inspector's verdict replaces the test report.
-func _on_test_ended(results: Array) -> void:
-	if Game.being_inspected():
-		return
-	hud.show_test_report(results)
-
 
 
 ## The paper has begun. The one line of instruction it gets, once per run,

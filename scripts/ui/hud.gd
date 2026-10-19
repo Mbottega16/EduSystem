@@ -19,7 +19,7 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
 	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL,
-	EXAM_PICK }
+	EXAM_PICK, TUTORIAL }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -377,6 +377,11 @@ func _ready() -> void:
 	# homework_sheet.gd's own comment for why stroke COUNT is the signal.
 	sheet.gesture_verdict.connect(_verdict)
 	_build_move_bar()
+	tutorial = Tutorial.new()
+	add_child(tutorial)
+	tutorial.setup(self)
+	tutorial.finished.connect(_on_tutorial_finished)
+	Game.tutorial_event.connect(func(event: String) -> void: tutorial_trigger(event))
 
 
 ## A LimeZu UI frame stretched to `rect` as a 9-slice: the 12px bamboo border
@@ -531,6 +536,8 @@ func _process(_delta: float) -> void:
 		var q: Array = _queued_hint.pop_front()
 		principal_says(String(q[0]), String(q[1]))
 		_next_queued_hint_at = Time.get_ticks_msec() / 1000.0 + 5.0
+
+	_tutorial_tick(_delta)
 
 	# the day's beat, once the player is back in free roam
 	if mode == Mode.NONE and _queued_beat != "":
@@ -1393,6 +1400,8 @@ func _open(m: int) -> void:
 	sheet.visible = false
 	body.visible = true
 	_paper_off()
+	if m != Mode.TUTORIAL and tutorial != null:
+		tutorial.stop()
 	# ...and the intro slate's see-through backing and hidden hint, which it
 	# only puts back when it moves on to its own next page. Any screen opened
 	# with the slate still up -- or after it was closed from outside -- used to
@@ -1421,6 +1430,8 @@ func _open(m: int) -> void:
 func close() -> void:
 	mode = Mode.NONE
 	overlay.visible = false
+	if tutorial != null:
+		tutorial.stop()
 	if pause_panel != null:
 		pause_panel.visible = false
 	hide_dialogue()
@@ -1476,16 +1487,162 @@ func show_title() -> void:
 	hint.text = "E - begin        %s" % BUILD_STAMP.stamp()
 
 
+# ----------------------------------------------------------- tutorial cutscenes
+#
+# data/tutorials.json, played by scripts/ui/tutorial.gd. The first time the
+# player meets a thing (Game.fire_tutorial) its tutorial is QUEUED; it plays
+# when the room is free: no screen, lesson clock, test, boss paper, placement
+# cursor or other cutscene up. A screen the player opens themselves (the plans,
+# the grade book, the cabinet, the exam picks) plays its tutorial BEFORE the
+# screen, then opens it. Esc skips the rest and still counts as seen. A replay
+# from the pause menu never touches the seen set.
+
+var tutorial: Tutorial = null
+var _tutorial_queue: Array = []        ## ids waiting for a free room
+var _tutorial_then: Callable = Callable()
+var _tutorial_replay: bool = false
+var _pause_tutorial_sel: int = 0
+## Seconds the room has been free; a tutorial waits a beat after a screen shuts.
+var _tutorial_free_for: float = 0.0
+var _tutorial_poll_in: float = 0.0
+const TUTORIAL_BEAT := 0.8
+const TUTORIAL_POLL := 0.5
+
+
+## True when nothing else has the player's attention.
+func tutorial_room_free() -> bool:
+	return tutorial_blocker().is_empty()
+
+
+## Why a tutorial cannot play now, in a word; "" when the room is free.
+func tutorial_blocker() -> String:
+	if mode != Mode.NONE:
+		return "screen"
+	if Game.phase == Game.Phase.LESSON or Game.test_active or Game.fight_active():
+		return "lesson"
+	if _player == null or not is_instance_valid(_player):
+		return "no player"
+	if _player.input_locked or _player.is_walking_scripted():
+		return "player busy"
+	if dialogue_box != null and dialogue_box.visible:
+		return "dialogue"
+	var room := get_tree().get_first_node_in_group("classroom")
+	if room == null or not (room as CanvasItem).is_visible_in_tree():
+		return "not in the room"
+	var place := get_tree().get_first_node_in_group("placement")
+	if place != null and (place.active or place.browsing):
+		return "placing"
+	return ""
+
+
+## An event a tutorial hangs on has happened. Returns true when the tutorial
+## started playing right now, in which case `then` runs when it ends -- the
+## caller should stop and let it. Otherwise the tutorial is queued (when
+## it is unseen) and the caller carries on.
+func tutorial_trigger(event: String, then: Callable = Callable()) -> bool:
+	if not Game.tutorials_enabled or not Settings.show_hints:
+		return false
+	var t := TutorialData.for_trigger(event)
+	if t.is_empty():
+		return false
+	var id := String(t.get("id", ""))
+	if Game.tutorial_seen(id):
+		return false
+	if then.is_valid() and tutorial_room_free():
+		play_tutorial(id, false, then)
+		return true
+	if not _tutorial_queue.has(id):
+		_tutorial_queue.append(id)
+	return false
+
+
+## Play a tutorial now. `replay` is the pause menu's: it leaves the seen set
+## alone and returns to the pause menu's page afterwards.
+func play_tutorial(id: String, replay: bool = false, then: Callable = Callable()) -> bool:
+	var t := TutorialData.get_tutorial(id)
+	if t.is_empty() or tutorial == null:
+		return false
+	_open(Mode.TUTORIAL)
+	overlay.visible = false          # the room stays in view
+	_tutorial_then = then
+	_tutorial_replay = replay
+	_tutorial_queue.erase(id)
+	if not replay:
+		Game.mark_tutorial_seen(id)
+	Sfx.play("blip")
+	tutorial.start(t, replay)
+	return true
+
+
+func _on_tutorial_finished(_id: String, _skipped: bool) -> void:
+	var then := _tutorial_then
+	_tutorial_then = Callable()
+	if _tutorial_replay:
+		_tutorial_replay = false
+		show_pause()
+		_pause_go(PauseMenu.TUTORIALS)
+		_pause_sel = _pause_tutorial_sel
+		_render_pause()
+		return
+	close()
+	if then.is_valid():
+		then.call()
+
+
+func _tutorial_input() -> void:
+	if Input.is_action_just_pressed("cancel"):
+		Sfx.play("blip")
+		tutorial.skip()
+	elif Game.claim_interact():
+		Sfx.play("blip")
+		tutorial.advance()
+
+
+## Every frame: look for the first-time moments nothing else announces, and
+## play a queued tutorial once the room has been free for a beat.
+func _tutorial_tick(delta: float) -> void:
+	if not Game.tutorials_enabled:
+		return
+	_tutorial_poll_in -= delta
+	if _tutorial_poll_in <= 0.0:
+		_tutorial_poll_in = TUTORIAL_POLL
+		_tutorial_poll()
+	if _tutorial_queue.is_empty():
+		return
+	if not tutorial_room_free() or _hint_until > Time.get_ticks_msec() / 1000.0 			or not _queued_hint.is_empty():
+		_tutorial_free_for = 0.0
+		return
+	_tutorial_free_for += delta
+	if _tutorial_free_for >= TUTORIAL_BEAT:
+		_tutorial_free_for = 0.0
+		play_tutorial(String(_tutorial_queue[0]))
+
+
+## The events with no screen or signal of their own, read off the game state.
+func _tutorial_poll() -> void:
+	if not Game.tutorial_seen("quiz") and Game.phase == Game.Phase.LESSON 			and not Game.test_active and not Game.fight_active() 			and not Game.quiz_done and not Game.roster.is_empty():
+		tutorial_trigger("quiz_available")
+	if not Game.tutorial_seen("homework") and _player != null 			and is_instance_valid(_player) and _player.carrying_hw > 0:
+		tutorial_trigger("homework_collected")
+	if not Game.tutorial_seen("unit_test") and Game.phase == Game.Phase.MORNING 			and not Game.roster.is_empty() and not Game.boss_fight_today() 			and not Game.testable_lesson().is_empty():
+		tutorial_trigger("test_offered")
+	if not Game.tutorial_seen("prestige"):
+		for l: Dictionary in Curriculum.lessons:
+			if Game.can_prestige(String(l.get("id", ""))):
+				tutorial_trigger("prestige_ready")
+				break
+
+
 ## The pause menu, opened with Esc or P. Pages: the main list, the settings
 ## (sound, window, hints and which HUD pieces show), and the quit choices.
 ## Rebinding keys stays on the Controls sheet; cheats open the dev panel.
-enum PauseMenu { MAIN, SETTINGS, QUIT }
+enum PauseMenu { MAIN, SETTINGS, QUIT, TUTORIALS }
 
 var _pause_sel: int = 0
 var _pause_page: int = PauseMenu.MAIN
 
-const PAUSE_MAIN := ["resume", "lessons", "settings", "controls", "cheats",
-	"school", "career", "quit"]
+const PAUSE_MAIN := ["resume", "lessons", "tutorials", "settings", "controls",
+	"cheats", "school", "career", "quit"]
 const PAUSE_SETTINGS := ["master", "music", "sfx", "scale", "fullscreen",
 	"hints", "status", "movebar", "back"]
 const PAUSE_QUIT := ["title", "game", "back"]
@@ -1515,13 +1672,19 @@ func _pause_rows() -> Array:
 			return PAUSE_SETTINGS
 		PauseMenu.QUIT:
 			return PAUSE_QUIT
+		PauseMenu.TUTORIALS:
+			return TutorialData.ids() + ["back"]
 	return PAUSE_MAIN
 
 
 func _pause_row_text(id: String) -> String:
+	if _pause_page == PauseMenu.TUTORIALS and id != "back":
+		var tut := TutorialData.get_tutorial(id)
+		return "%s%s" % [String(tut.get("title", id)), "" if Game.tutorial_seen(id) else " *"]
 	match id:
 		"resume": return "Resume"
 		"lessons": return "Lesson plans  (%s)" % Settings.binding_text("lesson_plans")
+		"tutorials": return "Tutorials"
 		"settings": return "Settings"
 		"controls": return "Controls  (%s)" % Settings.binding_text("help")
 		"cheats": return "Cheats"
@@ -1555,7 +1718,7 @@ func _render_pause() -> void:
 		_pause_top = _pause_sel
 	elif _pause_sel >= _pause_top + PAUSE_VISIBLE:
 		_pause_top = _pause_sel - PAUSE_VISIBLE + 1
-	var head: String = ["PAUSED", "SETTINGS", "QUIT"][_pause_page]
+	var head: String = ["PAUSED", "SETTINGS", "QUIT", "TUTORIALS"][_pause_page]
 	if _pause_top > 0:
 		head += "  ^"
 	if _pause_top + PAUSE_VISIBLE < rows.size():
@@ -1567,6 +1730,8 @@ func _render_pause() -> void:
 	pause_label.text = "\n".join(lines)
 	if _pause_page == PauseMenu.SETTINGS:
 		pause_hint.text = "Left/Right changes it.  E toggles.  Esc goes back."
+	elif _pause_page == PauseMenu.TUTORIALS:
+		pause_hint.text = "E plays it again.  * means not seen yet.  Esc goes back."
 	elif _pause_page == PauseMenu.MAIN:
 		pause_hint.text = "Day %d of %d, %s.  E picks.  Esc resumes." % [
 			Game.day, Balance.term_days, Game.subject]
@@ -1642,11 +1807,17 @@ func _pause_input() -> void:
 	elif Game.claim_interact():
 		if _pause_page == PauseMenu.SETTINGS and id != "back":
 			_pause_adjust(id, 0)
+		elif _pause_page == PauseMenu.TUTORIALS and id != "back":
+			_pause_tutorial_sel = _pause_sel
+			play_tutorial(id, true)
+			return
 		else:
 			match id:
 				"resume":
 					close()
 					return
+				"tutorials":
+					_pause_go(PauseMenu.TUTORIALS)
 				"lessons":
 					_sel = 0
 					show_curriculum()
@@ -4477,6 +4648,8 @@ static func _book_day(entry: Dictionary) -> String:
 ## Opened at the desk: on the subjects page, at the lesson you are teaching;
 ## the register (Tab) on its newest page, from the top of the class.
 func open_grade_book() -> void:
+	if tutorial_trigger("grade_book_opened", open_grade_book):
+		return
 	_gb_page = -1
 	_gb_top = 0
 	_gb_view = GBView.SUBJECTS
@@ -5082,6 +5255,8 @@ const CURRIC_ROWS := 7
 ## selected and sit underneath, where they read as provenance rather than as
 ## noise. Nothing was removed -- it stopped being the loudest thing on screen.
 func show_curriculum() -> void:
+	if tutorial_trigger("plans_opened", show_curriculum):
+		return
 	_open(Mode.CURRICULUM)
 	body.visible = false
 	rich.visible = true
@@ -5213,6 +5388,8 @@ var _exam_rows: Array = []
 
 
 func show_exam_picks() -> void:
+	if tutorial_trigger("exam_picks_needed", show_exam_picks):
+		return
 	_open(Mode.EXAM_PICK)
 	_exam_strand = 0
 	Game.exam_picks.clear()
@@ -5872,6 +6049,10 @@ func _rich_overflows() -> bool:
 
 
 func open_catalogue(start: int = Shop.BUY) -> void:
+	if start == Shop.CABINET and tutorial_trigger("cabinet_opened", open_catalogue.bind(start)):
+		return
+	if start == Shop.IDEAS and tutorial_trigger("ideas_opened", open_catalogue.bind(start)):
+		return
 	_open(Mode.CATALOGUE)
 	_sel = 0
 	_shop = start
@@ -6598,6 +6779,9 @@ func _finish_ad() -> void:
 func _handle_input() -> void:
 	if mode == Mode.PAUSE:
 		return
+	if mode == Mode.TUTORIAL:
+		_tutorial_input()
+		return
 	if mode == Mode.HAND:
 		var n: int = Game.hand.size()
 		if n == 0:
@@ -7059,6 +7243,10 @@ func _handle_input() -> void:
 		elif Input.is_action_just_pressed("menu"):
 			_shop = (_shop + 1) % 6      # buy -> cabinet -> staff -> room -> craft -> ideas
 			_sel = 0
+			if _shop == Shop.CABINET:
+				tutorial_trigger("cabinet_opened")
+			elif _shop == Shop.IDEAS:
+				tutorial_trigger("ideas_opened")
 			Sfx.play("blip")
 			_render_catalogue()
 		elif Input.is_action_just_pressed("move_up") and not rows.is_empty():

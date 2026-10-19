@@ -812,6 +812,61 @@ var chain_dash_taught: bool = false
 ## down the hall.
 var call_response_taught: bool = false
 
+## TUTORIAL CUTSCENES (data/tutorials.json, scripts/ui/tutorial.gd). `tutorials_seen`
+## is id -> true, saved with the run and cleared by new_run(). `tutorials_enabled`
+## is false everywhere but the real game: main.gd turns it on only when the
+## process is a player's (not the suite, a simulator, the walkthrough or a
+## screenshot), so a tutorial never holds up a headless run. A test that wants
+## one turns it on itself.
+var tutorials_enabled: bool = false
+var tutorials_seen: Dictionary = {}
+## A first-time moment a tutorial may hang on. The HUD listens.
+signal tutorial_event(event: String)
+
+
+func tutorial_seen(id: String) -> bool:
+	return bool(tutorials_seen.get(id, false))
+
+
+func mark_tutorial_seen(id: String) -> void:
+	tutorials_seen[id] = true
+
+
+## Say that `event` has just happened. A no-op unless tutorials are on, and
+## the HUD drops it when its tutorial is already seen.
+func fire_tutorial(event: String) -> void:
+	if tutorials_enabled:
+		tutorial_event.emit(event)
+
+
+## An older save has no `tutorials_seen`. A tutorial counts as seen when the
+## save clearly used the feature already, so nobody is taught what they know.
+func _tutorials_from_use() -> Dictionary:
+	var out := {}
+	var kinds := {}
+	for e: Dictionary in grade_log:
+		kinds[String(e.get("kind", ""))] = true
+	if not taught.is_empty():
+		out["quiz"] = true
+		out["lesson_plans"] = true
+	if not graded_bank.is_empty() or term > 1:
+		out["homework"] = true
+	if kinds.has("test"):
+		out["unit_test"] = true
+	if not prestige_lessons.is_empty():
+		out["prestige"] = true
+	if not cabinet.is_empty() or not room_items.is_empty() or expansions > 0:
+		out["cabinet"] = true
+		out["room_ideas"] = true
+	if not exam_picks.is_empty() or not term_history.is_empty():
+		out["exam_picks"] = true
+	if not desk_items.is_empty():
+		out["study_folder"] = true
+	if not grade_log.is_empty():
+		out["grade_book"] = true
+	return out
+
+
 signal teacher_levelled(level: int)
 
 var rng := RandomNumberGenerator.new()
@@ -946,6 +1001,7 @@ func new_run(seed_value: int = 0) -> void:
 	answer_all_taught = false
 	chain_dash_taught = false
 	call_response_taught = false
+	tutorials_seen.clear()
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -997,6 +1053,7 @@ func new_run(seed_value: int = 0) -> void:
 	_janitor_timer = 0.0
 	janitor_level = 1
 	test_active = false
+	tested.clear()
 	voice = 1.0
 	last_inspection = {}
 	last_split = {}
@@ -1053,7 +1110,6 @@ func enrol() -> StudentData:
 	bio_rng.seed = int(rng.seed) * 1103515245 + s.id * 12345 + day * 97
 	s.roll_bio_scales(bio_rng)
 	roster.append(s)
-	tested.clear()
 	roster_changed.emit()
 	return s
 
@@ -2189,6 +2245,7 @@ func next_term() -> Dictionary:
 	call_cooldown = 0.0
 	call_hold = 0.0
 	test_active = false
+	tested.clear()
 	voice = 1.0
 	last_inspection = {}
 	event = DayEvent.by_id("none")
@@ -2245,7 +2302,6 @@ func sit_exam() -> Dictionary:
 			passed += 1
 	exam_result = {
 		"rows": rows, "average": avg, "letter": grade_letter(avg),
-	tested.clear()
 		"passed": passed, "total": roster.size(),
 	}
 	return exam_result
@@ -2780,6 +2836,11 @@ func expand_room(axis: String) -> String:
 ## Is the class sitting a test right now? The single flag that makes the
 ## room go quiet: no helping, no collecting, no stalls, no quiz.
 var test_active: bool = false
+## Unit tests given: lesson id -> the day it was sat. Saved. Cleared by
+## new_run() and by next_term() (days restart each term). It is what stops
+## one lesson being tested every morning, and a retake paying out again.
+var tested: Dictionary = {}
+
 
 
 ## May this unit be tested yet? You have to have actually taught it -- a
@@ -2791,8 +2852,16 @@ func can_test(lesson_id: String) -> bool:
 
 
 ## Any unit ready to be tested, for the podium's prompt.
+##
+## One test a day. Of the units that qualify, a unit never tested comes first;
+## once all were tested, the one tested longest ago comes round again.
 func testable_lesson() -> Dictionary:
 	Curriculum.ensure_loaded()
+	for tid: Variant in tested:
+		if int(tested[tid]) == day:
+			return {}
+	var best: Dictionary = {}
+	var best_day := 1 << 30
 	for l: Dictionary in Curriculum.lessons:
 		var lid := String(l.get("id", ""))
 		if not can_test(lid):
@@ -2823,6 +2892,7 @@ func test_grade_for(s: StudentData) -> float:
 func grade_test() -> Array:
 	Balance.ensure_loaded()
 	var out: Array = []
+	var drill := String(event.get("id", "")) == "fire_drill"
 	for s: StudentData in roster:
 		var g := test_grade_for(s)
 		s.last_grade = g
@@ -2847,11 +2917,6 @@ func grade_test() -> Array:
 ## to it. Empty until one has happened.
 var last_inspection: Dictionary = {}
 
-## Unit tests given: lesson id -> the day it was sat. Saved. Cleared by
-## new_run() and by next_term() (days restart each term). It is what stops
-## one lesson being tested every morning, and a retake paying out again.
-var tested: Dictionary = {}
-
 
 func being_inspected() -> bool:
 	return bool(event.get("inspection", false))
@@ -2863,16 +2928,8 @@ func being_inspected() -> bool:
 ## hidden inspection stat, and nothing that was not visible to the player
 ## while it was happening:
 ##
-##
-## One test a day. Of the units that qualify, a unit never tested comes first;
-## once all were tested, the one tested longest ago comes round again.
 ##   the room      what the furniture is worth to the desks, against its cap
 ##   the lesson    how much of the work got done, less what was still going
-	for tid: Variant in tested:
-		if int(tested[tid]) == day:
-			return {}
-	var best: Dictionary = {}
-	var best_day := 1 << 30
 ##                 wrong at the bell
 ##   the material  whether you know what you are teaching today
 ##
@@ -2898,7 +2955,6 @@ func inspect() -> Dictionary:
 	# added rather than what the building came with.
 	var room := clampf(
 		(room_total / n - Balance.room_base)
-	var drill := String(event.get("id", "")) == "fire_drill"
 		/ maxf(0.01, Balance.room_cap - Balance.room_base), 0.0, 1.0)
 	var lesson := clampf(work_total / n - float(trouble) / n * 0.5, 0.0, 1.0)
 
@@ -3781,11 +3837,20 @@ func advance_day() -> Dictionary:
 
 	var did := 0
 	for s: StudentData in roster:
+		# A sheet nobody collected or marked in two days is stale. It goes
+		# back to NONE with no credit, so the child can be set new work.
+		if s.hw_state == StudentData.HW.DONE or s.hw_state == StudentData.HW.COLLECTED:
+			s.hw_stale += 1
+			if s.hw_stale >= 2:
+				s.hw_state = StudentData.HW.NONE
+				s.hw_sheet = {}
+				s.hw_stale = 0
 		# who actually did the homework you set
 		if homework_out and s.hw_state == StudentData.HW.ASSIGNED:
 			if bool(event.get("homework_sure", false)) or _consumable_homework_sure \
 					or rng.randf() < s.diligence:
 				s.hw_state = StudentData.HW.DONE
+				s.hw_stale = 0
 				s.hw_done_total += 1
 				s.hw_true_accuracy = clampf(
 					s.aptitude + rng.randf_range(-0.2, 0.2), 0.0, 1.0)
@@ -3837,20 +3902,11 @@ func advance_day() -> Dictionary:
 	# read before the roll, or the guarantee is one day stale (same trap
 	# pacing_report() avoids for the same reason).
 	if String(event.get("id", "none")) == "none":
-		# A sheet nobody collected or marked in two days is stale. It goes
-		# back to NONE with no credit, so the child can be set new work.
-		if s.hw_state == StudentData.HW.DONE or s.hw_state == StudentData.HW.COLLECTED:
-			s.hw_stale += 1
-			if s.hw_stale >= 2:
-				s.hw_state = StudentData.HW.NONE
-				s.hw_sheet = {}
-				s.hw_stale = 0
 		_none_streak += 1
 	else:
 		_none_streak = 0
 	event = DayEvent.roll(rng, _none_streak)
 	_flares_today = 0
-				s.hw_stale = 0
 	fight_done = false
 	interruption = {}
 	_complications_today = 0
@@ -3900,6 +3956,7 @@ func assign_homework() -> int:
 	for s: StudentData in roster:
 		if s.hw_state == StudentData.HW.NONE or s.hw_state == StudentData.HW.MARKED:
 			s.hw_state = StudentData.HW.ASSIGNED
+			s.hw_stale = 0
 			s.hw_set_total += 1
 			n += 1
 	homework_out = n > 0
@@ -3956,7 +4013,6 @@ func room_score(seat_index: int) -> float:
 	for placed: Dictionary in room_items:
 		var def := Items.get_def(String(placed.get("id", "")))
 		if def.is_empty():
-			s.hw_stale = 0
 			continue
 		# distance to the NEAREST tile of the item, so a wide item helps from
 		# either end rather than only from its anchor
@@ -4100,6 +4156,7 @@ func grade_class() -> Array:
 		s.last_grade = g
 		s.grades.append(g)
 		s.record_result(lesson, g, day)
+		s.misjudged = false         # their next lesson has ended
 		# ten-commits.md step 6: lessons running in their own best subject.
 		# Reset the moment a DIFFERENT strand is taught, so it is a streak,
 		# not a lifetime tally.
@@ -4156,7 +4213,6 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 			if t in want:
 				return false
 	return true
-		s.misjudged = false         # their next lesson has ended
 
 
 ## The first place on the back wall this hanging piece fits, scanning left to
@@ -4221,6 +4277,7 @@ func add_item(id: String, tile: Vector2i) -> void:
 		if seat >= 0:
 			desk_items[seat] = id
 			room_changed.emit()
+			fire_tutorial("study_folder_placed")
 		return
 	room_items.append({"id": id, "tile": tile})
 	room_changed.emit()
@@ -4512,6 +4569,7 @@ func to_dict() -> Dictionary:
 		"answer_all_taught": answer_all_taught,
 		"chain_dash_taught": chain_dash_taught,
 		"call_response_taught": call_response_taught,
+		"tutorials_seen": tutorials_seen.duplicate(),
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -4556,6 +4614,7 @@ func to_dict() -> Dictionary:
 		# and from_dict() turns them back into seat numbers.
 		"desk_items": _desk_items_for_save(),
 		"grade_log": grade_log.duplicate(true),
+		"tested": tested.duplicate(),
 		"desks_in_store": desks_in_store,
 		"age_tier": age_tier,
 		"tier_graduates": tier_graduates,
@@ -4614,7 +4673,6 @@ func from_dict(d: Dictionary) -> void:
 	has_janitor = bool(d.get("has_janitor", false))
 	janitor_level = int(d.get("janitor_level", 1))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
-		"tested": tested.duplicate(),
 	hat_id = String(d.get("hat_id", ""))
 	background_id = String(d.get("background_id", ""))
 	auto_teach = bool(d.get("auto_teach", false))
@@ -4685,6 +4743,11 @@ func from_dict(d: Dictionary) -> void:
 	tier_graduates = maxi(0, int(d.get("tier_graduates", 0)))
 	captains.clear()
 	phase = Phase.MORNING
+	test_active = false         # a save never resumes mid-test; the phase is MORNING
+	tested.clear()
+	var tested_in: Dictionary = d.get("tested", {})
+	for tid: Variant in tested_in:
+		tested[String(tid)] = int(tested_in[tid])
 	roster.clear()
 	for sd: Dictionary in d.get("roster", []):
 		roster.append(StudentData.from_dict(sd))
@@ -4695,6 +4758,12 @@ func from_dict(d: Dictionary) -> void:
 		grade_log = (d.get("grade_log", []) as Array).duplicate(true)
 	else:
 		grade_log = _grade_log_from_transcripts()
+	# Tutorials already seen. An older save has none recorded: count whatever
+	# it clearly used (needs the grade log, the cabinet and the rest, hence here).
+	if d.has("tutorials_seen"):
+		tutorials_seen = (d.get("tutorials_seen", {}) as Dictionary).duplicate()
+	else:
+		tutorials_seen = _tutorials_from_use()
 	roster_changed.emit()
 
 
@@ -4743,11 +4812,6 @@ func saved_day() -> int:
 
 func has_save() -> bool:
 	return FileAccess.file_exists(save_path)
-	test_active = false         # a save never resumes mid-test; the phase is MORNING
-	tested.clear()
-	var tested_in: Dictionary = d.get("tested", {})
-	for tid: Variant in tested_in:
-		tested[String(tid)] = int(tested_in[tid])
 
 
 func delete_save() -> void:

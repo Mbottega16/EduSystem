@@ -1,0 +1,114 @@
+{
+  "_note": "Short tutorial cutscenes (scripts/ui/tutorial.gd). Each plays the first time its trigger event fires, when the room is free, and can be replayed from the pause menu. A step is one panel: speaker (principal, mentor or teacher), text (one or two short sentences, five lines at most), optional show (a pointer ring at podium, bell, noticeboard, cabinet, curriculum, teacher_desk, treat_shelf, desk:N or tile:X,Y) and optional demo (land, flash or puff, played on the pointed-at thing). Trigger names are fired by Game.fire_tutorial(). Prose only: no number stands in for a child's ability.",
+  "tutorials": [
+    {
+      "id": "quiz",
+      "title": "The quick quiz",
+      "trigger": "quiz_available",
+      "steps": [
+        {"speaker": "principal", "text": "In a lesson you can call a quick quiz. Stand at the podium and press Q.", "show": "podium", "demo": "land"},
+        {"speaker": "principal", "text": "It costs a slice of the lesson clock. You can run it once a lesson."},
+        {"speaker": "principal", "text": "A child who is behind gets a blue bubble. Walk to that desk and press E to go over it."},
+        {"speaker": "principal", "text": "The class stays focused for the rest of the lesson. A quiz pays no grade, it only shows who needs you."}
+      ]
+    },
+    {
+      "id": "homework",
+      "title": "Marking homework",
+      "trigger": "homework_collected",
+      "steps": [
+        {"speaker": "teacher", "text": "That is homework in your arms. Take it to your own desk and press H.", "show": "teacher_desk"},
+        {"speaker": "teacher", "text": "Each sheet comes up as a page. Trace a check if the work is good, or an X if it is not."},
+        {"speaker": "teacher", "text": "A check banks the sheet. An X does not."},
+        {"speaker": "principal", "text": "Wave through a bad sheet and that child is marked as misjudged. A quiz can catch it later."}
+      ]
+    },
+    {
+      "id": "unit_test",
+      "title": "The unit test",
+      "trigger": "test_offered",
+      "steps": [
+        {"speaker": "principal", "text": "You have taught a unit enough times to test it. The podium offers the test in the morning.", "show": "podium"},
+        {"speaker": "principal", "text": "Hold E at the podium to start. It takes the day, and it cannot be sat twice."},
+        {"speaker": "principal", "text": "Then you only watch, with no helping and no collecting. It tests the room you built."},
+        {"speaker": "teacher", "text": "Every result goes in the grade book on your desk. Press U to read it.", "show": "teacher_desk"}
+      ]
+    },
+    {
+      "id": "lesson_plans",
+      "title": "Lesson plans",
+      "trigger": "plans_opened",
+      "steps": [
+        {"speaker": "mentor", "text": "Press Z, or E at the alphabet poster, to open the lesson plans.", "show": "curriculum"},
+        {"speaker": "mentor", "text": "Each row is a lesson. In words, it tells you how well you know it."},
+        {"speaker": "mentor", "text": "Press E on a lesson to teach it next."},
+        {"speaker": "mentor", "text": "Later the Tab key lets you craft a lesson of your own."}
+      ]
+    },
+    {
+      "id": "prestige",
+      "title": "Prestige lessons",
+      "trigger": "prestige_ready",
+      "steps": [
+        {"speaker": "principal", "text": "You have taught one subject often. A lesson in it can now be made Prestige."},
+        {"speaker": "principal", "text": "Open the lesson plans with Z. On a lesson you have taught, press F.", "show": "curriculum"},
+        {"speaker": "principal", "text": "That lesson always deals a Legendary paper."},
+        {"speaker": "principal", "text": "A Legendary paper pays three times the coins and the experience. It never changes the grade."}
+      ]
+    },
+    {
+      "id": "cabinet",
+      "title": "The cabinet",
+      "trigger": "cabinet_opened",
+      "steps": [
+        {"speaker": "teacher", "text": "The cabinet is where everything you buy waits until you place it.", "show": "cabinet", "demo": "land"},
+        {"speaker": "teacher", "text": "Press E on an item to take it out and place it in the room."},
+        {"speaker": "teacher", "text": "Press Left to sell one copy for half its price."}
+      ]
+    },
+    {
+      "id": "room_ideas",
+      "title": "Room ideas",
+      "trigger": "ideas_opened",
+      "steps": [
+        {"speaker": "principal", "text": "Room Ideas is the last tab of the shop. It shows ready-made layouts for your room.", "show": "noticeboard"},
+        {"speaker": "principal", "text": "Press Up and Down to browse. The picture shows where each piece goes."},
+        {"speaker": "principal", "text": "Nothing is bought or moved. The count beside a name is how many of its pieces you own."},
+        {"speaker": "principal", "text": "The rooms you are closest to building come first."}
+      ]
+    },
+    {
+      "id": "exam_picks",
+      "title": "The final assessment",
+      "trigger": "exam_picks_needed",
+      "steps": [
+        {"speaker": "principal", "text": "It is the last day. Before the bell, you choose what the final paper asks about.", "show": "bell"},
+        {"speaker": "principal", "text": "Pick one lesson in each subject. The cursor starts on the lesson you taught most."},
+        {"speaker": "principal", "text": "Lessons you taught well lift the paper a little. Lessons you never taught pull it down."},
+        {"speaker": "principal", "text": "A child does a little better in the subject they love."}
+      ]
+    },
+    {
+      "id": "study_folder",
+      "title": "The study folder",
+      "trigger": "study_folder_placed",
+      "steps": [
+        {"speaker": "teacher", "text": "A study folder sits on one desk. The child there can look things up."},
+        {"speaker": "teacher", "text": "When they are stuck, they work it out themselves after a few seconds. No need to walk over."},
+        {"speaker": "teacher", "text": "That earns them no experience, and it does not count as your help."},
+        {"speaker": "teacher", "text": "It also stops that desk chatting and copying across to its neighbours."}
+      ]
+    },
+    {
+      "id": "grade_book",
+      "title": "The grade book",
+      "trigger": "grade_book_opened",
+      "steps": [
+        {"speaker": "teacher", "text": "The grade book lies open on your desk. Press U to read it, at any time.", "show": "teacher_desk"},
+        {"speaker": "teacher", "text": "It opens on the subjects page. Every lesson sits in its own subject column."},
+        {"speaker": "teacher", "text": "A lesson you have taught is in colour, with the class's last letter beside it."},
+        {"speaker": "teacher", "text": "Press Tab for the register. It lists every lesson, unit test and exam you have given."}
+      ]
+    }
+  ]
+}
