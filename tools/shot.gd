@@ -538,6 +538,16 @@ func _open_screen(main: Node, screen: String) -> void:
 		"shop":
 			Game.add_coins(3000)
 			hud.open_catalogue()
+		"ideas_mine", "ideas_mine_edge", "ideas_mine_zones":
+			# a believable shelf of purchases, so the arrangements have something to place
+			for id: String in ["bookshelf", "bookshelf", "lamp", "plant", "rug", "beanbag",
+					"reading_nook", "microscope", "lab_bench", "globe", "wall_clock",
+					"class_banner", "world_map", "whiteboard", "computer", "stool"]:
+				if not Items.get_def(id).is_empty():
+					Game.cabinet.append(id)
+			hud.open_catalogue(hud.Shop.IDEAS)
+			hud._sel = {"ideas_mine": 0, "ideas_mine_edge": 1, "ideas_mine_zones": 2}[screen]
+			hud._render_catalogue()
 		"ideas", "ideas_science", "ideas_explorers", "ideas_calm":
 			Game.add_coins(3000)
 			hud.open_catalogue(hud.Shop.IDEAS)

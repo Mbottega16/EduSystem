@@ -5651,7 +5651,7 @@ func _shop_rows() -> Array:
 	if _shop == Shop.ROOM:
 		return ROOM_ROWS.duplicate()
 	if _shop == Shop.IDEAS:
-		return RoomTemplates.ids()
+		return RoomTemplates.player_ids()
 	if _shop == Shop.CRAFT:
 		if not Game.lesson_crafting_unlocked():
 			return []
@@ -5887,9 +5887,14 @@ func _render_catalogue() -> void:
 ## drawn on the right, and what it is made of and what it would cost beneath.
 func _render_ideas(rows: Array) -> Array[String]:
 	var lines: Array[String] = []
-	for i in rows.size():
+	var lo := _window_start(rows.size(), 8)
+	for i in range(lo, mini(rows.size(), lo + 8)):
 		var t := RoomTemplates.get_template(String(rows[i]))
-		var name := String(t.get("name", "")).substr(0, 22)
+		var name := String(t.get("name", ""))
+		# how much of a ready-made room you already own, so the nearest is on top
+		if not bool(t.get("mine", false)):
+			var count := " %d/%d" % [RoomTemplates.owned_count(t), RoomTemplates.entries(t).size()]
+			name = name.substr(0, 21 - count.length()) + count
 		if i == _sel:
 			lines.append("> %s" % name)
 		else:

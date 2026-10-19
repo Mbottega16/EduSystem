@@ -225,6 +225,7 @@ func _main() -> void:
 	test_coaching()
 	await test_shop_and_staff()
 	await test_room_ideas()
+	await test_room_ideas_mine()
 	await test_bio_actions()
 	test_catalogue()
 	test_global_classes_registered()
@@ -14250,6 +14251,51 @@ func test_coaching() -> void:
 	Game.coins = 0
 	chk("and you cannot coach on an empty purse",
 		Game.coach(Game.roster[2], "tuition") != "")
+
+
+func test_room_ideas_mine() -> void:
+	section("ROOM IDEAS FROM YOUR OWN PIECES")
+	Game.new_run(SEED)
+	Game.cabinet.clear()
+	Game.room_items.clear()
+	chk("with nothing owned there are no rooms of your own",
+		RoomTemplates.owned_furniture().is_empty()
+		and not RoomTemplates.player_ids().has("mine_focus"))
+	var mine: Array[String] = ["bookshelf", "bookshelf", "lamp", "plant", "rug", "beanbag",
+		"reading_nook", "microscope", "lab_bench", "globe", "wall_clock", "class_banner",
+		"world_map", "whiteboard", "computer", "stool", "study_folder"]
+	for id: String in mine:
+		if not Items.get_def(id).is_empty():
+			Game.cabinet.append(id)
+	var ids: Array = RoomTemplates.player_ids()
+	chk("owning pieces puts rooms of your own first", ids[0] == "mine_focus", ids.slice(0, 3))
+	chk("a desk-top piece is not room furniture",
+		not RoomTemplates.owned_furniture().has("study_folder"))
+	var tried := 0
+	for id: String in ids:
+		var t := RoomTemplates.get_template(id)
+		if not bool(t.get("mine", false)):
+			continue
+		tried += 1
+		chk("%s: every desk is still reachable and nothing is on a wall or desk" % id,
+			RoomTemplates.problems(t).is_empty(), RoomTemplates.problems(t))
+		chk("%s: it only uses pieces you own" % id,
+			RoomTemplates.owned_count(t) == RoomTemplates.entries(t).size()
+			and RoomTemplates.missing_cost(t) == 0)
+		chk("%s: it places something" % id, RoomTemplates.entries(t).size() >= 8,
+			RoomTemplates.entries(t).size())
+	chk("there is more than one way to arrange them", tried >= 2, tried)
+	chk("and they differ", str(RoomTemplates.entries(RoomTemplates.get_template("mine_focus")))
+		!= str(RoomTemplates.entries(RoomTemplates.get_template("mine_edge"))))
+	# a ready-made room you nearly own moves up the list
+	Game.cabinet.clear()
+	for e: Dictionary in RoomTemplates.entries(RoomTemplates.get_template("explorers")):
+		Game.cabinet.append(String(e["id"]))
+	var order: Array = RoomTemplates.player_ids()
+	chk("the ready-made room you own most of leads the ready-made ones",
+		order.find("explorers") < order.find("reading_corner"), order)
+	Game.cabinet.clear()
+	Game.new_run(SEED)
 
 
 func test_room_ideas() -> void:
