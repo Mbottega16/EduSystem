@@ -662,14 +662,23 @@ func _input(e: InputEvent) -> void:
 			accept_event()
 
 
+## True while placement is up, and for the frame after it closes: the Esc
+## that ends a placement must not also open the pause menu on the same tick.
+var _esc_blocked: bool = false
+var _place_busy_prev: bool = false
+
 func _physics_process(_delta: float) -> void:
+	var place := get_tree().get_first_node_in_group("placement")
+	var busy: bool = place != null and (place.active or place.browsing)
+	_esc_blocked = busy or _place_busy_prev
+	_place_busy_prev = busy
 	if mode == Mode.NONE:
 		if Input.is_action_just_pressed("menu"):
 			show_class_list()
 		elif Input.is_action_just_pressed("dashboard"):
 			_dash = Dash.OVERVIEW
 			show_dashboard()
-		elif Input.is_action_just_pressed("pause"):
+		elif Input.is_action_just_pressed("pause") or _escape_opens_pause():
 			show_pause()
 		elif Input.is_action_just_pressed("help"):
 			show_help()
@@ -688,7 +697,17 @@ func _physics_process(_delta: float) -> void:
 	_handle_input()
 
 
+## Esc opens the pause menu from the room. Placement and the dev panel own
+## Esc while they are up, so it stays out of their way.
+func _escape_opens_pause() -> bool:
+	if not Input.is_action_just_pressed("cancel") or _esc_blocked:
+		return false
+	var dbg := get_tree().get_first_node_in_group("debug_panel")
+	return dbg == null or not dbg.open
+
+
 func _update_status() -> void:
+	status.visible = Settings.show_status
 	# ONE LINE, and it runs off the right-hand edge if you let it. What
 	# belongs on it changes with the phase, so it is built in priority order
 	# and cut rather than assembled and hoped over: mid-lesson the subject
@@ -992,7 +1011,7 @@ func _move_wait(id: String) -> float:
 
 
 func _update_move_bar() -> void:
-	var bar_on := mode == Mode.NONE and not speech_box.visible \
+	var bar_on := Settings.show_move_bar and mode == Mode.NONE and not speech_box.visible \
 		and _player != null and is_instance_valid(_player)
 	var shown: Array[String] = []
 	for m: Dictionary in MOVES:
@@ -1232,84 +1251,189 @@ func show_title() -> void:
 	hint.text = "E - begin        %s" % BUILD_STAMP.stamp()
 
 
-## The pause menu. Deliberately short: the full settings live on the title
-## screen, and a pause menu that tries to be a second settings app is a
-## great deal of duplicated UI for very little.
+## The pause menu, opened with Esc or P. Pages: the main list, the settings
+## (sound, window, hints and which HUD pieces show), and the quit choices.
+## Rebinding keys stays on the Controls sheet; cheats open the dev panel.
+enum PauseMenu { MAIN, SETTINGS, QUIT }
+
 var _pause_sel: int = 0
+var _pause_page: int = PauseMenu.MAIN
+
+const PAUSE_MAIN := ["resume", "settings", "controls", "cheats", "school",
+	"career", "quit"]
+const PAUSE_SETTINGS := ["master", "music", "sfx", "scale", "fullscreen",
+	"hints", "status", "movebar", "back"]
+const PAUSE_QUIT := ["title", "game", "back"]
 
 func show_pause() -> void:
 	_open(Mode.PAUSE)
 	_pause_sel = 0
+	_pause_page = PauseMenu.MAIN
 	Sfx.play("blip")
 	_render_pause()
 
 
+func _pause_rows() -> Array:
+	match _pause_page:
+		PauseMenu.SETTINGS:
+			return PAUSE_SETTINGS
+		PauseMenu.QUIT:
+			return PAUSE_QUIT
+	return PAUSE_MAIN
+
+
+func _pause_row_text(id: String) -> String:
+	match id:
+		"resume": return "Resume"
+		"settings": return "Settings  (sound, window, HUD)"
+		"controls": return "Controls  (%s in play)" % Settings.binding_text("help")
+		"cheats": return "Cheats"
+		"school": return "The school  %d room%s" % [Game.rooms.size() + 1,
+			"" if Game.rooms.is_empty() else "s"]
+		"career": return "Your career  %d/%d" % [Game.milestones.size(), Milestones.count()]
+		"quit": return "Quit"
+		"master": return "Master volume  %s" % _vol_bar(Settings.master_volume)
+		"music": return "Music  %s" % _vol_bar(Settings.music_volume)
+		"sfx": return "Sound effects  %s" % _vol_bar(Settings.sfx_volume)
+		"scale": return "Window size  x%d" % Settings.window_scale
+		"fullscreen": return "Fullscreen  %s" % _on_off(Settings.fullscreen)
+		"hints": return "Show hints  %s" % _on_off(Settings.show_hints)
+		"status": return "Status strip  %s" % _on_off(Settings.show_status)
+		"movebar": return "Move bar  %s" % _on_off(Settings.show_move_bar)
+		"title": return "Save and quit to title"
+		"game": return "Save and quit the game"
+		"back": return "Back"
+	return id
+
+
+func _on_off(v: bool) -> String:
+	return "on" if v else "off"
+
+
 func _render_pause() -> void:
-	title.text = "PAUSED"
-	var rows := ["Resume", "The school  %d room%s" % [Game.rooms.size() + 1,
-		"" if Game.rooms.is_empty() else "s"],
-		"Your career  %d/%d" % [Game.milestones.size(), Milestones.count()],
-		"Controls  (%s in play)" % Settings.binding_text("help"),
-		"Sound  %s" % _vol_bar(), "Quit to title"]
-	var lines: Array[String] = ["", ""]
+	var rows := _pause_rows()
+	title.text = ["PAUSED", "SETTINGS", "QUIT"][_pause_page]
+	var lines: Array[String] = []
+	if _pause_page != PauseMenu.SETTINGS:
+		lines.append("")
 	for i in rows.size():
-		lines.append("      %s %s" % [">" if i == _pause_sel else " ", rows[i]])
-	# No blank separator here: a sixth row (Controls) pushed this one line
-	# past PANEL_LINES_SMALL, and the day line below earns its place more
-	# than a spacer does.
-	lines.append("      Day %d of %d, %s" % [Game.day, Balance.term_days, Game.subject])
+		lines.append("      %s %s" % [">" if i == _pause_sel else " ",
+			_pause_row_text(String(rows[i]))])
+	if _pause_page == PauseMenu.MAIN:
+		lines.append("      Day %d of %d, %s" % [Game.day, Balance.term_days, Game.subject])
 	body.text = "\n".join(lines)
-	hint.text = "Left/Right changes volume.  E picks."
+	if _pause_page == PauseMenu.SETTINGS:
+		hint.text = "Left/Right changes it.  E toggles.  Esc goes back."
+	else:
+		hint.text = "E picks.  Esc resumes."
 
 
-## Resume / school / career / controls / sound / quit.
-const PAUSE_ROWS := 6
-
-
-func _vol_bar() -> String:
-	var n := int(round(Settings.sfx_volume * 10.0))
+func _vol_bar(v: float = -1.0) -> String:
+	var n := int(round((Settings.sfx_volume if v < 0.0 else v) * 10.0))
 	return "[%s%s]" % ["#".repeat(n), ".".repeat(10 - n)]
 
 
+## Change the setting under the cursor. `dir` is -1 or +1 for Left/Right, and
+## 0 for E, which flips a toggle and does nothing to a slider.
+func _pause_adjust(id: String, dir: int) -> void:
+	match id:
+		"master":
+			Settings.master_volume = clampf(Settings.master_volume + 0.1 * dir, 0.0, 1.0)
+			Settings.apply_audio()
+		"music":
+			Settings.music_volume = clampf(Settings.music_volume + 0.1 * dir, 0.0, 1.0)
+			Settings.apply_audio()
+		"sfx":
+			Settings.sfx_volume = clampf(Settings.sfx_volume + 0.1 * dir, 0.0, 1.0)
+			Settings.apply_audio()
+		"scale":
+			if dir == 0:
+				return
+			Settings.window_scale = clampi(Settings.window_scale + dir, 1, 6)
+			Settings.fullscreen = false
+			Settings.apply_window()
+		"fullscreen":
+			Settings.fullscreen = (dir > 0) if dir != 0 else not Settings.fullscreen
+			Settings.apply_window()
+		"hints":
+			Settings.show_hints = (dir > 0) if dir != 0 else not Settings.show_hints
+		"status":
+			Settings.show_status = (dir > 0) if dir != 0 else not Settings.show_status
+		"movebar":
+			Settings.show_move_bar = (dir > 0) if dir != 0 else not Settings.show_move_bar
+		_:
+			return
+	Settings.save_settings()
+	Sfx.play("blip")
+
+
+func _pause_go(page: int) -> void:
+	_pause_page = page
+	_pause_sel = 0
+	Sfx.play("blip")
+
+
 func _pause_input() -> void:
+	var rows := _pause_rows()
+	var n := rows.size()
+	var id := String(rows[_pause_sel])
 	if Input.is_action_just_pressed("move_down"):
-		_pause_sel = (_pause_sel + 1) % PAUSE_ROWS
+		_pause_sel = (_pause_sel + 1) % n
 		Sfx.play("blip")
 	elif Input.is_action_just_pressed("move_up"):
-		_pause_sel = (_pause_sel + PAUSE_ROWS - 1) % PAUSE_ROWS
+		_pause_sel = (_pause_sel + n - 1) % n
 		Sfx.play("blip")
-	elif Input.is_action_just_pressed("move_left") or Input.is_action_just_pressed("move_right"):
-		if _pause_sel == 4:
-			var d := 0.1 if Input.is_action_just_pressed("move_right") else -0.1
-			Settings.sfx_volume = clampf(Settings.sfx_volume + d, 0.0, 1.0)
-			Settings.apply_audio()
-			Settings.save_settings()
-			Sfx.play("blip")
+	elif Input.is_action_just_pressed("move_left"):
+		_pause_adjust(id, -1)
+	elif Input.is_action_just_pressed("move_right"):
+		_pause_adjust(id, 1)
 	elif Input.is_action_just_pressed("cancel"):
-		close()
-		return
+		if _pause_page == PauseMenu.MAIN:
+			close()
+			return
+		_pause_go(PauseMenu.MAIN)
 	elif Game.claim_interact():
-		if _pause_sel == 0:
-			close()
-			return
-		elif _pause_sel == 1:
-			_sel = 0
-			show_school()
-			return
-		elif _pause_sel == 2:
-			_sel = 0
-			_career_page = CAREER_MILESTONES
-			_alum_open = -1
-			show_career()
-			return
-		elif _pause_sel == 3:
-			show_help()
-			return
-		elif _pause_sel == 5:
-			Game.save_game()
-			close()
-			get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
-			return
+		if _pause_page == PauseMenu.SETTINGS and id != "back":
+			_pause_adjust(id, 0)
+		else:
+			match id:
+				"resume":
+					close()
+					return
+				"settings":
+					_pause_go(PauseMenu.SETTINGS)
+				"quit":
+					_pause_go(PauseMenu.QUIT)
+				"back":
+					_pause_go(PauseMenu.MAIN)
+				"school":
+					_sel = 0
+					show_school()
+					return
+				"career":
+					_sel = 0
+					_career_page = CAREER_MILESTONES
+					_alum_open = -1
+					show_career()
+					return
+				"controls":
+					show_help()
+					return
+				"cheats":
+					close()
+					var dbg := get_tree().get_first_node_in_group("debug_panel")
+					if dbg != null:
+						dbg.open_cheats()
+					return
+				"title":
+					Game.save_game()
+					close()
+					get_tree().change_scene_to_file("res://scenes/ui/title.tscn")
+					return
+				"game":
+					Game.save_game()
+					get_tree().quit()
+					return
 	_render_pause()
 
 

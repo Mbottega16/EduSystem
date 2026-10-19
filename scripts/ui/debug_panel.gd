@@ -49,7 +49,15 @@ var _label: Label = null
 var _msg: String = ""
 
 
+## Opens straight onto the cheats page. The pause menu's Cheats row calls it.
+func open_cheats() -> void:
+	page = Page.CHEATS
+	_toggle(true)
+	page = Page.CHEATS
+
+
 func _ready() -> void:
+	add_to_group("debug_panel")
 	layer = 20
 	_panel = ColorRect.new()
 	_panel.color = Color(0.05, 0.05, 0.08, 0.94)
@@ -130,7 +138,9 @@ func _rows() -> Array:
 
 func _handle() -> void:
 	var n: int = _rows().size()
-	if Input.is_action_just_pressed("menu"):
+	if Input.is_action_just_pressed("cancel"):
+		_toggle(false)
+	elif Input.is_action_just_pressed("menu"):
 		page = (page + 1) % 2
 		_sel = 0
 		_msg = ""

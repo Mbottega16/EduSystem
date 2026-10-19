@@ -633,6 +633,12 @@ func _open_screen(main: Node, screen: String) -> void:
 				Layout.BELL + Vector2i(0, 1))
 		"title":
 			hud.show_title()
+		"pause":
+			hud.show_pause()
+		"pause_settings":
+			hud.show_pause()
+			hud._pause_go(hud.PauseMenu.SETTINGS)
+			hud._render_pause()
 		"inspection":
 			Game.event = DayEvent.by_id("inspector")
 			var g := 0

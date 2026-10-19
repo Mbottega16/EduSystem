@@ -3808,6 +3808,36 @@ func test_panels_fit() -> void:
 	hud.show_pause()
 	chk("the pause menu fits",
 		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	# Settings page: every row shows, the page fits, and a toggle flips.
+	hud._pause_go(hud.PauseMenu.SETTINGS)
+	hud._render_pause()
+	chk("the pause settings page fits",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	chk("and it lists the HUD pieces",
+		hud.body.text.contains("Status strip") and hud.body.text.contains("Move bar"),
+		hud.body.text)
+	var was_status := Settings.show_status
+	hud._pause_adjust("status", 0)
+	chk("E flips the status strip", Settings.show_status != was_status)
+	hud._update_status()
+	chk("and the strip hides with it", hud.status.visible == Settings.show_status)
+	Settings.show_status = true
+	Settings.show_move_bar = true
+	hud._pause_go(hud.PauseMenu.QUIT)
+	hud._render_pause()
+	chk("the quit page offers both ways out",
+		hud.body.text.contains("quit to title") or hud.body.text.contains("Save and quit to title"),
+		hud.body.text)
+	chk("and quitting the game",
+		hud.body.text.contains("quit the game"), hud.body.text)
+	chk("the quit page fits",
+		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	hud.close()
+	await step(2)
+	await tap("cancel")
+	chk("Esc opens the pause menu from the room", hud.mode == hud.Mode.PAUSE)
+	await tap("cancel")
+	chk("and Esc resumes", hud.mode == hud.Mode.NONE)
 	hud.close()
 
 	Game.new_run(SEED)

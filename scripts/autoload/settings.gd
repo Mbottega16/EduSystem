@@ -111,6 +111,9 @@ var window_scale: int = 3
 ## a key that is absent.
 var fullscreen: bool = true
 var show_hints: bool = true
+## HUD pieces the player may hide from the pause menu.
+var show_status: bool = true
+var show_move_bar: bool = true
 var bindings: Dictionary = {}
 
 
@@ -282,7 +285,8 @@ func to_dict() -> Dictionary:
 		"master_volume": master_volume, "sfx_volume": sfx_volume,
 		"music_volume": music_volume,
 		"window_scale": window_scale, "fullscreen": fullscreen,
-		"show_hints": show_hints, "bindings": b,
+		"show_hints": show_hints, "show_status": show_status,
+		"show_move_bar": show_move_bar, "bindings": b,
 	}
 
 
@@ -292,6 +296,7 @@ func to_dict() -> Dictionary:
 const FACTORY := {
 	"master_volume": 0.8, "sfx_volume": 0.9, "music_volume": 0.6,
 	"window_scale": 3, "fullscreen": true, "show_hints": true,
+	"show_status": true, "show_move_bar": true,
 }
 
 func from_dict(d: Dictionary) -> void:
@@ -301,6 +306,8 @@ func from_dict(d: Dictionary) -> void:
 	window_scale = clampi(int(d.get("window_scale", FACTORY["window_scale"])), 1, 6)
 	fullscreen = bool(d.get("fullscreen", FACTORY["fullscreen"]))
 	show_hints = bool(d.get("show_hints", FACTORY["show_hints"]))
+	show_status = bool(d.get("show_status", FACTORY["show_status"]))
+	show_move_bar = bool(d.get("show_move_bar", FACTORY["show_move_bar"]))
 
 	bindings.clear()
 	var saved: Dictionary = d.get("bindings", {})
