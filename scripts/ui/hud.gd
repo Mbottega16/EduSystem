@@ -217,6 +217,7 @@ func _window_start(total: int, shown: int) -> int:
 # marking / assignment trade-up state
 var _marking: Array = []       ## legacy array kept empty for compat
 var _marked_right: int = 0
+var _marked_total: int = 0
 var _marking_hold: float = 0.0
 var _trade_sel: int = 0
 var _last_graded_batch: int = 0
@@ -6095,26 +6096,46 @@ const MARKING_STAMP_SECONDS := 0.25
 func open_marking() -> void:
 	_marking.clear()
 	_marked_right = 0
+	_marked_total = 0
 	_marking_hold = 0.0
-	var newly := Game.bank_collected_homework()
-	if _player != null and is_instance_valid(_player):
-		_player.drop_all_homework()
-	if newly <= 0 and Game.total_graded_bank() <= 0:
-		return
-	_last_graded_batch = newly
-	_marked_right = newly
+	for s: StudentData in Game.roster:
+		if s.homework_ready_to_mark():
+			_marking.append(s)
+	_last_graded_batch = 0
 	_trade_sel = 0
+	if _marking.is_empty():
+		# nothing new to judge: the desk still trades up what is banked
+		if Game.total_graded_bank() <= 0:
+			return
+		_open(Mode.MARKING)
+		body.visible = true
+		sheet.visible = false
+		_render_marking()
+		return
 	_open(Mode.MARKING)
-	body.visible = true
-	sheet.visible = false
-	_render_marking()
+	body.visible = false
+	sheet.visible = true
+	_render_sheet()
+
+
+## One child's page, for the player to judge.
+func _render_sheet() -> void:
+	if _marking.is_empty():
+		return
+	var s: StudentData = _marking[0]
+	title.text = "%s  -  %d left" % [s.display_name, _marking.size()]
+	sheet.show_sheet(s.hw_sheet, s.display_name)
+	hint.text = "Trace a check or an X    or Right: check  Left: X"
 
 
 func _render_marking() -> void:
 	Balance.ensure_loaded()
 	title.text = "GRADED ASSIGNMENTS"
 	var lines: Array[String] = []
-	if _last_graded_batch > 0:
+	if _marked_total > 0:
+		lines.append("You judged %d of %d sheets fairly.  %d banked." % [
+			_marked_right, _marked_total, _last_graded_batch])
+	elif _last_graded_batch > 0:
 		lines.append("Graded & banked %d homework sheet%s." % [
 			_last_graded_batch, "" if _last_graded_batch == 1 else "s"])
 	else:
@@ -6140,13 +6161,38 @@ func _render_marking() -> void:
 	hint.text = "Up/Down tier   Right trade up   E set tier   Esc close"
 
 
-func _verdict(_pass_it: bool) -> void:
-	pass
+## Ignoring input while a stamp is still up (rather than queuing it) is
+## deliberate: it is what stops a second verdict landing on a sheet that has
+## already been popped, if a press arrives mid-countdown.
+func _verdict(pass_it: bool) -> void:
+	if mode != Mode.MARKING or not sheet.visible or _marking.is_empty() 			or _marking_hold > 0.0:
+		return
+	var s: StudentData = _marking.pop_front()
+	_marked_total += 1
+	if Game.mark_sheet(s, pass_it):
+		_marked_right += 1
+	if pass_it:
+		_last_graded_batch += 1
+	# The player's own call, stamped on the page -- not a reveal of the
+	# truth. See homework_sheet.gd's class comment.
+	sheet.stamp(pass_it)
+	Sfx.play("confirm" if pass_it else "deny")
+	_marking_hold = MARKING_STAMP_SECONDS
 
 
+## Runs once a stamp's hold has counted down: the next sheet, or, after the
+## last one, the arms empty and the trade-up screen.
 func _finish_marking_if_ready() -> void:
-	if mode == Mode.MARKING:
-		_render_marking()
+	if mode != Mode.MARKING:
+		return
+	if not _marking.is_empty():
+		_render_sheet()
+		return
+	if _player != null and is_instance_valid(_player):
+		_player.drop_all_homework()
+	sheet.visible = false
+	body.visible = true
+	_render_marking()
 
 
 ## The optional reward-video poster (scripts/interact/ad_poster.gd).
@@ -6738,6 +6784,17 @@ func _handle_input() -> void:
 				item_chosen.emit(String(rows[_sel]))
 		return
 
+	if mode == Mode.MARKING and sheet.visible:
+		# judging a sheet: Left is an X, Right a check, the mouse draws either
+		if Input.is_action_just_pressed("cancel"):
+			Sfx.play("blip")
+			close()
+		elif Input.is_action_just_pressed("move_left"):
+			_verdict(false)
+		elif Input.is_action_just_pressed("move_right"):
+			_verdict(true)
+		return
+
 	if mode == Mode.MARKING:
 		var order := Assignments.RARITY_ORDER
 		var n := order.size()
@@ -6757,6 +6814,7 @@ func _handle_input() -> void:
 			var next_tier := Game.trade_up_assignment(r_id)
 			if next_tier != "":
 				_last_graded_batch = 0
+				_marked_total = 0
 				Sfx.play("coins")
 				_render_marking()
 			else:
@@ -6765,6 +6823,7 @@ func _handle_input() -> void:
 			var r_id := String(order[_trade_sel]) if n > 0 else "common"
 			if Assignments.rarity_index(r_id) > 0 and Game.apply_graded_tier(r_id):
 				_last_graded_batch = 0
+				_marked_total = 0
 				Sfx.play("confirm")
 				_render_marking()
 			else:

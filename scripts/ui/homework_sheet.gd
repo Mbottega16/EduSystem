@@ -17,20 +17,30 @@ extends Control
 ## _verdict()), the same way a real teacher's red pen would mark a sheet
 ## they had just finished reading.
 
-const ROW_H := 76.0
-const LINE_GAP := 22.0
-const MARGIN_X := 26.0
-const INK := Color(0.16, 0.24, 0.46)
+## College-ruled notebook paper: narrow blue rules, one red margin line, three
+## punched holes down the left edge, a name and date line on top. The answers
+## are written in a handwriting font (Patrick Hand, SIL OFL -- see
+## fonts/PatrickHand-OFL.txt). It is the one place in the game that is not
+## Galmuri9, on purpose: this is a child's hand on paper, not the game's UI.
+const HAND := preload("res://fonts/PatrickHand-Regular.ttf")
+const SIZE := 20
+const LINE_GAP := 20.0
+const TOP := 44.0                  ## where the first rule sits, under the header
+const ROW_LINES := 3               ## rules one question takes
+const MARGIN_X := 46.0
+const INK := Color(0.12, 0.2, 0.5)
 const PRINT := Color(0.16, 0.14, 0.12)
-const RULE := Color(0.55, 0.68, 0.86, 0.35)
-const MARGIN_LINE := Color(0.75, 0.35, 0.35, 0.55)
-const PAPER := Color(0.93, 0.90, 0.80, 1.0)
+const RULE := Color(0.45, 0.62, 0.86, 0.55)
+const MARGIN_LINE := Color(0.84, 0.3, 0.3, 0.75)
+const PAPER := Color(0.98, 0.97, 0.93, 1.0)
+const HOLE := Color(0.2, 0.18, 0.16, 0.85)
 const SCRIBBLE := Color(0.22, 0.2, 0.28, 0.9)
 const SCRATCH := Color(0.35, 0.4, 0.55, 0.55)
 const GOOD := Color(0.24, 0.72, 0.36, 0.95)
 const BAD := Color(0.84, 0.26, 0.26, 0.95)
 
 var _sheet: Dictionary = {}
+var _owner: String = ""       ## whose paper it is, written on the name line
 var _stamp_pass: int = -1     ## -1 none yet, 0 an X, 1 a checkmark
 
 ## --- gesture marking -----------------------------------------------------
@@ -53,8 +63,9 @@ var _current_stroke: PackedVector2Array = PackedVector2Array()
 var _gesture_wait: float = 0.0
 
 
-func show_sheet(sheet: Dictionary) -> void:
+func show_sheet(sheet: Dictionary, owner_name: String = "") -> void:
 	_sheet = sheet
+	_owner = owner_name
 	_stamp_pass = -1
 	_strokes.clear()
 	_current_stroke = PackedVector2Array()
@@ -108,34 +119,45 @@ func tick_gesture(delta: float) -> void:
 func _draw() -> void:
 	var s := size
 	draw_rect(Rect2(Vector2.ZERO, s), PAPER)
-	draw_line(Vector2(MARGIN_X, 0), Vector2(MARGIN_X, s.y), MARGIN_LINE, 1.5)
-	var y := 16.0
+	# college-ruled rules, one every LINE_GAP, from the header down
+	var y := TOP
 	while y < s.y:
-		draw_line(Vector2(2.0, y), Vector2(s.x - 2.0, y), RULE, 1.0)
+		draw_line(Vector2(0.0, y), Vector2(s.x, y), RULE, 1.0)
 		y += LINE_GAP
+	# the header's own rule is heavier; the margin runs the full height
+	draw_line(Vector2(0.0, TOP - LINE_GAP), Vector2(s.x, TOP - LINE_GAP), RULE, 1.0)
+	draw_line(Vector2(MARGIN_X, 0.0), Vector2(MARGIN_X, s.y), MARGIN_LINE, 1.5)
+	# three punched holes
+	for hy: float in [s.y * 0.2, s.y * 0.5, s.y * 0.8]:
+		draw_circle(Vector2(18.0, hy), 5.0, HOLE)
+	# name and date, in the same hand
+	draw_string(HAND, Vector2(MARGIN_X + 10.0, TOP - 6.0),
+		"Name: %s" % (_owner if _owner != "" else "________"),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE, INK)
 
-	var font := ThemeDB.fallback_font
 	var items: Array = _sheet.get("items", [])
 	for i in items.size():
 		var it: Dictionary = items[i]
-		var row_y: float = 38.0 + float(i) * ROW_H
-		_draw_scratch(it, row_y - 20.0, font)
-		var q := "%s = " % String(it.get("q", ""))
-		draw_string(font, Vector2(MARGIN_X + 10.0, row_y), q,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 18, PRINT)
-		var q_w: float = font.get_string_size(
-			q, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+		# the baseline sits on a rule; a wobble per item keeps it a hand
+		var rng := _rng_for(it, 3)
+		var row_y: float = TOP + LINE_GAP * float(i * ROW_LINES + 2) - 3.0 			+ rng.randf_range(-1.5, 1.5)
+		_draw_scratch(it, row_y - 20.0, HAND)
+		var q := "%d)  %s = " % [i + 1, String(it.get("q", ""))]
+		draw_string(HAND, Vector2(MARGIN_X + 10.0, row_y), q,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE, PRINT)
+		var q_w: float = HAND.get_string_size(
+			q, HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x
 		var ans_at := Vector2(MARGIN_X + 16.0 + q_w, row_y)
 		if bool(it.get("neat", true)):
-			draw_string(font, ans_at, String(it.get("shown", "")),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 18, INK)
+			draw_string(HAND, ans_at, String(it.get("shown", "")),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE, INK)
 		else:
 			_draw_scribble(it, ans_at)
 
 	if _stamp_pass == 1:
-		_draw_check(Vector2(s.x - 60.0, 20.0))
+		_draw_check(Vector2(s.x - 70.0, 8.0))
 	elif _stamp_pass == 0:
-		_draw_cross(Vector2(s.x - 58.0, 18.0))
+		_draw_cross(Vector2(s.x - 68.0, 6.0))
 	else:
 		# The player's own pen, mid-gesture -- a finished stroke stays on
 		# the page as real red ink while the game waits to see if a second

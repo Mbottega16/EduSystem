@@ -8812,18 +8812,47 @@ func test_marking() -> void:
 	# hand everyone a finished sheet to grade & bank
 	for s: StudentData in Game.roster:
 		s.hw_state = StudentData.HW.COLLECTED
-		s.hw_true_accuracy = 0.9
-		s.hw_sheet = Questions.make_sheet(0.9, Game.rng)
+		s.hw_true_accuracy = 1.0
+		s.hw_sheet = Questions.make_sheet(1.0, Game.rng)
 	p.carry_homework(Game.roster.size())
 
 	hud.open_marking()
 	await step(2)
-	chk("opening marking grades and banks all collected sheets into the trade-up screen",
-		hud.mode == hud.Mode.MARKING and Game.graded_count("common") == Game.roster.size(),
+	chk("opening marking shows the first child's sheet on lined paper",
+		hud.mode == hud.Mode.MARKING and hud.sheet.visible and not hud.body.visible
+		and hud._marking.size() == Game.roster.size(), hud._marking.size())
+	chk("nothing is banked until you judge a sheet", Game.graded_count("common") == 0)
+	# a check on the first sheet, an X on the second, then checks to the end
+	var n_sheets := Game.roster.size()
+	await tap("move_left")
+	chk("an X is a verdict: the sheet is marked and NOT banked",
+		Game.graded_count("common") == 0 and hud._marking.size() == n_sheets - 1)
+	chk("and an X on a sheet that deserved a pass is a misjudged mark",
+		hud._marked_right == 0 and hud._marked_total == 1)
+	await step(int(hud.MARKING_STAMP_SECONDS * 60.0) + 4)
+	while hud.sheet.visible and not hud._marking.is_empty():
+		await tap("move_right")
+		await step(int(hud.MARKING_STAMP_SECONDS * 60.0) + 4)
+	chk("a check banks the sheet", Game.graded_count("common") == n_sheets - 1,
 		Game.graded_count("common"))
 	chk("the trade-up screen uses the text panel, not the old problem worksheet",
 		hud.body.visible and not hud.sheet.visible)
+	chk("and it says how many you judged fairly",
+		hud.body.text.contains("judged %d of %d" % [n_sheets - 1, n_sheets]), hud.body.text)
 	chk("your arms are empty once the sheets are banked", p.carrying_hw == 0, p.carrying_hw)
+	chk("the sheet you crossed out is marked too, and was a bad call",
+		Game.roster[0].hw_state == StudentData.HW.MARKED
+		and not Game.roster[0].verdict_was_right())
+	chk("waving through a sheet that was wrong is what marks a child behind", (func() -> bool:
+		var s: StudentData = Game.roster[1]
+		s.hw_state = StudentData.HW.COLLECTED
+		s.hw_sheet = Questions.make_sheet(1.0, Game.rng)
+		for it: Dictionary in s.hw_sheet["items"]:
+			it["correct"] = false
+		var fair := Game.mark_sheet(s, true)
+		var behind := s.misjudged
+		s.misjudged = false
+		return not fair and behind).call())
 	chk("every student's homework is now marked", (func() -> bool:
 		for s: StudentData in Game.roster:
 			if s.hw_state != StudentData.HW.MARKED:
@@ -8832,6 +8861,9 @@ func test_marking() -> void:
 
 	# Trade 3 common papers -> 1 rare paper via move_right
 	var common_before := Game.graded_count("common")
+	if common_before < Balance.assign_trade_in_count:
+		Game.bank_graded_assignment("common", Balance.assign_trade_in_count - common_before)
+		common_before = Game.graded_count("common")
 	await tap("move_right")
 	await step(2)
 	chk("trading in 3 common assignments yields 1 rare assignment",
@@ -13346,6 +13378,10 @@ func test_day_beats() -> void:
 		hud.status.get_theme_font("font") == hud.SPEECH_FONT
 		and hud.body.get_theme_font("font") == hud.SPEECH_FONT
 		and hud.title.get_theme_font("font") == hud.SPEECH_FONT)
+	chk("the homework sheet is the one page in a handwriting font, at size 20", (func() -> bool:
+		var src := FileAccess.get_file_as_string("res://scripts/ui/homework_sheet.gd")
+		var ok: bool = src.contains("PatrickHand-Regular.ttf") and src.contains("const SIZE := 20")
+		return ok and FileAccess.file_exists("res://fonts/PatrickHand-OFL.txt")).call())
 	chk("only at whole multiples of its 10px em -- nothing in between smears", (func() -> bool:
 		var rx := RegEx.new()
 		rx.compile("font_size(?:_override\\(\"[a-z_]+\", |[a-z_/]* = )(\\d+)")

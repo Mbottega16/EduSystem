@@ -593,6 +593,22 @@ func bank_collected_homework() -> int:
 	return banked
 
 
+## The player's own call on one sheet: a check (`pass_it`) or an X. A check
+## banks the sheet at the rarity of the paper that was set. Waving through a
+## sheet that did not deserve it marks the child `misjudged`, which is what
+## lets a quiz catch a bad marking call before it becomes a bad grade. Returns
+## true when the call matched what the sheet deserved.
+func mark_sheet(s: StudentData, pass_it: bool) -> bool:
+	var good := Questions.sheet_is_good(s.hw_sheet)
+	s.hw_player_verdict = 1 if pass_it else 0
+	s.misjudged = pass_it and not good
+	s.hw_state = StudentData.HW.MARKED
+	if pass_it:
+		var rid := String(assignment.get("rarity", "common")) if not assignment.is_empty() else "common"
+		bank_graded_assignment(rid, 1)
+	return pass_it == good
+
+
 func can_trade_up(rarity_id: String) -> bool:
 	Balance.ensure_loaded()
 	var next_id := Assignments.next_rarity_id(rarity_id)
