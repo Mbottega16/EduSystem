@@ -3446,6 +3446,25 @@ func _overflow(label: Label, budget: int) -> String:
 	return "%d lines, room for %d" % [_lines_in(label), budget]
 
 
+func _pause_text_px(l: Label) -> float:
+	return float(l.get_line_count()) * (float(l.get_line_height())
+		+ float(l.get_theme_constant("line_spacing")))
+
+
+## The pause panel: every line shown fits the label's height, and the panel
+## sits wholly on screen.
+func _pause_fits(hud: Control) -> bool:
+	var l: Label = hud.pause_label
+	return _pause_text_px(l) <= l.size.y + 0.5 \
+		and Rect2(0, 0, 640, 352).encloses(hud.pause_panel.get_rect())
+
+
+func _pause_overflow(hud: Control) -> String:
+	return "%d px of text in a %d px label: %s" % [
+		int(_pause_text_px(hud.pause_label)), int(hud.pause_label.size.y),
+		hud.pause_label.text]
+
+
 func test_panels_fit() -> void:
 	section("PANELS THAT FIT")
 	var hud := _hud()
@@ -3809,16 +3828,25 @@ func test_panels_fit() -> void:
 	hud.close()
 
 	hud.show_pause()
-	chk("the pause menu fits",
-		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	chk("the pause menu is a panel, not the full overlay",
+		hud.pause_panel.visible and not hud.overlay.visible)
+	chk("the pause menu fits", _pause_fits(hud), _pause_overflow(hud))
 	# Settings page: every row shows, the page fits, and a toggle flips.
 	hud._pause_go(hud.PauseMenu.SETTINGS)
 	hud._render_pause()
-	chk("the pause settings page fits",
-		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+	chk("the pause settings page fits", _pause_fits(hud), _pause_overflow(hud))
+	hud._pause_sel = hud.PAUSE_SETTINGS.size() - 1
+	hud._render_pause()
+	chk("and the cursor on the last row stays in view",
+		hud.pause_label.text.contains("> Back") and _pause_fits(hud), hud.pause_label.text)
+	hud._pause_sel = hud.PAUSE_SETTINGS.find("movebar")
+	hud._render_pause()
 	chk("and it lists the HUD pieces",
-		hud.body.text.contains("Status strip") and hud.body.text.contains("Move bar"),
-		hud.body.text)
+		hud.pause_label.text.contains("Move bar"), hud.pause_label.text)
+	hud._pause_sel = hud.PAUSE_SETTINGS.find("status")
+	hud._render_pause()
+	chk("including the status strip", hud.pause_label.text.contains("Status strip"),
+		hud.pause_label.text)
 	var was_status := Settings.show_status
 	hud._pause_adjust("status", 0)
 	chk("E flips the status strip", Settings.show_status != was_status)
@@ -3829,12 +3857,15 @@ func test_panels_fit() -> void:
 	hud._pause_go(hud.PauseMenu.QUIT)
 	hud._render_pause()
 	chk("the quit page offers both ways out",
-		hud.body.text.contains("quit to title") or hud.body.text.contains("Save and quit to title"),
-		hud.body.text)
+		hud.pause_label.text.contains("quit to title"), hud.pause_label.text)
 	chk("and quitting the game",
-		hud.body.text.contains("quit the game"), hud.body.text)
-	chk("the quit page fits",
-		_fits(hud.body, PANEL_LINES_SMALL), _overflow(hud.body, PANEL_LINES_SMALL))
+		hud.pause_label.text.contains("quit the game"), hud.pause_label.text)
+	chk("the quit page fits", _pause_fits(hud), _pause_overflow(hud))
+	hud.close()
+	chk("closing hides the pause panel", not hud.pause_panel.visible)
+	hud.show_pause()
+	hud.show_title()
+	chk("and another screen never shows it", not hud.pause_panel.visible)
 	hud.close()
 	await step(2)
 	await tap("cancel")
@@ -5904,8 +5935,11 @@ func test_legibility() -> void:
 	chk("and so does the help key itself", hud.mode == hud.Mode.NONE)
 	# the pause menu has a row for it
 	hud.show_pause()
-	chk("the pause menu offers the sheet", hud.body.text.contains("Controls"), hud.body.text)
-	chk("and still fits the panel", hud.body.text.split("\n").size() <= 11)
+	hud._pause_sel = hud.PAUSE_MAIN.find("controls")
+	hud._render_pause()
+	chk("the pause menu offers the sheet", hud.pause_label.text.contains("Controls"),
+		hud.pause_label.text)
+	chk("and still fits the panel", _pause_fits(hud), _pause_overflow(hud))
 	hud.close()
 	await step(2)
 
@@ -6803,6 +6837,50 @@ func test_assignment_cards() -> void:
 	chk("but rarity never touches the grade",
 		is_equal_approx(Game.grade_for(s2), plain),
 		"%.3f vs %.3f" % [Game.grade_for(s2), plain])
+
+	# --- the pay is wired in: coins and XP, never grade ---
+	Game.new_run(SEED)
+	Game.coins = 0
+	var pay_day := Game.day
+	var pay_event: Dictionary = Game.event.duplicate()
+	var pay_kid: StudentData = Game.roster[0]
+	var xp_gain := {}
+	var grade_of := {}
+	var coin_gain := {}
+	for rid in ["common", "legendary"]:
+		Game.assignment = {"rarity": rid, "difficulty": 3}
+		grade_of[rid] = Game.grade_for(pay_kid)
+	for rid in ["common", "legendary"]:
+		Game.day = pay_day
+		Game.event = pay_event.duplicate()
+		Game.assignment = {"rarity": rid, "difficulty": 3}
+		Game.assignment_day = Game.day
+		pay_kid.work_state = StudentData.Work.COLLECTED
+		pay_kid.xp = 0
+		pay_kid.level = 1
+		Game.grade_class()
+		xp_gain[rid] = pay_kid.xp
+		for st: StudentData in Game.roster:
+			st.last_grade = 0.7
+		Game.coins = 0
+		var rep: Dictionary = Game.advance_day()
+		coin_gain[rid] = int(rep["coins"])
+		Game.day = pay_day
+		Game.event = pay_event.duplicate()
+	var base_xp: int = Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done
+	chk("a common paper gives the old XP", xp_gain["common"] == base_xp,
+		"%d vs %d" % [xp_gain["common"], base_xp])
+	chk("a legendary paper gives 3x the XP",
+		xp_gain["legendary"] == int(round(float(base_xp) * 3.0)),
+		"%d vs %d" % [xp_gain["legendary"], base_xp])
+	chk("a legendary paper gives about 3x the coins",
+		abs(coin_gain["legendary"] - 3 * coin_gain["common"]) <= 3
+		and coin_gain["common"] > 0, "%s" % [coin_gain])
+	chk("and the grade is identical",
+		is_equal_approx(grade_of["common"], grade_of["legendary"]), "%s" % [grade_of])
+	Game.assignment_day = Game.day - 1
+	chk("an older paper pays nothing extra",
+		is_equal_approx(Game.paper_pay_today(), 1.0))
 
 	# --- it survives the night ---
 	Game.save_game()

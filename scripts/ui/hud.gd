@@ -164,6 +164,11 @@ const UI_FRAME := preload("res://art/ui_frame.png")
 const UI_FRAME_MARGIN := 12
 var _frame: NinePatchRect = null     ## the bamboo border round the overlay
 var _slot: NinePatchRect = null      ## the cream slot behind a shop item's picture
+## The pause menu is a small cream panel over the live room, not the shared
+## full-screen overlay. Built once in _ready; hidden by close() and _open().
+var pause_panel: NinePatchRect = null
+var pause_label: Label = null        ## title line plus a window of rows
+var pause_hint: Label = null         ## small print under the rows
 var _preview: RoomPreview = null     ## the Ideas tab's half-size room picture
 var _ideas_frame: NinePatchRect = null
 var _caption: RichTextLabel = null   ## the catalogue's left-page caption under the picture
@@ -307,6 +312,7 @@ func _ready() -> void:
 	overlay.add_child(_slot)
 	overlay.move_child(_slot, 1)
 	_slot.visible = false
+	_build_pause_panel()
 	_ideas_frame = _nine_patch(UI_FRAME, Rect2(282, 40, 344, 200), false)
 	overlay.add_child(_ideas_frame)
 	overlay.move_child(_ideas_frame, 2)
@@ -1148,6 +1154,33 @@ func _flip_frame(i: int) -> void:
 	Sfx.play_varied("paper")
 
 
+## One cream bamboo panel, 320x240, centred. Dark ink on cream, Galmuri9.
+func _build_pause_panel() -> void:
+	pause_panel = _nine_patch(UI_FRAME, PAUSE_RECT, true)
+	pause_panel.visible = false
+	add_child(pause_panel)
+	pause_label = Label.new()
+	pause_label.position = Vector2(24, 18)
+	pause_label.size = Vector2(PAUSE_RECT.size.x - 44, PAUSE_ROWS_H)
+	pause_label.clip_text = true
+	pause_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pause_label.add_theme_font_override("font", SPEECH_FONT)
+	pause_label.add_theme_font_size_override("font_size", UI_SIZE)
+	pause_label.add_theme_constant_override("line_spacing", PAUSE_SPACING)
+	pause_label.add_theme_color_override("font_color", INK)
+	pause_panel.add_child(pause_label)
+	pause_hint = Label.new()
+	pause_hint.position = Vector2(24, PAUSE_RECT.size.y - 14 - PAUSE_HINT_H)
+	pause_hint.size = Vector2(PAUSE_RECT.size.x - 44, PAUSE_HINT_H)
+	pause_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pause_hint.clip_text = true
+	pause_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pause_hint.add_theme_font_override("font", SPEECH_FONT)
+	pause_hint.add_theme_font_size_override("font_size", 10)
+	pause_hint.add_theme_color_override("font_color", Color(0.34, 0.3, 0.26))
+	pause_panel.add_child(pause_hint)
+
+
 func _open(m: int) -> void:
 	# Which page the book is showing survives a re-open of the SAME screen,
 	# because that is what a page turn is: show_curriculum()/show_hand() are
@@ -1196,6 +1229,9 @@ func _open(m: int) -> void:
 	_showing_new_term = false
 	_hiring = false
 	overlay.visible = true
+	# the pause panel belongs to Mode.PAUSE alone; show_pause() turns it on
+	if pause_panel != null:
+		pause_panel.visible = false
 	# a banner belongs to the room; it has no business under a report
 	banner.visible = false
 	if _player != null and is_instance_valid(_player):
@@ -1205,6 +1241,8 @@ func _open(m: int) -> void:
 func close() -> void:
 	mode = Mode.NONE
 	overlay.visible = false
+	if pause_panel != null:
+		pause_panel.visible = false
 	hide_dialogue()
 	# The book has to be put away here as well as in _open(). close() can be
 	# reached without another screen ever opening -- show_hand() closes
@@ -1272,8 +1310,19 @@ const PAUSE_SETTINGS := ["master", "music", "sfx", "scale", "fullscreen",
 	"hints", "status", "movebar", "back"]
 const PAUSE_QUIT := ["title", "game", "back"]
 
+## Panel geometry. Rows are a window: title line plus PAUSE_VISIBLE rows.
+const PAUSE_RECT := Rect2(160, 56, 320, 240)
+const PAUSE_ROWS_H := 168.0
+const PAUSE_HINT_H := 28.0
+const PAUSE_SPACING := 2
+const PAUSE_VISIBLE := 6
+var _pause_top: int = 0
+
 func show_pause() -> void:
 	_open(Mode.PAUSE)
+	overlay.visible = false    # no full-screen tint; the room stays visible
+	pause_panel.visible = true
+	_pause_top = 0
 	_pause_sel = 0
 	_pause_page = PauseMenu.MAIN
 	Sfx.play("blip")
@@ -1292,17 +1341,17 @@ func _pause_rows() -> Array:
 func _pause_row_text(id: String) -> String:
 	match id:
 		"resume": return "Resume"
-		"lessons": return "Lesson plans  (%s in play)" % Settings.binding_text("lesson_plans")
-		"settings": return "Settings  (sound, window, HUD)"
-		"controls": return "Controls  (%s in play)" % Settings.binding_text("help")
+		"lessons": return "Lesson plans  (%s)" % Settings.binding_text("lesson_plans")
+		"settings": return "Settings"
+		"controls": return "Controls  (%s)" % Settings.binding_text("help")
 		"cheats": return "Cheats"
 		"school": return "The school  %d room%s" % [Game.rooms.size() + 1,
 			"" if Game.rooms.is_empty() else "s"]
 		"career": return "Your career  %d/%d" % [Game.milestones.size(), Milestones.count()]
 		"quit": return "Quit"
-		"master": return "Master volume  %s" % _vol_bar(Settings.master_volume)
+		"master": return "Master  %s" % _vol_bar(Settings.master_volume)
 		"music": return "Music  %s" % _vol_bar(Settings.music_volume)
-		"sfx": return "Sound effects  %s" % _vol_bar(Settings.sfx_volume)
+		"sfx": return "Effects  %s" % _vol_bar(Settings.sfx_volume)
 		"scale": return "Window size  x%d" % Settings.window_scale
 		"fullscreen": return "Fullscreen  %s" % _on_off(Settings.fullscreen)
 		"hints": return "Show hints  %s" % _on_off(Settings.show_hints)
@@ -1320,20 +1369,29 @@ func _on_off(v: bool) -> String:
 
 func _render_pause() -> void:
 	var rows := _pause_rows()
-	title.text = ["PAUSED", "SETTINGS", "QUIT"][_pause_page]
-	var lines: Array[String] = []
-	if _pause_page == PauseMenu.QUIT:
-		lines.append("")
-	for i in rows.size():
-		lines.append("      %s %s" % [">" if i == _pause_sel else " ",
+	# keep the cursor inside the window of rows
+	_pause_top = clampi(_pause_top, 0, maxi(0, rows.size() - PAUSE_VISIBLE))
+	if _pause_sel < _pause_top:
+		_pause_top = _pause_sel
+	elif _pause_sel >= _pause_top + PAUSE_VISIBLE:
+		_pause_top = _pause_sel - PAUSE_VISIBLE + 1
+	var head: String = ["PAUSED", "SETTINGS", "QUIT"][_pause_page]
+	if _pause_top > 0:
+		head += "  ^"
+	if _pause_top + PAUSE_VISIBLE < rows.size():
+		head += "  v"
+	var lines: Array[String] = [head]
+	for i in range(_pause_top, mini(rows.size(), _pause_top + PAUSE_VISIBLE)):
+		lines.append("%s %s" % [">" if i == _pause_sel else " ",
 			_pause_row_text(String(rows[i]))])
-	if _pause_page == PauseMenu.MAIN:
-		lines.append("      Day %d of %d, %s" % [Game.day, Balance.term_days, Game.subject])
-	body.text = "\n".join(lines)
+	pause_label.text = "\n".join(lines)
 	if _pause_page == PauseMenu.SETTINGS:
-		hint.text = "Left/Right changes it.  E toggles.  Esc goes back."
+		pause_hint.text = "Left/Right changes it.  E toggles.  Esc goes back."
+	elif _pause_page == PauseMenu.MAIN:
+		pause_hint.text = "Day %d of %d, %s.  E picks.  Esc resumes." % [
+			Game.day, Balance.term_days, Game.subject]
 	else:
-		hint.text = "E picks.  Esc resumes."
+		pause_hint.text = "E picks.  Esc goes back."
 
 
 func _vol_bar(v: float = -1.0) -> String:
@@ -1378,6 +1436,7 @@ func _pause_adjust(id: String, dir: int) -> void:
 func _pause_go(page: int) -> void:
 	_pause_page = page
 	_pause_sel = 0
+	_pause_top = 0
 	Sfx.play("blip")
 
 
