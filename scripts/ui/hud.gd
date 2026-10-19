@@ -682,6 +682,9 @@ func _physics_process(_delta: float) -> void:
 			show_pause()
 		elif Input.is_action_just_pressed("help"):
 			show_help()
+		elif Input.is_action_just_pressed("lesson_plans"):
+			_sel = 0
+			show_curriculum()
 		elif Input.is_action_just_pressed("skip_days"):
 			# Only between lessons. Handing over days you have not started
 			# is a plan; handing over the one you are stood in the middle
@@ -1171,6 +1174,8 @@ func _open(m: int) -> void:
 	flip.visible = false
 	# the same single line that stops one screen leaking into the next
 	rich.visible = false
+	# a screen that shrank the left page must not leave it small for the next
+	rich_left.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	sheet.visible = false
 	body.visible = true
 	# ...and the intro slate's see-through backing and hidden hint, which it
@@ -1259,8 +1264,8 @@ enum PauseMenu { MAIN, SETTINGS, QUIT }
 var _pause_sel: int = 0
 var _pause_page: int = PauseMenu.MAIN
 
-const PAUSE_MAIN := ["resume", "settings", "controls", "cheats", "school",
-	"career", "quit"]
+const PAUSE_MAIN := ["resume", "lessons", "settings", "controls", "cheats",
+	"school", "career", "quit"]
 const PAUSE_SETTINGS := ["master", "music", "sfx", "scale", "fullscreen",
 	"hints", "status", "movebar", "back"]
 const PAUSE_QUIT := ["title", "game", "back"]
@@ -1285,6 +1290,7 @@ func _pause_rows() -> Array:
 func _pause_row_text(id: String) -> String:
 	match id:
 		"resume": return "Resume"
+		"lessons": return "Lesson plans  (%s in play)" % Settings.binding_text("lesson_plans")
 		"settings": return "Settings  (sound, window, HUD)"
 		"controls": return "Controls  (%s in play)" % Settings.binding_text("help")
 		"cheats": return "Cheats"
@@ -1314,7 +1320,7 @@ func _render_pause() -> void:
 	var rows := _pause_rows()
 	title.text = ["PAUSED", "SETTINGS", "QUIT"][_pause_page]
 	var lines: Array[String] = []
-	if _pause_page != PauseMenu.SETTINGS:
+	if _pause_page == PauseMenu.QUIT:
 		lines.append("")
 	for i in rows.size():
 		lines.append("      %s %s" % [">" if i == _pause_sel else " ",
@@ -1400,6 +1406,10 @@ func _pause_input() -> void:
 				"resume":
 					close()
 					return
+				"lessons":
+					_sel = 0
+					show_curriculum()
+					return
 				"settings":
 					_pause_go(PauseMenu.SETTINGS)
 				"quit":
@@ -1445,6 +1455,7 @@ func _pause_input() -> void:
 const HELP_LINES := {
 	"move_up": "Walk. Every verb is somewhere you stand.",
 	"move_down": "Walk.",
+	"lesson_plans": "Pick which lesson to teach next, and make one Prestige.",
 	"move_left": "Walk.",
 	"move_right": "Walk.",
 	"interact": "Help a stuck child, collect work, hand it in, clean up.",
@@ -2884,7 +2895,8 @@ func _render_hand() -> void:
 	left.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
 	left.append("")
 	left.append("[color=#%s]%s[/color]  [color=#%s]pays x%.2f[/color]" % [
-		hue, Assignments.rarity_name(rid), C_COIN, Assignments.pay(rid)])
+		hue, "Prestige" if bool(card.get("prestige", false)) else Assignments.rarity_name(rid),
+		C_COIN, Assignments.pay(rid)])
 	left.append("[color=#%s]%s[/color]" % [INK_DIM,
 		String(lesson.get("standard", "")) if String(lesson.get("standard", "")) != ""
 			else "no citation"])
@@ -4827,6 +4839,9 @@ func show_curriculum() -> void:
 	# 11, not the 12 every other book screen uses: this is the one with four
 	# columns on a row. Confirmed by screenshot, not by counting characters.
 	rich.add_theme_font_size_override("normal_font_size", UI_SMALL)
+	# The detail page carries the lesson, how well you know it and its Prestige
+	# progress: three short paragraphs that do not fit at full size.
+	rich_left.add_theme_font_size_override("normal_font_size", UI_SMALL)
 
 	var lessons := Curriculum.lessons
 	if lessons.is_empty():
@@ -4888,7 +4903,7 @@ func show_curriculum() -> void:
 		# each have a test asserting they are on every row, and both tests
 		# are right that they should be.
 		lines.append("%s%s%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
-			"*" if mine else " ",
+			"+" if Game.is_prestige(lid) else ("*" if mine else " "),
 			">" if i == _sel else " ",
 			strand_icon(String(l.get("strand", ""))),
 			hue if taught else INK_DIM,
@@ -4919,6 +4934,7 @@ func show_curriculum() -> void:
 	left.append("[color=#%s]%s[/color]" % [INK_DIM, _wrap(_mastery_words(pick,
 		_known_of(pick),
 		Curriculum.concepts_of(String(pick.get("id", ""))).size()), 22, 1)])
+	left.append("[color=#%s]%s[/color]" % ["8a5200", _prestige_words(pick)])
 
 	rich_left.text = "
 ".join(left)
@@ -4932,7 +4948,23 @@ func show_curriculum() -> void:
 	var std := String(lessons[_sel].get("standard", ""))
 	hint.text = _hint_clip("%s%s   E - teach this next%s" % [
 		std, "" if std == "" else "  ",
-		"   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else ""])
+		("   F - make Prestige" if Game.can_prestige(String(lessons[_sel].get("id", "")))
+			else "") + ("   Tab - craft a lesson" if Game.lesson_crafting_unlocked() else "")])
+
+
+## Prestige, for the lesson under the cursor: what it is, or how far off.
+func _prestige_words(l: Dictionary) -> String:
+	var lid := String(l.get("id", ""))
+	if Game.is_prestige(lid):
+		return "Prestige: always a Legendary plan."
+	if Game.can_prestige(lid):
+		return "F - make it Prestige."
+	var need: int = Balance.assign_prestige_lessons_needed
+	var strand := String(l.get("strand", ""))
+	var have: int = mini(Game.prestige_progress(strand), need)
+	if int(Game.taught.get(lid, 0)) < 1 and have >= need:
+		return "Teach it once to make it Prestige."
+	return "Prestige: %d of %d %s lessons." % [have, need, Curriculum.strand_label(strand)]
 
 
 ## How many times you have taught this lesson, in words and a number.
@@ -6479,6 +6511,12 @@ func _handle_input() -> void:
 			# four times on a screen that never asked them to press it once.
 			Sfx.play("blip")
 			open_catalogue(Shop.CRAFT)
+		elif Input.is_action_just_pressed("manage") and n > 0:
+			if Game.make_prestige(String(Curriculum.lessons[_sel].get("id", ""))):
+				Sfx.play("confirm")
+			else:
+				Sfx.play("deny")
+			show_curriculum()
 		elif Game.claim_interact():
 			# The screen DOES something now. It was a list you could only
 			# read, which is most of why it felt inert.

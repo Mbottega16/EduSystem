@@ -277,6 +277,7 @@ func _main() -> void:
 	await test_hallway()
 	await test_mentor()
 	await test_dev_panel()
+	await test_prestige()
 	await test_teaching()
 	await test_weather()
 	await test_voice()
@@ -8508,6 +8509,52 @@ func test_mentor() -> void:
 ## pressing E on it set Game.cheated and did nothing else. Caught only by
 ## actually calling it and checking the room got bigger, which a headless
 ## boot check never would have.
+func test_prestige() -> void:
+	section("PRESTIGE LESSONS")
+	Balance.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+	chk("a Legendary plan pays three times", is_equal_approx(Assignments.pay("legendary"), 3.0),
+		Assignments.pay("legendary"))
+	var math_ids: Array[String] = []
+	for l: Dictionary in Curriculum.lessons:
+		if String(l.get("strand", "")) == "math":
+			math_ids.append(String(l.get("id", "")))
+	var first := math_ids[0]
+	chk("nothing is Prestige to begin with", not Game.can_prestige(first))
+	for i in Balance.assign_prestige_lessons_needed:
+		Game.taught[math_ids[i % math_ids.size()]] = int(Game.taught.get(math_ids[i % math_ids.size()], 0)) + 1
+	chk("enough taught lessons in a subject unlock it", Game.can_prestige(first))
+	chk("a lesson taught in no subject you have not earned stays locked",
+		not Game.can_prestige("no_such_lesson"))
+	chk("making it Prestige works", Game.make_prestige(first) and Game.is_prestige(first))
+	chk("and spends the progress", Game.prestige_progress("math")
+		< Balance.assign_prestige_lessons_needed, Game.prestige_progress("math"))
+	chk("and it cannot be made Prestige twice", not Game.can_prestige(first))
+	Game.lesson = Curriculum.by_id(first)
+	var hand := Game.draw_hand()
+	var top: Dictionary = hand[hand.size() - 1]
+	chk("a Prestige lesson always deals a Legendary card",
+		String(top.get("rarity", "")) == "legendary" and bool(top.get("prestige", false)), top)
+	Game.choose_assignment(hand.size() - 1)
+	chk("and it pays the Legendary rate", is_equal_approx(Game.assignment_pay(), 3.0),
+		Game.assignment_pay())
+	var saved := Game.to_dict()
+	Game.prestige_lessons.clear()
+	Game.prestige_used.clear()
+	Game.from_dict(saved)
+	chk("Prestige survives a save", Game.is_prestige(first))
+	var hud := _hud()
+	_hud()._sel = 0
+	hud.show_curriculum()
+	chk("the lesson plans screen says so", hud.rich_left.text.contains("Prestige"),
+		hud.rich_left.text)
+	chk("and still fits its page", not hud._rich_overflows())
+	hud.close()
+	Game.new_run(SEED)
+	await step(2)
+
+
 func test_dev_panel() -> void:
 	section("DEV PANEL")
 	Game.new_run(SEED)

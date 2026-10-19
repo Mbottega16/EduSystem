@@ -191,6 +191,8 @@ static var fire_cost: int = 150
 static var assign_hand_size_min: int = 3
 static var assign_hand_size_max: int = 7
 static var assign_trade_in_count: int = 3
+## Lessons taught in one subject before a lesson there can be made Prestige.
+static var assign_prestige_lessons_needed: int = 5
 static var assign_rarities: Array = []
 static var assign_forms: Array = []
 
@@ -642,6 +644,7 @@ static func apply(d: Dictionary) -> void:
 	assign_hand_size_min = int(asg.get("hand_size_min", assign_hand_size_min))
 	assign_hand_size_max = int(asg.get("hand_size_max", assign_hand_size_max))
 	assign_trade_in_count = int(asg.get("trade_in_count", assign_trade_in_count))
+	assign_prestige_lessons_needed = int(asg.get("prestige_lessons_needed", assign_prestige_lessons_needed))
 	assign_rarities = asg.get("rarities", assign_rarities)
 	assign_forms = asg.get("forms", assign_forms)
 

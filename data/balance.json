@@ -1508,6 +1508,7 @@
     "hand_size_min": 3,
     "hand_size_max": 7,
     "trade_in_count": 3,
+    "prestige_lessons_needed": 5,
     "rarities": [
       {
         "id": "common",
@@ -1542,7 +1543,7 @@
         "name": "Legendary",
         "weight": 2,
         "colour": "f2c66b",
-        "pay": 2.8
+        "pay": 3.0
       }
     ],
     "forms": [

@@ -484,11 +484,63 @@ var graded_bank: Dictionary = {}
 ## assignment set for the class.
 var queued_assignment_tier: String = ""
 
+## Prestige: after enough lessons in a subject, one lesson there can be made
+## Prestige. A Prestige lesson always offers a Legendary card in its hand.
+## `prestige_lessons` is lesson id -> true. `prestige_used` is strand -> how
+## many taught lessons of that subject earlier upgrades already spent.
+var prestige_lessons: Dictionary = {}
+var prestige_used: Dictionary = {}
+
 signal hand_drawn(cards: Array)
+
+
+## How many times lessons of this subject have been taught this run.
+func strand_taught(strand: String) -> int:
+	var n := 0
+	for l: Dictionary in Curriculum.lessons:
+		if String(l.get("strand", "")) == strand:
+			n += int(taught.get(String(l.get("id", "")), 0))
+	return n
+
+
+## Taught lessons in this subject that no upgrade has spent yet.
+func prestige_progress(strand: String) -> int:
+	return maxi(0, strand_taught(strand) - int(prestige_used.get(strand, 0)))
+
+
+func is_prestige(lesson_id: String) -> bool:
+	return bool(prestige_lessons.get(lesson_id, false))
+
+
+func can_prestige(lesson_id: String) -> bool:
+	Balance.ensure_loaded()
+	var l := Curriculum.by_id(lesson_id)
+	if l.is_empty() or String(l.get("id", "")) != lesson_id:
+		return false
+	if is_prestige(lesson_id) or int(taught.get(lesson_id, 0)) < 1:
+		return false
+	return prestige_progress(String(l.get("strand", ""))) >= Balance.assign_prestige_lessons_needed
+
+
+## Spend the subject's progress to make this lesson Prestige.
+func make_prestige(lesson_id: String) -> bool:
+	if not can_prestige(lesson_id):
+		return false
+	var strand := String(Curriculum.by_id(lesson_id).get("strand", ""))
+	prestige_used[strand] = int(prestige_used.get(strand, 0)) + Balance.assign_prestige_lessons_needed
+	prestige_lessons[lesson_id] = true
+	return true
 
 
 func draw_hand() -> Array:
 	hand = Assignments.draw(rng, lesson, Progress.assignment_luck(perk_ranks))
+	# A Prestige lesson always has a Legendary on offer. The LAST card, so a
+	# queued trade-up (which rewrites the first) cannot overwrite it.
+	if is_prestige(String(lesson.get("id", ""))) and not hand.is_empty():
+		var top: Dictionary = Assignments.card_for_rarity(
+			"legendary", lesson, hand[hand.size() - 1])
+		top["prestige"] = true
+		hand[hand.size() - 1] = top
 	if queued_assignment_tier != "" and not hand.is_empty():
 		hand[0] = Assignments.card_for_rarity(queued_assignment_tier, lesson, hand[0])
 	hand_drawn.emit(hand)
@@ -925,6 +977,8 @@ func new_run(seed_value: int = 0) -> void:
 	hand.clear()
 	assignment = {}
 	graded_bank.clear()
+	prestige_lessons.clear()
+	prestige_used.clear()
 	queued_assignment_tier = ""
 	_sleep_tick_accum = 0.0
 	_zpd_tick_accum = 0.0
@@ -4343,6 +4397,8 @@ func to_dict() -> Dictionary:
 		"auto_teach": auto_teach,
 		"assignment": assignment,
 		"graded_bank": graded_bank.duplicate(),
+		"prestige_lessons": prestige_lessons.duplicate(),
+		"prestige_used": prestige_used.duplicate(),
 		"queued_assignment_tier": queued_assignment_tier,
 		"term_history": term_history,
 		"run_over": run_over,
@@ -4433,6 +4489,8 @@ func from_dict(d: Dictionary) -> void:
 	auto_teach = bool(d.get("auto_teach", false))
 	assignment = d.get("assignment", {}).duplicate()
 	graded_bank = (d.get("graded_bank", {}) as Dictionary).duplicate()
+	prestige_lessons = (d.get("prestige_lessons", {}) as Dictionary).duplicate()
+	prestige_used = (d.get("prestige_used", {}) as Dictionary).duplicate()
 	queued_assignment_tier = String(d.get("queued_assignment_tier", ""))
 	run_over = bool(d.get("run_over", false))
 	milestones = d.get("milestones", []).duplicate()

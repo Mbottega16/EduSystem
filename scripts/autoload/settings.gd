@@ -37,6 +37,7 @@ const ACTIONS := [
 	{"action": "autopilot", "label": "Go to whoever needs me"},
 	{"action": "auto_teach", "label": "Auto-teach the lesson"},
 	{"action": "skip_days", "label": "Teach on your own for a few days"},
+	{"action": "lesson_plans", "label": "Lesson plans (pick what to teach)"},
 	{"action": "dash", "label": "Dash"},
 	{"action": "fullscreen", "label": "Fullscreen"},
 	{"action": "menu", "label": "Class list"},
@@ -86,6 +87,9 @@ const DEFAULTS := {
 	# whole days, and CLAUDE.md's one-key-per-verb rule exists because
 	# two verbs sharing a key is how E stopped meaning anything.
 	"skip_days": [KEY_N],
+	# Z: the lesson plans, from anywhere. The poster on the wall was the
+	# only door in, and nobody found it.
+	"lesson_plans": [KEY_Z],
 	"dash": [KEY_SHIFT],
 	"fullscreen": [KEY_F11],
 	"menu": [KEY_TAB],
