@@ -476,6 +476,8 @@ var chosen_lesson: String = ""
 ## living with.
 var hand: Array = []
 var assignment: Dictionary = {}
+## The day the paper was set. A paper only pays on its own day.
+var assignment_day: int = -1
 ## Completed/graded assignments banked at the teacher's desk by rarity id
 ## ("common" -> int, "rare" -> int, ...). Three of a lower tier trade up for
 ## one of the next tier up.
@@ -551,6 +553,7 @@ func choose_assignment(i: int) -> Dictionary:
 	if i < 0 or i >= hand.size():
 		return {}
 	assignment = (hand[i] as Dictionary).duplicate()
+	assignment_day = day
 	if queued_assignment_tier != "" and Assignments.rarity_index(queued_assignment_tier) \
 			> Assignments.rarity_index(String(assignment.get("rarity", "common"))):
 		assignment = Assignments.card_for_rarity(queued_assignment_tier, lesson, assignment)
@@ -650,6 +653,14 @@ func assignment_pay() -> float:
 	if assignment.is_empty():
 		return 1.0
 	return Assignments.pay(String(assignment.get("rarity", "common")))
+
+
+## The pay that counts today: the paper set on THIS day, else 1.0.
+## A paper from an earlier day must not keep paying.
+func paper_pay_today() -> float:
+	if assignment_day != day:
+		return 1.0
+	return assignment_pay()
 
 
 ## How long the paper is, 1..5. The LESSON's difficulty says how confusing
@@ -993,6 +1004,7 @@ func new_run(seed_value: int = 0) -> void:
 	chosen_lesson = ""
 	hand.clear()
 	assignment = {}
+	assignment_day = -1
 	graded_bank.clear()
 	prestige_lessons.clear()
 	prestige_used.clear()
@@ -3724,7 +3736,7 @@ func advance_day() -> Dictionary:
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
 		* DayEvent.multiplier(event, "coin_mult") * consumable_multiplier("coin_mult")
 		* term_path_multiplier("coin_mult")
-		* lesson_pay_multiplier())) + consumable_bonus_coins
+		* lesson_pay_multiplier() * paper_pay_today())) + consumable_bonus_coins
 	add_coins(earned)
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
 	# with nothing to spend them on once the room was capped.
@@ -4071,6 +4083,7 @@ func grade_class() -> Array:
 			bank_graded_assignment(String(assignment.get("rarity", "common")), 1)
 		if s.hw_state == StudentData.HW.MARKED:
 			earned += Balance.stu_xp_per_homework
+		earned = maxi(earned, int(round(float(earned) * paper_pay_today())))
 		var levels := s.add_xp(earned)
 		out.append({"student": s, "grade": g, "letter": grade_letter(g),
 			"levels": levels})
@@ -4473,6 +4486,7 @@ func to_dict() -> Dictionary:
 		"background_id": background_id,
 		"auto_teach": auto_teach,
 		"assignment": assignment,
+		"assignment_day": assignment_day,
 		"graded_bank": graded_bank.duplicate(),
 		"prestige_lessons": prestige_lessons.duplicate(),
 		"prestige_used": prestige_used.duplicate(),
@@ -4566,6 +4580,7 @@ func from_dict(d: Dictionary) -> void:
 	background_id = String(d.get("background_id", ""))
 	auto_teach = bool(d.get("auto_teach", false))
 	assignment = d.get("assignment", {}).duplicate()
+	assignment_day = int(d.get("assignment_day", -1))
 	graded_bank = (d.get("graded_bank", {}) as Dictionary).duplicate()
 	prestige_lessons = (d.get("prestige_lessons", {}) as Dictionary).duplicate()
 	prestige_used = (d.get("prestige_used", {}) as Dictionary).duplicate()
