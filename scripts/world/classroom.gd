@@ -1057,10 +1057,10 @@ func start_lesson() -> int:
 ## played yourself is graded through, reading your ACTUAL room_score().
 ##
 ## Steady, not Veteran -- see Game.auto_teach's own comment for why.
-func run_auto_lesson() -> Dictionary:
+func run_auto_lesson(set_homework: bool = true) -> Dictionary:
 	var sim := RoomSim.play_day(Game.roster, Staff.archetype("steady"),
 		0.0, Game.lesson, Game.rng)
-	var results := end_lesson()
+	var results := end_lesson(set_homework)
 	return {"history": sim.get("history", []), "results": results}
 
 
@@ -1078,6 +1078,7 @@ func start_test(lesson_id: String) -> int:
 	Game.subject = String(Game.lesson.get("name", "Test"))
 	Game.test_active = true
 	Game.quiz_done = true          # no quizzing your way through a test
+	Game.quiz_focus = false        # and no focus left over from a quiz before
 	# Any flag left over from an earlier lesson goes with it. The blue
 	# bubble means "go to that desk", and during a test the desk offers
 	# nothing at all -- a signal you cannot act on is worse than none.
@@ -1097,7 +1098,10 @@ func start_test(lesson_id: String) -> int:
 ## Papers in. Unlike end_lesson() this sets no homework — the unit is over.
 func end_test() -> Array:
 	lesson_left = 0.0
+	# An inspector in on a test day still sees the test, same as a lesson.
+	var report := Game.inspect() if Game.being_inspected() else {}
 	var results := Game.grade_test()
+	_pop_xp_floaters(results)
 	Game.set_phase(Game.Phase.AFTERNOON)
 	# The bell settles them. Confusion was already cleared here; disruption
 	# was not, so a child who had been playing up stayed "playing up" for the
@@ -1113,7 +1117,22 @@ func end_test() -> Array:
 	_refresh_bubbles()
 	for st: Interactable in stations:
 		st.show_paper(false)
+	if not report.is_empty():
+		inspected.emit(report)
 	return results
+
+
+## One floater per desk after a lesson or a test: "+xp", or "level up!".
+## Worded, not counted -- XP is the child's own growth.
+func _pop_xp_floaters(results: Array) -> void:
+	for r: Dictionary in results:
+		var s: StudentData = r.get("student")
+		if s == null or s.seat_index < 0:
+			continue
+		var levelled: bool = int(r.get("levels", 0)) > 0
+		Floater.pop(self, Grid.tile_to_world(Layout.seat(s.seat_index)) + Vector2(0, -36),
+			"level up!" if levelled else "+xp",
+			Color(1.0, 0.85, 0.3) if levelled else Color(0.65, 0.9, 1.0))
 
 
 ## "Right -- settle down." Reaches the desks near enough to hear it.
@@ -1381,7 +1400,8 @@ func _examiner_tile() -> Vector2i:
 
 ## Podium, during a lesson. Grades everyone on what actually happened, then
 ## sets tonight's homework.
-func end_lesson() -> Array:
+## `set_homework` is false for a skipped day: nobody was there to set it.
+func end_lesson(set_homework: bool = true) -> Array:
 	lesson_left = 0.0
 	# The bell ends the quicker-feet stretch too. A boost that outlived the
 	# lesson it was won in would follow you into the next one, and nothing
@@ -1396,15 +1416,9 @@ func end_lesson() -> Array:
 	# and never once shown landing. One floater per desk, worded rather
 	# than counted -- XP is the child's own growth, the same category the
 	# "prose, never numbers" rule already keeps off their file page.
-	for r: Dictionary in results:
-		var s: StudentData = r.get("student")
-		if s == null or s.seat_index < 0:
-			continue
-		var levelled: bool = int(r.get("levels", 0)) > 0
-		Floater.pop(self, Grid.tile_to_world(Layout.seat(s.seat_index)) + Vector2(0, -36),
-			"level up!" if levelled else "+xp",
-			Color(1.0, 0.85, 0.3) if levelled else Color(0.65, 0.9, 1.0))
-	Game.assign_homework()
+	_pop_xp_floaters(results)
+	if set_homework:
+		Game.assign_homework()
 	Game.set_phase(Game.Phase.AFTERNOON)
 	# The bell settles them. Confusion was already cleared here; disruption
 	# was not, so a child who had been playing up stayed "playing up" all
@@ -1488,7 +1502,7 @@ func run_skipped_days(n: int) -> Array:
 		Game.quiz_focus = false
 		Game.answer_all_cooldown = 0.0
 		lesson_left = Game.lesson_length()
-		run_auto_lesson()
+		run_auto_lesson(false)
 		# No homework is set. Nobody was at the desk to set it, and that is
 		# most of what a skipped day costs you -- see Balance skip._note.
 		var report: Dictionary = end_day()

@@ -1053,6 +1053,7 @@ func enrol() -> StudentData:
 	bio_rng.seed = int(rng.seed) * 1103515245 + s.id * 12345 + day * 97
 	s.roll_bio_scales(bio_rng)
 	roster.append(s)
+	tested.clear()
 	roster_changed.emit()
 	return s
 
@@ -2244,6 +2245,7 @@ func sit_exam() -> Dictionary:
 			passed += 1
 	exam_result = {
 		"rows": rows, "average": avg, "letter": grade_letter(avg),
+	tested.clear()
 		"passed": passed, "total": roster.size(),
 	}
 	return exam_result
@@ -2792,9 +2794,14 @@ func can_test(lesson_id: String) -> bool:
 func testable_lesson() -> Dictionary:
 	Curriculum.ensure_loaded()
 	for l: Dictionary in Curriculum.lessons:
-		if can_test(String(l.get("id", ""))):
-			return l
-	return {}
+		var lid := String(l.get("id", ""))
+		if not can_test(lid):
+			continue
+		var when: int = int(tested[lid]) if tested.has(lid) else -1
+		if when < best_day:
+			best_day = when
+			best = l
+	return best
 
 
 ## What a child scores on the test.
@@ -2808,7 +2815,7 @@ func test_grade_for(s: StudentData) -> float:
 	Balance.ensure_loaded()
 	return clampf(room_score(s.seat_index)
 		+ s.work_fraction() * Balance.test_cap
-		+ concept_bonus(), 0.0, 1.0)
+		+ concept_bonus() * s.work_fraction(), 0.0, 1.0)
 
 
 ## Mark the papers. Worth a row in every child's record, flagged as a test
@@ -2821,8 +2828,14 @@ func grade_test() -> Array:
 		s.last_grade = g
 		s.grades.append(g)
 		s.record_result(lesson, g, day, true)
-		s.add_xp(Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done)
-		out.append({"student": s, "grade": g, "letter": grade_letter(g)})
+		if drill and not s.has_moment("fire_drill"):
+			s.note_moment("fire_drill", day)
+		s.misjudged = false         # their next lesson has ended
+		var levels := s.add_xp(Balance.stu_xp_per_lesson + Balance.stu_xp_per_work_done)
+		out.append({"student": s, "grade": g, "letter": grade_letter(g),
+			"levels": levels})
+	if String(lesson.get("id", "")) != "":
+		tested[String(lesson.get("id", ""))] = day
 	log_grades("test", String(lesson.get("name", "Lesson")), lesson_strand(), out,
 		String(lesson.get("id", "")))
 	test_active = false
@@ -2833,6 +2846,11 @@ func grade_test() -> Array:
 ## The last inspection, kept so the class list and the term can refer back
 ## to it. Empty until one has happened.
 var last_inspection: Dictionary = {}
+
+## Unit tests given: lesson id -> the day it was sat. Saved. Cleared by
+## new_run() and by next_term() (days restart each term). It is what stops
+## one lesson being tested every morning, and a retake paying out again.
+var tested: Dictionary = {}
 
 
 func being_inspected() -> bool:
@@ -2845,8 +2863,16 @@ func being_inspected() -> bool:
 ## hidden inspection stat, and nothing that was not visible to the player
 ## while it was happening:
 ##
+##
+## One test a day. Of the units that qualify, a unit never tested comes first;
+## once all were tested, the one tested longest ago comes round again.
 ##   the room      what the furniture is worth to the desks, against its cap
 ##   the lesson    how much of the work got done, less what was still going
+	for tid: Variant in tested:
+		if int(tested[tid]) == day:
+			return {}
+	var best: Dictionary = {}
+	var best_day := 1 << 30
 ##                 wrong at the bell
 ##   the material  whether you know what you are teaching today
 ##
@@ -2872,6 +2898,7 @@ func inspect() -> Dictionary:
 	# added rather than what the building came with.
 	var room := clampf(
 		(room_total / n - Balance.room_base)
+	var drill := String(event.get("id", "")) == "fire_drill"
 		/ maxf(0.01, Balance.room_cap - Balance.room_base), 0.0, 1.0)
 	var lesson := clampf(work_total / n - float(trouble) / n * 0.5, 0.0, 1.0)
 
@@ -3810,11 +3837,20 @@ func advance_day() -> Dictionary:
 	# read before the roll, or the guarantee is one day stale (same trap
 	# pacing_report() avoids for the same reason).
 	if String(event.get("id", "none")) == "none":
+		# A sheet nobody collected or marked in two days is stale. It goes
+		# back to NONE with no credit, so the child can be set new work.
+		if s.hw_state == StudentData.HW.DONE or s.hw_state == StudentData.HW.COLLECTED:
+			s.hw_stale += 1
+			if s.hw_stale >= 2:
+				s.hw_state = StudentData.HW.NONE
+				s.hw_sheet = {}
+				s.hw_stale = 0
 		_none_streak += 1
 	else:
 		_none_streak = 0
 	event = DayEvent.roll(rng, _none_streak)
 	_flares_today = 0
+				s.hw_stale = 0
 	fight_done = false
 	interruption = {}
 	_complications_today = 0
@@ -3920,6 +3956,7 @@ func room_score(seat_index: int) -> float:
 	for placed: Dictionary in room_items:
 		var def := Items.get_def(String(placed.get("id", "")))
 		if def.is_empty():
+			s.hw_stale = 0
 			continue
 		# distance to the NEAREST tile of the item, so a wide item helps from
 		# either end rather than only from its anchor
@@ -4119,6 +4156,7 @@ func item_fits(id: String, tile: Vector2i) -> bool:
 			if t in want:
 				return false
 	return true
+		s.misjudged = false         # their next lesson has ended
 
 
 ## The first place on the back wall this hanging piece fits, scanning left to
@@ -4576,6 +4614,7 @@ func from_dict(d: Dictionary) -> void:
 	has_janitor = bool(d.get("has_janitor", false))
 	janitor_level = int(d.get("janitor_level", 1))
 	chosen_lesson = String(d.get("chosen_lesson", ""))
+		"tested": tested.duplicate(),
 	hat_id = String(d.get("hat_id", ""))
 	background_id = String(d.get("background_id", ""))
 	auto_teach = bool(d.get("auto_teach", false))
@@ -4704,6 +4743,11 @@ func saved_day() -> int:
 
 func has_save() -> bool:
 	return FileAccess.file_exists(save_path)
+	test_active = false         # a save never resumes mid-test; the phase is MORNING
+	tested.clear()
+	var tested_in: Dictionary = d.get("tested", {})
+	for tid: Variant in tested_in:
+		tested[String(tid)] = int(tested_in[tid])
 
 
 func delete_save() -> void:

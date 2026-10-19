@@ -304,6 +304,7 @@ func _main() -> void:
 	await test_supply_stash()
 	await test_whisper_aura()
 	test_walkthrough()
+	await test_review_fixes()
 
 	print("")
 	if failed == 0:
@@ -3133,6 +3134,7 @@ func test_unit_test() -> void:
 		"%.3f -> %.3f" % [bare, Game.test_grade_for(a)])
 
 	var furnished := Game.test_grade_for(a)
+	a.work_state = StudentData.Work.COLLECTED   # the bonus pays on work done
 	for l: Dictionary in Curriculum.lessons:
 		for i in 10:
 			Game.record_taught(String(l.get("id", "")))
@@ -16382,3 +16384,110 @@ func test_walkthrough() -> void:
 	chk("...and so does the screenshot harness, which boots the real run",
 		shot.contains('const SHOT_SAVE := "user://edusystem_SHOT_save.json"')
 		and shot.contains("Game.save_path = SHOT_SAVE"))
+## Fixes from a code review: the unit test farm, the test grade, inspections
+## on a test day, a save mid-test, skipped-day homework, a sticky misjudged
+## flag and stale homework sheets.
+func test_review_fixes() -> void:
+	section("REVIEW FIXES")
+	Balance.ensure_loaded()
+	Curriculum.ensure_loaded()
+	Game.new_run(SEED)
+	await step(2)
+
+	# --- the test rotates, once a day ---
+	var a := String((Curriculum.lessons[0] as Dictionary).get("id", ""))
+	var b := String((Curriculum.lessons[1] as Dictionary).get("id", ""))
+	for i in Balance.test_requires_taught:
+		Game.record_taught(a)
+		Game.record_taught(b)
+	Game.day = 5
+	chk("the first qualifying unit is offered first",
+		String(Game.testable_lesson().get("id", "")) == a)
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(a)
+	var res: Array = world.end_test()
+	chk("a test records the day it was sat", int(Game.tested.get(a, -1)) == 5)
+	chk("and a test result carries the level count", (res[0] as Dictionary).has("levels"))
+	chk("no second test the same day", Game.testable_lesson().is_empty())
+	Game.day = 6
+	chk("next day offers the unit never tested",
+		String(Game.testable_lesson().get("id", "")) == b)
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(b)
+	world.end_test()
+	Game.day = 7
+	chk("once all were tested, the longest ago comes round again",
+		String(Game.testable_lesson().get("id", "")) == a)
+
+	# --- the test grade scales the concept bonus ---
+	var s: StudentData = Game.roster[0]
+	Game.concepts = ["x1", "x2", "x3"]
+	s.reset_lesson()
+	chk("a child who did no work gains nothing from what you know",
+		is_equal_approx(Game.test_grade_for(s),
+			clampf(Game.room_score(s.seat_index), 0.0, 1.0)))
+	s.work_state = StudentData.Work.COLLECTED
+	chk("a child who finished gets the full bonus",
+		is_equal_approx(Game.test_grade_for(s), clampf(
+			Game.room_score(s.seat_index) + Balance.test_cap + Game.concept_bonus(),
+			0.0, 1.0)))
+	s.reset_lesson()
+
+	# --- the test clears quiz focus, and an inspector still comes ---
+	Game.quiz_focus = true
+	Game.day = 9
+	Game.event = DayEvent.by_id("inspector")
+	Game.last_inspection = {}
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(a)
+	chk("starting a test clears quiz focus", not Game.quiz_focus)
+	world.end_test()
+	chk("an inspector on a test day still inspects", not Game.last_inspection.is_empty())
+	Game.event = DayEvent.by_id("fire_drill")
+	Game.day = 11
+	Game.set_phase(Game.Phase.MORNING)
+	world.start_test(b)
+	world.end_test()
+	chk("a fire drill on a test day is still a shared moment",
+		Game.roster[0].has_moment("fire_drill"))
+	Game.event = DayEvent.by_id("none")
+
+	# --- a load never resumes mid-test ---
+	Game.tested = {a: 3}
+	Game.test_active = true
+	Game.from_dict(Game.to_dict())
+	chk("a load clears a test in progress", not Game.test_active)
+	chk("and keeps the tests given", int(Game.tested.get(a, -1)) == 3, Game.tested)
+	Game.new_run(SEED)
+	chk("a new run forgets them", Game.tested.is_empty())
+
+	# --- skipped days set no homework ---
+	await step(20)
+	var rows: Array = world.run_skipped_days(2)
+	chk("the skipped days ran", rows.size() == 2, rows.size())
+	var any_set := false
+	for st: StudentData in Game.roster:
+		if st.hw_set_total > 0 or st.hw_state != StudentData.HW.NONE:
+			any_set = true
+	chk("and no homework went out on them", not any_set)
+
+	# --- misjudged ends with that child's next lesson ---
+	var m: StudentData = Game.roster[0]
+	m.misjudged = true
+	Game.grade_class()
+	chk("a lesson ending clears misjudged", not m.misjudged)
+
+	# --- a sheet nobody marks expires after two days ---
+	m.hw_state = StudentData.HW.DONE
+	m.hw_stale = 0
+	Game.advance_day()
+	chk("a sheet one night old waits", m.hw_state == StudentData.HW.DONE)
+	Game.advance_day()
+	chk("a sheet two nights old expires with no credit",
+		m.hw_state == StudentData.HW.NONE)
+	chk("and the child is set new homework", Game.assign_homework() > 0
+		and m.hw_state == StudentData.HW.ASSIGNED)
+
+	Game.new_run(SEED)
+
+

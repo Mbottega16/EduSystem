@@ -9,9 +9,10 @@ extends Interactable
 ##   homework  overnight, medium, marked blind the next morning
 ##   test      end of unit, high stakes, and you may only watch
 ##
-## Shares the podium with the quiz on USE (E) — the quiz is only offered
-## DURING a lesson and the test only in the MORNING, so they are never live
-## at the same moment. F remains "teach today's lesson".
+## Sits at the podium on USE (E), HELD, and only in the MORNING. The quiz has
+## its own key (Q) and is only offered DURING a lesson. F remains "teach
+## today's lesson". One test a day, and the unit never tested (or tested
+## longest ago) comes first -- see Game.testable_lesson().
 ##
 ## It is gated on having actually taught the unit. A test on material the
 ## class has never covered is not a difficulty setting, it is a worse

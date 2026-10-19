@@ -36,7 +36,7 @@ func _ready() -> void:
 	world.inspected.connect(func(r: Dictionary) -> void:
 		_bump(3.0 if not bool(r.get("passed", false)) else 1.5)
 		hud.show_inspection(r))
-	world.test_auto_ended.connect(hud.show_test_report)
+	world.test_auto_ended.connect(_on_test_ended)
 	# The boss paper: each question across the top as it opens, the report
 	# when it is over. Both belong to the world, so connected once.
 	world.fight_banner.connect(func(t: String) -> void: hud.show_banner(t))
@@ -262,6 +262,13 @@ func _on_term_ended(result: Dictionary) -> void:
 	_bump(3.5)
 	hud.show_exam(result)
 
+## Same as a lesson: an inspector's verdict replaces the test report.
+func _on_test_ended(results: Array) -> void:
+	if Game.being_inspected():
+		return
+	hud.show_test_report(results)
+
+
 
 ## The paper has begun. The one line of instruction it gets, once per run,
 ## from the principal -- the day's beat and the mentor's tactic line have
@@ -288,7 +295,7 @@ func _wire_room() -> void:
 	var pairs := [
 		[world.podium, "hand_requested", _offer_hand],
 		[world.podium, "lesson_ended", _on_lesson_ended],
-		[world.podium, "test_ended", hud.show_test_report],
+		[world.podium, "test_ended", _on_test_ended],
 		[world.podium, "fight_started", _on_fight_started],
 		[world.bell, "day_ended", _on_day_ended],
 		[world.bell, "term_ended", _on_term_ended],

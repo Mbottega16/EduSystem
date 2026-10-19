@@ -114,6 +114,9 @@ var hw_state: int = HW.NONE
 var hw_true_accuracy: float = 0.0  ## hidden from the player
 var hw_player_verdict: int = -1    ## -1 unset, 0 "not yet", 1 "got it"
 var hw_sheet: Dictionary = {}
+## End-of-day counts a finished sheet has sat uncollected or unmarked.
+## Two, and it expires to NONE (see Game.advance_day).
+var hw_stale: int = 0
 ## Set when you passed a sheet that did not deserve it. That student is
 ## secretly behind, so they stall more next lesson — which is exactly what
 ## the marking screen has always claimed happens.
@@ -842,6 +845,7 @@ func to_dict() -> Dictionary:
 		"seat_index": seat_index, "aptitude": aptitude, "diligence": diligence,
 		"talkativeness": talkativeness, "sleepiness": sleepiness,
 		"hw_state": hw_state, "hw_true_accuracy": hw_true_accuracy,
+		"hw_stale": hw_stale,
 		"hw_player_verdict": hw_player_verdict, "misjudged": misjudged,
 		"favourite": favourite, "trait": trait_id,
 		"disrupting": disrupting, "flare_left": flare_left, "copied": copied,
@@ -875,6 +879,7 @@ static func from_dict(d: Dictionary) -> StudentData:
 	s.active_consumable = String(d.get("active_consumable", ""))
 	s.consumable_left = float(d.get("consumable_left", 0.0))
 	s.hw_state = int(d.get("hw_state", HW.NONE))
+	s.hw_stale = int(d.get("hw_stale", 0))
 	s.hw_true_accuracy = float(d.get("hw_true_accuracy", 0.0))
 	s.hw_player_verdict = int(d.get("hw_player_verdict", -1))
 	s.misjudged = bool(d.get("misjudged", false))

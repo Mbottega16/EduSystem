@@ -17,8 +17,12 @@ const FONT := preload("res://fonts/Galmuri9.ttf")
 const FRAME := preload("res://art/ui_frame.png")
 const FRAME_MARGIN := 12
 const SIZE := 20
+## Dark ink on cream paper, same as the pause menu (hud.gd INK).
+const INK := Color(0.13, 0.12, 0.17)
+## A centred cream paper panel, like the pause menu. No full-screen tint.
+const PANEL_RECT := Rect2(100, 24, 440, 304)
 ## Rows shown at once. The list scrolls so the cursor row is always inside.
-const WINDOW := 8
+const WINDOW := 7
 
 const ROWS := [
 	{"label": "work seconds", "key": "work_seconds", "step": 1.0},
@@ -51,7 +55,7 @@ var _backtick_was_down: bool = false
 var _shift_d_was_down: bool = false
 var page: int = Page.TUNING
 var _sel: int = 0
-var _panel: ColorRect = null
+var _panel: NinePatchRect = null
 var _label: Label = null
 var _msg: String = ""
 
@@ -66,33 +70,29 @@ func open_cheats() -> void:
 func _ready() -> void:
 	add_to_group("debug_panel")
 	layer = 20
-	# Dressed like the game's own screens: the dark overlay, LimeZu's bamboo
-	# frame, and the pixel font at 20, so it reads as part of the game.
-	_panel = ColorRect.new()
-	_panel.color = Color(0.06, 0.05, 0.08, 0.93)
-	_panel.size = Vector2(640, 352)
+	# Dressed like the pause menu: LimeZu's bamboo frame with its cream
+	# centre, dark ink, and the pixel font at 20.
+	_panel = NinePatchRect.new()
+	_panel.texture = FRAME
+	_panel.position = PANEL_RECT.position
+	_panel.size = PANEL_RECT.size
+	for side in ["left", "top", "right", "bottom"]:
+		_panel.set("patch_margin_" + side, FRAME_MARGIN)
+	_panel.draw_center = true
+	_panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.visible = false
 	add_child(_panel)
 
-	var frame := NinePatchRect.new()
-	frame.texture = FRAME
-	frame.position = Vector2(2, 2)
-	frame.size = Vector2(636, 348)
-	for side in ["left", "top", "right", "bottom"]:
-		frame.set("patch_margin_" + side, FRAME_MARGIN)
-	frame.draw_center = false
-	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(frame)
-
 	_label = Label.new()
-	_label.position = Vector2(24, 16)
-	_label.size = Vector2(592, 320)
+	_label.position = Vector2(28, 28)
+	_label.size = Vector2(PANEL_RECT.size.x - 56, PANEL_RECT.size.y - 52)
 	_label.clip_text = true
+	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.add_theme_font_override("font", FONT)
 	_label.add_theme_font_size_override("font_size", SIZE)
-	_label.add_theme_constant_override("line_spacing", 6)
-	_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	_label.add_theme_constant_override("line_spacing", 2)
+	_label.add_theme_color_override("font_color", INK)
 	_panel.add_child(_label)
 
 
@@ -333,6 +333,6 @@ func _render() -> void:
 		more = "  (%d-%d of %d)" % [first + 1, mini(first + WINDOW, rows.size()), rows.size()]
 	lines.append("%s%s" % ["Left/Right adjusts." if page == Page.TUNING
 		else "E uses it. %s." % ("CHEATED" if Game.cheated else "Clean run"), more])
-	lines.append(_msg if _msg != "" else "Day %d  coins %d  level %d   Esc closes" % [
-		Game.day, Game.coins, Game.teacher_level])
+	lines.append(_msg if _msg != "" else "Day %d  coins %d   Esc closes" % [
+		Game.day, Game.coins])
 	_label.text = "\n".join(lines)
