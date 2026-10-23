@@ -119,6 +119,22 @@ func _ready() -> void:
 	get_tree().quit(0 if err == OK else 1)
 
 
+## The player into the hallway at corridor x `at`, as main.gd's own door does.
+func _into_hallway(main: Node, world: Node, at: float) -> void:
+	var hallway: Node = main.get_node("Hallway")
+	hallway.rebuild()
+	world.player.get_parent().remove_child(world.player)
+	hallway.add_child(world.player)
+	world.player.position = Vector2(at, 40.0)
+	world.player.facing = Actor.DIR_UP
+	hallway.refresh_camera_limits(world.camera)
+	if world.camera != null:
+		world.camera.make_current()
+		world.camera.reset_smoothing()
+	world.visible = false
+	hallway.visible = true
+
+
 ## Off the visible desktop: a screenshot needs a real window to render
 ## into, not anyone looking at it. shot_all.py also launches with
 ## --position, so the window is off-screen from its first frame.
@@ -363,6 +379,32 @@ func _open_screen(main: Node, screen: String) -> void:
 				world.camera.reset_smoothing()
 			world.visible = false
 			hallway.visible = true
+		# The grade wing above the corridor, its rooms running: from the first
+		# stage's door, from the far end, and a stage's card (the next one, on
+		# offer once a term is done; then just after moving up).
+		"grade_wing", "grade_wing_far":
+			_into_hallway(main, world, 120.0 if screen == "grade_wing" else 1150.0)
+		# The same view twelve seconds on: the rooms are a fixed timetable, so
+		# this is the only way to see a different moment of them.
+		"grade_wing_later":
+			_into_hallway(main, world, 120.0)
+			for r: LiveRoom in main.get_node("Hallway").wing_rooms:
+				for i in 720:
+					r.tick(1.0 / 60.0)
+		"stage_card", "stage_moved":
+			# A fresh run one term in: the shot is of the offer, not of
+			# whichever stage the copied save happens to have reached.
+			Game.new_run(0)
+			Game.intro_seen = true
+			Game.coins = 5000
+			Game.term = 2
+			_into_hallway(main, world, 420.0)
+			if screen == "stage_moved":
+				Game.move_up()
+				hud._stage_note = "You teach %s now. Your class came with you." % Game.tier_name()
+				hud._stage_i = Game.age_tier
+				hud.mode = hud.Mode.STAGE
+			hud.show_stage(1)
 		"acting":
 			# Page three of a child's file, with plenty acting on them --
 			# a trait, a bad day, and something they are doing to

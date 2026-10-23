@@ -1861,6 +1861,10 @@
     "elementary": {
       "name": "Elementary School",
       "age_range": "6-10",
+      "grades": "Grades K-5",
+      "blurb": "Little ones. They jump when they finish.",
+      "move_up_cost": 0,
+      "pay_mult": 1.0,
       "wander_interval_seconds": 18.0,
       "base_distraction_radius": 2,
       "promotion_graduates_needed": 8,
@@ -1869,6 +1873,10 @@
     "middle": {
       "name": "Middle School",
       "age_range": "11-14",
+      "grades": "Grades 6-8",
+      "blurb": "Desks in pods: neighbours help, and chat.",
+      "move_up_cost": 400,
+      "pay_mult": 1.2,
       "zpd_cluster_bonus": 0.15,
       "base_distraction_radius": 2,
       "promotion_graduates_needed": 8,
@@ -1877,6 +1885,10 @@
     "high": {
       "name": "High School",
       "age_range": "15-18",
+      "grades": "Grades 9-12",
+      "blurb": "Sleepy first thing. Wake them up.",
+      "move_up_cost": 900,
+      "pay_mult": 1.45,
       "morning_fatigue_mult": 1.4,
       "base_distraction_radius": 1,
       "promotion_graduates_needed": 8,
@@ -1885,6 +1897,10 @@
     "college": {
       "name": "College / University",
       "age_range": "18-22",
+      "grades": "Years 1-4",
+      "blurb": "Lectures, and students who work alone.",
+      "move_up_cost": 1600,
+      "pay_mult": 1.75,
       "seminar_focus_bonus": 0.20,
       "base_distraction_radius": 1,
       "promotion_graduates_needed": 8,
@@ -1946,10 +1962,11 @@
     "tutor_per_level": 0.06,
     "tutor_cap": 0.5
   },
-  "_tiers_note": "The school's age tiers (learning-system-plan.md). A run starts in the first of tiers.order and moves up a stage once age_tiers.<tier>.promotion_graduates_needed children have left the class with a term evaluation at or above that tier's promotion_min_term_grade. When the school moves up, up to captains_max of those qualified graduates may stay on as cohort captains with their whole record; the rest are sent up as usual and fresh faces fill the class. Each stage gives new children its own base_distraction_radius and has one flavour, all pace only and ticked by the room: middle school adds zpd_cluster_bonus to a ZPD pair's scaffolding when their desks sit within pod_reach_tiles of each other; high school multiplies the sleep chance by morning_fatigue_mult for the first sleep.morning_window of a lesson; college adds seminar_focus_bonus to a ZPD pair's scaffolding (the ad-hoc research pair). wander_interval_seconds is reserved for the elementary rug and show-and-tell work, which is not built. The balance contract is measured in the first stage, so none of this can move it.",
+  "_tiers_note": "The school's age tiers (learning-system-plan.md). A run starts in the first of tiers.order and moves up a stage once age_tiers.<tier>.promotion_graduates_needed children have left the class with a term evaluation at or above that tier's promotion_min_term_grade. When the school moves up, up to captains_max of those qualified graduates may stay on as cohort captains with their whole record; the rest are sent up as usual and fresh faces fill the class. Each stage gives new children its own base_distraction_radius and has one flavour, all pace only and ticked by the room: middle school adds zpd_cluster_bonus to a ZPD pair's scaffolding when their desks sit within pod_reach_tiles of each other; high school multiplies the sleep chance by morning_fatigue_mult for the first sleep.morning_window of a lesson; college adds seminar_focus_bonus to a ZPD pair's scaffolding (the ad-hoc research pair). wander_interval_seconds is reserved for the elementary rug and show-and-tell work, which is not built. The balance contract is measured in the first stage, so none of this can move it. MOVING UP BY CHOICE (the grade wing, Oct 2026): the hallway shows a running classroom for every stage; once you have taught terms_before_move_up whole terms in your current stage, the next stage's door offers to move you up for that stage's move_up_cost coins. Your class comes with you (looping). Each stage pays pay_mult times the daily lesson coins. grades and blurb are the words on its door and its card. Coins only, so the contract cannot see it.",
   "tiers": {
     "order": ["elementary", "middle", "high", "college"],
     "captains_max": 2,
-    "pod_reach_tiles": 3
+    "pod_reach_tiles": 3,
+    "terms_before_move_up": 1
   }
 }

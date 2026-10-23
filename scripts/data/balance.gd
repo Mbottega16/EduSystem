@@ -475,6 +475,9 @@ static var tenure_tutor_cap: float = 0.5
 static var tier_order: Array = ["elementary", "middle", "high", "college"]
 static var tier_captains_max: int = 2
 static var tier_pod_reach_tiles: int = 3
+## Whole terms taught in a stage before its next one's door in the grade
+## wing offers to move you up (Game.move_up_check()).
+static var tier_terms_before_move_up: int = 1
 
 
 static func ensure_loaded() -> void:
@@ -899,6 +902,7 @@ static func apply(d: Dictionary) -> void:
 	tier_order = tr.get("order", tier_order)
 	tier_captains_max = int(tr.get("captains_max", tier_captains_max))
 	tier_pod_reach_tiles = int(tr.get("pod_reach_tiles", tier_pod_reach_tiles))
+	tier_terms_before_move_up = int(tr.get("terms_before_move_up", tier_terms_before_move_up))
 
 
 ## Named access for the live debug panel. Object.get()/set() cannot be

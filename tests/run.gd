@@ -276,6 +276,7 @@ func _main() -> void:
 	await test_buying_desks()
 	await test_the_school()
 	await test_hallway()
+	await test_grade_wing()
 	await test_mentor()
 	await test_dev_panel()
 	await test_prestige()
@@ -7981,6 +7982,8 @@ func test_the_school() -> void:
 		not (last.get("history", []) as Array).is_empty(), last.get("history", []))
 	hud.show_watch(0)
 	chk("watching opens its own screen", hud.mode == hud.Mode.WATCH)
+	chk("on cream paper over the room, not a dark window",
+		hud._paper.visible and hud.overlay.color.a <= hud.PAPER_DIM + 0.01, hud.overlay.color)
 	chk("and it fits too", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
 			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
@@ -7991,6 +7994,9 @@ func test_the_school() -> void:
 	hud._render_watch_frame()
 	chk("the last frame reports the same grade resolve_rooms recorded",
 		hud.rich.text.contains(String(last.get("letter", "?"))), hud.rich.text)
+	await step(2)
+	chk("and the bell's tally still fits the card", not hud._rich_overflows(),
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
 	await tap("cancel")
 	chk("Esc backs out to the school board", hud.mode == hud.Mode.SCHOOL)
 	hud.close()
@@ -8291,6 +8297,207 @@ func test_hallway() -> void:
 		world.player.get_parent() == world)
 	chk("and the room is what's on screen again", world.visible)
 	chk("with the hallway put away", not hallway.visible)
+
+	Game.new_run(SEED)
+	await step(2)
+
+
+## The grade wing (Oct 2026, the owner's ask): above the corridor, a classroom
+## for every stage of the school, running forever, and a door per stage whose
+## card is where you move up -- after a whole term, for coins, class and all.
+func test_grade_wing() -> void:
+	section("GRADE WING")
+	Game.new_run(SEED)
+	await step(2)
+	var main: Node = world.get_parent()
+	var hallway: Node = main.get_node("Hallway")
+	var hud := _hud()
+
+	await place_player(Layout.DOOR + Vector2i(1, 0), Actor.DIR_LEFT)
+	await tap("manage")
+	chk("into the corridor through your own door", world.player.get_parent() == hallway)
+	hud.mascot_box.visible = false
+
+	# --- the wing: a room per stage, each its own, each with a class ---
+	var rooms: Array = hallway.wing_rooms
+	chk("a classroom for every stage of the school", rooms.size() == Game.tier_count()
+		and Game.tier_count() == 4, rooms.size())
+	chk("in the school's own order",
+		rooms.map(func(r: LiveRoom) -> String: return r.stage_id) == Balance.tier_order)
+	chk("each with six children at desks and a teacher",
+		rooms.all(func(r: LiveRoom) -> bool: return r.pupils.size() == 6 and r.teacher != null))
+	var looks := {}
+	for id: String in Balance.tier_order:
+		looks[String((LiveRoom.STAGES[id] as Dictionary)["look"])] = true
+	chk("each stage wears its own floor and walls", looks.size() == Game.tier_count(), looks)
+	chk("they sit above the corridor wall, not in the corridor",
+		rooms.all(func(r: LiveRoom) -> bool:
+			return r.position.y + LiveRoom.WALL + LiveRoom.FLOOR <= -hallway.WALL_H))
+	chk("the wing, the corridor wall and the floor are one screen tall",
+		hallway.HEIGHT - hallway.WING_TOP <= 352.0, hallway.HEIGHT - hallway.WING_TOP)
+	var cam: Camera2D = world.camera
+	var hy: float = hallway.global_position.y
+	chk("and the camera keeps all of it in view",
+		cam.limit_top <= int(hy + hallway.WING_TOP) and cam.limit_bottom >= int(hy + hallway.HEIGHT),
+		[cam.limit_top, cam.limit_bottom])
+	chk("the wing's doors are not the corridor's own row",
+		hallway.wing_doors.size() == Game.tier_count()
+		and hallway.doors.size() == 3 + Game.rooms.size() + (1 if Game.can_open_room() else 0))
+	chk("a wing door is in the wall, clear of every corridor door below",
+		hallway.wing_doors.all(func(d: Node2D) -> bool:
+			return hallway.doors.all(func(o: Node2D) -> bool:
+				return d.position.distance_to(o.position) > 60.0)))
+	chk("nothing lining the wall stands in front of a wing door",
+		hallway.lining.all(func(p: Sprite2D) -> bool:
+			return hallway.wing_doors.all(func(d: Node2D) -> bool:
+				return absf(p.position.x - d.position.x) >= p.get_rect().size.x / 2.0 + 16.0)))
+
+	# --- they run, on their own, and never touch the seeded run ---
+	var rng_before: int = Game.rng.state
+	var running: Array = []
+	for r: LiveRoom in rooms:
+		var seen := {}
+		var from: Vector2 = r.teacher.position
+		var walked := false
+		for i in 3600:
+			r.tick(1.0 / 60.0)
+			for k in r.pupils.size():
+				seen[r.kid_state(k)] = true
+			if r.teacher.position.distance_to(from) > 24.0:
+				walked = true
+		running.append({"id": r.stage_id, "seen": seen.keys(), "walked": walked, "beats": r.beats})
+	chk("in every room hands go up and get answered", running.all(func(x: Dictionary) -> bool:
+		return (x["seen"] as Array).has("ask") and (x["seen"] as Array).has("thanks")), running)
+	chk("and the teacher walks the room", running.all(func(x: Dictionary) -> bool:
+		return bool(x["walked"])), running)
+	chk("something new keeps starting, beat after beat", running.all(func(x: Dictionary) -> bool:
+		return int(x["beats"]) >= 25), running)
+	chk("middle school chats", (running[1]["seen"] as Array).has("chat"), running[1])
+	chk("high school nods off", (running[2]["seen"] as Array).has("doze"), running[2])
+	chk("a minute of all four never draws from Game.rng", Game.rng.state == rng_before)
+
+	# The same room, built twice, plays the same way: a hash, not a dice.
+	var twin_a := LiveRoom.new()
+	var twin_b := LiveRoom.new()
+	add_child(twin_a)
+	add_child(twin_b)
+	twin_a.setup("middle", 5)
+	twin_b.setup("middle", 5)
+	var same := true
+	for i in 1800:
+		twin_a.tick(1.0 / 60.0)
+		twin_b.tick(1.0 / 60.0)
+		for k in 6:
+			if twin_a.kid_state(k) != twin_b.kid_state(k):
+				same = false
+		if twin_a.job != twin_b.job:
+			same = false
+	chk("the same room plays the same way every time", same)
+	twin_a.queue_free()
+	twin_b.queue_free()
+
+	# --- the plaques say where you stand ---
+	var line := func(i: int) -> String:
+		return String(((hallway.plaques[i] as Node2D).get_node("Line1") as Label).text)
+	chk("your own stage's plaque says so", line.call(0).contains("YOU"), line.call(0))
+	chk("and the next one is marked next", line.call(1).contains("NEXT"), line.call(1))
+	chk("the rest only name their grades",
+		not line.call(2).contains("YOU") and not line.call(2).contains("NEXT"), line.call(2))
+
+	# --- the card, through the real door ---
+	var door: Node2D = hallway.wing_doors[1]
+	world.player.global_position = door.global_position + Vector2(0, 10)
+	world.player.facing = Actor.DIR_UP
+	await step(2)
+	await tap("interact")
+	chk("E at the next stage's door reads its card", hud.mode == hud.Mode.STAGE)
+	chk("on paper over the corridor", hud._paper.visible)
+	chk("naming the stage", hud.title.text == Game.tier_name(1).to_upper(), hud.title.text)
+	await step(2)
+	chk("and the card fits", not hud._rich_overflows(),
+		"%d px of text in a %d px box: %s" % [hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
+	chk("in your first term it is not on offer yet",
+		hud.rich.text.contains("whole term"), hud.rich.text)
+	var coins_before: int = Game.coins
+	await tap("manage")
+	chk("so F there changes nothing", Game.age_tier == 0 and Game.coins == coins_before)
+	await tap("cancel")
+	chk("Esc puts the card away", hud.mode == hud.Mode.NONE)
+
+	# --- a term in: the offer, its price, no skipping ---
+	var term_info := {"term": Game.term, "previous": {"letter": "B", "passed": 4, "total": 6}}
+	hud.show_new_term(term_info)
+	chk("the first term's report does not offer the door yet",
+		not hud.rich.text.contains("door is in the hallway"), hud.rich.text)
+	Game.term = 2
+	term_info["term"] = 2
+	hud.show_new_term(term_info)
+	chk("the next term's report says the next stage's door is open",
+		hud.rich.text.contains("%s's door is in the hallway" % Game.tier_name(1)), hud.rich.text)
+	await step(2)
+	chk("and the report still fits", not hud._rich_overflows(),
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
+	hud._showing_new_term = false
+	hud.close()
+	Game.coins = Game.move_up_cost(1) - 1
+	chk("a term in, it still has its price", Game.move_up_check(1).contains("coins"),
+		Game.move_up_check(1))
+	Game.coins = Game.move_up_cost(1) + 50
+	chk("then the next stage is on offer", Game.move_up_check(1) == "", Game.move_up_check(1))
+	chk("but never the one after it", Game.move_up_check(2) != "")
+	chk("nor the one you are in", Game.move_up_check(0) != "")
+	Game.set_phase(Game.Phase.LESSON)
+	chk("nor mid-lesson", Game.move_up_check(1) != "")
+	Game.set_phase(Game.Phase.MORNING)
+
+	await tap("interact")
+	chk("the card offers the move on F", hud.mode == hud.Mode.STAGE
+		and hud.hint.text.contains("F move up"), hud.hint.text)
+	var class_before: Array = Game.roster.map(func(st: StudentData) -> int: return st.id)
+	await tap("manage")
+	chk("F moves you up a stage", Game.age_tier == 1, Game.age_tier)
+	chk("for its price", Game.coins == 50, Game.coins)
+	chk("your class comes with you: nobody sent up, nobody kept back",
+		Game.roster.map(func(st: StudentData) -> int: return st.id) == class_before)
+	chk("and the new stage's rules reach them now", Game.roster.all(func(st: StudentData) -> bool:
+		return st.distraction_radius == Game.tier_base_radius()))
+	chk("the card says what just happened",
+		hud.rich.text.contains("You teach %s now" % Game.tier_name()), hud.rich.text)
+	chk("the plaques move with you",
+		line.call(1).contains("YOU") and line.call(2).contains("NEXT") and not line.call(0).contains("YOU"),
+		[line.call(0), line.call(1), line.call(2)])
+	chk("the stage after wants a whole term in this one first",
+		Game.move_up_check(2).contains("whole term"), Game.move_up_check(2))
+	await tap("cancel")
+
+	# --- what the stage pays, and that it is saved ---
+	chk("a higher stage pays more", Game.tier_pay_mult() > Game.tier_pay_mult(0))
+	var src := FileAccess.get_file_as_string("res://scripts/autoload/game.gd")
+	var adv := src.substr(src.find("func advance_day"), 900)
+	chk("and the day's lesson coins are where it is paid", adv.contains("tier_pay_mult()"))
+	var saved := Game.to_dict()
+	Game.age_tier = 0
+	Game.tier_since_term = 1
+	Game.from_dict(saved)
+	chk("the stage, and the term it began, are saved",
+		Game.age_tier == 1 and Game.tier_since_term == 2, [Game.age_tier, Game.tier_since_term])
+	saved.erase("tier_since_term")
+	Game.from_dict(saved)
+	chk("an older save in a later stage owes a whole term from now",
+		Game.tier_since_term == Game.term, Game.tier_since_term)
+
+	# --- out of sight, the wing stands still ---
+	var home_door: Node2D = null
+	for d in hallway.doors:
+		if String(d.door_kind) == "home":
+			home_door = d
+	world.player.global_position = home_door.global_position
+	await step(2)
+	await tap("manage")
+	chk("back home through your own door", world.player.get_parent() == world and not hallway.visible)
+	var beats_then: int = (rooms[0] as LiveRoom).beats
+	await step(240)
+	chk("a wing nobody can see does not run", (rooms[0] as LiveRoom).beats == beats_then)
 
 	Game.new_run(SEED)
 	await step(2)

@@ -1,6 +1,6 @@
 # EDUSystem — Game Design Document
 
-> **Measured on 2026-10-12**, against build `b45`, with **3024 assertions
+> **Measured on 2026-10-12**, against build `b45`, with **3076 assertions
 > passing**. Every number in this document is quoted from `data/balance.json`
 > or from a tool's own output, with the source named. Anything not yet built
 > is marked ***(to build)*** — if it is not marked, it exists and you can go
@@ -312,6 +312,18 @@ All of it is pace only: the contract rows are measured in the first stage
 and `tools/sim.gd` never reads any of it. Design and work pack:
 `docs/WORK_PACK_TIERED_LEARNING.md`.
 
+**The grade wing and moving up by choice** *(built Oct 2026, the owner's
+ask)*. Above the hallway's corridor wall is a classroom for every stage,
+each one running forever: its class at work, its teacher walking to raised
+hands, its own floor, walls and furniture. The corridor is a map of where
+the career goes. A plaque by each door says which stage is yours and which
+is next. E at a door reads the stage's card. After
+`tiers.terms_before_move_up` whole terms in your stage, the next stage's
+card offers the move for its `age_tiers.*.move_up_cost` coins, and your
+class comes with you. A higher stage pays `age_tiers.*.pay_mult` times the
+day's lesson coins. Coins only, so the contract cannot see it; the earned
+promotion above still happens at the end of a term.
+
 ---
 
 ## 5. Systems reference
@@ -414,7 +426,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **3024 assertions** across **145 sections** |
+| Tests | **3076 assertions** across **146 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every

@@ -1012,6 +1012,7 @@ func new_run(seed_value: int = 0) -> void:
 	graduated.clear()
 	age_tier = 0
 	tier_graduates = 0
+	tier_since_term = 1
 	captains.clear()
 	lesson_progress = 1.0
 	set_carried("")
@@ -2213,6 +2214,8 @@ func next_term() -> Dictionary:
 	if promoting:
 		age_tier += 1
 		tier_graduates = 0
+		# term is still the one just closed; the new stage begins with the next.
+		tier_since_term = term + 1
 		for s: StudentData in stayed:
 			s.distraction_radius = tier_base_radius()
 	else:
@@ -2424,6 +2427,10 @@ var tier_graduates: int = 0
 ## Student ids picked in the Graduation Hall to stay on into the next stage.
 ## Read and cleared by next_term().
 var captains: Array = []
+## The term this stage began in: 1 for the run's first stage. The grade wing's
+## next door opens once Balance.tier_terms_before_move_up whole terms have been
+## taught since. Saved.
+var tier_since_term: int = 1
 ## The lesson clock, 0 at the bell and 1 at the end, kept by the room each
 ## frame. Only the morning fatigue of a high school reads it.
 var lesson_progress: float = 1.0
@@ -2454,6 +2461,64 @@ func tier_def(i: int = -1) -> Dictionary:
 
 func tier_name(i: int = -1) -> String:
 	return String(tier_def(i).get("name", "School"))
+
+
+## What a stage pays: its pay_mult on the day's lesson coins. 1.0 in the first.
+func tier_pay_mult(i: int = -1) -> float:
+	return maxf(0.0, float(tier_def(i).get("pay_mult", 1.0)))
+
+
+## The coins to move up into stage `i`.
+func move_up_cost(i: int) -> int:
+	return maxi(0, int(tier_def(i).get("move_up_cost", 0)))
+
+
+## Whole terms taught in the stage you are in now.
+func terms_in_stage() -> int:
+	return maxi(0, term - tier_since_term)
+
+
+## Can you move up into stage `i` now, from its door in the grade wing? "" if
+## you can, or the reason in words. Only the next stage, only between lessons,
+## only after a whole term in this one, and only if you can pay.
+func move_up_check(i: int) -> String:
+	Balance.ensure_loaded()
+	if i <= age_tier:
+		return "You already teach here." if i == age_tier else "Your class has moved past this."
+	if i != age_tier + 1 or i >= tier_count():
+		return "Move up through %s first." % tier_name(age_tier + 1)
+	if run_over or term_over:
+		return "Not with the term closing."
+	if phase == Phase.LESSON:
+		return "Not mid-lesson."
+	var need := Balance.tier_terms_before_move_up
+	if terms_in_stage() < need:
+		return "Teach a whole term in %s first." % tier_name() if need <= 1 			else "Teach %d whole terms in %s first." % [need, tier_name()]
+	if not unlimited_coins and coins < move_up_cost(i):
+		return "You need %d coins." % move_up_cost(i)
+	return ""
+
+
+## Move up into the next stage by choice (the grade wing's door). The class
+## comes with you -- teachers call it looping -- so nobody is sent up or kept
+## back here; the stage's rules apply to them from now on, and the stage's pay
+## from the next lesson. "" on success, or the reason nothing changed.
+func move_up() -> String:
+	var i := age_tier + 1
+	var err := move_up_check(i)
+	if err != "":
+		return err
+	if not spend(move_up_cost(i)):
+		return "You need %d coins." % move_up_cost(i)
+	age_tier = i
+	tier_graduates = 0
+	tier_since_term = term
+	captains.clear()
+	for s: StudentData in roster:
+		s.distraction_radius = tier_base_radius()
+	save_game()
+	tier_promoted.emit(age_tier)
+	return ""
 
 
 ## The distraction radius a child starts with in this stage.
@@ -3819,7 +3884,7 @@ func advance_day() -> Dictionary:
 	var earned := int(round(avg * Balance.coins_per_grade_point * roster.size()
 		* DayEvent.multiplier(event, "coin_mult") * consumable_multiplier("coin_mult")
 		* term_path_multiplier("coin_mult")
-		* lesson_pay_multiplier() * paper_pay_today())) + consumable_bonus_coins
+		* lesson_pay_multiplier() * paper_pay_today() * tier_pay_mult())) + consumable_bonus_coins
 	add_coins(earned)
 	# Furniture wears out. Without an ongoing cost, coins simply piled up
 	# with nothing to spend them on once the room was capped.
@@ -4618,6 +4683,7 @@ func to_dict() -> Dictionary:
 		"desks_in_store": desks_in_store,
 		"age_tier": age_tier,
 		"tier_graduates": tier_graduates,
+		"tier_since_term": tier_since_term,
 	}
 
 
@@ -4741,6 +4807,9 @@ func from_dict(d: Dictionary) -> void:
 	# An older save has no stage: it is the first, and nobody is counted yet.
 	age_tier = clampi(int(d.get("age_tier", 0)), 0, maxi(0, tier_count() - 1))
 	tier_graduates = maxi(0, int(d.get("tier_graduates", 0)))
+	# An older save does not say when its stage began. The first stage began
+	# with the run; a later one is counted from now, so it owes a whole term.
+	tier_since_term = clampi(int(d.get("tier_since_term", 1 if age_tier == 0 else term)), 1, maxi(1, term))
 	captains.clear()
 	phase = Phase.MORNING
 	test_active = false         # a save never resumes mid-test; the phase is MORNING

@@ -98,6 +98,10 @@ func _ready() -> void:
 	hallway.trophies_viewed.connect(func() -> void:
 		hud._sel = 0
 		hud.show_trophies())
+	# The grade wing: E at a stage's door reads its card; moving up from the
+	# card (or at the end of a term) repaints the plaques.
+	hallway.stage_chosen.connect(hud.show_stage)
+	Game.tier_promoted.connect(func(_tier: int) -> void: hallway.rebuild())
 	# The mentor room, likewise, is a permanent scene -- its exit door hands
 	# the player back to the hallway.
 	mentor_room.exit_chosen.connect(_leave_mentor)

@@ -19,7 +19,7 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
 	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL,
-	EXAM_PICK, TUTORIAL }
+	EXAM_PICK, TUTORIAL, STAGE }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -310,6 +310,19 @@ var _watch_clock: float = 0.0
 var _watch_own_results: Array = []
 ## Seconds of real time per frame (each frame is one simulated second).
 const WATCH_FRAME_SECONDS := 0.12
+## The watch screen is a cream paper card over the room (Oct 2026, the owner's
+## "no black window"): how many children it lists, two to a row.
+const WATCH_MAX_KIDS := 12
+## Ink on paper for the watch card: a child working, stuck, unsettled, done.
+const PAPER_WORKING := "6b5f4a"
+const PAPER_STUCK := "b0602a"
+const PAPER_NOISY := "a0302a"
+const PAPER_DONE := "3f7a3a"
+const PAPER_GOLD := "8a5a10"
+const PAPER_FAINT := "b8a890"
+## Which stage's card is open (Mode.STAGE), and what moving up just said.
+var _stage_i: int = 0
+var _stage_note: String = ""
 
 
 func _ready() -> void:
@@ -3541,10 +3554,7 @@ func show_watch(i: int) -> void:
 	_watch_i = 0
 	_watch_clock = 0.0
 	_open(Mode.WATCH)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_watch_paper()
 	title.text = "WATCHING  -  %s" % String(r.get("name", "Room"))
 	_render_watch_frame()
 
@@ -3562,12 +3572,26 @@ func show_own_watch(history: Array, results: Array) -> void:
 	_watch_i = 0
 	_watch_clock = 0.0
 	_open(Mode.WATCH)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_watch_paper()
 	title.text = "WATCHING  -  Auto-teach"
 	_render_watch_frame()
+
+
+## The watch screen's card: cream paper over the room it is about, sized once
+## for the whole day so it does not jump as the frames step. One line for the
+## teacher, a row per two children, one line for the bar or the bell, and one
+## line of slack for the space the table puts between its rows.
+func _watch_paper() -> void:
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	var kids := 0
+	for f: Dictionary in _watch_frames:
+		kids = maxi(kids, (f.get("faces", []) as Array).size())
+	kids = mini(kids, WATCH_MAX_KIDS)
+	_paper_on(null, 1 + (kids + 1) / 2 + 2)
+	hint.text = "V skip to the bell   E or Esc - close"
 
 
 ## One frame: who is where, coloured the same way the rest of the game
@@ -3581,53 +3605,123 @@ func _render_watch_frame() -> void:
 		teacher_name = String((Game.rooms[_watch_room] as Dictionary).get("teacher", {}).get("name", ""))
 	var at_front: bool = bool(frame.get("at_front", false))
 	lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
-		C_LESSON, teacher_name,
-		C_GOOD if at_front else DIM,
+		PAPER_GOLD, teacher_name,
+		PAPER_DONE if at_front else PAPER_WORKING,
 		"at the front, teaching" if at_front else "away from the front"])
-	lines.append("")
 
+	# Two children to a row, each in the colour of what they are doing --
+	# ink on the paper, not the dark screen's pastels.
 	var faces: Array = frame.get("faces", [])
 	var stuck := 0
 	var noisy := 0
 	var done := 0
+	var cells: Array[String] = []
 	for f: Dictionary in faces:
 		var st := String(f.get("state", "working"))
-		var hue := DIM
+		var hue := PAPER_WORKING
 		var tag := "working"
 		match st:
 			"disrupting":
-				hue = C_BAD
+				hue = PAPER_NOISY
 				tag = "unsettled"
 				noisy += 1
 			"stuck":
-				hue = C_HOMEWORK
+				hue = PAPER_STUCK
 				tag = "stuck"
 				stuck += 1
 			"done":
-				hue = C_GOOD
+				hue = PAPER_DONE
 				tag = "finished"
 				done += 1
-		lines.append("  [color=#%s]%-13s %s[/color]" % [
-			hue, String(f.get("name", "")).substr(0, 13), tag])
+		if cells.size() < WATCH_MAX_KIDS:
+			cells.append("[cell padding=0,0,28,0][color=#%s]%s [color=#%s]%s[/color][/color][/cell]" % [
+				INK_PLAIN, String(f.get("name", "")).substr(0, 13), hue, tag])
+	if cells.size() % 2 == 1:
+		cells.append("[cell] [/cell]")
+	if not cells.is_empty():
+		lines.append("[table=2]%s[/table]" % "".join(cells))
 
-	lines.append("")
 	var frac: float = float(_watch_i) / maxf(1.0, float(_watch_frames.size() - 1))
 	if _watch_i >= _watch_frames.size() - 1:
-		lines.append("[color=#%s]The bell went. %s[/color]" % [
-			DIM, "%d finished, %d still stuck, %d unsettled" % [done, stuck, noisy]])
-		lines.append("[color=#%s]Grade: %s[/color]" % [
-			C_GOOD, String(_watch_result.get("letter", "-"))])
+		lines.append("[color=#%s]Bell: %d done, %d stuck, %d unsettled.[/color] [color=#%s]Grade %s[/color]" % [
+			INK_DIM, done, stuck, noisy, PAPER_DONE, String(_watch_result.get("letter", "-"))])
 	else:
-		lines.append("[color=#%s]%s[/color]" % [
-			DIM, _watch_bar(frac)])
+		lines.append(_watch_bar(frac))
 
 	rich.text = "\n".join(lines)
 
 
 func _watch_bar(frac: float) -> String:
 	var n := clampi(int(round(frac * 20.0)), 0, 20)
-	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
-		C_ROOM, _cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n)]
+	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
+		PAPER_GOLD, _cells(BAR_FULL, n), PAPER_FAINT, _cells(BAR_EMPTY, 20 - n)]
+
+
+## A STAGE'S CARD (the grade wing, Oct 2026): E at a stage's door in the
+## hallway. What the stage is like and what it pays, on paper over the
+## corridor, with one of its children's faces. The next stage's card is where
+## you move up: F, once a whole term is taught in this one and the coins are
+## there (Game.move_up_check() says why not, in words).
+func show_stage(i: int) -> void:
+	_stage_i = clampi(i, 0, maxi(0, Game.tier_count() - 1))
+	if mode != Mode.STAGE:
+		_stage_note = ""
+	_open(Mode.STAGE)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	var def := Game.tier_def(_stage_i)
+	var cast: Array = (LiveRoom.STAGES.get(Game.tier_id(_stage_i), {}) as Dictionary).get("cast", [])
+	var face: Texture2D = null
+	if not cast.is_empty():
+		face = load("res://art/portrait_%s.png" % String(cast[0]))
+	_paper_on(face, PAPER_LINES)
+	title.text = String(def.get("name", "School")).to_upper()
+
+	var lines: Array[String] = []
+	lines.append("[color=#%s]%s[/color], ages %s." % [PAPER_GOLD,
+		String(def.get("grades", "")), String(def.get("age_range", ""))])
+	lines.append("[color=#%s]%s[/color]" % [INK_PLAIN, String(def.get("blurb", ""))])
+	var pay := Game.tier_pay_mult(_stage_i)
+	if _stage_i == 0:
+		lines.append("[color=#%s]Where every career starts.[/color]" % INK_DIM)
+	else:
+		lines.append("[color=#%s]Lessons pay %d%% more than %s.[/color]" % [INK_DIM,
+			roundi((pay - 1.0) * 100.0), Game.tier_name(0).split(" ")[0]])
+	var can := Game.move_up_check(_stage_i)
+	if _stage_note != "":
+		lines.append("[color=#%s]%s[/color]" % [PAPER_DONE, _stage_note])
+	elif _stage_i == Game.age_tier + 1 and can == "":
+		lines.append("[color=#%s]Move up with your class: %d coins.[/color]" % [
+			PAPER_DONE, Game.move_up_cost(_stage_i)])
+	else:
+		lines.append("[color=#%s]%s[/color]" % [PAPER_STUCK if _stage_i > Game.age_tier
+			else INK_DIM, can])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.3)
+	if _stage_i == Game.age_tier + 1 and can == "":
+		hint.text = "F move up (%d coins)   Esc - close" % Game.move_up_cost(_stage_i)
+	else:
+		hint.text = "E or Esc - close"
+
+
+func _handle_stage_input() -> void:
+	if Input.is_action_just_pressed("cancel") or Game.claim_interact():
+		Sfx.play("blip")
+		close()
+	elif Game.claim_action("manage"):
+		if _stage_i != Game.age_tier + 1:
+			Sfx.play("deny")
+			return
+		var err := Game.move_up()
+		if err != "":
+			Sfx.play("deny")
+			_stage_note = ""
+		else:
+			Sfx.play("start")
+			_stage_note = "You teach %s now. Your class came with you." % Game.tier_name()
+		show_stage(_stage_i)
 
 
 func _furniture_bar(level: int) -> String:
@@ -5151,6 +5245,11 @@ func show_new_term(info: Dictionary) -> void:
 	elif not Game.is_top_tier():
 		lines.append("[color=#%s]%s: %d of %d moved up at the bar.[/color]" % [
 			DIM, Game.tier_name(), Game.tier_graduates, Game.tier_graduates_needed()])
+	# A whole term in this stage opens the next stage's door in the grade wing:
+	# the moment to say so is the screen that opens the new term.
+	if not Game.is_top_tier() and Game.terms_in_stage() >= Balance.tier_terms_before_move_up:
+		lines.append("[color=#%s]Or move up now: %s's door is in the hallway.[/color]" % [
+			C_GOOD, Game.tier_name(Game.age_tier + 1)])
 	lines.append("")
 	lines.append("[color=#%s]You keep[/color]  %d items   %d concepts   level %d   %d coins" % [
 		C_KNOW, Game.room_items.size(), Game.concepts.size(),
@@ -6996,6 +7095,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.HALL:
 		_handle_hall_input()
+		return
+
+	if mode == Mode.STAGE:
+		_handle_stage_input()
 		return
 
 	if mode == Mode.HELP:
