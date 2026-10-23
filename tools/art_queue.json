@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "name": "microscope",
+      "idea": "a school science microscope",
+      "prompt": "a school science microscope, grey metal body, angled eyepiece tube on top, round focus dial, flat round base, side view",
+      "grid": "16x20",
+      "model": "sdxl",
+      "seeds": [1, 2, 3, 4],
+      "init": "art/microscope.png",
+      "denoise": 0.65
+    },
+    {
+      "name": "microscope_draw",
+      "idea": "a school science microscope",
+      "prompt": "a school science microscope, grey metal body, angled eyepiece tube on top, round focus dial, flat round base, side view",
+      "grid": "16x20",
+      "model": "sdxl",
+      "seeds": [11, 12, 13, 14]
+    }
+  ]
+}
