@@ -17,9 +17,10 @@ extends Control
 ## _verdict()), the same way a real teacher's red pen would mark a sheet
 ## they had just finished reading.
 
-## College-ruled notebook paper: narrow blue rules, one red margin line, three
-## punched holes down the left edge, a name and date line on top. The answers
-## are written in a handwriting font (Patrick Hand, SIL OFL -- see
+## The sheet is drawn ON the open book's spread (hud.gd puts this Control over
+## the book's paper). It draws no paper of its own: the book's cream pages
+## show through, and this adds only the ruled lines, the margin and the work.
+## The answers are written in a handwriting font (Patrick Hand, SIL OFL -- see
 ## fonts/PatrickHand-OFL.txt). It is the one place in the game that is not
 ## Galmuri9, on purpose: this is a child's hand on paper, not the game's UI.
 const HAND := preload("res://fonts/PatrickHand-Regular.ttf")
@@ -32,8 +33,6 @@ const INK := Color(0.12, 0.2, 0.5)
 const PRINT := Color(0.16, 0.14, 0.12)
 const RULE := Color(0.45, 0.62, 0.86, 0.55)
 const MARGIN_LINE := Color(0.84, 0.3, 0.3, 0.75)
-const PAPER := Color(0.98, 0.97, 0.93, 1.0)
-const HOLE := Color(0.2, 0.18, 0.16, 0.85)
 const SCRIBBLE := Color(0.22, 0.2, 0.28, 0.9)
 const SCRATCH := Color(0.35, 0.4, 0.55, 0.55)
 const GOOD := Color(0.24, 0.72, 0.36, 0.95)
@@ -118,8 +117,7 @@ func tick_gesture(delta: float) -> void:
 
 func _draw() -> void:
 	var s := size
-	draw_rect(Rect2(Vector2.ZERO, s), PAPER)
-	# college-ruled rules, one every LINE_GAP, from the header down
+	# ruled lines, one every LINE_GAP, from the header down, across both pages
 	var y := TOP
 	while y < s.y:
 		draw_line(Vector2(0.0, y), Vector2(s.x, y), RULE, 1.0)
@@ -127,10 +125,7 @@ func _draw() -> void:
 	# the header's own rule is heavier; the margin runs the full height
 	draw_line(Vector2(0.0, TOP - LINE_GAP), Vector2(s.x, TOP - LINE_GAP), RULE, 1.0)
 	draw_line(Vector2(MARGIN_X, 0.0), Vector2(MARGIN_X, s.y), MARGIN_LINE, 1.5)
-	# three punched holes
-	for hy: float in [s.y * 0.2, s.y * 0.5, s.y * 0.8]:
-		draw_circle(Vector2(18.0, hy), 5.0, HOLE)
-	# name and date, in the same hand
+	# name, in the same hand
 	draw_string(HAND, Vector2(MARGIN_X + 10.0, TOP - 6.0),
 		"Name: %s" % (_owner if _owner != "" else "________"),
 		HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE, INK)

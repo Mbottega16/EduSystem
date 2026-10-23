@@ -207,14 +207,14 @@ def main(argv):
         build_palette()
         return 0
     paths = [a for a in argv if not a.startswith("--")]
-    if len(paths) != 2:
-        print(__doc__)
-        return 2
     grid = (16, 24)
     if "--grid" in argv:
         gw, gh = argv[argv.index("--grid") + 1].lower().split("x")
         grid = (int(gw), int(gh))
         paths = [p for p in paths if p != argv[argv.index("--grid") + 1]]
+    if len(paths) != 2:   # checked AFTER the grid value is taken out of the list
+        print(__doc__)
+        return 2
     if not os.path.exists(PALETTE):
         sys.exit("tools/limezu_palette.json is missing -- run `python tools/lz_conform.py --build-palette` once (needs the packs)")
     img = conform(paths[0], grid, "--nearest" in argv, "--no-keyline" not in argv)

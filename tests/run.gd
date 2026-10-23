@@ -9212,10 +9212,10 @@ func test_marking() -> void:
 		await step(int(hud.MARKING_STAMP_SECONDS * 60.0) + 4)
 	chk("a check banks the sheet", Game.graded_count("common") == n_sheets - 1,
 		Game.graded_count("common"))
-	chk("the trade-up screen uses the text panel, not the old problem worksheet",
-		hud.body.visible and not hud.sheet.visible)
+	chk("the trade-up screen is the open book's tier list, not the old problem worksheet",
+		hud.rich.visible and not hud.sheet.visible)
 	chk("and it says how many you judged fairly",
-		hud.body.text.contains("judged %d of %d" % [n_sheets - 1, n_sheets]), hud.body.text)
+		hud.rich.text.contains("judged %d of %d" % [n_sheets - 1, n_sheets]), hud.rich.text)
 	chk("your arms are empty once the sheets are banked", p.carrying_hw == 0, p.carrying_hw)
 	chk("the sheet you crossed out is marked too, and was a bad call",
 		Game.roster[0].hw_state == StudentData.HW.MARKED

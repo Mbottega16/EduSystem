@@ -70,8 +70,8 @@ def _rect(im, x0, y0, x1, y1, c):
             im.putpixel((x, y), c if len(c) == 4 else c + (255,))
 
 
-MARGIN = 9          # how much cover shows outside the paper, all round
-LEAVES = 5          # how many page edges show in the stack down each side
+MARGIN = 4          # how much cover shows outside the paper, all round (was 9: too thick)
+LEAVES = 4          # how many page edges show in the stack down each side
 
 
 def _shift(c, d):

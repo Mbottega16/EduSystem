@@ -376,6 +376,8 @@ func _ready() -> void:
 	# Trace an X or a check with the mouse instead of pressing a key -- see
 	# homework_sheet.gd's own comment for why stroke COUNT is the signal.
 	sheet.gesture_verdict.connect(_verdict)
+	sheet.position = SHEET_SPREAD.position
+	sheet.size = SHEET_SPREAD.size
 	_build_move_bar()
 	tutorial = Tutorial.new()
 	add_child(tutorial)
@@ -1094,6 +1096,11 @@ const BOOK_RICH_HOME := Rect2(32, 40, 576, 274)
 const BOOK_RED := preload("res://art/book_open.png")
 const BOOK_BLUE := preload("res://art/book_open_blue.png")
 const BOOK_GREEN := preload("res://art/book_open_green.png")
+## The paper inside the cover of the Book node (32,40 576x266): 4 art pixels
+## of cover on every side, doubled. The homework sheet is ruled over this.
+const SHEET_SPREAD := Rect2(40, 48, 560, 250)
+## The marking desk's tier list, set across the whole spread (no spine split).
+const MARKING_SPREAD := Rect2(56, 64, 528, 230)
 ## The left page, where rich_left sits (the scene's own offsets).
 const BOOK_LEFT := Rect2(60, 64, 240, 228)
 ## Furniture rows a catalogue page holds, and cabinet rows. The right page is
@@ -6619,7 +6626,6 @@ func open_marking() -> void:
 		if Game.total_graded_bank() <= 0:
 			return
 		_open(Mode.MARKING)
-		body.visible = true
 		sheet.visible = false
 		_render_marking()
 		return
@@ -6629,19 +6635,33 @@ func open_marking() -> void:
 	_render_sheet()
 
 
-## One child's page, for the player to judge.
+## One child's page, for the player to judge. The open book is the whole
+## screen: the homework sheet is ruled across its paper.
 func _render_sheet() -> void:
 	if _marking.is_empty():
 		return
 	var s: StudentData = _marking[0]
 	title.text = "%s  -  %d left" % [s.display_name, _marking.size()]
+	_book(true, BOOK_RED)
+	rich_left.visible = false
+	rich.visible = false
 	sheet.show_sheet(s.hw_sheet, s.display_name)
 	hint.text = "Trace a check or an X    or Right: check  Left: X"
 
 
+## The tier list, on the same open book as the sheets.
 func _render_marking() -> void:
 	Balance.ensure_loaded()
 	title.text = "GRADED ASSIGNMENTS"
+	_book(true, BOOK_RED)
+	rich_left.visible = false
+	rich.visible = true
+	rich.offset_left = MARKING_SPREAD.position.x
+	rich.offset_top = MARKING_SPREAD.position.y
+	rich.offset_right = MARKING_SPREAD.position.x + MARKING_SPREAD.size.x
+	rich.offset_bottom = MARKING_SPREAD.position.y + MARKING_SPREAD.size.y
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	rich.add_theme_constant_override("line_separation", 2)
 	var lines: Array[String] = []
 	if _marked_total > 0:
 		lines.append("You judged %d of %d sheets fairly.  %d banked." % [
@@ -6668,7 +6688,8 @@ func _render_marking() -> void:
 			action_hint = "  [E: Set for class]"
 		lines.append(_clip("%s %-10s x%-2d%s" % [
 			">" if i == _trade_sel else " ", label, cnt, action_hint]))
-	body.text = "\n".join(lines)
+	# "[" opens a BBCode tag here, so the bracketed hints are escaped to show as typed
+	rich.text = "\n".join(lines).replace("[", "[lb]")
 	hint.text = "Up/Down tier   Right trade up   E set tier   Esc close"
 
 
@@ -6697,12 +6718,13 @@ func _finish_marking_if_ready() -> void:
 	if mode != Mode.MARKING:
 		return
 	if not _marking.is_empty():
+		_play_page_flip()
 		_render_sheet()
 		return
 	if _player != null and is_instance_valid(_player):
 		_player.drop_all_homework()
 	sheet.visible = false
-	body.visible = true
+	_play_page_flip()
 	_render_marking()
 
 

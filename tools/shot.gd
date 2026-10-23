@@ -280,6 +280,12 @@ func _open_screen(main: Node, screen: String) -> void:
 		"ads":
 			Game.new_run(0)
 			hud.show_ads()
+		"marking_trade":
+			# The tier list, no sheets left: the desk trades up what is
+			# banked. Banks four common papers so the Right-to-trade hint shows.
+			Game.new_run(0)
+			Game.graded_bank["common"] = 4
+			hud.open_marking()
 		"marking_stamp":
 			# The player's own verdict, stamped -- checked separately from
 			# the plain sheet since the stamp only ever appears for the
