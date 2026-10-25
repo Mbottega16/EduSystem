@@ -1,391 +1,159 @@
-# EDUSystem — project rules & map (read this first)
+# EDUSystem — rules & map (read this first)
 
-You are working on **EDUSystem**, a Godot 4.7 pixel-art classroom management
-sim. This file is the source of truth for how to work on it. Read it fully
-before editing anything.
+A Godot 4.7 pixel-art classroom-management sim. This file is the source of truth for how
+to work on it; read it fully before editing anything. **Start Claude Code from THIS
+folder** — this repo depends on nothing outside itself.
 
-**Start Claude Code from THIS folder**, not from the EduSystems prototype
-folder. They are separate games and this repo depends on nothing outside
-itself.
+**History:** [`HISTORY.md`](HISTORY.md), newest first — every session's log, plus the
+long-form reasons behind the rules below. Read it when a task touches past work.
+**Business side** (money, audience, the owner's long-term vision in full): the my-brain
+vault, `projects/edusystem/context.md`.
 
-**Naming, so nothing gets confused:** this game is **EDUSystem** (one word).
-"The EduSystems prototype" (trailing s) always means the archived HTML/JS
-predecessor this project learned from and replaced — see `docs/SALVAGE.md`.
-It is never a source of truth here.
+**Naming:** this game is **EDUSystem** (one word). "The EduSystems prototype" (trailing s)
+is the archived HTML/JS predecessor this project learned from (`docs/SALVAGE.md`). It is
+never a source of truth here.
 
----
+## What this is
+- **What:** you are a teacher, and walking the room is the game. Children get stuck and
+  stop dead until you reach them; work only advances while you teach it; furniture helps
+  the child sitting next to it; terms end in an exam with a target you can miss. Stay in
+  one classroom for a whole career, or hire staff and run the school — a room you
+  delegate is simulated by the same model you would have played it with. Pitch:
+  *Football Manager for a primary school, played from the inside.*
+- **For:** players of pixel-art management/sim games.
+- **Platform:** Godot 4.7, Windows first. Mac/Linux/Steam Deck are wanted, not a focus.
+- **Money:** free, ad-supported — optional rewarded video only, never forced
+  interstitials, no paywall. Steam is the real target; itch.io is for playtesting.
+- **What "done" looks like:** a Steam game you can replay forever. Dopamine density in
+  the loop itself, and an easy, friction-free restart the moment a run stops being fun.
+- **Direction (the owner, 2026-08-24):** the infinite axis is lesson *quality* — the
+  player crafts and refines their own lesson variants against a lesson's fixed
+  objective — not lesson count. Admin/multi-room play should unlock only once the
+  player has shown they have mastered one classroom. The next big system is an admin
+  layer that *coaches* delegated teachers ("teaching teachers how to teach"), built on a
+  solid `Game.auto_teach` (clean-room maths in `docs/SIM_FORMULAS.md`). No named school,
+  town or teacher, on purpose: the story emerges from the simulation.
+- **Full design:** `docs/GDD.md` — **read before designing**. Technical map with
+  diagrams: `docs/ARCHITECTURE.md`.
 
-## The one golden rule
+## Settled decisions (don't re-argue)
+Every one was paid for. The full wording and the incidents behind each are in the
+appendix of `HISTORY.md`.
+- **Determinism.** Every random decision goes through the seeded `Game.rng`. Global
+  `randi()`/`randf()` are banned project-wide; without this no balance testing can exist.
+- **Numbers do not live in code.** Every tunable is in `data/balance.json` (46 sections
+  outside the item and trait tables, 243 `static var` tunables in `balance.gd`). Nothing
+  tunable may be a `const` in a `.gd`.
+- **The balance contract must hold** — measured from *simulated* play, asserted by the
+  suite: bare room + perfect teaching ~0.63 → C · full room + never helped ~0.71 → C ·
+  full room + perfect teaching ~0.97 → A. Neither input alone reaches the top band.
+  **Nothing may quietly move this.** It is why the quiz pays no grade, and why
+  assignment rarity pays coins and XP but never grade.
+- **Prose, never numbers, in player-facing text** (enforced by a test). Banned: a number
+  standing in for a CHILD'S ability, teaching or outcome. Fine: prices, coin totals, day
+  counters, a milestone's own count (6/23). Unsure? If printing the number would replace
+  a sentence that makes a claim about a child, it is banned.
+- **Legwork, not judgement.** Automation may do the walking, never the decision about a
+  particular child. Two named exceptions, each built on explicit request after the
+  tension was confirmed: `Game.auto_teach` (hands the WHOLE lesson to RoomSim's Steady
+  policy, graded through the ordinary `Game.grade_class()` on your real `room_score()`),
+  and skip days (`Game.skip_days_available()` / `Classroom.run_skipped_days()`: up to
+  `skip.max_days` whole days, no homework goes out, never reaches the exam, grades D/D/E
+  where played days grade B). Automation that presses buttons WHILE you are still playing
+  your own lesson is still forbidden — confirm with the owner rather than assuming these
+  precedents cover it.
+- **One dedicated key per verb**, global, never landmark-contextual.
+  `Interactable.KEY_ACTIONS` (`scripts/interact/interactable.gd`) is the single list;
+  default keys are in `scripts/autoload/settings.gd`. **E** is the mash (help, collect,
+  hand in, clean up) and must never gain a job that is not mashable and reversible. **F**
+  is bell/shop, **L** starts the lesson, **Q** quiz, **H** marking, **M** move a desk,
+  **J** answer all, **U** grade book, **X** treats. A verb at more than one landmark, or
+  one that could be confused with another, gets its own action — add to the list, never
+  overload E or F.
+- **Advanced verbs are gated behind the mentor** (the dash, answer all, the call);
+  existing saves are grandfathered. **Boss readiness is prose**, never a number. The
+  roguelike subject boss is a named exception to `SALVAGE.md`'s "no ELO / no boss
+  manager" rule.
+- **A dev tool must never write the player's save.** `Game.save_path` is a var for
+  exactly this reason; the suite and simulators point it elsewhere.
+- **Panel budget:** 11 rows at font 16 in a 640×352 body. Labels clip in silence, so every
+  panel is fit-tested: `hud._rich_overflows()` measures the wrapped text against the box,
+  and crowded screens move their least important lines to small print. Confirm with a
+  real screenshot, not a line count.
+- **The citation rule.** `data/curriculum.json` cites **real** standards (Common Core,
+  NGSS, the Maryland Social Studies Framework). Never invent a code — an uncited lesson
+  is more honest than a fabricated citation. Six are uncited on purpose and the suite
+  asserts it: `using_sources`, `community_roles`, `state_symbols`, `transport_history`,
+  `constitution`, `industrialisation`. Name any new uncited lesson in that list.
 
-**Verify by looking at the running game, not by reading the code.**
-
-This project has been saved repeatedly by tools that *look*, and burned
-repeatedly by edits that seemed obviously right:
-
-- A patch landed in `end_test()` instead of `end_lesson()` because the two
-  contain a byte-identical block. The suite passed. `Audit the Room.bat`
-  caught it in seconds.
-- The podium once offered nothing for the first ten seconds of every day,
-  which made the game unplayable end-to-end. 730 assertions were green.
-  `Trace a Day.bat` found it in one run.
-- `art/inspector.png` existed on disk and could not be loaded, because
-  nothing had imported it. Every file-exists check passed.
-
-**Run the tools. Read their output. Do not trust a diff.**
-
----
-
-## Hard constraints (non-negotiable)
-
-- **Determinism.** Every random decision goes through `Game.rng`, which is
-  seeded. Global `randi()`/`randf()` are banned project-wide. Without this,
-  none of the balance testing can exist.
-- **Numbers do not live in code.** Every tunable is in `data/balance.json`
-  (46 sections outside the item and trait tables, 243 `static var`
-  tunables in `balance.gd`). Nothing tunable may be a `const` in a `.gd`.
-- **The balance contract must hold.** Three rows, measured from *simulated*
-  play, asserted by the suite:
-
-  | | |
-  |---|---|
-  | bare room, perfect teaching | ~0.63 → C |
-  | full room, never helped | ~0.71 → C |
-  | full room, perfect teaching | ~0.97 → A |
-
-  Neither input alone reaches the top band. **Nothing may quietly move
-  this.** It is why the quiz pays no grade and why assignment rarity pays
-  coins and XP but never grade.
-- **Prose, never numbers, in player-facing text.** "The room is doing its
-  job", not "0.62". Enforced by a test. **Scope, made explicit after a
-  design-critique pass found the rule was being read two ways as more
-  numeric screens shipped:** this bans a number standing in for a CHILD'S
-  ability, teaching, or outcome -- anything the game is otherwise careful
-  to phrase as a judgement rather than a score. It does not ban prices,
-  coin totals, day counters, or a milestone's own count (6/23) -- those
-  are the sanctioned exception the rule was always written around, not a
-  loophole in it. If a new screen is unsure which side of that line it's
-  on: would printing this number replace a sentence that currently makes
-  a claim about a *child*? If yes, it is banned. If it is just what
-  something costs or how far along you are, it is fine.
-- **Legwork, not judgement.** Automation may do the walking; it may never
-  make the decision about a particular child. **The one deliberate,
-  named exception:** `Game.auto_teach` (Aug 2026, on explicit user
-  request, after being asked to confirm the tension before it was
-  built). Toggled, off by default, and it does not sneak past this rule
-  so much as step outside it on purpose -- it hands the WHOLE lesson to
-  RoomSim's Steady policy, the same honest simulation a delegated room
-  already runs, rather than quietly automating one judgement at a time
-  inside a lesson you are still nominally playing. Graded through the
-  ordinary `Game.grade_class()`, on your real `room_score()`, not
-  RoomSim's own flat abstraction -- see `run_auto_lesson()`'s own
-  comment. If a future request asks for automation that presses
-  buttons WHILE you are still standing in and playing your own lesson,
-  that is the thing this rule still forbids; confirm the distinction
-  with the user rather than assuming this precedent already covers it.
-  **A SECOND named exception (Sept 2026, on explicit request):**
-  `Game.skip_days_available()` / `Classroom.run_skipped_days()` — hand
-  the room over for up to five whole DAYS, not one lesson. Same shape
-  as `auto_teach` and resolved by the same RoomSim Steady policy, so
-  it steps outside the lesson rather than automating judgements inside
-  one; the distinction above was confirmed rather than assumed. What
-  keeps it a decision: no homework goes out on a day you were not
-  there to set it, so the marking that lifts a class never happens,
-  and the skip is clamped so it can never reach the exam. Measured on
-  a real run it grades D/D/E where played days grade B — it costs you
-  something, which is the point. The cap is `skip.max_days` in
-  balance.json; an item def carrying a `skip_days` key raises it, the
-  way `teaches` already grants a concept.
-- **One dedicated key per verb.** *(Revised Aug 2026, on user request --
-  see `Interactable.Key` in `scripts/interact/interactable.gd` for the
-  authoritative list.)* Used to be "two buttons per landmark": E the
-  mashable verb, F the session-level one, and nothing else. That held
-  for a while, then broke down the moment a landmark needed a THIRD
-  verb (a quiz, at the podium, alongside teach/end-lesson) -- there was
-  nowhere left to put it that wasn't a lie about what E or F meant.
-  The fix was not a third contextual button. It was giving each verb
-  its own PERMANENT key, global rather than landmark-contextual: E
-  stays the mash (help, collect, hand in, clean up) and can never do
-  anything irreversible; F stays session-level (lesson, bell, shop);
-  quiz, marking and moving a desk each got their own key (Q, H, M)
-  instead of sharing E or F depending which landmark you stood at.
-  Two rules replace the old one:
-    1. **E must never gain a job that is not mashable and reversible.**
-       The instant helping a stuck child could end a lesson, the whole
-       point of splitting keys is gone.
-    2. **A verb that appears at more than one landmark, or that could
-       ever be confused with another verb sharing its key, gets its
-       own dedicated action** rather than being folded back into E or
-       F contextually. `Interactable.KEY_ACTIONS` is the single list;
-       add to it rather than overloading an existing entry.
-  Tab/B/C/Y/P/I/V remain dedicated global keys for verbs that were never
-  about a landmark at all (the class list, rearranging the room,
-  settling it, pausing, your dashboard, watching a delegated room) --
-  unaffected by this, and the precedent this whole scheme now follows.
-- **A dev tool must never write the player's save.** `Game.save_path` is a
-  var for exactly this reason — the suite and simulators point it elsewhere.
-- **Panel budget:** 11 rows at font 16 in a 640×352 body (doubled Aug 2026
-  alongside the whole game's resolution -- was font 8 in 320×176; the ROW
-  COUNT a screen can hold is unchanged, since font size and body both
-  scaled together). Labels clip in silence, so every panel is fit-tested --
-  found twice more since this rule was written: a 10-line flat list in the
-  Principal's Office clipped past the 4th entry with no scrollbar to say
-  so, and the Controls screen's own action list overflowed into its
-  footer the moment three new rebindable actions landed. Both are now
-  windowed the way Career already was; confirm with a real screenshot,
-  not a line count, since the true cutoff sits below what raw `\n`
-  counting suggests once font size and line spacing are both accounted
-  for. *(Oct 2026)* `hud._rich_overflows()` measures it: the wrapped
-  text's height against the box. Every rich-panel fit test checks it as
-  well as the row count; the day report and the lesson-plan page use it
-  to move their least important lines to small print until they fit.
-
----
-
-## How to verify EVERY change
-
-Run these from the project root. **Read the assertion COUNT, not the word
-PASSED** — a broken script can still print PASSED with a silently lower
-count. That has happened three times.
-
-```
-Run Tests.bat            3076 assertions — must pass, count must not drop
-Simulate a Term.bat      the three contract rows must still hold
-Play a Whole Term.bat    twenty real days through the real buttons, not sim.gd's model
-Trace a Day.bat          walks a real day through the real buttons
-Audit the Room.bat       what both buttons offer at every landmark, every phase
-Simulate the School.bat  delegated rooms: does hiring matter, does the board move
-```
-
-Or **`Verify.bat`** — the suite, the docs, the contract and a whole term
-in one command, replacing four of the five double-clicks above. Since the
-git hooks were disarmed (see Working rhythm), this is the only thing that
-runs the slow checks, so run it before a push.
-
-**Only two of those tools have a machine-readable answer: the suite, and
-`Play a Whole Term.bat`.** The walkthrough prints a `WALKTHROUGH PASSED` /
-`WALKTHROUGH FAILED - day N: <reason>` line and exits accordingly. It used
-to `quit()` with no argument, so a broken day 18, a clean run, and a
-script that never compiled all exited 0 and read the same from outside —
-which is how a walkthrough regression sat for four days behind a green
-suite. **It gates on liveness only** (every day reaches the bell, the exam
-fires). The bot never marks homework, so it cannot pass a term on merit;
-whether the class met its target is printed on every run and deliberately
-does not fail it. `GATE_COMPETENCE` in `tools/playterm.gd` is the switch,
-for when there is a marking policy to hold it to.
-
-The other four still speak only prose at a human. Read their output.
-
-Then **look at it**: `Take a Screenshot.bat [screen]` runs the real scene
-and saves a PNG into `shots/` (gitignored). Pass no argument for the HUD's
-own TITLE overlay, or one of the 43 named in the batch file's own comment.
-Headless proves code does not crash; it never proves anything is on screen.
-
-**That tool only ever loads `scenes/main.tscn`**, so it has never been
-able to see the ACTUAL start screen (`scenes/ui/title.tscn` — the chalk
-dust, the logo, Settings/Controls/Credits) at all. For those, use
-`godot --path . res://tools/title_shot.tscn -- out.png [page]`, `page`
-being one of Title.Page's names (main, settings, controls, howto,
-credits, confirm_wipe). Built the same session Controls grew past ten
-rows and needed to be screenshotted to confirm it, rather than assumed.
-
-Two more checkers, run the same way as `check_docs.py`:
-
-```
-python tools/check_balance.py    every key in balance.json is read by something
-python tools/check_items.py      validate a task-2 furniture submission
-python tools/check_traits.py     validate a task-3 trait submission
-```
-
-If you add a system, add checks to `tests/run.gd`. To see only one
-section's output while iterating, pass a filter: `Run Tests.bat` still
-runs everything (state carries between sections), but
-`godot --headless --path . res://tests/run.tscn -- CURRICULUM` narrows
-what prints.
-
----
-
-## Working rhythm
-
-1. Make a small, additive edit.
-2. `Run Tests.bat` → count went **up**, nothing failed.
-3. Run whichever tool covers what you touched (see table above).
-4. Screenshot anything visual.
-5. Commit, with a message that says *why*, not just what.
-6. `git push` — the remote is `Mbottega16/EduSystem` (private; GitHub moved the
-   repo there from `EduSystems-Code/EduSystem`, and the old URLs still redirect).
-
-### Steps 2 and 3 are yours to run. The hooks are OFF by default.
-
-**Read this before you assume anything is checking your work: nothing is.**
-Both git hooks exist, both still work, and both exit immediately unless you
-ask for them. Disarmed 2026-09-05, deliberately, on the owner's call —
-occasional breakage is acceptable, waiting two minutes on every commit and
-three and a half on every push is not.
-
-```
-Verify.bat                     the suite, the docs, the contract, and a
-                               whole term through the real buttons. THE
-                               one command that runs everything. Slow
-                               (~6 min) and on demand, which is the point.
-
-EDUSYSTEM_GATE=1 git commit    re-arm the pre-commit suite for one command
-EDUSYSTEM_GATE=1 git push      re-arm the pre-push docs + walkthrough
-$env:EDUSYSTEM_GATE=1          the same, from PowerShell
-```
-
-Each hook prints one line saying it is off, every time it fires. That is
-on purpose — see below for why a quiet gate is the dangerous kind.
-
-The hook bodies are untouched and worth keeping: `.githooks/pre-commit`
-blocks on a failure, a parse error, or a hang (240s fail-safe — this
-machine has shown Godot hang rather than exit when spawned as a git-hook
-child, so the hook kills it and blocks rather than trusting a clean exit).
-`.githooks/pre-push` runs `check_docs.py` and then a whole term through
-the real buttons — the only thing in this repo that has ever caught a day
-that cannot be finished. To turn either back on permanently, delete the
-four-line `EDUSYSTEM_GATE` block at the top of it. `--no-verify` still
-skips them if you re-arm.
-
-`git config core.hooksPath .githooks` is still required, one-time per
-clone, or the hooks are not found at all.
-
-**Why the disarm is written down in four places** (both hook headers, this
-file, and three assertions in `tests/run.gd`): there was an untracked
-`.git/hooks/pre-push` doing this job before, and it had stopped running
-altogether — `core.hooksPath` sends git to `.githooks`, so anything left
-in `.git/hooks` is dead. A hook nobody can see is a hook nobody notices
-has died, and this repo lost weeks to exactly that. A gate that is off
-because someone decided it should be is fine. A gate that is off and
-still looks armed is how the last one got missed.
-
----
-
-## File map
-
+## How it's built
 | | |
 |---|---|
 | `scripts/autoload/game.gd` | The run: day, coins, roster, grading, terms, school. The big one. |
-| `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones |
-| `scripts/world/` | grid, layout, classroom (the world root), room_builder, placement, hallway (the corridor between the rooms you hold), trophy_case (the hallway's, a place per boss trophy), window_butterfly (the butterfly that flies out of the second window and back), ambient_touches (the idle room's five small moving touches: drip, leaf, bird, spider, intercom lights; off in a lesson), mentor_room, principal_office and visit_room (rooms off the corridor you visit but never run; visit_room is any room you hold, its last day replayed), live_room (a classroom of one stage of the school, running forever on a fixed hash, never Game.rng; the hallway's grade wing is four of them, above the corridor wall, with a door and a plaque each) |
-| `scripts/actors/` | actor, player, student |
-| `scripts/interact/` | one file per landmark verb |
-| `scripts/ui/hud.gd` | Every screen. 23 modes; ~ten of them share `REPORT`. `principal_says()` is the tutorial mascot — a once-per-run corner popup, portrait and all. |
+| `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones, tutorials, room templates |
+| `scripts/world/` | The room and the school: grid, layout, classroom (world root), room_builder, placement, hallway, the grade wing (`live_room`, `stage_door`), trophy_case, window_butterfly, ambient_touches, mentor_room, principal_office, visit_room |
+| `scripts/actors/` · `scripts/interact/` | actor, player, student · one file per landmark verb |
+| `scripts/ui/hud.gd` | Every screen (23 modes; ~ten share `REPORT`). `principal_says()` is the tutorial mascot. `scripts/ui/tutorial.gd` plays the cutscenes in `data/tutorials.json` |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
-| `data/room_templates.json` | **Room ideas** (shop tab, Tab x5): seven ready-made layouts of the opening room built from real shop items, for players to take inspiration from. `scripts/data/room_templates.gd` `problems()` checks each against the placement rules (also `tools/check_templates.tscn`, and the suite). Inspiration only: nothing is bought or moved |
-| `data/tutorials.json` | **Tutorial cutscenes**: ten short scripts (id, title, trigger event, 3-6 steps of speaker + text + optional pointer + optional demo). `scripts/data/tutorials.gd` (`TutorialData`) reads and checks it; `scripts/ui/tutorial.gd` (`Tutorial`) plays one over the room. State: `Game.tutorials_seen`, `Game.tutorials_enabled` (off in every headless run and tool; `main.gd` turns it on for a real player) |
+| `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
 | `tests/run.gd` | The suite — 3076 assertions, 146 sections |
-| `tools/` | Simulators, walkthroughs, the audit, art tools |
+| `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
-| `docs/BRIEFING.md` | Context pack for external AIs |
-| `docs/TASK_PACK.md` | Copy-paste prompts for Gemini/ChatGPT |
-| `docs/SALVAGE.md` | What to take from EduSystems and what to refuse. Idea banks; the trait calibration set |
+| `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
+| `docs/ART_PIPELINE.md` | **Every art tool and its rules — read before any art work** |
 | `docs/ART_CATALOG.md` | Every PNG in `art/`, grouped by category and which tool draws/edits it |
-| `docs/CRAFT_STYLES.md` | The five `Game.CRAFT_STYLES` names: each one's colour, where that colour shows in the UI today, and the asset-naming convention a future icon should follow |
-| `tools/check_docs.py` | Verifies every doc claim against live data. A worked example is an INPUT to an outside model, not prose |
-| `tools/check_balance.py`, `check_items.py`, `check_traits.py` | Catch a misspelled tunable before it silently reverts to a built-in default; validate a task-2/task-3 submission before it touches `balance.json` |
-| `Dev Console.bat` | One menu for every other `.bat` launcher at the project root -- play, verify, simulate, trace/audit, and the art tools, so there is one icon to remember instead of a dozen. Each individual `.bat` still exists and still works stand-alone; this just calls them. |
-| `tools/godot_path.txt` | The ONE place the Godot executable path lives. Every launcher reads it via `tools/_godot.bat` |
-| `tools/playdrive.gd` | The ONE walk/keypress/boot base both walkthroughs extend. `walk_to()` used to live in each of them, byte-identical; a real fix landed in one copy only. Add a shared helper here, never a second copy there |
-| `.githooks/pre-commit`, `.githooks/pre-push` | The suite before a commit; `check_docs.py` + a whole term before a push. **Both DISARMED by default** — `EDUSYSTEM_GATE=1` re-arms one for a single command, `Verify.bat` runs the lot. `core.hooksPath` must point at `.githooks` |
-| `docs/relay/PROTOCOL.md`, `tools/relay.py` | **The Claude <-> Gemini relay.** Two agents work this folder and cannot see each other's context. Turns (whose go it is), claims (who holds which files) and a turn format whose YOU-GOT-WRONG section is validated for evidence, because an unfounded finding costs the other agent a round. `Relay.bat` shows the state; `GEMINI.md` is Antigravity's way in |
-| `.claude/commands/` | `/deep_scan` (status report), `/deep_update` (re-sync docs to live state), `/deep_critique` (skeptical-outsider design pass) |
+| `docs/SIM_FORMULAS.md` | Clean-room sim maths (attention decay, reaction curve, pedagogy tiers) for the coaching layer |
+| `docs/CRAFT_STYLES.md` | The five `Game.CRAFT_STYLES`: colour, where it shows, icon naming |
+| `docs/BRIEFING.md` · `docs/TASK_PACK.md` | Context pack for external AIs · copy-paste prompts for Gemini/ChatGPT |
+| `docs/SALVAGE.md` | What to take from EduSystems and what to refuse; idea banks; the trait calibration set |
+| `docs/relay/PROTOCOL.md`, `tools/relay.py` | **The Claude ↔ Gemini relay**: turns, file claims, a validated turn format. `Relay.bat` shows the state; `GEMINI.md` is Antigravity's way in |
+| `Dev Console.bat` | One menu for every other `.bat` launcher |
+| `.claude/commands/` | `/deep_scan` (status), `/deep_update` (re-sync docs to live state), `/deep_critique` (outsider design pass) |
 
----
+## Commands & Verification
+**The one golden rule: verify by looking at the running game, not by reading the code.**
+Tools that *look* have saved this project repeatedly; edits that seemed obviously right
+have burned it — a patch landed in the byte-identical `end_test()` instead of
+`end_lesson()` (suite green; `Audit the Room.bat` caught it), the podium offered nothing
+for ten seconds a day with 730 assertions green (`Trace a Day.bat` found it), an
+unimported PNG passed every file-exists check. **Run the tools. Read their output. Do not
+trust a diff.**
 
-## The citation rule
+Run from the project root. **Read the assertion COUNT, not the word PASSED** — a broken
+script can print PASSED with a silently lower count (it has happened three times).
 
-`data/curriculum.json` cites **real** standards — Common Core, NGSS, the
-Maryland Social Studies Framework. The rule, from `curriculum.gd`:
+```
+Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
+Run Tests.bat            3076 assertions — must pass, count must not drop
+Simulate a Term.bat      the three contract rows must still hold
+Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
+Trace a Day.bat          walks a real day through the real buttons
+Audit the Room.bat       what both buttons offer at every landmark, every phase
+Simulate the School.bat  delegated rooms: does hiring matter, does the board move
+python tools/check_docs.py      every doc claim against live data
+python tools/check_balance.py   every key in balance.json is read by something
+python tools/check_items.py · check_traits.py   validate a task-2 / task-3 submission
+```
 
-> Do not invent a code for a new lesson. An uncited lesson is more honest
-> than a fabricated citation.
-
-Six lessons are deliberately uncited and the suite asserts they stay that
-way: `using_sources`, plus the five social-studies lessons of the August
-2026 batch (`community_roles`, `state_symbols`, `transport_history`,
-`constitution`, `industrialisation`). The Maryland Social Studies
-Framework numbers its standards 1.0–6.0 by strand rather than by topic, so
-a per-topic code would have had to be minted — which is the thing the rule
-forbids. If you add uncited content, name it in that list so an
-*accidental* omission still fails.
-
----
-
-## Art
-
-Characters **are palettes** — one drawn model, recoloured. A new character
-is a data-table edit, not new artwork. The shared model (`draw_char()` in
-`tools/make_art.py`) is chibi — big head, small body — *(Aug 2026)*, one
-proportion change that every existing and future palette inherits for
-free, rather than each character needing its own redraw.
-
-| | |
-|---|---|
-| `Make a Sprite.bat` | New character: writes the palette, draws it, imports it, registers the name |
-| `Draw a Sprite.bat` | Hand-drawing editor (HTML): brush, fill, soften, flatten, retint, onion skin |
-| `Browse Art.bat` | Every sprite at once; flags unreferenced and missing art; select one and press Enter to EDIT it in place. Tools: brush / eraser / line / rect / ellipse (`1`-`7`), a 1-16 square or round nib (`[` `]`), Filled toggle, Fill, Eyedrop; wheel zooms to the cursor, MMB pans, `M` cycles mirror off/X/Y/XY (across the character cell on a sheet); interpolated strokes, per-stroke undo. Runs `--import` before it opens. Saving writes a `tools/sprites/<name>.txt` source + the PNG -- it does NOT re-import (a `--import` child of the running Godot has hung and frozen the tool). |
-| `Reimport Art.bat` | Runs `--import` from a console. Use it to make the GAME pick up a `Browse Art` edit -- Save no longer does. |
-| `tools/forge_art.py` | **CLI art forge** -- regenerate ONE sprite into `art/` with tweaks, no GUI. `python tools/forge_art.py list` \| `... <name> key=value`. Characters take palette keys (`hair=#hex hair_style=curly glasses=1 skin=tan pattern=stripes`) and rewrite the sheet + portrait. Furniture/items take shared palette-colour keys plus `tint=#hex strength=0..1` and `swap=#from:#to`. `tiles floor_a=#hex …` rewrites the tile set. A sprite with a `tools/sprites/*.txt` hand source is refused (edit it in Browse Art) unless `--force`. Sibling of `tools/forge_audio.py`. |
-
-**LimeZu art (Oct 2026) -- the owner's chosen look.** Most sprites now come from the
-LimeZu *Modern Interiors / Office / UI* packs, read in place from their zips (the
-licence forbids redistributing them, so they are never committed; they must be on the
-machine for these tools, and only the finished sprites live in `art/`):
-
-| | |
-|---|---|
-| `tools/import_limezu.py` | props, fixtures, hats -> `art/*.png`, driven by `tools/limezu_manifest.json`. `--list` shows every owned sprite and its source; `--check` verifies |
-| `tools/import_free.py` | sprites from FREE packs that are not LimeZu's (Ninja Adventure, CC0; the Midcentury Modern Furniture set by 0_mem0ry), driven by `tools/free_manifest.json`, which records each pack's licence and credit. Same rules: packs found on the machine (`$FREE_ART_DIR`, `tools/free_art_path.txt`, Desktop/Downloads), never committed; every name it owns is protected like a LimeZu one. `--list`, `--check` |
-| `tools/limezu_room.py` | the 18 room `tile_*.png`, driven by `tools/limezu_room.json`; `--preview room.png` shows the whole room first |
-| `tools/limezu_chars.py` | the 17 character sheets + HUD busts from the Character/Portrait Generators, driven by `tools/limezu_cast.json`; `--preview`, `--check` |
-| `tools/limezu_ui.py` | UI pieces: `bubble_q` (LimeZu frame + our glyph) and `ui_frame` (the bamboo border the HUD 9-slices round every full-screen panel, and the cream slot behind a shop item) |
-| `tools/limezu_catalog.py` | browse the packs as labelled contact sheets (`props <theme>`, `kids`, `adults`, `animated`, `ui`, `room` ...) into `shots/catalog/`; the ids are the ones the JSON files take |
-| `tools/shot_all.py` | screenshot every named screen (deterministic: it clears the scratch save per shot) and `compare` two runs side by side -- Windows/Mac/Linux |
-| `tools/lz_conform.py` | snap ANY image to LimeZu's real palette + the #3a3a50 keyline (`--build-palette` once; `tools/limezu_palette.json` is colours only) |
-
-Rules: a LimeZu-owned name is protected -- `make_art.hand_edited()` includes it, so the
-generators and all three forges (`forge_art.py`, `forge_items.py`, `forge_ui.py` -- the
-Master Forge's tabs shell out to them) stand down. To change one, edit its manifest/cast entry and
-re-run the importer, **not** the PNG. The suite's `LIMEZU ART` section guards the credit
-to limezu.itch.io on the credits page (a licence condition), that every owned PNG loads at
-the doubled scale, and that none has a hand source fighting it. The **FREE** Modern
-Interiors edition is non-commercial -- never use it. Compare images with
-`limezu.same_pixels`, not `ImageChops...getbbox()` (alpha-only on RGBA).
-
-**Speech is printed on paper (Oct 2026, the owner's ask).** Anything a person
-SAYS -- the dialogue box, the corner tip and day beat, a bubble in the room --
-is black ink on LimeZu's white panel (`art/ui_speech.png`, from
-`tools/limezu_ui.py`) in **Galmuri9 at 20px** (`fonts/`, SIL OFL, subset to
-Latin). The owner asked for "the same font as Pokemon": Nintendo's own font
-cannot ship in a Steam game, and Galmuri is an OFL font drawn after the
-Nintendo DS text. 20px is its 10px em doubled, so one of its pixels is one
-pixel of the room's art -- keep it on a multiple of 10. Faces beside speech are
-drawn at 72px (the 24px bust at exactly 3x, `expand_mode` IGNORE_SIZE so the
-rect cannot grow back to 96), and blink from `portrait_<art>_talk.png`.
-
-**The whole player-facing UI is in that font too** (owner's call, Oct 2026):
-`fonts/ui_theme.tres` sits on the HUD's root, and the title screen, the floaters
-and the overhead key badges set it themselves. Two sizes only -- `UI_SIZE` (20)
-and `UI_SMALL` (10) in `hud.gd` -- and a test fails on any size that is not a
-multiple of 10. Galmuri's line is ~2px taller than the old font's, so every
-line spacing came down by 2 to keep the 11-row budget. The dev tools (Master
-Forge, Browse Art) keep the default font.
-
-**The verbs on offer are the coloured badges over the teacher's head, and
-nothing else.** The bar along the bottom used to repeat them word for word,
-clipped; it is now only ever the speech box. A held verb's badge says "hold"
-and fills as you hold. **The mentor's three moves** (dash, answer all, the
-call) sit bottom right as icons with their keys, each shown only while it can
-be used, shaded while it recharges (`_update_move_bar()`).
-
-**The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art`
-write PNGs but do not import them, and Godot cannot load an unimported
-texture. After adding or editing art run `godot --headless --path .
---import` (or `Reimport Art.bat`). The suite now *loads* every PNG rather
-than checking it exists.
-
----
+- Only the suite and the walkthrough answer in a machine-readable way. The walkthrough
+  gates on liveness only (every day reaches the bell, the exam fires); whether the class
+  met its target is printed but does not fail it (`GATE_COMPETENCE` in
+  `tools/playterm.gd`). The other four speak prose — read them.
+- **Then look at it.** `Take a Screenshot.bat [screen]` saves a PNG into `shots/` (one of
+  the 43 names in the batch file's comment). It only loads `scenes/main.tscn`; for the
+  real title screen use `godot --path . res://tools/title_shot.tscn -- out.png [page]`.
+  `tools/shot_all.py` shoots every named screen and `compare`s two runs.
+- A new system gets checks in `tests/run.gd`. Narrow the output while iterating:
+  `godot --headless --path . res://tests/run.tscn -- CURRICULUM`.
+- **The git hooks are OFF by default — nothing checks your work unless you run it.**
+  Disarmed 2026-09-05 on the owner's call. `EDUSYSTEM_GATE=1 git commit` / `git push`
+  re-arms one for a single command (PowerShell: `$env:EDUSYSTEM_GATE=1`);
+  `git config core.hooksPath .githooks` is needed once per clone. A gate that is off
+  must *say* it is off — never leave one that looks armed.
+- **Rhythm:** small, additive edit → `Run Tests.bat` (count up, nothing failed) → the tool
+  that covers what you touched → screenshot anything visual → commit saying *why* →
+  `git push` (remote `Mbottega16/EduSystem`, private).
 
 ## Never Read / Noise Zones (Do Not Scan)
 
@@ -395,36 +163,53 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
 - `art/*.import`, `*.uid`, `audio/*.wav`, `audio/*.ogg` — binary/import metadata files.
 - `tools/__pycache__/` — Python bytecode caches.
 
----
+## Rules & Gotchas
+- **Doing art? Read `docs/ART_PIPELINE.md` first.** Characters *are palettes*: one drawn
+  chibi model (`draw_char()` in `tools/make_art.py`), recoloured, so a new character is a
+  data-table edit.
+- **LimeZu art is the owner's chosen look.** The packs are read in place from their zips
+  and **never committed** (licence: credit required, no redistribution); only finished
+  sprites live in `art/`. A LimeZu-owned name is protected — change its manifest/cast
+  entry and re-run the importer, **never the PNG**. The suite's `LIMEZU ART` section
+  guards the limezu.itch.io credit (a licence condition). The **FREE** Modern Interiors
+  edition is non-commercial: never use it.
+- **The seam that bites:** `make_art.py`, `forge_art.py` and `Browse Art` write PNGs but do
+  not import them, and Godot cannot load an unimported texture. After adding or editing
+  art, run `godot --headless --path . --import` (or `Reimport Art.bat`).
+- **Speech is printed on paper, and all player-facing UI is Galmuri9** (SIL OFL, drawn
+  after the Nintendo DS text; Nintendo's own font cannot ship on Steam). Two sizes only,
+  `UI_SIZE` 20 and `UI_SMALL` 10 in `hud.gd` — a test fails on any size that is not a
+  multiple of 10. Faces beside speech are 72px (the 24px bust at 3x). Dev tools keep the
+  default font.
+- **The verbs on offer are the coloured badges over the teacher's head, and nothing
+  else**; the bottom bar is only ever the speech box. The mentor's three moves sit
+  bottom right, shown only while usable (`_update_move_bar()`).
+- **Two agents work this folder.** If a relay round is live (`Relay.bat`), check whose
+  turn it is and claim files before editing.
 
 ## Session Handoff (Last Worked On · Current State · Next Up)
 
-*Vault summary: `~/OneDrive/Desktop/AI Projects/my-brain/projects/edusystem/context.md` (and `history.md` for pre-October build logs).*
+*Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
 
-- **Last Worked On:**
-  - **The grade wing, moving up by choice, the watch card (2026-10-23, the owner's ask):** Above the hallway's corridor wall, four classrooms -- one per stage (`Balance.tier_order`) -- each a `LiveRoom` (`scripts/world/live_room.gd`): six children and a teacher in the stage's own look, props and cast, running forever. Hands go up and the teacher walks over along the aisle, neighbours whisper until looked at, someone jumps, high school dozes and is woken, the teacher writes on the board; each stage's mix is `LiveRoom.STAGES[id].flavour`. A fixed hash of room and beat drives it, never `Game.rng` (tested); bubbles pop silently; the wing only processes while the hallway is visible. The corridor floor is 3 tiles now (`Hallway.HEIGHT` 96) so wing + corridor + doors are one screen, and the camera is pinned to it. Each stage has a door in the corridor wall (`stage_door.gd`, **E**, read-only) and a plaque (gold YOU, green NEXT). E opens the stage's paper card (`hud.show_stage`, `Mode.STAGE`); on the next stage's card **F** moves up (`Game.move_up()`): only after `tiers.terms_before_move_up` whole terms in this stage (`Game.tier_since_term`, saved), only between lessons, for `age_tiers.<id>.move_up_cost` coins. The class loops up with you; the new-term report says when the door opens. Each stage pays `age_tiers.<id>.pay_mult` on the day's lesson coins (`Game.tier_pay_mult()`); the auto promotion at term end still works and also sets `tier_since_term`. The WATCH screen is a cream paper card now (two children a row), not the dark overlay. Shots: `grade_wing`, `grade_wing_far`, `stage_card`, `stage_moved`.
-  - **Paper screens and tutorial cutscenes (2026-10-19):** The principal's office, the mentor and the desk caller are now cream paper panels over the live room (`hud._paper_on`, 22% dim at most), with the speaker's face. Mentor pages cut to five lines at a sentence (`hud.paper_pages`). New tutorial system: `data/tutorials.json` (ten tutorials), `scripts/ui/tutorial.gd` runner (panel, face, pointer ring and arrow, E next, Esc skip), `Game.tutorials_seen` saved, older saves grandfathered by use. `Game.fire_tutorial(event)` queues one; it plays when the room is free (`hud.tutorial_room_free`), or before a screen the player opens. Pause menu has a Tutorials page for replays (seen set unchanged). Shots: `tutorial_quiz`, `tutorial_homework`, `tutorial_pick`, `mentor_talk`.
-  - **The back wall, the grade book, the bars (2026-10-18, the owner's list):**
-    - Nothing on the back wall touches the skirting or anything else: windows two art pixels higher (`limezu_room.json` "top" 5), every hung piece's bottom on `Layout.WALL_HANG_Y` 50 (was 62, on the trim). Hung fixtures (`RoomBuilder.hung_fixtures()`): the corkboard is the furniture shop and ONLY the shop; the curriculum moved to the alphabet poster at 7-8 (`curriculum_poster`, E, beside the podium); the hand bell became LimeZu's wall intercom at column 1 (`Layout.BELL`), across the room from the shop; the treats sit on a jar shelf at 14-15 (`treat_shelf`, X) instead of floating round the locker; the locker moved to column 4, off the first window; the cuckoo clock hangs at 18. A save with a piece on a now-taken column is rehung (`Game.rehang_wall_items`); the seven room ideas were re-slotted.
-    - Teacher's desk: pencil pot painted out of the art (manifest `fill`), mug moved onto the desktop. Work bars outlined in LimeZu's keyline `#3a3a50`. Reward poster is LimeZu's animated advertising screen (57 frames).
-    - The butterfly (`scripts/world/window_butterfly.gd`): the second window opens (`art/window_open.png`), it flies out, comes back, loops over the front row, lands. Fixed timetable, no rng.
-    - The grade book opens on a subjects page: all 40 lessons in four subject columns, subject colours and icons, taught lessons in colour with the class's last letter, untaught in faint ink, a cursor with the selected lesson's detail. Tab turns to the old register. `log_grades()` now records the lesson id.
-  - **Reverse-Engineered Sim Formulas & Pokemon Dialogue Pacing & LimeZu Generator (2026-10-17):**
-    - Extracted and codified clean-room simulation math in `docs/SIM_FORMULAS.md`: differential attention decay equation $A(t)$, diminishing-returns reaction curve $R(\ell)$, 5-tier pedagogy progression tree for `RoomSim`, and ZPD scaffolding multipliers.
-    - Fine-tuned authentic Pokemon Gen 4/5 NDS dialogue and UI pacing in `scripts/ui/hud.gd`: sentence terminator pauses (-6.0 ticks / ~0.16s), phrase separator pauses (-3.0 ticks / ~0.08s), non-whitespace alternating sound blips, and pixel-snapped integer indicator bounce.
-    - Built procedural student generator `tools/limezu_random_student.py` adhering to LimeZu generator layering rules, palette constraints, and role balance.
-  - **Title Screen Controls Footer Polish (2026-10-17):** Fixed pagination overlap on Title screen Controls rebind page (`scripts/ui/title.gd`); integrated page range cleanly into `footer.text` rather than appending extra lines into the non-scrolling menu Label.
-  - **SaveManager Slot-Picker UI (`c92f44b`):** Implemented 3 visual save slots with metadata in the UI.
-  - **Desks that touch get talking (`accdd57`, 2026-10-10):** Adjacent/diagonal seated students can start a 5s lilac-bubble conversation (replaces hidden 12% `room.cluster_penalty`; broken up by walking within 2 tiles, calling *Class, class!*, or raising voice; traits carry `chat_mult`).
-  - **The Study Folder (`8414c57`):** Desk-top item (`Game.desk_items`, Learning tab, 60 coins, max 2) that lets a stuck child look up their own answer after 6s and prevents chatting/copying across that desk.
-  - **The Grade Book (Key `U`):** Open register on the teacher's desk showing 5 lessons per page across `Game.grade_log` (lessons, unit tests, term exams).
-  - **Explorable School & Animated Room (2026-10-08/09):** Walkable staffed rooms replaying yesterday's `RoomSim`, hallway trophy case, principal's office room, event-day desk props (`RoomBuilder.EVENT_DESK`), blinking cast (`18x4` sheets), and 13 animated shop items.
-  - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
-  - **Pause menu, cheats, lessons, homework, final exam (2026-10-18):** Esc (or P) opens a pause menu: Resume, Lesson plans, Settings (master/music/sfx volume, window, fullscreen, hints, status strip, move bar), Controls, Cheats, School, Career, Quit (to title or the game). The cheat panel (`debug_panel.gd`) is now in the bamboo frame and Galmuri9. **Z** opens the lesson plans screen; after enough lessons in a subject (`assignments.prestige_lessons_needed`, 5) **F** there makes a lesson Prestige (always deals a Legendary card). Legendary pays x3.0. Homework is back to per-sheet marking: college-ruled paper in Patrick Hand (`fonts/`, SIL OFL), a check banks the sheet, an X does not, waving through a bad sheet marks the child `misjudged`. The last bell of a term asks for one lesson per subject first (`Game.exam_picks`, capped effect `term.exam_pick_swing`).
-- **Current State (2026-10-23):**
-  - Suite green: **3076 assertions** in 146 sections, docs 317/317, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed.
-- **What Needs To Be Worked On Next:**
-  1. Owner look at the new back wall, the butterfly and the grade book's subjects page in the real game; then playtest feedback on desk chatter frequency and Study Folder balance (`balance.json` -> `chat`, `items.study_folder`).
-  2. Implement upcoming Admin Coaching layer using the clean-room math in `docs/SIM_FORMULAS.md`.
-  3. Remaining tiers of `[limezu-build-plan.md]` (sleep row for stuck students, cast variation juice pass, Modern Farm animal cosmetics) as directed by the owner.
-
+- **Last Worked On (2026-10-23, the owner's ask): the grade wing, moving up by choice,
+  the watch card.** Four `LiveRoom` classrooms (`scripts/world/live_room.gd`), one per
+  stage, run forever above the hallway's corridor wall on a fixed hash (never
+  `Game.rng`). Each stage has a door (`stage_door.gd`, E opens its paper card) and a
+  plaque. F on the next stage's card moves up (`Game.move_up()`) after
+  `tiers.terms_before_move_up` terms, for `age_tiers.<id>.move_up_cost` coins; higher
+  stages pay `age_tiers.<id>.pay_mult`. The WATCH screen is a paper card now. Full
+  detail: `HISTORY.md`.
+- **Current State (2026-10-24):** suite green at **3076 assertions** in 146 sections,
+  balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed
+  (all 2026-10-23, game at `7a64a7f`). Docs restructured 2026-10-24 (no code change);
+  `check_docs.py` 323/323.
+- **Next Up:**
+  1. The owner plays the grade wing: do the move-up prices and stage pay feel right?
+     Should the wing rooms be walk-in? Should the School board screen go on paper too?
+  2. The owner looks at the back wall, the butterfly and the grade book's subjects page
+     in the real game; playtest desk-chatter frequency and Study Folder balance
+     (`balance.json` → `chat`, `items.study_folder`).
+  3. Build the admin coaching layer from `docs/SIM_FORMULAS.md`.
+  4. The remaining tiers of the vault's `projects/edusystem/limezu-build-plan.md` (sleep
+     row for stuck students, cast variation pass, Modern Farm cosmetics), as the owner
+     directs.

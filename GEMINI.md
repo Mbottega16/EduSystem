@@ -13,6 +13,9 @@ the two of you coordinate through a file-based relay.
    and tell each other things without wasting each other's rounds.
 3. **`docs/relay/turns/`** — what has been said so far. Start with the most
    recent, or run the command below.
+4. **`HISTORY.md`** — every session's log, newest first. Read it when a task
+   touches past work; the current snapshot is the Session Handoff at the end
+   of `AGENTS.md`.
 
 ## Your loop
 
