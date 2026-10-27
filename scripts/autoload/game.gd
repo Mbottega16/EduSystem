@@ -784,6 +784,11 @@ var met_principal: bool = false
 ## a reload is a shrug, the whole opening scene doing it is not.
 var intro_seen: bool = false
 
+## The player teacher's name. Empty means unnamed (the default, and what every old
+## save loads as). Set by the content-engine recorders so their footage shows who is
+## teaching. new_run() does not clear it: a name stays until something sets another.
+var teacher_name: String = ""
+
 ## Two verbs the mentor teacher unlocks -- the dash and the mass-help
 ## "answer all". Locked mechanically until then: player.gd's tap-dash and
 ## answer_all_caller.can_interact() both gate on the matching flag.
@@ -4630,6 +4635,7 @@ func to_dict() -> Dictionary:
 		"cheated": cheated,
 		"met_principal": met_principal,
 		"intro_seen": intro_seen,
+		"teacher_name": teacher_name,
 		"dash_taught": dash_taught,
 		"answer_all_taught": answer_all_taught,
 		"chain_dash_taught": chain_dash_taught,
@@ -4709,6 +4715,7 @@ func from_dict(d: Dictionary) -> void:
 	cheated = bool(d.get("cheated", false))
 	met_principal = bool(d.get("met_principal", false))
 	intro_seen = bool(d.get("intro_seen", false))
+	teacher_name = String(d.get("teacher_name", ""))
 	# No key -> an older save from before the mentor. Grandfather both verbs
 	# as already taught, so a run in progress does not lose the dash and the
 	# mass-help it has always had. A new career sets them false in new_run().

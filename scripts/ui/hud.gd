@@ -768,7 +768,8 @@ func _update_status() -> void:
 	var left: int = maxi(0, Balance.term_days - Game.day + 1)
 	var teaching: bool = Game.phase == Game.Phase.LESSON
 	var paper := ""
-	var bits: Array[String] = ["%sDay %d/%d" % [
+	var bits: Array[String] = ["%s%sDay %d/%d" % [
+		Game.teacher_name + "  " if Game.teacher_name != "" else "",
 		"T%d " % Game.term if Game.term > 1 else "",
 		Game.day, Balance.term_days]]
 	# A mode you cannot see is a mode you forget is on -- same reasoning
