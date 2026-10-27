@@ -144,6 +144,7 @@ python tools/check_items.py · check_traits.py   validate a task-2 / task-3 subm
   the 43 names in the batch file's comment). It only loads `scenes/main.tscn`; for the
   real title screen use `godot --path . res://tools/title_shot.tscn -- out.png [page]`.
   `tools/shot_all.py` shoots every named screen and `compare`s two runs.
+  **Marketing footage:** `tools/director.gd` plays the real game as a named teacher (sweeps messes, collects and marks homework, quizzes, shops, hires, learns skills, places furniture, visits the mentor, moves a desk) and prints one `DIRECTOR` line per action; run it headless for logic (`godot --headless --path . res://tools/director.tscn -- <seed> <id> <teacher> <game seconds> [speed]`). `tools/clip_probe.gd` and `tools/clip_term.gd` record off-screen with `--write-movie` (`<id>` gives each run its own scratch save). The long-run loop lives in the vault (`projects/edusystem/promo/record_loop.py`). None of these are in the suite. Plan: vault `projects/edusystem/promo/content-engine-spec.md`.
 - A new system gets checks in `tests/run.gd`. Narrow the output while iterating:
   `godot --headless --path . res://tests/run.tscn -- CURRICULUM`.
 - **The git hooks are OFF by default — nothing checks your work unless you run it.**

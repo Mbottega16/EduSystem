@@ -26,6 +26,13 @@ technical detail follows. Links that pointed into the vault are written as
 
 ---
 
+## 2026-10-27 — director bot v1/v2, teacher names, long recordings
+*PC · Claude · commits `8e5afd3`, `bfdb1fa`, `b4019ed`*
+- **Changed:** `Game.teacher_name` (saved, shown at the start of the HUD status line; empty by default). `tools/director.gd` plays the real game through the real buttons: sweeps messes, collects and marks homework, runs quizzes and goes over them, settles with the voice, answers everyone at once, shops, hires the janitor and aide, spends skill points, places furniture, visits the mentor's room, moves a desk. `tools/clip_term.gd` and the vault's `promo/record_loop.py` record named teachers in segments.
+- **Why:** the owner wants marketing footage of the game being played intuitively, by several teacher styles at once (vault `projects/edusystem/promo/content-engine-spec.md`).
+- **Verified:** suite 3076 assertions after the teacher-name change. Headless director runs from seed 5: 20 days with no stuck day; the mentor taught the dash, answer-all and chain; furniture was placed; a desk was moved; homework was collected and marked. Two recorders at once ran for hours on D:. NOT verified: the director over many seeds, any detail past term 1, the director as good teaching (it still misses most term targets).
+- **Left open:** personas (every director plays alike), choosing lessons, the mentor's last talk (call-response), furniture and perk taste, trimming the long quiz screens from footage.
+
 ## 2026-10-27 — clip_probe: record the real game off-screen
 *PC · Claude · commit `18cfd4a`*
 - **Changed:** new `tools/clip_probe.gd` (+ `.tscn`) records a fixed-seed run with Godot's movie writer, off-screen. `playdrive.boot()` takes an optional `save_id`, so recorders running side by side write different scratch saves. Default behaviour is unchanged.
