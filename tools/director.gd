@@ -103,10 +103,12 @@ func _run() -> void:
 
 		# AFTERNOON: hand in the homework, mark it, spend what was earned, ring the bell.
 		if Game.phase == Game.Phase.AFTERNOON:
+			await _go_over_quizzes()
 			await _collect_homework()
 			await _mark_homework()
 			await _clean_messes()
 			await _spend()
+			await _rearrange_desks()
 			await _go(Layout.BELL + Vector2i(0, 1))
 			await hold("manage", 0.9)
 			var picks := 0
@@ -223,6 +225,13 @@ func _play_lesson() -> void:
 		if noisy >= 2 and Game.voice > 0.0:
 			await tap("voice")
 			_log("voice", "settled %d noisy students" % noisy)
+		var stuck := 0
+		for s2: StudentData in Game.roster:
+			if s2.seat_index >= 0 and s2.is_struggling():
+				stuck += 1
+		if stuck >= 2 and Game.answer_all_taught and _offer("answer_all") != "-":
+			await tap("answer_all")
+			_log("help", "answered %d stuck students at once" % stuck)
 		var seat := _desk_needing_me()
 		if seat < 0:
 			if not world.messes.is_empty():
@@ -249,6 +258,28 @@ func _play_lesson() -> void:
 		_lesson_walk_frames += Engine.get_physics_frames() - before
 	if Game.phase == Game.Phase.LESSON:
 		await hold("teach", 0.8)
+
+
+# ---------------------------------------------------------------- quizzes
+
+## After a quick quiz, go to each flagged child's desk and go over what they got wrong.
+func _go_over_quizzes() -> void:
+	var done := 0
+	for s: StudentData in Game.roster:
+		if s.seat_index < 0 or not s.quiz_flagged:
+			continue
+		var stand: Vector2i = Layout.seat(s.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1)
+		if not await _go(stand, 160):
+			continue
+		var guard := 0
+		while guard < 6 and _offer("interact").begins_with("Go over"):
+			guard += 1
+			await tap("interact")
+			await frames(secs(0.4))
+		if guard > 0:
+			done += 1
+	if done > 0:
+		_log("quiz", "went over the quiz with %d students" % done)
 
 
 # ---------------------------------------------------------------- homework
@@ -454,8 +485,157 @@ func _wall_gap(t: Vector2i) -> int:
 	return mini(mini(t.x - 1, 18 - t.x), mini(t.y - 3, 10 - t.y))
 
 
+# ---------------------------------------------------------------- the desks
+
+## Every third day, bring the student who struggles most (or acts up most) to the front,
+## the way a teacher moves a child closer. A desk is picked up with M and put down like furniture.
+func _rearrange_desks() -> void:
+	if Game.day < 3 or Game.day % 3 != 0:
+		return
+	# Everyone is a candidate, farthest from the podium first (the ones who struggle sit there). A desk whose child still needs
+	# something (the desk's own E action) cannot be picked up, so walk down the list.
+	var cands: Array[StudentData] = []
+	for s: StudentData in Game.roster:
+		if s.seat_index >= 0:
+			cands.append(s)
+	cands.sort_custom(func(a: StudentData, b: StudentData) -> bool:
+		return Vector2(Layout.seat(a.seat_index)).distance_to(Vector2(Layout.PODIUM)) 			> Vector2(Layout.seat(b.seat_index)).distance_to(Vector2(Layout.PODIUM)))
+	var pick: StudentData = null
+	for c: StudentData in cands.slice(0, 5):
+		var stand: Vector2i = Layout.seat(c.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1)
+		if not await _go(stand, 160):
+			continue
+		await frames(3)
+		if _offer("move_desk") != "-":
+			pick = c
+			break
+		_log("desks", "%s's desk is busy: E=[%s]" % [c.first_name(), _offer("interact")])
+	if pick == null:
+		_log("desks", "no desk could be picked up today")
+		return
+	await tap("move_desk")
+	await frames(4)
+	var pl = main.placement
+	if pl == null or not pl.active or pl.desk_index < 0:
+		_log("desks", "could not pick up %s's desk (M=[%s])" % [pick.display_name, _offer("move_desk")])
+		if pl != null and pl.active:
+			await tap("cancel")
+		return
+	var start: Vector2i = pl.tile
+	var podium := Vector2(Layout.PODIUM + Vector2i(0, 2))
+	var spots: Array[Vector2i] = []
+	for y in range(3, 7):
+		for x in range(2, 18):
+			var t2 := Vector2i(x, y)
+			pl.tile = t2
+			if pl.is_valid() and Vector2(t2).distance_to(podium) < Vector2(start).distance_to(podium):
+				spots.append(t2)
+	pl.tile = start
+	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return Vector2(a).distance_to(podium) < Vector2(b).distance_to(podium))
+	for spot: Vector2i in spots.slice(0, 4):
+		var guard := 0
+		while pl.tile != spot and guard < 80:
+			guard += 1
+			var d2: Vector2i = spot - pl.tile
+			var before: Vector2i = pl.tile
+			await tap(("move_right" if d2.x > 0 else "move_left") if absi(d2.x) >= absi(d2.y) else ("move_down" if d2.y > 0 else "move_up"))
+			if pl.tile == before:
+				break
+		if pl.tile == spot and pl.is_valid():
+			await tap("interact")
+			await frames(4)
+			_log("desks", "moved %s's desk from %s to %s" % [pick.display_name, start, spot])
+			return
+	_log("desks", "no better place for %s's desk" % pick.display_name)
+	await tap("cancel")
+
+
 # ---------------------------------------------------------------- the mentor
 
+## Walk the player to a point in the CURRENT room's own coordinates. The hallway and the
+## mentor's room are not tile grids, so this presses directions from pixel positions instead.
+func _walk_local(target: Vector2, tol: float = 5.0, limit: int = 600) -> bool:
+	for i in limit:
+		var d: Vector2 = target - player.position
+		if d.length() <= tol:
+			_release()
+			await frames(3)
+			return true
+		_release()
+		if absf(d.x) > tol:
+			Input.action_press("move_right" if d.x > 0.0 else "move_left")
+		if absf(d.y) > tol:
+			Input.action_press("move_down" if d.y > 0.0 else "move_up")
+		await get_tree().physics_frame
+	_release()
+	return false
+
+
+## Go to the mentor's room and learn what the mentor teaches (the dash, answering everyone at
+## once, then the chain and the call), the way a new teacher would. Once per run.
 func _maybe_mentor() -> void:
-	# filled in by the next step
-	pass
+	if _mentor_done or _mentor_tries >= 3 or Game.day < 2:
+		return
+	_mentor_tries += 1
+	if not await _go(Layout.DOOR + Vector2i(1, 0)):
+		_log("mentor", "could not reach the hallway door")
+		return
+	await tap("manage")
+	await frames(secs(1.5))
+	if not main.hallway.visible:
+		_log("mentor", "the hallway door did not open (F=[%s])" % _offer("manage"))
+		return
+	_log("mentor", "in the hallway at %s" % [player.position])
+	# door 2 is the mentor's: doors sit at x = 64 + 96 * index along the hallway
+	var door_x := 64.0 + 96.0 * 2.0
+	var entered := false
+	for y in [68.0, 72.0, 76.0, 64.0]:
+		if await _walk_local(Vector2(door_x, y), 4.0, 500) and _offer("manage") != "-":
+			await tap("manage")
+			await frames(secs(1.5))
+			entered = main.mentor_room.visible
+			if entered:
+				break
+	if not entered:
+		_log("mentor", "could not enter the mentor's room (at %s, F=[%s])" % [player.position, _offer("manage")])
+		await _leave_hallway()
+		return
+	_log("mentor", "met the mentor")
+	var guard := 0
+	while guard < 80 and main.mentor_room.visible:
+		guard += 1
+		if hud.mode != hud.Mode.NONE:
+			await tap("interact")
+		else:
+			await frames(secs(0.5))
+			if not player.input_locked and guard > 6:
+				break
+	_log("mentor", "learned: dash=%s answer_all=%s chain=%s" % [
+		Game.dash_taught, Game.answer_all_taught, Game.chain_dash_taught])
+	# out through the mentor room's door, back to the hallway, then home
+	var left := false
+	for pt: Vector2 in [Vector2(-4, 134), Vector2(0, 138), Vector2(8, 134), Vector2(8, 130), Vector2(20, 138)]:
+		if await _walk_local(pt, 4.0, 400) and _offer("manage") != "-":
+			await tap("manage")
+			await frames(secs(1.5))
+			left = main.hallway.visible
+			if left:
+				break
+	if not left:
+		_log("mentor", "could not leave the mentor's room (at %s, F=[%s])" % [player.position, _offer("manage")])
+		return
+	await _leave_hallway()
+	_mentor_done = Game.dash_taught
+
+
+## Back through the home door (door 0) to the classroom.
+func _leave_hallway() -> void:
+	for y in [68.0, 72.0, 76.0, 64.0]:
+		if await _walk_local(Vector2(64.0, y), 4.0, 500) and _offer("manage") != "-":
+			await tap("manage")
+			await frames(secs(1.5))
+			if not main.hallway.visible:
+				_log("mentor", "back in the classroom")
+				return
+	_log("mentor", "could not find the way home from the hallway (at %s, F=[%s])" % [player.position, _offer("manage")])
