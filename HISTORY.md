@@ -26,6 +26,13 @@ technical detail follows. Links that pointed into the vault are written as
 
 ---
 
+## 2026-10-27 — clip_probe: record the real game off-screen
+*PC · Claude · commit `18cfd4a`*
+- **Changed:** new `tools/clip_probe.gd` (+ `.tscn`) records a fixed-seed run with Godot's movie writer, off-screen. `playdrive.boot()` takes an optional `save_id`, so recorders running side by side write different scratch saves. Default behaviour is unchanged.
+- **Why:** phase 0 of the marketing-video engine (vault `projects/edusystem/promo/content-engine-spec.md`). The owner wants real moving footage and several teacher styles recorded at once.
+- **Verified:** 10 s clip plays, 640x352 at 30 fps, with an audio track. Same seed twice: same state fingerprint, frame PSNR 50+ dB (not byte-identical). Different seeds: different fingerprints, PSNR 31 dB. Two recorders at once finished in 9 s with free RAM near 0.63 GB. Suite 3076 assertions, `playtrace` one-day walkthrough rang the bell. NOT checked: three at once, a full-day recording, whether audio is audible to a listener.
+- **Left open:** the director bot (teaching, questions, shop, furnishing) and the cut-list renderer are not built.
+
 ## 2026-10-24 — docs restructured to the uniform standard
 
 *Mac · Claude · docs only, no game code touched*
