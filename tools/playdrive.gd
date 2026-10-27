@@ -31,7 +31,11 @@ var player: Node = null
 
 
 ## Boot the real game scene on a fixed seed, at `at_speed`.
-func boot(run_seed: int, at_speed: float = 1.0) -> void:
+##
+## `save_id` gives this run its own scratch save and nothing else: two recorders
+## running side by side must not write the same file. Empty keeps the old name,
+## so the walkthroughs behave exactly as before.
+func boot(run_seed: int, at_speed: float = 1.0, save_id: String = "") -> void:
 	speed = at_speed
 	# NEVER the player's save. advance_day() autosaves and a walkthrough
 	# advances twenty days, so every run of either tool was overwriting a
@@ -40,7 +44,8 @@ func boot(run_seed: int, at_speed: float = 1.0) -> void:
 	# redirected; these two never did. Found while wiring the walkthrough
 	# into pre-push, where it would have cost the player their run on
 	# every single push.
-	Game.save_path = "user://edusystem_WALKTHROUGH_save.json"
+	Game.save_path = "user://edusystem_WALKTHROUGH_save.json" if save_id == "" \
+		else "user://edusystem_WALKTHROUGH_%s_save.json" % save_id
 	Balance.ensure_loaded()
 	Engine.time_scale = speed
 	Game.new_run(run_seed)
