@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DirectorPersona",
+  "description": "Behavioral heuristics and strategic priorities for autonomous teacher bots in EduSystem",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "chain_nearby": { "type": "boolean", "default": true },
+    "chain_radius": { "type": "number", "default": 4.0 },
+    "max_chain_count": { "type": "integer", "default": 2 },
+    "zpd_seating": { "type": "boolean", "default": true },
+    "quiz_frequency_days": { "type": "integer", "default": 2 },
+    "perk_priorities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["brisk_walk", "practised_marker", "calm_presence", "quick_sweep", "steady_hands"]
+    },
+    "furniture_priorities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["bookshelf", "study_folder", "globe", "rug", "whiteboard", "clock"]
+    },
+    "min_coins_buffer": { "type": "integer", "default": 30 }
+  },
+  "required": ["id", "title"]
+}

@@ -24,6 +24,31 @@ var _mentor_done := false
 var _mentor_tries := 0
 var _bad_spots: Dictionary = {}        # tiles the bot gave up on (a mess it cannot clear)
 var _stuck_days := 0
+var persona: Dictionary = {}
+var _persona_id: String = "pedagogy_master"
+
+
+func _load_persona(p_id: String) -> void:
+	_persona_id = p_id
+	var path := "res://tools/personas/%s.json" % p_id
+	if FileAccess.file_exists(path):
+		var text := FileAccess.get_file_as_string(path)
+		var json := JSON.new()
+		if json.parse(text) == OK and json.data is Dictionary:
+			persona = json.data
+			_log("persona", "loaded %s: %s" % [p_id, persona.get("title", "")])
+			return
+	_log("persona", "using default steady_teacher config")
+	persona = {
+		"chain_nearby": true,
+		"chain_radius": 4.0,
+		"max_chain_count": 2,
+		"zpd_seating": true,
+		"quiz_frequency_days": 2,
+		"perk_priorities": ["brisk_walk", "practised_marker", "calm_presence", "quick_sweep", "steady_hands"],
+		"furniture_priorities": ["bookshelf", "study_folder", "globe", "rug", "whiteboard", "clock", "floor_cushion"],
+		"min_coins_buffer": 25
+	}
 
 
 func _ready() -> void:
@@ -33,12 +58,21 @@ func _ready() -> void:
 	var teacher: String = args[2] if args.size() > 2 else ""
 	var seconds: float = float(args[3]) if args.size() > 3 else 300.0
 	var speed: float = float(args[4]) if args.size() > 4 else 1.0
-	_limit_frames = int(seconds * 60.0)
-	watchdog(seconds * 6.0 / maxf(speed, 1.0) + 600.0, "DIRECTOR FAILED")
-	await boot(run_seed, speed, id)
-	Game.teacher_name = teacher
+	var persona_arg: String = args[5] if args.size() > 5 else "pedagogy_master"
+	var continue_save: bool = (int(args[6]) != 0) if args.size() > 6 else false
+	var max_terms: int = int(args[7]) if args.size() > 7 else 0
+
+	_limit_frames = int(seconds * 60.0) if seconds > 0.0 else 0
+	var wd: float = (seconds * 6.0 / maxf(speed, 1.0) + 600.0) if seconds > 0.0 else (maxf(float(max_terms), 3.0) * 3600.0)
+	watchdog(wd, "DIRECTOR FAILED")
+	await boot(run_seed, speed, id, continue_save)
+	_load_persona(persona_arg)
+	if teacher != "":
+		Game.teacher_name = teacher
+	if continue_save and Game.has_save() and not Game.run_over:
+		_log("resume", "resumed career: day %d, term %d, coins %d" % [Game.day, Game.term, Game.coins])
 	await frames(secs(1.0))
-	await _run()
+	await _run(max_terms)
 	_finish()
 
 
@@ -65,10 +99,16 @@ func _log(kind: String, msg: String) -> void:
 
 # ---------------------------------------------------------------- the days
 
-func _run() -> void:
-	var last_day := 0
+func _run(max_terms: int = 0) -> void:
+	var last_day := Game.day
+	var last_term := Game.term
 	for attempt in Balance.term_days * 8:
-		if _limit_frames < 0 or Game.term > 3 or Game.run_over:
+		if _limit_frames < 0 or Game.run_over:
+			break
+		if max_terms > 0 and Game.term > max_terms:
+			_log("target_terms", "completed target terms: %d" % max_terms)
+			break
+		if max_terms == 0 and _limit_frames <= 0 and Game.term > 3:
 			break
 		var day: int = Game.day
 		await clear_screens()
@@ -77,7 +117,7 @@ func _run() -> void:
 		if Game.phase == Game.Phase.MORNING:
 			await _clean_messes()
 			await _maybe_mentor()
-			await _go(Layout.PODIUM + Vector2i(0, 1))
+			await _go_podium()
 			await tap("teach")
 			if hud.mode == hud.Mode.HAND:
 				await tap("interact")
@@ -119,6 +159,13 @@ func _run() -> void:
 			last_day = Game.day
 			_log("day", "now day %d, coins %d, class %s" % [
 				Game.day, Game.coins, Game.grade_letter(Game.class_average())])
+		if Game.term != last_term:
+			_log("term_complete", "term %d completed! Class avg: %s, coins: %d -> Now term %d" % [
+				last_term, Game.grade_letter(Game.class_average()), Game.coins, Game.term])
+			last_term = Game.term
+			if max_terms > 0 and Game.term > max_terms:
+				_log("target_terms", "completed target terms: %d" % max_terms)
+				break
 		await clear_screens()
 		await frames(secs(0.5))
 
@@ -150,6 +197,34 @@ func _go(tile: Vector2i, limit: int = 160) -> bool:
 			if not await walk_to(t, limit):
 				break
 	return await walk_to(tile, limit)
+
+
+func _go_podium(limit: int = 300) -> bool:
+	var preferred := Layout.PODIUM + Vector2i(0, 1)
+	if await _go(preferred, limit):
+		return true
+	for off: Vector2i in [Vector2i(-1, 1), Vector2i(1, 1), Vector2i(0, 2), Vector2i(-1, 2), Vector2i(1, 2)]:
+		var alt: Vector2i = Layout.PODIUM + off
+		if world.grid != null and world.grid.is_free(alt) and await _go(alt, limit / 2):
+			return true
+	return false
+
+
+func _nearby_desk_needing_me(max_dist: float) -> int:
+	var here: Vector2 = Vector2(Grid.world_to_tile(player.global_position))
+	var best := -1
+	var best_dist := max_dist
+	for s: StudentData in Game.roster:
+		if s.seat_index < 0:
+			continue
+		var r: int = s.attention_rank()
+		if r > 0:
+			var desk_pos := Vector2(Layout.seat(s.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1))
+			var d: float = here.distance_to(desk_pos)
+			if d <= best_dist:
+				best_dist = d
+				best = s.seat_index
+	return best
 
 
 # ---------------------------------------------------------------- messes
@@ -236,9 +311,11 @@ func _play_lesson() -> void:
 		if seat < 0:
 			if not world.messes.is_empty():
 				await _clean_messes()
-				await _go(Layout.PODIUM + Vector2i(0, 1), 300)
+				await _go_podium(300)
 				continue
-			if not quizzed and guard > 6 and _offer("quiz") != "-":
+			var quiz_freq: int = int(persona.get("quiz_frequency_days", 2))
+			var allow_quiz := (Game.day % quiz_freq == 0)
+			if not quizzed and allow_quiz and guard > 6 and _offer("quiz") != "-":
 				await tap("quiz")
 				quizzed = true
 				_log("quiz", "ran a quick quiz")
@@ -254,7 +331,25 @@ func _play_lesson() -> void:
 			continue
 		await tap("interact")
 		_lesson_helped += 1
-		await _go(Layout.PODIUM + Vector2i(0, 1), 300)
+
+		# Chain nearby students needing help before commuting back to the podium
+		if bool(persona.get("chain_nearby", true)):
+			var chains := 0
+			var max_chains: int = int(persona.get("max_chain_count", 2))
+			var rad: float = float(persona.get("chain_radius", 4.0))
+			while chains < max_chains:
+				var next_seat := _nearby_desk_needing_me(rad)
+				if next_seat < 0 or next_seat == seat:
+					break
+				var next_stand: Vector2i = Layout.seat(next_seat) + Layout.DESK_OFFSET + Vector2i(0, 1)
+				if not await _go(next_stand, 120):
+					break
+				await tap("interact")
+				_lesson_helped += 1
+				chains += 1
+				seat = next_seat
+
+		await _go_podium(300)
 		_lesson_walk_frames += Engine.get_physics_frames() - before
 	if Game.phase == Game.Phase.LESSON:
 		await hold("teach", 0.8)
@@ -322,10 +417,14 @@ func _spend() -> void:
 		return
 	await _shop_staff()
 	await _shop_perks()
-	var bought_id := await _shop_furniture()
-	await clear_screens()
-	if bought_id != "":
-		await _place_from_cabinet(bought_id)
+	var max_buys: int = int(persona.get("max_furniture_per_day", 1))
+	for b in max_buys:
+		var bought_id := await _shop_furniture()
+		await clear_screens()
+		if bought_id != "":
+			await _place_from_cabinet(bought_id)
+		else:
+			break
 
 
 func _shop_tab(tab: int) -> bool:
@@ -371,10 +470,13 @@ func _shop_perks() -> void:
 	if not await _shop_tab(hud.Shop.STAFF):
 		return
 	var guard := 0
+	var order: Array = persona.get("perk_priorities", [
+		"brisk_walk", "practised_marker", "calm_presence", "quick_sweep", "steady_hands"
+	])
 	while Game.perk_points_free() > 0 and guard < 6:
 		guard += 1
 		var bought := false
-		for id: String in ["quick_sweep", "brisk_walk", "thrifty", "steady_hands", "calm_presence", "practised_marker"]:
+		for id: String in order:
 			var points: int = Game.perk_points_free()
 			if await _shop_pick(id):
 				await tap("interact")
@@ -386,11 +488,35 @@ func _shop_perks() -> void:
 			break
 
 
-## Buy the cheapest piece of furniture the class can afford and has not got yet.
+## Buy furniture prioritizing high-impact aura items from persona, falling back to cheapest affordable.
 func _shop_furniture() -> String:
 	if not await _shop_tab(hud.Shop.BUY):
 		return ""
+	var preferred: Array = persona.get("furniture_priorities", [
+		"bookshelf", "study_folder", "globe", "rug", "whiteboard", "clock"
+	])
+	var min_buffer: int = int(persona.get("min_coins_buffer", 25))
 	var cats: Array = Items.categories()
+
+	# First pass: look for preferred high-impact items
+	for pref_id: String in preferred:
+		if _bought.has(pref_id):
+			continue
+		for c in cats.size():
+			var rows: Array = hud._shop_rows()
+			if rows.has(pref_id):
+				var p: int = Game.shop_price(pref_id)
+				if Game.coins >= p + min_buffer:
+					var before: int = Game.coins
+					if await _shop_pick(pref_id):
+						await tap("interact")
+					if Game.coins < before:
+						_bought[pref_id] = int(_bought.get(pref_id, 0)) + 1
+						_log("buy", "bought %s for %d coins (preferred)" % [pref_id, before - Game.coins])
+						return pref_id
+			await tap("move_right")
+
+	# Fallback: cheapest affordable item
 	for c in cats.size():
 		var rows: Array = hud._shop_rows()
 		var pick := ""
@@ -399,7 +525,7 @@ func _shop_furniture() -> String:
 			if Items.category_of(id) == "consumable" or _bought.has(id):
 				continue
 			var p: int = Game.shop_price(id)
-			if p < price and Game.coins >= p + 30:
+			if p < price and Game.coins >= p + min_buffer:
 				price = p
 				pick = id
 		if pick != "":
@@ -467,7 +593,10 @@ func _pick_spot(pl) -> Vector2i:
 	var found := Vector2i(-1, -1)
 	var tiles: Array[Vector2i] = []
 	for y in range(3, 11):
-		for x in range(1, 19):
+		for x in range(3, 17):
+			# Keep doorway corridor (x <= 2), right corkboard (x >= 17), and podium front clear
+			if (x >= 8 and x <= 10) and (y == 3 or y == 4):
+				continue
 			tiles.append(Vector2i(x, y))
 	# the outside of the room first: furniture along walls leaves the middle for the class
 	tiles.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
@@ -475,6 +604,10 @@ func _pick_spot(pl) -> Vector2i:
 	for t: Vector2i in tiles:
 		pl.tile = t
 		if pl.is_valid():
+			if world.grid != null:
+				var pod := Layout.PODIUM + Vector2i(0, 1)
+				if not world.grid.reachable(pod, Layout.BELL + Vector2i(0, 1)):
+					continue
 			found = t
 			break
 	pl.tile = keep
@@ -487,32 +620,62 @@ func _wall_gap(t: Vector2i) -> int:
 
 # ---------------------------------------------------------------- the desks
 
-## Every third day, bring the student who struggles most (or acts up most) to the front,
-## the way a teacher moves a child closer. A desk is picked up with M and put down like furniture.
+## Every third day, rearrange desks. With ZPD seating, pairs struggling students with peer tutors;
+## otherwise moves the struggling student closer to the front.
 func _rearrange_desks() -> void:
 	if Game.day < 3 or Game.day % 3 != 0:
 		return
-	# Everyone is a candidate, farthest from the podium first (the ones who struggle sit there). A desk whose child still needs
-	# something (the desk's own E action) cannot be picked up, so walk down the list.
-	var cands: Array[StudentData] = []
-	for s: StudentData in Game.roster:
-		if s.seat_index >= 0:
-			cands.append(s)
-	cands.sort_custom(func(a: StudentData, b: StudentData) -> bool:
-		return Vector2(Layout.seat(a.seat_index)).distance_to(Vector2(Layout.PODIUM)) 			> Vector2(Layout.seat(b.seat_index)).distance_to(Vector2(Layout.PODIUM)))
+	var use_zpd: bool = bool(persona.get("zpd_seating", true))
 	var pick: StudentData = null
-	for c: StudentData in cands.slice(0, 5):
-		var stand: Vector2i = Layout.seat(c.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1)
-		if not await _go(stand, 160):
-			continue
-		await frames(3)
-		if _offer("move_desk") != "-":
-			pick = c
-			break
-		_log("desks", "%s's desk is busy: E=[%s]" % [c.first_name(), _offer("interact")])
+	var tutor: StudentData = null
+
+	if use_zpd:
+		# Find a struggling student (competence < 0.6) and a suitable tutor (delta in [0.08, 0.45])
+		for s: StudentData in Game.roster:
+			if s.seat_index >= 0 and s.competence < 0.6:
+				for t: StudentData in Game.roster:
+					if t != s and t.seat_index >= 0:
+						var delta: float = t.competence - s.competence
+						if delta >= 0.08 and delta <= 0.45:
+							var dist := Vector2(Layout.seat(s.seat_index)).distance_to(Vector2(Layout.seat(t.seat_index)))
+							if dist > 2.2:
+								pick = s
+								tutor = t
+								break
+				if pick != null:
+					break
+
+	if pick == null:
+		# Fallback: candidate farthest from the podium
+		var cands: Array[StudentData] = []
+		for s: StudentData in Game.roster:
+			if s.seat_index >= 0:
+				cands.append(s)
+		cands.sort_custom(func(a: StudentData, b: StudentData) -> bool:
+			return Vector2(Layout.seat(a.seat_index)).distance_to(Vector2(Layout.PODIUM)) > Vector2(Layout.seat(b.seat_index)).distance_to(Vector2(Layout.PODIUM)))
+		for c: StudentData in cands.slice(0, 5):
+			var stand: Vector2i = Layout.seat(c.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1)
+			if not await _go(stand, 160):
+				continue
+			await frames(3)
+			if _offer("move_desk") != "-":
+				pick = c
+				break
+			_log("desks", "%s's desk is busy: E=[%s]" % [c.first_name(), _offer("interact")])
+
 	if pick == null:
 		_log("desks", "no desk could be picked up today")
 		return
+
+	var pick_stand: Vector2i = Layout.seat(pick.seat_index) + Layout.DESK_OFFSET + Vector2i(0, 1)
+	if not await _go(pick_stand, 160):
+		_log("desks", "could not reach %s's desk" % pick.first_name())
+		return
+	await frames(3)
+	if _offer("move_desk") == "-":
+		_log("desks", "%s's desk is busy: E=[%s]" % [pick.first_name(), _offer("interact")])
+		return
+
 	await tap("move_desk")
 	await frames(4)
 	var pl = main.placement
@@ -521,18 +684,26 @@ func _rearrange_desks() -> void:
 		if pl != null and pl.active:
 			await tap("cancel")
 		return
+
 	var start: Vector2i = pl.tile
-	var podium := Vector2(Layout.PODIUM + Vector2i(0, 2))
+	var target_anchor := Vector2(Layout.seat(tutor.seat_index)) if tutor != null else Vector2(Layout.PODIUM + Vector2i(0, 2))
 	var spots: Array[Vector2i] = []
-	for y in range(3, 7):
-		for x in range(2, 18):
+	for y in range(3, 8):
+		for x in range(3, 17):
 			var t2 := Vector2i(x, y)
 			pl.tile = t2
-			if pl.is_valid() and Vector2(t2).distance_to(podium) < Vector2(start).distance_to(podium):
-				spots.append(t2)
+			if pl.is_valid():
+				if tutor != null:
+					var td: float = Vector2(t2).distance_to(target_anchor)
+					if td >= 1.0 and td <= 2.2:
+						spots.append(t2)
+				else:
+					if Vector2(t2).distance_to(target_anchor) < Vector2(start).distance_to(target_anchor):
+						spots.append(t2)
 	pl.tile = start
 	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return Vector2(a).distance_to(podium) < Vector2(b).distance_to(podium))
+		return Vector2(a).distance_to(target_anchor) < Vector2(b).distance_to(target_anchor))
+
 	for spot: Vector2i in spots.slice(0, 4):
 		var guard := 0
 		while pl.tile != spot and guard < 80:
@@ -545,7 +716,8 @@ func _rearrange_desks() -> void:
 		if pl.tile == spot and pl.is_valid():
 			await tap("interact")
 			await frames(4)
-			_log("desks", "moved %s's desk from %s to %s" % [pick.display_name, start, spot])
+			_log("desks", "moved %s's desk from %s to %s (target=%s)" % [
+				pick.display_name, start, spot, tutor.first_name() if tutor != null else "podium"])
 			return
 	_log("desks", "no better place for %s's desk" % pick.display_name)
 	await tap("cancel")
@@ -556,16 +728,17 @@ func _rearrange_desks() -> void:
 ## Walk the player to a point in the CURRENT room's own coordinates. The hallway and the
 ## mentor's room are not tile grids, so this presses directions from pixel positions instead.
 func _walk_local(target: Vector2, tol: float = 5.0, limit: int = 600) -> bool:
+	var actual_tol := maxf(tol, 4.0 * maxf(speed, 1.0))
 	for i in limit:
 		var d: Vector2 = target - player.position
-		if d.length() <= tol:
+		if d.length() <= actual_tol:
 			_release()
 			await frames(3)
 			return true
 		_release()
-		if absf(d.x) > tol:
+		if absf(d.x) > actual_tol:
 			Input.action_press("move_right" if d.x > 0.0 else "move_left")
-		if absf(d.y) > tol:
+		if absf(d.y) > actual_tol:
 			Input.action_press("move_down" if d.y > 0.0 else "move_up")
 		await get_tree().physics_frame
 	_release()

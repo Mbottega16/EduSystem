@@ -1,0 +1,37 @@
+{
+  "id": "furniture_nerd",
+  "title": "Classroom Makeover Designer",
+  "description": "Interior designer teacher: aggressively decorates the room with bookshelves, reading rugs, plants, lamps, wall charts, and transforms desk orientations into collaborative pods and creative clusters.",
+  "aggro_decor": true,
+  "max_furniture_per_day": 2,
+  "min_coins_buffer": 10,
+  "chain_nearby": true,
+  "chain_radius": 4.0,
+  "max_chain_count": 2,
+  "zpd_seating": true,
+  "quiz_frequency_days": 3,
+  "perk_priorities": [
+    "thrifty",
+    "quick_sweep",
+    "brisk_walk",
+    "calm_presence",
+    "practised_marker"
+  ],
+  "furniture_priorities": [
+    "rug",
+    "bookshelf",
+    "reading_nook",
+    "plant",
+    "lamp",
+    "beanbag",
+    "whiteboard",
+    "globe",
+    "wall_clock",
+    "alphabet_frieze",
+    "ottoman",
+    "pouf",
+    "art_easel",
+    "microscope",
+    "sofa"
+  ]
+}

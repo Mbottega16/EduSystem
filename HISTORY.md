@@ -26,6 +26,18 @@ technical detail follows. Links that pointed into the vault are written as
 
 ---
 
+## 2026-10-28 — 6-bot autonomous fleet, personas, term controls, continuous career saves
+*PC · Antigravity · commits pending*
+- **Changed:** 
+  1. Persona engine (`tools/personas/`): `pedagogy_master.json` (ZPD peer pairing, min-maxing, high-aura decor), `steady_teacher.json` (calm routine), `furniture_nerd.json` (classroom makeover designer, aggressive decorating).
+  2. Director intelligence: chained desk visits (`_nearby_desk_needing_me()`), safe furniture placement zoning with reachability checks, podium fallback navigation, speed-adaptive walk tolerances, and continuous career saves across segments (`continue_save` in `playdrive.gd`).
+  3. Term controls: added `term_complete` logging and `max_terms` cap to `tools/director.gd`. Added perpetual vs term-capped controls (`--terms N`, `--perpetual`, `--fresh`) to `projects/edusystem/promo/run_6_screens.py`.
+  4. 6-Screen Multi-Bot Launcher (`Launch 6 Bots.bat`): tiles 6 Godot instances in a 3x2 grid across the monitor (top 3 recording, bottom 3 live companion play), prompting for perpetual vs term-capped play.
+  5. Evaluator (`tools/eval_term.py`): headless batch benchmark evaluating personas and tracking GPA, grades, and stuck recoveries.
+- **Why:** The owner asked to run 6 bots simultaneously visible in a tiled layout (with classroom makeover designer recording as bot 3), to have bots think smarter across daily/term passes with Vygotsky ZPD pairing, and to have controls to run them perpetually or stop after N terms.
+- **Verified:** All 3,076 assertions in `Run Tests.bat` passed green. Headless term evaluator proved 0 stuck recoveries and grade boost from D/E ceiling to C (2.0 GPA) with +53% coins. All 6 bots ran simultaneously on primary monitor in 3x2 grid with ~1.34 GB RAM consumption without crash.
+- **Left open:** Future AI policy training / Q-learning scaffold on saved metadata, high-tier boss term automation.
+
 ## 2026-10-27 — director bot v1/v2, teacher names, long recordings
 *PC · Claude · commits `8e5afd3`, `bfdb1fa`, `b4019ed`*
 - **Changed:** `Game.teacher_name` (saved, shown at the start of the HUD status line; empty by default). `tools/director.gd` plays the real game through the real buttons: sweeps messes, collects and marks homework, runs quizzes and goes over them, settles with the voice, answers everyone at once, shops, hires the janitor and aide, spends skill points, places furniture, visits the mentor's room, moves a desk. `tools/clip_term.gd` and the vault's `promo/record_loop.py` record named teachers in segments.

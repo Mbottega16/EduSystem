@@ -1,0 +1,27 @@
+{
+  "id": "pedagogy_master",
+  "title": "Pedagogy Master (Hyper-Optimized)",
+  "description": "Maximizes class GPA and term milestones through ZPD peer seating, chained desk assistance, and high-aura decor investment.",
+  "chain_nearby": true,
+  "chain_radius": 4.5,
+  "max_chain_count": 2,
+  "zpd_seating": true,
+  "quiz_frequency_days": 3,
+  "perk_priorities": [
+    "brisk_walk",
+    "practised_marker",
+    "calm_presence",
+    "quick_sweep",
+    "steady_hands"
+  ],
+  "furniture_priorities": [
+    "bookshelf",
+    "study_folder",
+    "globe",
+    "rug",
+    "whiteboard",
+    "clock",
+    "floor_cushion"
+  ],
+  "min_coins_buffer": 25
+}

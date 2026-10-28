@@ -1,0 +1,26 @@
+{
+  "id": "steady_teacher",
+  "title": "Steady Teacher (Balanced Casual Baseline)",
+  "description": "Standard classroom management: regular sweeping, attentive podium presence, balanced skill acquisition, and safe perimeter decorating.",
+  "chain_nearby": true,
+  "chain_radius": 3.0,
+  "max_chain_count": 1,
+  "zpd_seating": false,
+  "quiz_frequency_days": 2,
+  "perk_priorities": [
+    "quick_sweep",
+    "brisk_walk",
+    "calm_presence",
+    "practised_marker",
+    "steady_hands"
+  ],
+  "furniture_priorities": [
+    "floor_cushion",
+    "pot_of_pens",
+    "paper_mobile",
+    "stool",
+    "backpack",
+    "crate"
+  ],
+  "min_coins_buffer": 30
+}

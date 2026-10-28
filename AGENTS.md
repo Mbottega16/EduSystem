@@ -189,28 +189,13 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   turn it is and claim files before editing.
 
 ## Session Handoff (Last Worked On · Current State · Next Up)
-
-*Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
-
-- **Last Worked On (2026-10-23, the owner's ask): the grade wing, moving up by choice,
-  the watch card.** Four `LiveRoom` classrooms (`scripts/world/live_room.gd`), one per
-  stage, run forever above the hallway's corridor wall on a fixed hash (never
-  `Game.rng`). Each stage has a door (`stage_door.gd`, E opens its paper card) and a
-  plaque. F on the next stage's card moves up (`Game.move_up()`) after
-  `tiers.terms_before_move_up` terms, for `age_tiers.<id>.move_up_cost` coins; higher
-  stages pay `age_tiers.<id>.pay_mult`. The WATCH screen is a paper card now. Full
-  detail: `HISTORY.md`.
-- **Current State (2026-10-24):** suite green at **3076 assertions** in 146 sections,
-  balance contract `0.63 C / 0.72 C / 0.97 A` unmoved, whole-term walkthrough passed
-  (all 2026-10-23, game at `7a64a7f`). Docs restructured 2026-10-24 (no code change);
-  `check_docs.py` 323/323.
+ 
+ *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
+ 
+- **Last Worked On (2026-10-28, the owner's ask): 6-bot autonomous fleet, personas, term controls, continuous career saves.**
+  Tiled 6 Godot bots in a 3x2 grid across 1920x1080 screen (top 3 recording to `D:/EduSystemClips`, bottom 3 live visual companion bots). Added persona definitions in `tools/personas/` (`pedagogy_master`, `steady_teacher`, `furniture_nerd` classroom makeover designer). Added chained desk visits, ZPD peer scaffolding, safe furniture zoning, speed-adaptive walk tolerances, continuous career save loading, and term completion tracking. Provided perpetual vs term-capped execution modes via `Launch 6 Bots.bat` and `run_6_screens.py`.
+- **Current State (2026-10-28):** suite green at **3076 assertions** in 146 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved. All 6 bots run concurrently consuming ~1.34 GB RAM total with zero stuck recoveries.
 - **Next Up:**
-  1. The owner plays the grade wing: do the move-up prices and stage pay feel right?
-     Should the wing rooms be walk-in? Should the School board screen go on paper too?
-  2. The owner looks at the back wall, the butterfly and the grade book's subjects page
-     in the real game; playtest desk-chatter frequency and Study Folder balance
-     (`balance.json` → `chat`, `items.study_folder`).
-  3. Build the admin coaching layer from `docs/SIM_FORMULAS.md`.
-  4. The remaining tiers of the vault's `projects/edusystem/limezu-build-plan.md` (sleep
-     row for stuck students, cast variation pass, Modern Farm cosmetics), as the owner
-     directs.
+  1. Let the 6-bot fleet run across multiple terms to accumulate rich telemetry datasets and diverse promotional clips.
+  2. Implement an automated offline Q-learning or heuristic weight updater for director personas based on term results.
+  3. Explore boss term automation for higher grade wings.

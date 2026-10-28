@@ -35,7 +35,7 @@ var player: Node = null
 ## `save_id` gives this run its own scratch save and nothing else: two recorders
 ## running side by side must not write the same file. Empty keeps the old name,
 ## so the walkthroughs behave exactly as before.
-func boot(run_seed: int, at_speed: float = 1.0, save_id: String = "") -> void:
+func boot(run_seed: int, at_speed: float = 1.0, save_id: String = "", continue_save: bool = false) -> void:
 	speed = at_speed
 	# NEVER the player's save. advance_day() autosaves and a walkthrough
 	# advances twenty days, so every run of either tool was overwriting a
@@ -48,7 +48,12 @@ func boot(run_seed: int, at_speed: float = 1.0, save_id: String = "") -> void:
 		else "user://edusystem_WALKTHROUGH_%s_save.json" % save_id
 	Balance.ensure_loaded()
 	Engine.time_scale = speed
-	Game.new_run(run_seed)
+	if continue_save and Game.has_save():
+		Game.load_game()
+		if Game.run_over:
+			Game.new_run(run_seed)
+	else:
+		Game.new_run(run_seed)
 	# Both tools drive the EVERYDAY loop, not the once-per-career storyline
 	# cutscene, and both drive input by simulating key presses -- neither
 	# ever presses E through the intro slate. A fresh new_run() would
