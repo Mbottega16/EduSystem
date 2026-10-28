@@ -16931,3 +16931,33 @@ func test_walkthrough() -> void:
 	chk("...and so does the screenshot harness, which boots the real run",
 		shot.contains('const SHOT_SAVE := "user://edusystem_SHOT_save.json"')
 		and shot.contains("Game.save_path = SHOT_SAVE"))
+
+	section("PERSONA TIERS & SCHEMAS")
+	chk("persona schema exists on disk",
+		FileAccess.file_exists("res://tools/personas/persona_schema.json"))
+	var personas_tested := [
+		"pedagogy_master", "steady_teacher", "furniture_nerd",
+		"strict_lecturer", "clueless_sub", "distracted_sweeper"
+	]
+	for p_id: String in personas_tested:
+		var p_path := "res://tools/personas/%s.json" % p_id
+		chk("persona file exists: %s" % p_id, FileAccess.file_exists(p_path))
+		var json_str := FileAccess.get_file_as_string(p_path)
+		var json := JSON.new()
+		chk("persona json parses cleanly: %s" % p_id, json.parse(json_str) == OK)
+		var data: Dictionary = json.data if json.data is Dictionary else {}
+		chk("persona defines id: %s" % p_id, data.get("id", "") == p_id)
+		var tier: int = int(data.get("tier", 0))
+		chk("persona tier is valid [1..4]: %s" % p_id, tier >= 1 and tier <= 4)
+		var rating: int = int(data.get("skill_rating", -1))
+		chk("persona rating is valid [0..100]: %s" % p_id, rating >= 0 and rating <= 100)
+
+	var p_pedagogy: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/personas/pedagogy_master.json"))
+	chk("pedagogy_master is Tier 4 Master with zero delay",
+		int(p_pedagogy.get("tier", 0)) == 4 and float(p_pedagogy.get("reaction_delay", -1.0)) == 0.0)
+	var p_sub: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/personas/clueless_sub.json"))
+	chk("clueless_sub is Tier 1 Novice with high reaction delay",
+		int(p_sub.get("tier", 0)) == 1 and float(p_sub.get("reaction_delay", 0.0)) >= 3.0)
+	var p_sweeper: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/personas/distracted_sweeper.json"))
+	chk("distracted_sweeper is chore-fixated (chores_first=true)",
+		bool(p_sweeper.get("chores_first", false)) == true)

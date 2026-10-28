@@ -1,0 +1,29 @@
+{
+  "id": "strict_lecturer",
+  "title": "Strict Lecturer (Podium Bound)",
+  "tier": 2,
+  "skill_rating": 60,
+  "category": "developing",
+  "description": "Lectures firmly from the podium and runs frequent pop quizzes. Hesitant to leave the front to assist struggling students at desks; does not chain visits.",
+  "reaction_delay": 2.2,
+  "chores_first": false,
+  "use_voice": true,
+  "idle_circulate": false,
+  "chain_nearby": false,
+  "chain_radius": 2.0,
+  "max_chain_count": 0,
+  "zpd_seating": false,
+  "desk_rearrange_mode": "front_cluster",
+  "quiz_frequency_days": 1,
+  "perk_priorities": [
+    "calm_presence",
+    "practised_marker",
+    "steady_hands"
+  ],
+  "furniture_priorities": [
+    "whiteboard",
+    "clock",
+    "wall_clock"
+  ],
+  "min_coins_buffer": 40
+}

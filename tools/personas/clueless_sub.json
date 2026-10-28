@@ -1,0 +1,29 @@
+{
+  "id": "clueless_sub",
+  "title": "Clueless Substitute (Overwhelmed Novice)",
+  "tier": 1,
+  "skill_rating": 32,
+  "category": "novice",
+  "description": "Hesitant and overwhelmed: 4-second delay before noticing struggling students, never chains visits, ignores chatter without using voice, and hoards or mismanages coins.",
+  "reaction_delay": 4.0,
+  "chores_first": false,
+  "use_voice": false,
+  "idle_circulate": false,
+  "chain_nearby": false,
+  "chain_radius": 2.0,
+  "max_chain_count": 0,
+  "zpd_seating": false,
+  "desk_rearrange_mode": "none",
+  "quiz_frequency_days": 99,
+  "perk_priorities": [
+    "steady_hands",
+    "thrifty"
+  ],
+  "furniture_priorities": [
+    "crate",
+    "stool",
+    "pot_of_pens",
+    "backpack"
+  ],
+  "min_coins_buffer": 20
+}

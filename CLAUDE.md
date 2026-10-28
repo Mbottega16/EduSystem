@@ -97,7 +97,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3076 assertions, 146 sections |
+| `tests/run.gd` | The suite — 3110 assertions, 147 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -125,7 +125,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3076 assertions — must pass, count must not drop
+Run Tests.bat            3110 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -192,10 +192,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-28, the owner's ask): 6-bot autonomous fleet, personas, term controls, continuous career saves.**
-  Tiled 6 Godot bots in a 3x2 grid across 1920x1080 screen (top 3 recording to `D:/EduSystemClips`, bottom 3 live visual companion bots). Added persona definitions in `tools/personas/` (`pedagogy_master`, `steady_teacher`, `furniture_nerd` classroom makeover designer). Added chained desk visits, ZPD peer scaffolding, safe furniture zoning, speed-adaptive walk tolerances, continuous career save loading, and term completion tracking. Provided perpetual vs term-capped execution modes via `Launch 6 Bots.bat` and `run_6_screens.py`.
-- **Current State (2026-10-28):** suite green at **3076 assertions** in 146 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved. All 6 bots run concurrently consuming ~1.34 GB RAM total with zero stuck recoveries.
+- **Last Worked On (2026-10-28, the owner's ask): Teacher skill tiers, dumb/smart persona spectrum, fleet evaluation leaderboard.**
+  Defined 4-tier skill hierarchy in `tools/personas/persona_schema.json` with distinct behavioral dials (`reaction_delay`, `chores_first`, `use_voice`, `idle_circulate`, `desk_rearrange_mode`). Added Tier 1 novice/dumb personas (`clueless_sub.json`, `distracted_sweeper.json`) and Tier 2 (`strict_lecturer.json`), alongside upgraded Tier 3 (`steady_teacher.json`, `furniture_nerd.json`) and Tier 4 (`pedagogy_master.json`). Wired human reaction delay, chore distraction priority, voice gating, and idle front circulation into `tools/director.gd`. Implemented automated scorecard calculation and fleet rankings saved to `D:/EduSystemClips/leaderboard.json` (or `user://leaderboard.json`). Added `--roster` preset selector (`diverse`, `smart`, `dumb`, `classic`) to `run_6_screens.py` and `Launch 6 Bots.bat`.
+- **Current State (2026-10-28):** suite green at **3110 assertions** in 147 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
-  1. Let the 6-bot fleet run across multiple terms to accumulate rich telemetry datasets and diverse promotional clips.
-  2. Implement an automated offline Q-learning or heuristic weight updater for director personas based on term results.
+  1. Run diverse fleet across multiple terms to accumulate rich multi-tier leaderboard data and comparative promotional clips.
+  2. Implement an automated offline Q-learning or heuristic weight updater for director personas based on leaderboard metrics.
   3. Explore boss term automation for higher grade wings.

@@ -1,16 +1,60 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DirectorPersona",
-  "description": "Behavioral heuristics and strategic priorities for autonomous teacher bots in EduSystem",
+  "description": "Behavioral heuristics, skill tiers, and strategic priorities for autonomous teacher bots in EduSystem",
   "type": "object",
   "properties": {
     "id": { "type": "string" },
     "title": { "type": "string" },
     "description": { "type": "string" },
+    "tier": {
+      "type": "integer",
+      "description": "Skill tier: 1 (Novice/Dumb), 2 (Developing), 3 (Proficient), 4 (Master/Smart)",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 3
+    },
+    "skill_rating": {
+      "type": "integer",
+      "description": "Baseline skill rating (0-100)",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 75
+    },
+    "category": {
+      "type": "string",
+      "enum": ["novice", "developing", "proficient", "master"],
+      "default": "proficient"
+    },
+    "reaction_delay": {
+      "type": "number",
+      "description": "Perception lag in seconds before reacting to student distress",
+      "default": 0.5
+    },
+    "chores_first": {
+      "type": "boolean",
+      "description": "If true, cleans floor messes before assisting crying or stuck students",
+      "default": false
+    },
+    "use_voice": {
+      "type": "boolean",
+      "description": "Whether the teacher uses their voice to quiet disruptive chatter",
+      "default": true
+    },
+    "idle_circulate": {
+      "type": "boolean",
+      "description": "Whether the teacher circulates the room during calm periods",
+      "default": true
+    },
     "chain_nearby": { "type": "boolean", "default": true },
     "chain_radius": { "type": "number", "default": 4.0 },
     "max_chain_count": { "type": "integer", "default": 2 },
     "zpd_seating": { "type": "boolean", "default": true },
+    "desk_rearrange_mode": {
+      "type": "string",
+      "enum": ["zpd", "front_cluster", "pods", "random", "none"],
+      "default": "zpd"
+    },
     "quiz_frequency_days": { "type": "integer", "default": 2 },
     "perk_priorities": {
       "type": "array",

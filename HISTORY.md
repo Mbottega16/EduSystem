@@ -26,6 +26,19 @@ technical detail follows. Links that pointed into the vault are written as
 
 ---
 
+## 2026-10-28 — Teacher skill tiers, dumb/smart persona spectrum, and fleet evaluation leaderboard
+*PC · Antigravity · commits pending*
+- **Changed:**
+  1. Persona Skill Hierarchy (`tools/personas/`): Added `tier` (1-4), `skill_rating` (0-100), `category` (novice/developing/proficient/master), `reaction_delay`, `chores_first`, `use_voice`, `idle_circulate`, and `desk_rearrange_mode` to `persona_schema.json`.
+  2. Persona Spectrum: Added Tier 1 novice/dumb personas (`clueless_sub.json` with 4.0s reaction lag, no voice, no chaining; `distracted_sweeper.json` fixated on sweeping crumbs before helping crying students) and Tier 2 (`strict_lecturer.json` podium-bound with frequent pop quizzes). Upgraded `pedagogy_master.json` (Tier 4 Master) and `steady_teacher.json` / `furniture_nerd.json` (Tier 3 Proficient).
+  3. Director Humanization & Dials (`tools/director.gd`): Wired perception reaction delay, chore distraction priority, voice gating, front-of-room idle patrol circulation, and tier-based furniture shopping.
+  4. Teacher Scorecard & Leaderboard: Automated evaluation scoring in `_finish()` and `_save_scorecard()`, outputting ranked fleet standings to `D:/EduSystemClips/leaderboard.json` (or `user://leaderboard.json`).
+  5. Multi-Screen Supervisor & Batch (`run_6_screens.py`, `Launch 6 Bots.bat`): Added `--roster` preset selector (`diverse` spectrum, `smart`, `dumb`, `classic`) and end-of-run ranked leaderboard summary printout.
+  6. Suite Coverage (`tests/run.gd`): Added `PERSONA TIERS & SCHEMAS` section (34 new assertions), bringing test suite to 3,110 assertions across 147 sections.
+- **Why:** The owner asked to introduce distinct skill levels for bot teachers and a system to organize "good smart" teachers from "bad dumb" teachers for footage variety and simulation fidelity.
+- **Verified:** All 3,110 assertions passed in `Run Tests.bat`. `Simulate a Term.bat` verified balance contract `0.63 C / 0.72 C / 0.97 A` unmoved. `tools/check_docs.py` validated.
+- **Left open:** Offline heuristic weight updater for director personas based on historical leaderboard results.
+
 ## 2026-10-28 — 6-bot autonomous fleet, personas, term controls, continuous career saves
 *PC · Antigravity · commits pending*
 - **Changed:** 

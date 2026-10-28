@@ -1,0 +1,29 @@
+{
+  "id": "distracted_sweeper",
+  "title": "Distracted Sweeper (Chore-Fixated)",
+  "tier": 1,
+  "skill_rating": 28,
+  "category": "novice",
+  "description": "Fixated on dust and floor messes: sweeps crumbs while students are actively stuck and waiting, rearranges desks arbitrarily, and neglects lesson instruction.",
+  "reaction_delay": 3.0,
+  "chores_first": true,
+  "use_voice": false,
+  "idle_circulate": true,
+  "chain_nearby": false,
+  "chain_radius": 2.0,
+  "max_chain_count": 0,
+  "zpd_seating": false,
+  "desk_rearrange_mode": "random",
+  "quiz_frequency_days": 6,
+  "perk_priorities": [
+    "quick_sweep",
+    "brisk_walk"
+  ],
+  "furniture_priorities": [
+    "rug",
+    "crate",
+    "pot_of_pens",
+    "stool"
+  ],
+  "min_coins_buffer": 5
+}

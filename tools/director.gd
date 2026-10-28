@@ -36,18 +36,27 @@ func _load_persona(p_id: String) -> void:
 		var json := JSON.new()
 		if json.parse(text) == OK and json.data is Dictionary:
 			persona = json.data
-			_log("persona", "loaded %s: %s" % [p_id, persona.get("title", "")])
+			_log("persona", "loaded %s (Tier %d - %s): %s" % [
+				p_id, int(persona.get("tier", 3)), persona.get("category", "proficient"), persona.get("title", "")])
 			return
 	_log("persona", "using default steady_teacher config")
 	persona = {
+		"tier": 3,
+		"skill_rating": 80,
+		"category": "proficient",
+		"reaction_delay": 0.8,
+		"chores_first": false,
+		"use_voice": true,
+		"idle_circulate": true,
 		"chain_nearby": true,
-		"chain_radius": 4.0,
-		"max_chain_count": 2,
+		"chain_radius": 3.0,
+		"max_chain_count": 1,
 		"zpd_seating": true,
+		"desk_rearrange_mode": "zpd",
 		"quiz_frequency_days": 2,
-		"perk_priorities": ["brisk_walk", "practised_marker", "calm_presence", "quick_sweep", "steady_hands"],
-		"furniture_priorities": ["bookshelf", "study_folder", "globe", "rug", "whiteboard", "clock", "floor_cushion"],
-		"min_coins_buffer": 25
+		"perk_priorities": ["quick_sweep", "brisk_walk", "calm_presence", "practised_marker", "steady_hands"],
+		"furniture_priorities": ["floor_cushion", "pot_of_pens", "paper_mobile", "stool", "backpack", "crate"],
+		"min_coins_buffer": 30
 	}
 
 
@@ -82,13 +91,64 @@ func _physics_process(_delta: float) -> void:
 		_finish()
 
 
+func _calculate_scorecard() -> Dictionary:
+	var avg: float = Game.class_average()
+	var gpa_letter: String = Game.grade_letter(avg)
+	var gpa_pts: float = clampf(avg * 40.0, 0.0, 40.0)
+	var total_frames: int = _lesson_front_frames + _lesson_walk_frames
+	var front_ratio: float = 0.5 if total_frames == 0 else clampf(float(_lesson_front_frames) / float(total_frames), 0.0, 1.0)
+	var teach_pts: float = front_ratio * 30.0
+	var milestone_pts: float = clampf(float(Game.milestones.size()) * 3.0, 0.0, 15.0)
+	var coins_pts: float = clampf(float(Game.coins) * 0.1, 0.0, 15.0)
+	var total_score: int = int(round(gpa_pts + teach_pts + milestone_pts + coins_pts))
+	var tier: int = int(persona.get("tier", 3))
+	var rating: int = int(persona.get("skill_rating", 75))
+	return {
+		"teacher": Game.teacher_name,
+		"persona": _persona_id,
+		"title": persona.get("title", ""),
+		"tier": tier,
+		"category": persona.get("category", "proficient"),
+		"baseline_rating": rating,
+		"evaluated_score": total_score,
+		"gpa_letter": gpa_letter,
+		"class_average": avg,
+		"coins": Game.coins,
+		"day": Game.day,
+		"term": Game.term,
+		"events": _events
+	}
+
+
+func _save_scorecard(card: Dictionary) -> void:
+	var path := "D:/EduSystemClips/leaderboard.json"
+	var dir_access := DirAccess.open("D:/EduSystemClips")
+	if dir_access == null:
+		path = "user://leaderboard.json"
+	var existing: Dictionary = {}
+	if FileAccess.file_exists(path):
+		var text := FileAccess.get_file_as_string(path)
+		var json := JSON.new()
+		if json.parse(text) == OK and json.data is Dictionary:
+			existing = json.data
+	existing[Game.teacher_name] = card
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(existing, "  "))
+		file.close()
+
+
 func _finish() -> void:
 	if _limit_frames < 0:
 		return
 	_limit_frames = -1
+	var card := _calculate_scorecard()
+	_save_scorecard(card)
+	_log("scorecard", "teacher=%s tier=%d rating=%d score=%d/100 gpa=%s" % [
+		Game.teacher_name, card["tier"], card["baseline_rating"], card["evaluated_score"], card["gpa_letter"]])
 	_log("end", "frames=%d events=%d coins=%d day=%d term=%d" % [_frames, _events, Game.coins, Game.day, Game.term])
-	print("DIRECTOR DONE teacher=%s day=%d term=%d frames=%d events=%d" % [
-		Game.teacher_name, Game.day, Game.term, _frames, _events])
+	print("DIRECTOR DONE teacher=%s day=%d term=%d frames=%d events=%d score=%d tier=%d" % [
+		Game.teacher_name, Game.day, Game.term, _frames, _events, card["evaluated_score"], card["tier"]])
 	get_tree().quit()
 
 
@@ -112,6 +172,19 @@ func _run(max_terms: int = 0) -> void:
 			break
 		var day: int = Game.day
 		await clear_screens()
+
+		# If a loaded save starts in the afternoon, resolve it by ringing the bell:
+		if Game.phase == Game.Phase.AFTERNOON:
+			var bell_tile: Vector2i = Layout.BELL + Vector2i(0, 1)
+			await _go(bell_tile, 400)
+			await hold("manage", 1.0)
+			var picks := 0
+			while hud.mode == hud.Mode.EXAM_PICK and picks < 8:
+				picks += 1
+				await tap("interact")
+			await clear_screens()
+			await frames(secs(0.5))
+			continue
 
 		# MORNING: the room first, then the lesson.
 		if Game.phase == Game.Phase.MORNING:
@@ -149,12 +222,17 @@ func _run(max_terms: int = 0) -> void:
 			await _clean_messes()
 			await _spend()
 			await _rearrange_desks()
-			await _go(Layout.BELL + Vector2i(0, 1))
-			await hold("manage", 0.9)
-			var picks := 0
-			while hud.mode == hud.Mode.EXAM_PICK and picks < 8:
-				picks += 1
-				await tap("interact")
+			var bell_tile: Vector2i = Layout.BELL + Vector2i(0, 1)
+			await _go(bell_tile, 400)
+			for b_try in 3:
+				if Game.phase != Game.Phase.AFTERNOON:
+					break
+				await hold("manage", 1.0)
+				var picks := 0
+				while hud.mode == hud.Mode.EXAM_PICK and picks < 8:
+					picks += 1
+					await tap("interact")
+				await frames(secs(0.5))
 		if Game.day != last_day:
 			last_day = Game.day
 			_log("day", "now day %d, coins %d, class %s" % [
@@ -184,7 +262,7 @@ func clear_screens(limit: int = 6) -> void:
 # ---------------------------------------------------------------- walking
 
 ## Walk to a tile along the room's own path, so desks and furniture do not block it.
-func _go(tile: Vector2i, limit: int = 160) -> bool:
+func _go(tile: Vector2i, limit: int = 400) -> bool:
 	var here: Vector2i = Grid.world_to_tile(player.global_position)
 	if here == tile:
 		return true
@@ -194,7 +272,7 @@ func _go(tile: Vector2i, limit: int = 160) -> bool:
 		for t: Vector2i in route:
 			if t == here:
 				continue
-			if not await walk_to(t, limit):
+			if not await walk_to(t, 120):
 				break
 	return await walk_to(tile, limit)
 
@@ -293,13 +371,16 @@ func _play_lesson() -> void:
 	_reset_lesson_tally()
 	while Game.phase == Game.Phase.LESSON and guard < 4000 and _limit_frames >= 0:
 		guard += 1
+		# Voice settlement: only teachers equipped with classroom presence use voice
 		var noisy := 0
 		for s: StudentData in Game.roster:
 			if s.seat_index >= 0 and s.disrupting:
 				noisy += 1
-		if noisy >= 2 and Game.voice > 0.0:
+		if noisy >= 2 and Game.voice > 0.0 and bool(persona.get("use_voice", true)):
 			await tap("voice")
 			_log("voice", "settled %d noisy students" % noisy)
+
+		# Answer all (mentor skill)
 		var stuck := 0
 		for s2: StudentData in Game.roster:
 			if s2.seat_index >= 0 and s2.is_struggling():
@@ -307,6 +388,13 @@ func _play_lesson() -> void:
 		if stuck >= 2 and Game.answer_all_taught and _offer("answer_all") != "-":
 			await tap("answer_all")
 			_log("help", "answered %d stuck students at once" % stuck)
+
+		# Chore fixated (Tier 1 distracted_sweeper): sweeps crumbs even while desks wait
+		if bool(persona.get("chores_first", false)) and not world.messes.is_empty():
+			await _clean_messes()
+			await _go_podium(300)
+			continue
+
 		var seat := _desk_needing_me()
 		if seat < 0:
 			if not world.messes.is_empty():
@@ -320,8 +408,28 @@ func _play_lesson() -> void:
 				quizzed = true
 				_log("quiz", "ran a quick quiz")
 			_lesson_front_frames += secs(0.5)
-			await frames(secs(0.5))
+			# Natural human idle circulation: casually pace along the front board
+			if bool(persona.get("idle_circulate", true)) and guard % 12 == 0:
+				var off_x: int = -2 if (guard % 24 == 0) else 2
+				var patrol_tile: Vector2i = Layout.PODIUM + Vector2i(off_x, 1)
+				if world.grid != null and world.grid.is_free(patrol_tile):
+					await _go(patrol_tile, 100)
+					await frames(secs(0.6))
+					await _go_podium(100)
+			else:
+				await frames(secs(0.5))
 			continue
+
+		# Human reaction delay (perception lag before heading out)
+		var delay: float = float(persona.get("reaction_delay", 0.0))
+		if delay > 0.0:
+			await frames(secs(delay))
+			if Game.phase != Game.Phase.LESSON:
+				break
+			seat = _desk_needing_me()
+			if seat < 0:
+				continue
+
 		var stand: Vector2i = Layout.seat(seat) + Layout.DESK_OFFSET + Vector2i(0, 1)
 		_lesson_trips += 1
 		var before: int = Engine.get_physics_frames()
@@ -498,23 +606,25 @@ func _shop_furniture() -> String:
 	var min_buffer: int = int(persona.get("min_coins_buffer", 25))
 	var cats: Array = Items.categories()
 
-	# First pass: look for preferred high-impact items
-	for pref_id: String in preferred:
-		if _bought.has(pref_id):
-			continue
-		for c in cats.size():
-			var rows: Array = hud._shop_rows()
-			if rows.has(pref_id):
-				var p: int = Game.shop_price(pref_id)
-				if Game.coins >= p + min_buffer:
-					var before: int = Game.coins
-					if await _shop_pick(pref_id):
-						await tap("interact")
-					if Game.coins < before:
-						_bought[pref_id] = int(_bought.get(pref_id, 0)) + 1
-						_log("buy", "bought %s for %d coins (preferred)" % [pref_id, before - Game.coins])
-						return pref_id
-			await tap("move_right")
+	# First pass: look for preferred high-impact items (Tier 2+ only; Tier 1 novice buys cheapest)
+	var is_novice: bool = int(persona.get("tier", 3)) <= 1
+	if not is_novice:
+		for pref_id: String in preferred:
+			if _bought.has(pref_id):
+				continue
+			for c in cats.size():
+				var rows: Array = hud._shop_rows()
+				if rows.has(pref_id):
+					var p: int = Game.shop_price(pref_id)
+					if Game.coins >= p + min_buffer:
+						var before: int = Game.coins
+						if await _shop_pick(pref_id):
+							await tap("interact")
+						if Game.coins < before:
+							_bought[pref_id] = int(_bought.get(pref_id, 0)) + 1
+							_log("buy", "bought %s for %d coins (preferred)" % [pref_id, before - Game.coins])
+							return pref_id
+				await tap("move_right")
 
 	# Fallback: cheapest affordable item
 	for c in cats.size():
@@ -625,7 +735,11 @@ func _wall_gap(t: Vector2i) -> int:
 func _rearrange_desks() -> void:
 	if Game.day < 3 or Game.day % 3 != 0:
 		return
-	var use_zpd: bool = bool(persona.get("zpd_seating", true))
+	var mode: String = String(persona.get("desk_rearrange_mode", "zpd"))
+	if mode == "none":
+		_log("desks", "desk rearrangement skipped (mode=none)")
+		return
+	var use_zpd: bool = (mode == "zpd" or mode == "pods") and bool(persona.get("zpd_seating", true))
 	var pick: StudentData = null
 	var tutor: StudentData = null
 
@@ -644,6 +758,14 @@ func _rearrange_desks() -> void:
 								break
 				if pick != null:
 					break
+
+	if pick == null and mode == "random":
+		var seated: Array[StudentData] = []
+		for s_rand: StudentData in Game.roster:
+			if s_rand.seat_index >= 0:
+				seated.append(s_rand)
+		if not seated.is_empty():
+			pick = seated[randi() % seated.size()]
 
 	if pick == null:
 		# Fallback: candidate farthest from the podium

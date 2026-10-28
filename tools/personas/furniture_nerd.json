@@ -1,7 +1,14 @@
 {
   "id": "furniture_nerd",
   "title": "Classroom Makeover Designer",
-  "description": "Interior designer teacher: aggressively decorates the room with bookshelves, reading rugs, plants, lamps, wall charts, and transforms desk orientations into collaborative pods and creative clusters.",
+  "tier": 3,
+  "skill_rating": 82,
+  "category": "proficient",
+  "description": "Interior designer teacher: aggressively decorates the room with bookshelves, reading rugs, plants, lamps, wall charts, and transforms desk orientations into collaborative pods.",
+  "reaction_delay": 0.9,
+  "chores_first": false,
+  "use_voice": true,
+  "idle_circulate": true,
   "aggro_decor": true,
   "max_furniture_per_day": 2,
   "min_coins_buffer": 10,
@@ -9,6 +16,7 @@
   "chain_radius": 4.0,
   "max_chain_count": 2,
   "zpd_seating": true,
+  "desk_rearrange_mode": "pods",
   "quiz_frequency_days": 3,
   "perk_priorities": [
     "thrifty",
