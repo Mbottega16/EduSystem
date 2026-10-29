@@ -198,6 +198,20 @@ elif handoff.group(1) != history_heads[0]:
                  "is %s: move the handoff into HISTORY.md and rewrite it"
                  % (handoff.group(1), history_heads[0]))
 
+# ---- 9. AGENTS.md and GEMINI.md are pointers, never copies ----
+#
+# CLAUDE.md is the one rulebook. AGENTS.md and GEMINI.md exist only because
+# other agents look for those filenames, and a full copy in either one drifted
+# away from CLAUDE.md. Each must be exactly this one line, so any rule added to
+# either file fails here instead of quietly forking the rulebook.
+POINTER = ("See [`CLAUDE.md`](CLAUDE.md) — the one rulebook for this project. "
+           "Gemini relay protocol: `docs/relay/PROTOCOL.md`.")
+for rel in ["AGENTS.md", "GEMINI.md"]:
+    checks += 1
+    if read(rel).strip() != POINTER:
+        fails.append("%s must hold only the one-line pointer to CLAUDE.md; "
+                     "put rules in CLAUDE.md, not here" % rel)
+
 # ---- report ----
 print("checks run: %d" % checks)
 if fails:
