@@ -24,7 +24,16 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
----
+## 2026-10-29 — Canva classroom art generator, master prompt catalog, and asset ingestion pipeline
+*PC · Antigravity · commits pending*
+- **Changed:**
+  1. Interactive Visual Generator (`tools/canva_art_generator.html`, `Open Canva Art Generator.bat`): Zero-dependency single-file HTML app with stage/subject filters, real-time search, 1-click clipboard prompt copy, universal negative prompt, and Canva Bulk Create CSV export.
+  2. Single Master Prompt Catalog (`tools/CANVA_CLASSROOM_PROMPTS.md`): Complete prompt catalog defining 26 authentic classroom items across 4 school stages (elementary, middle, high, college) and 5 core subjects (science, math, literacy, social studies, arts/tech), specifying dimensions, categories, and passable underlay vs solid collision. Mirrored to vault `projects/edusystem/canva-classroom-prompts.md`.
+  3. Canva Pipeline Engine (`tools/canva_art_pipeline.py`, `Import Canva Art.bat`): Automation script providing prompt export to CSV/Markdown, watching `shots/canva_imports/` for downloaded Canva PNGs, and automatically conforming them via `tools/lz_conform.py` (stripping magenta `#FF00FF`, quantizing to 192-color `limezu_palette.json`, keylining `#3a3a50`, and scaling to 2x for Godot).
+  4. Classroom Art Specification (`docs/CLASSROOM_ART_SPEC.md`): Structural spec for authentic classroom environments, underlay rug layering without collision, and subject zone bonuses.
+- **Why:** The owner noted that current classrooms look like scattered pillows and stools rather than authentic classrooms, and requested a unified single-file art generator optimized for Canva to generate the missing age-differentiated items.
+- **Verified:** All 3,121 assertions passed in `Run Tests.bat 1`. `python tools/check_docs.py` validated (322 checks green). `Simulate a Term.bat` verified balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Left open:** User generating/importing new Canva PNGs and implementing floor underlay collision logic in Godot (`placement.gd`/`layout.gd`).
 
 ## 2026-10-29 — Fleet telemetry data pipeline, continuous learning loop, and evolved teacher persona
 *PC · Antigravity · commits pending*

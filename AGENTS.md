@@ -192,10 +192,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-29, the owner's ask): Fleet telemetry pipeline, continuous learning loop, and evolved teacher persona.**
-  Built persistent telemetry gathering pipeline in `telemetry/runs.jsonl` tracking podium lecture ratio, frames, unstuck helps, messes, voice calls, quizzes, and active persona parameters. Created `tools/persona_optimizer.py` and `Optimize Personas.bat` to ingest historical logs, compute Pearson correlations with GPA/efficiency outcomes, isolate elite runs, and genetically evolve `tools/personas/evolved_teacher.json` (Tier 4 / Adaptive). Backfilled all 1,288 empirical overnight bot logs from `D:/EduSystemClips`, revealing a +56.7% day-over-day score improvement (25.4/100 -> 39.8/100) and +0.83 GPA jump. Wired automatic telemetry emission and `--roster adaptive` into `projects/edusystem/promo/run_6_screens.py` and `Launch 6 Bots.bat`.
-- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Last Worked On (2026-10-29, the owner's ask): Canva classroom art generator, master prompt catalog, and asset ingestion pipeline.**
+  Built standalone visual prompt generator (`tools/canva_art_generator.html`, `Open Canva Art Generator.bat`) with 1-click clipboard prompt copying, stage/subject filtering, search, and Canva Bulk Create CSV export. Defined 26 authentic classroom items across 4 school stages (elementary, middle, high, college) and 5 core subjects in `tools/CANVA_CLASSROOM_PROMPTS.md` (mirrored to vault `projects/edusystem/canva-classroom-prompts.md`). Built Python automation pipeline (`tools/canva_art_pipeline.py`, `Import Canva Art.bat`) watching `shots/canva_imports/` to conform Canva PNGs into 16-bit LimeZu sprites via `lz_conform.py` (magenta removal, 192-color quantization, #3a3a50 slate keyline, 2x scale). Drafted `docs/CLASSROOM_ART_SPEC.md` for underlay rug layering and subject zone bonuses.
+- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections, docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
-  1. Launch 6-bot adaptive fleet (`Launch 6 Bots.bat` option 5) to test `evolved_teacher` (Gen 2) live in multi-screen play.
-  2. Accumulate multi-day telemetry database to track Gen-over-Gen fitness progression.
-  3. Explore boss term automation for higher grade wings.
+  1. Generate item images in Canva using `Open Canva Art Generator.bat` and drop downloaded PNGs into `shots/canva_imports/`.
+  2. Double-click `Import Canva Art.bat` to conform into `art/` with LimeZu palette and #3a3a50 outlines.
+  3. Implement floor underlay layering logic in Godot (`placement.gd` / `layout.gd`) allowing furniture stacking on rugs without collision blocking.
