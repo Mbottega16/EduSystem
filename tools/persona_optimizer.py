@@ -402,10 +402,16 @@ def analyze_telemetry(runs):
     # Chores_first boolean impact
     cf_true_scores = [r.get("evaluated_score", 0) for r in runs if r.get("persona_params", {}).get("chores_first") is True]
     cf_false_scores = [r.get("evaluated_score", 0) for r in runs if r.get("persona_params", {}).get("chores_first") is False]
+    # An empty group has no average: None, never 0, so the report cannot print a score that was never measured.
+    # The delta is taken from the 1dp values the report prints, so the printed line always matches the printed scores.
+    chores_first_avg = round(sum(cf_true_scores) / len(cf_true_scores), 1) if cf_true_scores else None
+    teaching_first_avg = round(sum(cf_false_scores) / len(cf_false_scores), 1) if cf_false_scores else None
     chores_impact = {
-        "chores_first_avg": (sum(cf_true_scores) / len(cf_true_scores)) if cf_true_scores else 0,
-        "teaching_first_avg": (sum(cf_false_scores) / len(cf_false_scores)) if cf_false_scores else 0,
-        "delta": ((sum(cf_false_scores) / len(cf_false_scores)) - (sum(cf_true_scores) / len(cf_true_scores))) if (cf_true_scores and cf_false_scores) else 0
+        "chores_first_runs": len(cf_true_scores),
+        "teaching_first_runs": len(cf_false_scores),
+        "chores_first_avg": chores_first_avg,
+        "teaching_first_avg": teaching_first_avg,
+        "delta": round(teaching_first_avg - chores_first_avg, 1) if (chores_first_avg is not None and teaching_first_avg is not None) else None
     }
 
     # Top furniture items bought across high-scoring runs
@@ -578,7 +584,11 @@ def generate_report(analysis, evolved_data=None, out_file=None):
         lines.append(f"| `{k}` | `{v['r']:+.3f}` | **{v['interpretation']}** | {recs.get(k, 'Refine dynamically')} |")
 
     chores = analysis.get("chores_impact", {})
-    lines.append(f"\n> [!IMPORTANT]\n> **Chore Fixation Penalty:** Teachers with `chores_first=False` average **{chores.get('teaching_first_avg', 0):.1f} pts** vs **{chores.get('chores_first_avg', 0):.1f} pts** for `chores_first=True` (a **+{chores.get('delta', 0):.1f} pt advantage**). Addressing stuck desks must always take precedence over floor sweeping.")
+    if chores.get("delta") is None:
+        # One side has no runs, so there is nothing to compare: say so instead of printing an unmeasured 0.0.
+        lines.append(f"\n> [!IMPORTANT]\n> **Chore Fixation Penalty:** No comparison yet. {chores.get('teaching_first_runs', 0)} runs with `chores_first=False` and {chores.get('chores_first_runs', 0)} runs with `chores_first=True`, so neither the teaching-first nor the chores-first average can be compared. Addressing stuck desks must always take precedence over floor sweeping.")
+    else:
+        lines.append(f"\n> [!IMPORTANT]\n> **Chore Fixation Penalty:** Teachers with `chores_first=False` average **{chores['teaching_first_avg']:.1f} pts** vs **{chores['chores_first_avg']:.1f} pts** for `chores_first=True` (a **{chores['delta']:+.1f} pt gap**, teaching-first minus chores-first). Addressing stuck desks must always take precedence over floor sweeping.")
 
     # Evolved Persona Summary
     if evolved_data:

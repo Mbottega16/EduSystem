@@ -1,6 +1,6 @@
 # EduSystem Autonomous Bot Fleet Telemetry & Learning Report
 
-*Generated: 2026-10-29 08:00:44* | Total Runs Analyzed: **1288**
+*Generated: 2026-10-29 12:03:07* | Total Runs Analyzed: **1288**
 
 ---
 
@@ -27,16 +27,4 @@
 | `min_coins_buffer` | `-0.545` | **Strong Negative (-)** | Maintain 20-30 coins; ensures liquidity while investing in high-aura room decor. |
 
 > [!IMPORTANT]
-> **Chore Fixation Penalty:** Teachers with `chores_first=False` average **35.6 pts** vs **0.0 pts** for `chores_first=True` (a **+0.0 pt advantage**). Addressing stuck desks must always take precedence over floor sweeping.
-
-## 4. Newly Evolved Persona: `evolved_teacher` (Generation 2)
-- **Title:** Evolved Adaptive Pedagogy (Gen 2)
-- **Tier:** Tier 4 (master) | Skill Rating: 92/100
-- **Trained On:** 1288 real empirical bot sessions
-- **Optimized Dial Settings:**
-  - `reaction_delay`: `0.3s`
-  - `chain_radius`: `4.21 tiles` (max chain: `1`)
-  - `quiz_frequency_days`: every `2` days
-  - `min_coins_buffer`: `20 coins`
-  - `desk_rearrange_mode`: `zpd`
-  - `furniture_priorities`: `pot_of_pens, floor_cushion, plant, paper_mobile, wall_clock`
+> **Chore Fixation Penalty:** No comparison yet. 1288 runs with `chores_first=False` and 0 runs with `chores_first=True`, so neither the teaching-first nor the chores-first average can be compared. Addressing stuck desks must always take precedence over floor sweeping.
