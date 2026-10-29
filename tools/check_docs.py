@@ -176,6 +176,28 @@ for rel in re.findall(r"`(docs/[A-Za-z_\-]+\.md)`", claude):
 for name in ["GDD.md", "BRIEFING.md", "TASK_PACK.md", "SALVAGE.md"]:
     present("CLAUDE.md file map", name, claude)
 
+# ---- 8. the session handoff was rotated into HISTORY ----
+#
+# CLAUDE.md's Session Handoff is overwritten at the end of every session, and
+# the previous one is moved to the top of HISTORY.md first. A handoff whose
+# date is not the newest HISTORY entry means that move was skipped (or the
+# handoff was never rewritten), so the two would disagree about what happened
+# last. HISTORY is newest first, so the first dated heading is the newest.
+# The template heading "## YYYY-MM-DD" is skipped because it has no digits.
+handoff = re.search(r"Last Worked On \((\d{4}-\d{2}-\d{2})", claude)
+history_heads = re.findall(r"^## (\d{4}-\d{2}-\d{2}) — ",
+                           read("HISTORY.md"), re.MULTILINE)
+checks += 1
+if not handoff:
+    fails.append("CLAUDE.md Session Handoff has no 'Last Worked On (YYYY-MM-DD'"
+                 " date to check")
+elif not history_heads:
+    fails.append("HISTORY.md has no dated '## YYYY-MM-DD — ' entry")
+elif handoff.group(1) != history_heads[0]:
+    fails.append("CLAUDE.md handoff is dated %s but the newest HISTORY.md entry "
+                 "is %s: move the handoff into HISTORY.md and rewrite it"
+                 % (handoff.group(1), history_heads[0]))
+
 # ---- report ----
 print("checks run: %d" % checks)
 if fails:
