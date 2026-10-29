@@ -444,6 +444,7 @@ re-scraped so the citations stay the verified ones.
 
 ```
 Run Tests.bat            3121 assertions
+tools/run_tests_guarded.sh   Mac/Linux: auto-import check, then the suite, each killed at a timeout (exit 2 = hung)
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
 Open in Godot Editor.bat
