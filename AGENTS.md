@@ -192,10 +192,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-29, the owner's ask): Canva classroom art generator, master prompt catalog, and asset ingestion pipeline.**
-  Built standalone visual prompt generator (`tools/canva_art_generator.html`, `Open Canva Art Generator.bat`) with 1-click clipboard prompt copying, stage/subject filtering, search, and Canva Bulk Create CSV export. Defined 26 authentic classroom items across 4 school stages (elementary, middle, high, college) and 5 core subjects in `tools/CANVA_CLASSROOM_PROMPTS.md` (mirrored to vault `projects/edusystem/canva-classroom-prompts.md`). Built Python automation pipeline (`tools/canva_art_pipeline.py`, `Import Canva Art.bat`) watching `shots/canva_imports/` to conform Canva PNGs into 16-bit LimeZu sprites via `lz_conform.py` (magenta removal, 192-color quantization, #3a3a50 slate keyline, 2x scale). Drafted `docs/CLASSROOM_ART_SPEC.md` for underlay rug layering and subject zone bonuses.
-- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections, docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Last Worked On (2026-10-29, the owner's ask): Canva art pipeline & 8 generated and conformed classroom sprites.**
+  Generated and conformed 8 authentic classroom sprites across school stages and subjects into `art/`: `rug_alphabet_circle.png` (48x48), `reading_rocking_chair.png` (16x24), `picture_book_ledge.png` (32x24), `art_splat_mat.png` (32x32), `counting_bears_tray.png` (16x16), `middle_science_bench.png` (32x20), `topographical_globe.png` (16x20), and `chem_lab_bench.png` (32x24). Upgraded `tools/canva_art_pipeline.py` with BFS corner flood-fill background removal to strip compression artifacts before `lz_conform.py` quantizes to 192-color `limezu_palette.json` and keylines with `#3a3a50`. Registered all 8 sprites in `scripts/data/items.gd` (`CLASSROOM_ART`).
+- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections (all curator checks green), docs 323/323 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
-  1. Generate item images in Canva using `Open Canva Art Generator.bat` and drop downloaded PNGs into `shots/canva_imports/`.
-  2. Double-click `Import Canva Art.bat` to conform into `art/` with LimeZu palette and #3a3a50 outlines.
-  3. Implement floor underlay layering logic in Godot (`placement.gd` / `layout.gd`) allowing furniture stacking on rugs without collision blocking.
+  1. Implement floor underlay layering logic in Godot (`placement.gd` / `layout.gd`) allowing furniture stacking on rugs (`layer: "underlay"`) without collision blocking.
+  2. Wire the 8 new sprites into `data/balance.json` with stage/subject zone synergies once floor underlay logic is active.
+  3. Generate and conform remaining stage items when quota resets.

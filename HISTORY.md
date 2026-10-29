@@ -24,16 +24,25 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
-## 2026-10-29 — Canva classroom art generator, master prompt catalog, and asset ingestion pipeline
+## 2026-10-29 — Canva classroom art generator, master prompt catalog, and 8 conformed sprites
 *PC · Antigravity · commits pending*
 - **Changed:**
   1. Interactive Visual Generator (`tools/canva_art_generator.html`, `Open Canva Art Generator.bat`): Zero-dependency single-file HTML app with stage/subject filters, real-time search, 1-click clipboard prompt copy, universal negative prompt, and Canva Bulk Create CSV export.
-  2. Single Master Prompt Catalog (`tools/CANVA_CLASSROOM_PROMPTS.md`): Complete prompt catalog defining 26 authentic classroom items across 4 school stages (elementary, middle, high, college) and 5 core subjects (science, math, literacy, social studies, arts/tech), specifying dimensions, categories, and passable underlay vs solid collision. Mirrored to vault `projects/edusystem/canva-classroom-prompts.md`.
-  3. Canva Pipeline Engine (`tools/canva_art_pipeline.py`, `Import Canva Art.bat`): Automation script providing prompt export to CSV/Markdown, watching `shots/canva_imports/` for downloaded Canva PNGs, and automatically conforming them via `tools/lz_conform.py` (stripping magenta `#FF00FF`, quantizing to 192-color `limezu_palette.json`, keylining `#3a3a50`, and scaling to 2x for Godot).
-  4. Classroom Art Specification (`docs/CLASSROOM_ART_SPEC.md`): Structural spec for authentic classroom environments, underlay rug layering without collision, and subject zone bonuses.
-- **Why:** The owner noted that current classrooms look like scattered pillows and stools rather than authentic classrooms, and requested a unified single-file art generator optimized for Canva to generate the missing age-differentiated items.
-- **Verified:** All 3,121 assertions passed in `Run Tests.bat 1`. `python tools/check_docs.py` validated (322 checks green). `Simulate a Term.bat` verified balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
-- **Left open:** User generating/importing new Canva PNGs and implementing floor underlay collision logic in Godot (`placement.gd`/`layout.gd`).
+  2. Single Master Prompt Catalog (`tools/CANVA_CLASSROOM_PROMPTS.md`): Complete prompt catalog defining 26 authentic classroom items across 4 school stages and 5 core subjects. Mirrored to vault `projects/edusystem/canva-classroom-prompts.md`.
+  3. Canva Pipeline Engine (`tools/canva_art_pipeline.py`, `Import Canva Art.bat`): Added BFS corner flood-fill magenta background removal to eliminate JPEG compression artifacts before calling `lz_conform.py` (quantizing to 192-color `limezu_palette.json`, keylining `#3a3a50`, and scaling to 2x for Godot).
+  4. 8 Generated & Conformed Classroom Sprites (`art/`): Generated and installed 8 authentic classroom sprites across school stages and subjects:
+     - `rug_alphabet_circle.png` (48x48) — Circular alphabet storytime reading rug with smiling sun (Structure/Comfort, Underlay)
+     - `reading_rocking_chair.png` (16x24) — Warm oak teacher's rocking chair with red cushion (Elementary Literacy)
+     - `picture_book_ledge.png` (32x24) — Front-facing book ledge with illustrated children's covers (Elementary Literacy)
+     - `art_splat_mat.png` (32x32) — Vinyl paint splat mat floor underlay (Elementary Arts & Tech)
+     - `counting_bears_tray.png` (16x16) — 4-compartment sorting tray with miniature colored bears (Elementary Math)
+     - `middle_science_bench.png` (32x20) — Lab workstation with compound microscope & specimen jars (Middle Science)
+     - `topographical_globe.png` (16x20) — Desk globe on ornate bronze meridian stand (Middle Social Studies)
+     - `chem_lab_bench.png` (32x24) — Heavy chemical lab station with Bunsen burner & glassware (High Science)
+  5. Asset Tracking (`scripts/data/items.gd`): Added `CLASSROOM_ART` array to register all newly imported sprites with the Godot curator scanner.
+- **Why:** The owner asked to run the generation directly rather than generating them manually in Canva.
+- **Verified:** All 3,121 assertions passed in `Run Tests.bat 1` (`nothing on disk is left unexplained` clean). `python tools/check_docs.py` validated (323 checks green). Balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Left open:** Wiring newly conformed items into `data/balance.json` alongside underlay rug layering logic.
 
 ## 2026-10-29 — Fleet telemetry data pipeline, continuous learning loop, and evolved teacher persona
 *PC · Antigravity · commits pending*

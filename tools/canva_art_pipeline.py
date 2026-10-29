@@ -418,6 +418,49 @@ def export_md(out_path):
     print(f"Exported {len(ITEMS)} Canva prompts to Markdown: {out_path}")
 
 
+def strip_magenta(img_path):
+    """Clean near-magenta/purple background (#FF00FF) caused by AI generators or JPEG compression."""
+    from PIL import Image
+    from collections import deque
+    try:
+        im = Image.open(img_path).convert("RGBA")
+        px = im.load()
+        w, h = im.size
+        changed = False
+
+        # 1. Flood fill from the four corners for contiguous background
+        q = deque([(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)])
+        visited = set(q)
+        while q:
+            cx, cy = q.popleft()
+            px[cx, cy] = (0, 0, 0, 0)
+            changed = True
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                    nr, ng, nb, na = px[nx, ny]
+                    # Check for magenta/purple/pink background tones with compression tolerance
+                    if (nr > 130 and ng < 125 and nb > 100) or (nr > 175 and ng < 85 and nb > 175):
+                        visited.add((nx, ny))
+                        q.append((nx, ny))
+
+        # 2. Sweep any remaining stray high-magenta isolated pixels
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a > 0 and r > 180 and g < 75 and b > 180:
+                    px[x, y] = (0, 0, 0, 0)
+                    changed = True
+
+        if changed:
+            clean_path = img_path.replace(".png", "_clean.png")
+            im.save(clean_path, "PNG")
+            return clean_path
+    except Exception as e:
+        print(f"Warning: Magenta strip failed on {img_path}: {e}")
+    return img_path
+
+
 def import_canva_images(import_dir=CANVA_IMPORT_DIR):
     """Scan import_dir for downloaded Canva PNGs, run lz_conform.py, and place into art/."""
     os.makedirs(import_dir, exist_ok=True)
@@ -432,6 +475,8 @@ def import_canva_images(import_dir=CANVA_IMPORT_DIR):
     conformed_count = 0
 
     for fpath in files:
+        if fpath.endswith("_clean.png"):
+            continue
         base = os.path.splitext(os.path.basename(fpath))[0]
         # Match base filename to item id
         it = item_map.get(base)
@@ -450,9 +495,10 @@ def import_canva_images(import_dir=CANVA_IMPORT_DIR):
         grid = it["grid"]
 
         print(f"Conforming [{it['id']}] ({grid}) -> art/{it['id']}.png...")
+        source_path = strip_magenta(fpath)
         cmd = [
             sys.executable, lz_conform,
-            fpath, target_png,
+            source_path, target_png,
             "--grid", grid,
             "--x2"
         ]

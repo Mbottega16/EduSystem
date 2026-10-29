@@ -7,6 +7,18 @@ extends RefCounted
 ## Effects are RANGE-BASED from the item's own tile, not a room-wide
 ## checklist. That is what makes *where* you put a bookshelf matter.
 
+## Classroom theme items (authentic stage and subject art)
+const CLASSROOM_ART := [
+	"res://art/rug_alphabet_circle.png",
+	"res://art/reading_rocking_chair.png",
+	"res://art/picture_book_ledge.png",
+	"res://art/art_splat_mat.png",
+	"res://art/counting_bears_tray.png",
+	"res://art/middle_science_bench.png",
+	"res://art/topographical_globe.png",
+	"res://art/chem_lab_bench.png",
+]
+
 
 static func catalogue() -> Dictionary:
 	Balance.ensure_loaded()
