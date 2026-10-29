@@ -24,6 +24,13 @@ var _mentor_done := false
 var _mentor_tries := 0
 var _bad_spots: Dictionary = {}        # tiles the bot gave up on (a mess it cannot clear)
 var _stuck_days := 0
+var _total_helps := 0
+var _total_messes := 0
+var _total_voice := 0
+var _total_quizzes := 0
+var _total_buys := 0
+var _total_desks := 0
+var _bought_items: Array = []
 var persona: Dictionary = {}
 var _persona_id: String = "pedagogy_master"
 
@@ -116,15 +123,41 @@ func _calculate_scorecard() -> Dictionary:
 		"coins": Game.coins,
 		"day": Game.day,
 		"term": Game.term,
-		"events": _events
+		"events": _events,
+		"front_ratio": front_ratio,
+		"front_frames": _lesson_front_frames,
+		"walk_frames": _lesson_walk_frames,
+		"helps_count": _total_helps,
+		"messes_cleared": _total_messes,
+		"voice_calls": _total_voice,
+		"quizzes_run": _total_quizzes,
+		"furniture_bought": _bought_items.duplicate(),
+		"furniture_count": _bought_items.size(),
+		"desks_moved": _total_desks,
+		"milestones_count": Game.milestones.size(),
+		"persona_params": {
+			"reaction_delay": float(persona.get("reaction_delay", 0.5)),
+			"chores_first": bool(persona.get("chores_first", false)),
+			"use_voice": bool(persona.get("use_voice", true)),
+			"idle_circulate": bool(persona.get("idle_circulate", true)),
+			"chain_nearby": bool(persona.get("chain_nearby", true)),
+			"chain_radius": float(persona.get("chain_radius", 4.0)),
+			"max_chain_count": int(persona.get("max_chain_count", 2)),
+			"zpd_seating": bool(persona.get("zpd_seating", true)),
+			"desk_rearrange_mode": str(persona.get("desk_rearrange_mode", "zpd")),
+			"quiz_frequency_days": int(persona.get("quiz_frequency_days", 2)),
+			"min_coins_buffer": int(persona.get("min_coins_buffer", 30))
+		}
 	}
 
 
 func _save_scorecard(card: Dictionary) -> void:
 	var path := "D:/EduSystemClips/leaderboard.json"
+	var telem_dir := "D:/EduSystemClips/telemetry"
 	var dir_access := DirAccess.open("D:/EduSystemClips")
 	if dir_access == null:
 		path = "user://leaderboard.json"
+		telem_dir = "user://telemetry"
 	var existing: Dictionary = {}
 	if FileAccess.file_exists(path):
 		var text := FileAccess.get_file_as_string(path)
@@ -136,6 +169,18 @@ func _save_scorecard(card: Dictionary) -> void:
 	if file != null:
 		file.store_string(JSON.stringify(existing, "  "))
 		file.close()
+
+	# Append structured telemetry record
+	DirAccess.make_dir_recursive_absolute(telem_dir)
+	var telem_path := telem_dir + "/runs.jsonl"
+	var tfile := FileAccess.open(telem_path, FileAccess.READ_WRITE if FileAccess.file_exists(telem_path) else FileAccess.WRITE)
+	if tfile != null:
+		tfile.seek_end()
+		var run_record := card.duplicate()
+		run_record["timestamp"] = Time.get_datetime_string_from_system()
+		run_record["date"] = run_record["timestamp"].substr(0, 10)
+		tfile.store_line(JSON.stringify(run_record))
+		tfile.close()
 
 
 func _finish() -> void:
@@ -353,6 +398,7 @@ func _clean_messes() -> void:
 				break
 			await tap("interact")
 		if world.messes.size() < before:
+			_total_messes += 1
 			_log("mess", "swept the mess at %s (%d left)" % [at, world.messes.size()])
 		else:
 			_log("mess", "the mess at %s would not clear (stood at %s, E=[%s])" % [
@@ -378,6 +424,7 @@ func _play_lesson() -> void:
 				noisy += 1
 		if noisy >= 2 and Game.voice > 0.0 and bool(persona.get("use_voice", true)):
 			await tap("voice")
+			_total_voice += 1
 			_log("voice", "settled %d noisy students" % noisy)
 
 		# Answer all (mentor skill)
@@ -387,6 +434,7 @@ func _play_lesson() -> void:
 				stuck += 1
 		if stuck >= 2 and Game.answer_all_taught and _offer("answer_all") != "-":
 			await tap("answer_all")
+			_total_helps += stuck
 			_log("help", "answered %d stuck students at once" % stuck)
 
 		# Chore fixated (Tier 1 distracted_sweeper): sweeps crumbs even while desks wait
@@ -406,6 +454,7 @@ func _play_lesson() -> void:
 			if not quizzed and allow_quiz and guard > 6 and _offer("quiz") != "-":
 				await tap("quiz")
 				quizzed = true
+				_total_quizzes += 1
 				_log("quiz", "ran a quick quiz")
 			_lesson_front_frames += secs(0.5)
 			# Natural human idle circulation: casually pace along the front board
@@ -439,6 +488,7 @@ func _play_lesson() -> void:
 			continue
 		await tap("interact")
 		_lesson_helped += 1
+		_total_helps += 1
 
 		# Chain nearby students needing help before commuting back to the podium
 		if bool(persona.get("chain_nearby", true)):
@@ -454,6 +504,7 @@ func _play_lesson() -> void:
 					break
 				await tap("interact")
 				_lesson_helped += 1
+				_total_helps += 1
 				chains += 1
 				seat = next_seat
 
@@ -622,6 +673,8 @@ func _shop_furniture() -> String:
 							await tap("interact")
 						if Game.coins < before:
 							_bought[pref_id] = int(_bought.get(pref_id, 0)) + 1
+							_total_buys += 1
+							_bought_items.append(pref_id)
 							_log("buy", "bought %s for %d coins (preferred)" % [pref_id, before - Game.coins])
 							return pref_id
 				await tap("move_right")
@@ -644,6 +697,8 @@ func _shop_furniture() -> String:
 				await tap("interact")
 			if Game.coins < before:
 				_bought[pick] = int(_bought.get(pick, 0)) + 1
+				_total_buys += 1
+				_bought_items.append(pick)
 				_log("buy", "bought %s for %d coins" % [pick, before - Game.coins])
 				return pick
 		await tap("move_right")     # next category
@@ -838,6 +893,7 @@ func _rearrange_desks() -> void:
 		if pl.tile == spot and pl.is_valid():
 			await tap("interact")
 			await frames(4)
+			_total_desks += 1
 			_log("desks", "moved %s's desk from %s to %s (target=%s)" % [
 				pick.display_name, start, spot, tutor.first_name() if tutor != null else "podium"])
 			return

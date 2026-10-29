@@ -97,7 +97,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3110 assertions, 147 sections |
+| `tests/run.gd` | The suite — 3121 assertions, 148 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -125,7 +125,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3110 assertions — must pass, count must not drop
+Run Tests.bat            3121 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -192,10 +192,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-28, the owner's ask): Teacher skill tiers, dumb/smart persona spectrum, fleet evaluation leaderboard.**
-  Defined 4-tier skill hierarchy in `tools/personas/persona_schema.json` with distinct behavioral dials (`reaction_delay`, `chores_first`, `use_voice`, `idle_circulate`, `desk_rearrange_mode`). Added Tier 1 novice/dumb personas (`clueless_sub.json`, `distracted_sweeper.json`) and Tier 2 (`strict_lecturer.json`), alongside upgraded Tier 3 (`steady_teacher.json`, `furniture_nerd.json`) and Tier 4 (`pedagogy_master.json`). Wired human reaction delay, chore distraction priority, voice gating, and idle front circulation into `tools/director.gd`. Implemented automated scorecard calculation and fleet rankings saved to `D:/EduSystemClips/leaderboard.json` (or `user://leaderboard.json`). Added `--roster` preset selector (`diverse`, `smart`, `dumb`, `classic`) to `run_6_screens.py` and `Launch 6 Bots.bat`.
-- **Current State (2026-10-28):** suite green at **3110 assertions** in 147 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Last Worked On (2026-10-29, the owner's ask): Fleet telemetry pipeline, continuous learning loop, and evolved teacher persona.**
+  Built persistent telemetry gathering pipeline in `telemetry/runs.jsonl` tracking podium lecture ratio, frames, unstuck helps, messes, voice calls, quizzes, and active persona parameters. Created `tools/persona_optimizer.py` and `Optimize Personas.bat` to ingest historical logs, compute Pearson correlations with GPA/efficiency outcomes, isolate elite runs, and genetically evolve `tools/personas/evolved_teacher.json` (Tier 4 / Adaptive). Backfilled all 1,288 empirical overnight bot logs from `D:/EduSystemClips`, revealing a +56.7% day-over-day score improvement (25.4/100 -> 39.8/100) and +0.83 GPA jump. Wired automatic telemetry emission and `--roster adaptive` into `projects/edusystem/promo/run_6_screens.py` and `Launch 6 Bots.bat`.
+- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
-  1. Run diverse fleet across multiple terms to accumulate rich multi-tier leaderboard data and comparative promotional clips.
-  2. Implement an automated offline Q-learning or heuristic weight updater for director personas based on leaderboard metrics.
+  1. Launch 6-bot adaptive fleet (`Launch 6 Bots.bat` option 5) to test `evolved_teacher` (Gen 2) live in multi-screen play.
+  2. Accumulate multi-day telemetry database to track Gen-over-Gen fitness progression.
   3. Explore boss term automation for higher grade wings.

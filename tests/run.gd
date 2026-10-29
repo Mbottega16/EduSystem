@@ -16937,7 +16937,8 @@ func test_walkthrough() -> void:
 		FileAccess.file_exists("res://tools/personas/persona_schema.json"))
 	var personas_tested := [
 		"pedagogy_master", "steady_teacher", "furniture_nerd",
-		"strict_lecturer", "clueless_sub", "distracted_sweeper"
+		"strict_lecturer", "clueless_sub", "distracted_sweeper",
+		"evolved_teacher"
 	]
 	for p_id: String in personas_tested:
 		var p_path := "res://tools/personas/%s.json" % p_id
@@ -16961,3 +16962,19 @@ func test_walkthrough() -> void:
 	var p_sweeper: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/personas/distracted_sweeper.json"))
 	chk("distracted_sweeper is chore-fixated (chores_first=true)",
 		bool(p_sweeper.get("chores_first", false)) == true)
+	var p_evolved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tools/personas/evolved_teacher.json"))
+	chk("evolved_teacher is Tier 4 Master with evolutionary generation tracking",
+		int(p_evolved.get("tier", 0)) == 4 and int(p_evolved.get("generation", 0)) >= 1)
+	chk("evolved_teacher defines empirical training count",
+		int(p_evolved.get("run_count_trained_on", -1)) >= 0)
+
+	section("FLEET TELEMETRY & ADAPTIVE OPTIMIZATION")
+	chk("persona optimizer script exists",
+		FileAccess.file_exists("res://tools/persona_optimizer.py"))
+	chk("telemetry runs dataset exists or is queryable",
+		FileAccess.file_exists("res://telemetry/runs.jsonl") or FileAccess.file_exists("D:/EduSystemClips/telemetry/runs.jsonl"))
+	var director_code := FileAccess.get_file_as_string("res://tools/director.gd")
+	chk("director script logs structured runs.jsonl telemetry",
+		director_code.contains("runs.jsonl") and director_code.contains("_save_scorecard"))
+	chk("director tracks front_ratio and helps_count",
+		director_code.contains('"front_ratio": front_ratio') and director_code.contains('"helps_count": _total_helps'))

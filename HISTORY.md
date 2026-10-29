@@ -26,8 +26,20 @@ technical detail follows. Links that pointed into the vault are written as
 
 ---
 
-## 2026-10-28 — Teacher skill tiers, dumb/smart persona spectrum, and fleet evaluation leaderboard
+## 2026-10-29 — Fleet telemetry data pipeline, continuous learning loop, and evolved teacher persona
 *PC · Antigravity · commits pending*
+- **Changed:**
+  1. Telemetry Pipeline (`telemetry/runs.jsonl`, `tools/director.gd`): Instrumented `_calculate_scorecard()` and `_save_scorecard()` to capture comprehensive metrics on every run (podium front_ratio, lecture frames vs walk frames, unstuck helps count, messes cleared, voice settlements, quizzes run, furniture purchases, and all active persona behavioral dials) appended to `runs.jsonl`.
+  2. Persona Optimizer (`tools/persona_optimizer.py`, `Optimize Personas.bat`): Automated evolutionary learner that ingests `runs.jsonl`, computes Pearson correlations between dials and classroom outcomes, isolates elite quartile runs, and synthesizes updated Tier 4 weights in `tools/personas/evolved_teacher.json`.
+  3. Historical Backfill: Ingested all 1,288 empirical overnight bot logs from `D:/EduSystemClips` into `telemetry/runs.jsonl`, revealing a +56.7% day-over-day score improvement (25.4/100 on 10/27 -> 39.8/100 on 10/28) and +0.83 GPA jump.
+  4. Multi-Screen Supervisor Integration (`projects/edusystem/promo/run_6_screens.py`, `Launch 6 Bots.bat`): Added `adaptive` roster preset featuring `evolved_teacher` in top slots, automatic per-segment telemetry emission, and post-session optimization on shutdown.
+  5. Test Suite (`tests/run.gd`): Added `FLEET TELEMETRY & ADAPTIVE OPTIMIZATION` section and schema validation for `evolved_teacher.json`, bringing test suite to 3,121 assertions across 148 sections.
+- **Why:** The owner asked to start gathering data on the bot runs so that the bots continuously learn and improve day by day.
+- **Verified:** All 3,121 assertions passed in `Run Tests.bat 1`. `python tools/check_docs.py` validated (322 checks green). `Simulate a Term.bat` verified balance contract `0.63 C / 0.72 C / 0.97 A` unmoved. Ingested 1,288 logs and generated `evolved_teacher` (Gen 2) with 92/100 rating.
+- **Left open:** Multi-generation evolution across overnight multi-day runs.
+
+## 2026-10-28 — Teacher skill tiers, dumb/smart persona spectrum, and fleet evaluation leaderboard
+*PC · Antigravity · commit `2399564`*
 - **Changed:**
   1. Persona Skill Hierarchy (`tools/personas/`): Added `tier` (1-4), `skill_rating` (0-100), `category` (novice/developing/proficient/master), `reaction_delay`, `chores_first`, `use_voice`, `idle_circulate`, and `desk_rearrange_mode` to `persona_schema.json`.
   2. Persona Spectrum: Added Tier 1 novice/dumb personas (`clueless_sub.json` with 4.0s reaction lag, no voice, no chaining; `distracted_sweeper.json` fixated on sweeping crumbs before helping crying students) and Tier 2 (`strict_lecturer.json` podium-bound with frequent pop quizzes). Upgraded `pedagogy_master.json` (Tier 4 Master) and `steady_teacher.json` / `furniture_nerd.json` (Tier 3 Proficient).

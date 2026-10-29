@@ -38,11 +38,13 @@ if "%ROSTER%"=="" (
     echo   [2] smart    - Only high-skill proficient teachers (Tiers 3 & 4)
     echo   [3] dumb     - Only novice/distracted teachers (Tiers 1 & 2)
     echo   [4] classic  - Original 3-persona setup
+    echo   [5] adaptive - Continuous Learning Fleet with Evolved Teacher (Gen-over-Gen)
     echo.
     set /p RCHOICE="Choice [1=diverse]: "
     if "%RCHOICE%"=="2" set ROSTER=smart
     if "%RCHOICE%"=="3" set ROSTER=dumb
     if "%RCHOICE%"=="4" set ROSTER=classic
+    if "%RCHOICE%"=="5" set ROSTER=adaptive
 )
 if "%ROSTER%"=="" set ROSTER=diverse
 

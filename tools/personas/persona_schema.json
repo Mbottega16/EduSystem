@@ -66,7 +66,10 @@
       "items": { "type": "string" },
       "default": ["bookshelf", "study_folder", "globe", "rug", "whiteboard", "clock"]
     },
-    "min_coins_buffer": { "type": "integer", "default": 30 }
+    "min_coins_buffer": { "type": "integer", "default": 30 },
+    "generation": { "type": "integer", "description": "Evolutionary optimization generation number", "default": 0 },
+    "optimized_at": { "type": "string", "description": "ISO timestamp of last optimization pass" },
+    "run_count_trained_on": { "type": "integer", "description": "Number of empirical bot runs synthesized into these weights", "default": 0 }
   },
   "required": ["id", "title"]
 }
