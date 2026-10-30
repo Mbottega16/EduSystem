@@ -24,6 +24,16 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-10-30 — Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite
+*PC · Antigravity · commits pending*
+- **Changed:**
+  1. Floor Underlay Rug Layering System: Updated `scripts/data/items.gd`, `scripts/autoload/game.gd`, `scripts/world/room_builder.gd`, `scripts/world/classroom.gd`, and `scripts/world/placement.gd`. Allows passable floor rugs/mats with zero collision blocking, z-ordering at `z_index = -1` (above room floor at -2), and allows solid furniture (chairs, stools, plants, bookshelves) and student desks to be placed directly on top of rugs. Overlapping between two underlays or two solid items remains disallowed.
+  2. 19 Conformed Authentic Classroom Sprites: Added 11 additional conformed pixel art sprites (`bug_hatching_cage`, `cubby_row`, `weather_calendar_chart`, `wall_timeline_banner`, `robotics_starter_kit`, `drafting_craft_table`, `graphing_grid_board`, `paperback_bookshelf`, `bunsen_glassware_rack`, `debate_podium`, `printer_3d_station`) conforming to LimeZu 192-color palette with keylines and 2x scaling. Registered all 19 sprites in `CLASSROOM_ART` in `items.gd` with zero curator orphans.
+  3. Placement Test Suite Expansion: Added 13 new unit tests in `tests/run.gd` covering underlay passability, z-ordering, furniture stacking on rugs, desk stacking on rugs, and dual-layer removal.
+- **Why:** The owner noted classrooms felt like stools and pillows rather than authentic learning environments, requesting rugs that furniture could sit on top of and differentiated stage/subject classroom items.
+- **Verified:** `Run Tests.bat 1` passes all 3,134 assertions (up from 3,121). `python tools/check_docs.py` passes all 322 doc checks.
+- **Left open:** Future progression hooks/shop unlocks for newly conformed stage sprites.
+
 ## 2026-10-29 — Canva classroom art generator, master prompt catalog, and 8 conformed sprites
 *PC · Antigravity · commits pending*
 - **Changed:**

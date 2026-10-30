@@ -2064,6 +2064,65 @@ func test_placement() -> void:
 		crowd.crowd_count() == 0, crowd.crowd_count())
 	crowd.queue_free()
 
+	# --- FLOOR UNDERLAY RUGS & MATS (passable, beneath furniture, stackable) ---
+	Game.add_coins(2000)
+	chk("rug is recognized as an underlay", Items.is_underlay("rug"))
+	var rug_tile := Vector2i(5, 6)
+	chk("rug tile starts free", world.grid.is_free(rug_tile))
+	var bought_rug := Game.place_item("rug", rug_tile)
+	chk("buying and placing rug succeeds", bought_rug)
+	await step(3)
+	chk("placing an underlay leaves floor cells passable and free",
+		world.grid.is_free(rug_tile) and world.grid.is_free(rug_tile + Vector2i(1, 0)))
+	chk("floor underlays sit at z_index -1 above floor sprite at -2", (func() -> bool:
+		var found_rug: Node2D = null
+		for node: Node in get_tree().get_nodes_in_group("underlay"):
+			if node is Node2D:
+				found_rug = node as Node2D
+				break
+		var found_floor: CanvasItem = null
+		for node: Node in get_tree().get_nodes_in_group("room_floor"):
+			if node is CanvasItem:
+				found_floor = node as CanvasItem
+				break
+		return found_rug != null and found_rug.z_index == -1 and found_floor != null and found_floor.z_index == -2).call())
+
+	var rug_place := Placement.new()
+	world.add_child(rug_place)
+	rug_place.begin("plant", world.grid, rug_tile)
+	chk("solid furniture can be placed directly on top of a rug", rug_place.is_valid())
+	rug_place.finish()
+	rug_place.queue_free()
+
+	Game.place_item("plant", rug_tile)
+	await step(3)
+	chk("solid item on rug now blocks the tile for walking", not world.grid.is_free(rug_tile))
+	chk("Game.item_at returns the top solid item ahead of the underlay",
+		String(Game.item_at(rug_tile).get("id", "")) == "plant")
+	chk("two underlays cannot occupy the same tile",
+		not Game.item_fits("rug", rug_tile))
+	chk("two solid items cannot occupy the same tile",
+		not Game.item_fits("bookshelf", rug_tile))
+
+	# Desk over underlay
+	var desk_place := Placement.new()
+	world.add_child(desk_place)
+	desk_place.begin_desk(0, world.grid)
+	desk_place.tile = rug_tile + Vector2i(1, 0)
+	desk_place._refresh()
+	chk("student desks can also be placed on top of an underlay rug", desk_place.is_valid())
+	desk_place.finish()
+	desk_place.queue_free()
+
+	# Clean up placed test items
+	Game.remove_item(rug_tile) # removes plant
+	await step(3)
+	chk("removing the top solid item leaves the rug intact and tile free",
+		world.grid.is_free(rug_tile) and String(Game.item_at(rug_tile).get("id", "")) == "rug")
+	Game.remove_item(rug_tile) # removes rug
+	await step(3)
+	chk("removing the rug leaves the tile free", world.grid.is_free(rug_tile))
+
 	Game.new_run(SEED)
 	await step(2)
 

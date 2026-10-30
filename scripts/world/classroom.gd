@@ -1621,8 +1621,8 @@ func _rebuild_purchased() -> void:
 	_purchased = RoomBuilder.build_purchased(self, grid)
 	_connect_placed()
 	for placed: Dictionary in Game.room_items:
-		if Items.is_wall(String(placed["id"])):
-			continue      # hung on the wall: it never marked a floor tile, so there is none to give back
+		if Items.is_wall(String(placed["id"])) or Items.is_underlay(String(placed["id"])):
+			continue      # hung on the wall or underlay: it never marked a floor tile, so there is none to give back
 		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
 			_purchased_tiles.append(t)
 	# The room's starting decor gives way to a bought wall piece (and returns

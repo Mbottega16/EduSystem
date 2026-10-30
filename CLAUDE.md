@@ -97,7 +97,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3121 assertions, 148 sections |
+| `tests/run.gd` | The suite — 3134 assertions, 148 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -125,7 +125,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3121 assertions — must pass, count must not drop
+Run Tests.bat            3134 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -192,10 +192,10 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-29, the owner's ask): Canva art pipeline & 8 generated and conformed classroom sprites.**
-  Generated and conformed 8 authentic classroom sprites across school stages and subjects into `art/`: `rug_alphabet_circle.png` (48x48), `reading_rocking_chair.png` (16x24), `picture_book_ledge.png` (32x24), `art_splat_mat.png` (32x32), `counting_bears_tray.png` (16x16), `middle_science_bench.png` (32x20), `topographical_globe.png` (16x20), and `chem_lab_bench.png` (32x24). Upgraded `tools/canva_art_pipeline.py` with BFS corner flood-fill background removal to strip compression artifacts before `lz_conform.py` quantizes to 192-color `limezu_palette.json` and keylines with `#3a3a50`. Registered all 8 sprites in `scripts/data/items.gd` (`CLASSROOM_ART`).
-- **Current State (2026-10-29):** suite green at **3121 assertions** in 148 sections (all curator checks green), docs 323/323 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Last Worked On (2026-10-30, the owner's ask): Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite.**
+  Implemented floor underlay rug layering in `scripts/data/items.gd`, `scripts/autoload/game.gd`, `scripts/world/room_builder.gd`, `scripts/world/classroom.gd`, and `scripts/world/placement.gd`. Allows passable floor rugs/mats with zero collision blocking, z-ordering at `z_index = -1` (above room floor at -2), and allows solid furniture (chairs, stools, plants, bookshelves) and student desks to be placed directly on top of rugs. Overlapping between two underlays or two solid items remains disallowed. Conformed 11 additional sprites for a total of 19 authentic classroom items conformed to LimeZu palette and installed in `art/` with zero curator orphans. Added 13 new unit tests in `tests/run.gd` covering underlay passability, z-ordering, furniture stacking on rugs, desk stacking on rugs, and dual-layer removal.
+- **Current State (2026-10-30):** suite green at **3134 assertions** in 148 sections (all curator checks green), docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
-  1. Implement floor underlay layering logic in Godot (`placement.gd` / `layout.gd`) allowing furniture stacking on rugs (`layer: "underlay"`) without collision blocking.
-  2. Wire the 8 new sprites into `data/balance.json` with stage/subject zone synergies once floor underlay logic is active.
-  3. Generate and conform remaining stage items when quota resets.
+  1. Optional shop unlocks / progression ties for newly conformed stage sprites in future balance tuning.
+  2. Next scheduled user milestones.
+

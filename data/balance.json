@@ -445,6 +445,7 @@
       "blurb": "Weak up close, but it reaches the whole room.",
       "cat": "comfort",
       "flat": true,
+      "underlay": true,
       "lane": true
     },
     "robot_kit": {

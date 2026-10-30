@@ -4272,14 +4272,26 @@ func class_average() -> float:
 # ------------------------------------------------------------------ items
 
 ## Can `id` be placed with its origin at `tile`, given what's already down?
+## Can `id` be placed with its origin at `tile`, given what's already down?
 ## The caller still has to check the grid for walls and furniture. A
 ## desk-top piece fits on a desk with nothing on it, and nowhere else.
+## An underlay rug can share floor tiles with solid furniture (chairs, desks,
+## stools, bookshelves), but two underlays cannot overlap, nor can two solid items.
 func item_fits(id: String, tile: Vector2i) -> bool:
 	if Items.is_desk_top(id):
 		return desk_top_free(tile)
+	var is_under := Items.is_underlay(id)
+	var is_w := Items.is_wall(id)
 	var want := Items.footprint(id, tile)
 	for placed: Dictionary in room_items:
-		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+		var pid := String(placed["id"])
+		var p_under := Items.is_underlay(pid)
+		var p_w := Items.is_wall(pid)
+		if is_w != p_w:
+			continue
+		if is_under != p_under:
+			continue
+		for t: Vector2i in Items.footprint(pid, placed["tile"]):
 			if t in want:
 				return false
 	return true
@@ -4354,12 +4366,19 @@ func add_item(id: String, tile: Vector2i) -> void:
 
 
 ## The placed item covering `tile`, or an empty dictionary.
+## If both an underlay rug and a solid piece of furniture share the tile,
+## the solid piece takes priority for interaction and movement.
 func item_at(tile: Vector2i) -> Dictionary:
+	var underlay_match := {}
 	for placed: Dictionary in room_items:
-		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+		var id := String(placed["id"])
+		for t: Vector2i in Items.footprint(id, placed["tile"]):
 			if t == tile:
-				return placed
-	return {}
+				if Items.is_underlay(id):
+					underlay_match = placed
+				else:
+					return placed
+	return underlay_match
 
 
 ## Lift an item off the floor -- or off the desk at `tile`, where a desk-top
