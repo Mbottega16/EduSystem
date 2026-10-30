@@ -151,11 +151,25 @@ func _calculate_scorecard() -> Dictionary:
 	}
 
 
+## The clips folder comes from tools/clips_dir.txt (one line: absolute, or relative to
+## the project root; missing means <project>/clips). The same file drives persona_optimizer.py.
+func _clips_dir() -> String:
+	var raw := "clips"
+	if FileAccess.file_exists("res://tools/clips_dir.txt"):
+		raw = FileAccess.get_file_as_string("res://tools/clips_dir.txt").strip_edges()
+	if raw.is_empty():
+		raw = "clips"
+	if raw.is_absolute_path():
+		return raw
+	return ProjectSettings.globalize_path("res://").path_join(raw)
+
+
 func _save_scorecard(card: Dictionary) -> void:
-	var path := "D:/EduSystemClips/leaderboard.json"
-	var telem_dir := "D:/EduSystemClips/telemetry"
-	var dir_access := DirAccess.open("D:/EduSystemClips")
-	if dir_access == null:
+	var clips := _clips_dir()
+	var path := clips.path_join("leaderboard.json")
+	var telem_dir := clips.path_join("telemetry")
+	var clips_ok := DirAccess.dir_exists_absolute(clips) or DirAccess.make_dir_recursive_absolute(clips) == OK
+	if not clips_ok:
 		path = "user://leaderboard.json"
 		telem_dir = "user://telemetry"
 	var existing: Dictionary = {}

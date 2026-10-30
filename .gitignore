@@ -6,3 +6,5 @@ __pycache__/
 shots/
 tools/limezu_path.txt
 tools/free_art_path.txt
+# Bot clip footage (default for tools/clips_dir.txt); the telemetry DB stays in telemetry/
+clips/

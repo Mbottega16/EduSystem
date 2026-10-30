@@ -16971,9 +16971,13 @@ func test_walkthrough() -> void:
 	section("FLEET TELEMETRY & ADAPTIVE OPTIMIZATION")
 	chk("persona optimizer script exists",
 		FileAccess.file_exists("res://tools/persona_optimizer.py"))
-	chk("telemetry runs dataset exists or is queryable",
-		FileAccess.file_exists("res://telemetry/runs.jsonl") or FileAccess.file_exists("D:/EduSystemClips/telemetry/runs.jsonl"))
+	chk("telemetry runs dataset ships in the repo",
+		FileAccess.file_exists("res://telemetry/runs.jsonl"))
+	chk("clips folder is configured in tools/clips_dir.txt",
+		FileAccess.file_exists("res://tools/clips_dir.txt"))
 	var director_code := FileAccess.get_file_as_string("res://tools/director.gd")
+	chk("director and optimizer share no drive-letter clips path",
+		not director_code.contains("D:/") and not FileAccess.get_file_as_string("res://tools/persona_optimizer.py").contains("D:/"))
 	chk("director script logs structured runs.jsonl telemetry",
 		director_code.contains("runs.jsonl") and director_code.contains("_save_scorecard"))
 	chk("director tracks front_ratio and helps_count",

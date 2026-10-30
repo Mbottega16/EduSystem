@@ -29,22 +29,29 @@ from datetime import datetime
 GRADE_MAP = {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0, "E": 0.5, "F": 0.0}
 GRADE_LETTERS = ["F", "E", "D", "C", "B", "A"]
 
+# This file lives in <repo>/tools, so the repo root is one level up. Every path
+# below is derived from it: nothing in this tool depends on a vault or a drive letter.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLIPS_CONFIG = os.path.join(REPO_ROOT, "tools", "clips_dir.txt")
+DEFAULT_CLIPS = "clips"  # relative to the repo root; git-ignored
 
-def find_telemetry_path(game_dir=None, clips_dir=None):
-    """Locate primary and fallback telemetry JSONL paths."""
-    if clips_dir and os.path.exists(clips_dir):
-        primary = os.path.join(clips_dir, "telemetry", "runs.jsonl")
-    elif os.path.exists("D:/EduSystemClips"):
-        primary = "D:/EduSystemClips/telemetry/runs.jsonl"
-    else:
-        primary = None
 
-    if game_dir:
-        fallback = os.path.join(game_dir, "telemetry", "runs.jsonl")
-    else:
-        fallback = os.path.join(os.path.abspath("."), "telemetry", "runs.jsonl")
+def read_clips_dir(config_path=CLIPS_CONFIG, root=REPO_ROOT):
+    """Return the clips folder named in tools/clips_dir.txt.
 
-    return primary or fallback, fallback
+    One line, either an absolute path for your OS or relative to the repo root. A
+    missing or empty file means <repo>/clips.
+    """
+    value = DEFAULT_CLIPS
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            value = f.read().strip() or DEFAULT_CLIPS
+    return value if os.path.isabs(value) else os.path.join(root, value)
+
+
+def telemetry_path(game_dir=REPO_ROOT):
+    """The telemetry database that ships with the repo: <game>/telemetry/runs.jsonl."""
+    return os.path.join(game_dir, "telemetry", "runs.jsonl")
 
 
 def parse_log_file(log_path, meta_path=None):
@@ -248,13 +255,10 @@ def parse_log_file(log_path, meta_path=None):
     }
 
 
-def backfill_telemetry(clips_dir="D:/EduSystemClips", out_path=None):
-    """Scan all segment logs in clips_dir and build/append runs.jsonl."""
-    if not os.path.exists(clips_dir):
-        return 0, []
-
-    if not out_path:
-        out_path = os.path.join(clips_dir, "telemetry", "runs.jsonl")
+def backfill_telemetry(clips_dir, out_path):
+    """Scan all segment logs in clips_dir and append unseen runs to out_path (runs.jsonl)."""
+    if not os.path.isdir(clips_dir):
+        return 0, out_path
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     existing_ids = set()
@@ -615,31 +619,35 @@ def generate_report(analysis, evolved_data=None, out_file=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Autonomous Bot Fleet Telemetry & Persona Optimizer")
-    parser.add_argument("--game", default=os.path.abspath("."), help="Path to EduSystem project root")
-    parser.add_argument("--clips", default="D:/EduSystemClips", help="Path to clips and telemetry storage")
+    parser.add_argument("--game", default=REPO_ROOT, help="Path to EduSystem project root (default: this repo)")
+    parser.add_argument("--clips", default=None, help="Clips folder (default: tools/clips_dir.txt, else <repo>/clips)")
     parser.add_argument("--backfill", action="store_true", help="Ingest all historical segment logs into runs.jsonl")
     parser.add_argument("--analyze", action="store_true", help="Run full performance and correlation analysis")
     parser.add_argument("--evolve", action="store_true", help="Genetically evolve evolved_teacher.json from telemetry")
     parser.add_argument("--report", default="", help="Path to write markdown summary report")
     args = parser.parse_args()
 
-    primary_telem, fallback_telem = find_telemetry_path(args.game, args.clips)
-    telem_file = primary_telem if (primary_telem and os.path.exists(os.path.dirname(primary_telem))) else fallback_telem
-
+    clips = args.clips or read_clips_dir()
+    telem_file = telemetry_path(args.game)
     persona_path = os.path.join(args.game, "tools", "personas", "evolved_teacher.json")
 
     print("=" * 70)
     print("      EDUSYSTEM BOT TELEMETRY ANALYZER & PERSONA OPTIMIZER")
     print("=" * 70)
     print(f"Game Directory:      {args.game}")
+    print(f"Clips Folder:        {clips}")
     print(f"Telemetry File:      {telem_file}")
     print(f"Evolved Persona:     {persona_path}")
 
-    # Backfill if requested or if runs.jsonl does not exist
+    # Backfill if requested or if runs.jsonl does not exist. A missing clips folder is
+    # not an error: the repo's own runs.jsonl is the database, so analysis still runs.
     if args.backfill or not os.path.exists(telem_file):
-        print(f"\n[1/3] Scanning {args.clips} for historical bot logs...")
-        count, path = backfill_telemetry(args.clips, telem_file)
-        print(f"      Ingested {count} new runs into {path}")
+        if os.path.isdir(clips):
+            print(f"\n[1/3] Scanning {clips} for historical bot logs...")
+            count, path = backfill_telemetry(clips, telem_file)
+            print(f"      Ingested {count} new runs into {path}")
+        else:
+            print(f"\n[1/3] No clips folder at {clips}; skipping backfill (set it in tools/clips_dir.txt).")
 
     runs = load_telemetry(telem_file)
     print(f"\n[2/3] Loaded {len(runs)} telemetry records from database.")
