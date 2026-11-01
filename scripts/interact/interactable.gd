@@ -5,11 +5,12 @@ extends Area2D
 ##
 ## PLACEMENT RULE, and it matters more than it looks: the Area2D goes on the
 ## FURNITURE, never on the person sitting at it. From any orthogonally
-## adjacent standing tile a desk is a uniform 16px away, while the next desk
-## along is 48px — so a 20px pick radius discriminates perfectly. Put the
-## area on the seated student instead (10px behind the desk) and you get 26px
-## from the front but 19px from the side, and you fight that asymmetry
-## forever.
+## adjacent standing tile a desk is a uniform 32px (one Grid.TILE) away, while
+## the next desk along is 64px. Reach is the SUM of two circles, though, and the
+## default 40px plus 40px grab (80px, two and a half tiles) does cover that next
+## desk, so the picker's proximity-and-facing rule decides between them, not the
+## circle. Put the area on the seated student instead and the front and side
+## distances stop matching, and you fight that asymmetry forever.
 
 const PICK_RADIUS := 40.0   ## doubled Aug 2026 alongside Grid.TILE (16 -> 32)
 
@@ -17,9 +18,9 @@ const PICK_RADIUS := 40.0   ## doubled Aug 2026 alongside Grid.TILE (16 -> 32)
 ## Shrink (or grow) this one thing's own reach.
 ##
 ## Reach is the SUM of the player's zone and the interactable's circle, so a
-## default 20 here plus 20 there is a 40px grab -- two and a half tiles. Two
-## landmarks a couple of tiles apart therefore both answer from the same
-## spot, and the one on the busier button wins the prompt. Anything sharing
+## default 40 here plus 40 there is an 80px grab -- two and a half tiles at the
+## 32px Grid.TILE. Two landmarks a couple of tiles apart therefore both answer
+## from the same spot, and the one on the busier button wins the prompt. Anything sharing
 ## a corner with something else wants a smaller circle than the default.
 func set_pick_radius(r: float) -> void:
 	for c in get_children():
