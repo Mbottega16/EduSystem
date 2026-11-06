@@ -131,6 +131,7 @@ Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH 
 Trace a Day.bat          walks a real day through the real buttons
 Audit the Room.bat       what both buttons offer at every landmark, every phase
 Simulate the School.bat  delegated rooms: does hiring matter, does the board move
+Simulate a Career.bat    whole runs, term after term: how long a run lasts per policy (slow: ~1,800 sim days)
 python tools/check_docs.py      every doc claim against live data
 python tools/check_balance.py   every key in balance.json is read by something
 python tools/check_items.py · check_traits.py   validate a task-2 / task-3 submission
