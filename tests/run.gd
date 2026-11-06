@@ -208,6 +208,7 @@ func _main() -> void:
 	test_lifetime_counters()
 	test_meta()
 	test_career_tally()
+	test_admin_gate()
 	test_graduate_record()
 	await test_alumni_wall()
 	await test_moments()
@@ -13650,6 +13651,120 @@ func test_career_tally() -> void:
 
 	Game.wipe_everything()
 	Game.new_run(SEED)                     # fully isolated from whatever follows
+
+
+## The admin gate: the school layer opens once the player has run one room.
+## The gate is OFF in the suite (main.gd turns it on for a player only), so no
+## other section sees a closed school. This section turns it on by hand and
+## turns it off again before it ends.
+func test_admin_gate() -> void:
+	section("ADMIN GATE")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+
+	# --- off in the suite: nothing changes ---
+	chk("the gate is off in the suite", not Game.admin_gate_enabled)
+	chk("so the school is open", Game.admin_unlocked())
+	chk("and a room can be opened", Game.can_open_room())
+
+	# --- on, for a player who has run nothing yet ---
+	Game.admin_gate_enabled = true
+	Game.coins = 999999
+	chk("a new career has not earned the school", not Game.admin_unlocked())
+	chk("so no room can be opened", not Game.can_open_room())
+	var refusal := Game.open_room()
+	chk("opening one gives a reason", refusal != "", refusal)
+	chk("and opens nothing", Game.rooms.is_empty(), Game.rooms.size())
+	chk("the pause menu has no school row", not _hud()._pause_rows().has("school"),
+		_hud()._pause_rows())
+
+	# --- the hallway shows no door for a room ---
+	var hallway: Node = world.get_parent().get_node("Hallway")
+	hallway.rebuild()
+	var open_doors := 0
+	for d in hallway.doors:
+		if String(d.door_kind) == "open":
+			open_doors += 1
+	chk("the hallway has no open door", open_doors == 0, open_doors)
+
+	# --- run one room: four verbs, through their real functions ---
+	Game.lesson = Curriculum.by_id(String(Curriculum.lessons[0].get("id", "")))
+	Game.record_taught(String(Game.lesson.get("id", "")))
+	while Game.enrol() != null:
+		pass
+	Game.draw_hand()
+	Game.choose_assignment(0)
+	Game.run_quiz()
+	var s: StudentData = Game.roster[0]
+	s.hw_state = StudentData.HW.COLLECTED
+	s.hw_sheet = Questions.make_sheet(1.0, Game.rng)
+	Game.mark_sheet(s, true)
+	chk("four verbs are not yet enough", not Game.admin_ready())
+
+	# --- placing furniture is the fifth verb; day one is not enough ---
+	Game.place_item(String(Items.order()[0]), Vector2i(2, 5))
+	for v: String in Game.LOOP_VERBS:
+		chk("the verb '%s' is counted" % v, Game.loop_done.has(v))
+	chk("but day one is not enough", not Game.admin_ready(), Game.day)
+
+	# --- after enough finished days the school opens, once ---
+	Game.day = Balance.admin_unlock_days + 1
+	chk("after enough days the room counts as run", Game.admin_ready())
+	chk("the school opens on that day", Game.check_admin_unlock())
+	chk("and says so once only", not Game.check_admin_unlock())
+	chk("the earned school can open a room", Game.can_open_room())
+	chk("the pause menu gains the school row", _hud()._pause_rows().has("school"))
+	hallway.rebuild()
+	open_doors = 0
+	for d in hallway.doors:
+		if String(d.door_kind) == "open":
+			open_doors += 1
+	chk("the hallway shows the open door", open_doors == 1, open_doors)
+
+	# --- a fresh run in the same career keeps the school, not the verbs ---
+	Game.new_run(SEED)
+	chk("a new run keeps the school", Game.admin_unlocked())
+	chk("but not the verbs", Game.loop_done.is_empty())
+
+	# --- the save keeps the verbs ---
+	Game.note_loop("taught")
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("the saved verbs come back", Game.loop_done.has("taught"))
+	chk("and so does the school", Game.admin_unlocked())
+	Game.delete_save()
+
+	# --- a save from before the gate keeps its school ---
+	Game.wipe_everything()
+	var raw := Game.to_dict()
+	var m: Dictionary = (raw["meta"] as Dictionary).duplicate(true)
+	m.erase("admin_earned")
+	raw["meta"] = m
+	Game.from_dict(raw)
+	chk("an older save keeps its school", Game.admin_unlocked())
+	Game.wipe_everything()
+	chk("a wiped career has not earned the school", not Game.admin_unlocked())
+
+	# --- the office says the school is still shut ---
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("the office says another room waits on this one",
+		_hud().rich.text.contains("Run this one well first"), _hud().rich.text)
+	_hud().close()
+
+	# --- the day the school opens is said once, in the day report ---
+	_hud().show_day_report({"day": 3, "average": 0.6, "days_left": 17, "admin_opened": true})
+	chk("the day report says the school opens",
+		_hud().rich.text.contains("The school opens up"), _hud().rich.text)
+	_hud().close()
+
+	# --- leave the suite as it was: the gate off, every later section unchanged ---
+	Game.admin_gate_enabled = false
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	world.get_parent().get_node("Hallway").rebuild()
 
 
 ## The unified graduation snapshot -- one shape from both exit paths, and

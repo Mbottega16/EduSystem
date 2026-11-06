@@ -1832,7 +1832,9 @@
     "furniture_step_cost": 240,
     "furniture_steps": 5,
     "applicants": 4,
-    "fire_cost": 150
+    "fire_cost": 150,
+    "_admin_note": "The school layer (opening rooms, the school screen) waits until the player has run their own room: taught, planned, quizzed, marked and furnished, over at least this many finished days. Earned once per career. The owner's vision, 2026-08-24: admin opens through mastery, not on day one.",
+    "admin_unlock_days": 2
   },
   "reputation": {
     "_note": "What the school is thought of, 0..100. It is the ONLY thing a badly run room costs you. The simulator showed rooms are straightforwardly profitable -- each one earns more than its wages -- so without this, 'open another room' has an obvious yes and staffing it properly is optional. Reputation is what makes a room you cannot run a liability rather than free money.",

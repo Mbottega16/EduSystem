@@ -427,7 +427,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **3156 assertions** across **149 sections** |
+| Tests | **3186 assertions** across **150 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -913,6 +913,9 @@ before anything in Phase 4 or beyond is started:
 - Only once that pass is done and re-checked does new scope get added
   again. A roadmap phase is not "next" just because it comes after the
   last one finished — it is next when the game underneath it is legible.
+
+**Done (Nov 2026):** the first deferral. The school layer (opening rooms, the
+school screen) now opens only once a player has run their own room — `Game.admin_unlocked()`.
 
 ### Phase 0 — Harden what exists ✅ done
 - Milestones (§8) — the missing piece for an endless game

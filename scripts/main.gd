@@ -29,6 +29,7 @@ func _is_real_play() -> bool:
 
 func _ready() -> void:
 	Game.tutorials_enabled = _is_real_play()
+	Game.admin_gate_enabled = _is_real_play()
 	placement = Placement.new()
 	placement.visible = false
 	world.add_child(placement)

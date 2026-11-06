@@ -1695,6 +1695,12 @@ func _pause_rows() -> Array:
 			return PAUSE_QUIT
 		PauseMenu.TUTORIALS:
 			return TutorialData.ids() + ["back"]
+	# The school row waits for the admin gate. Hidden, not greyed: the rule
+	# the shop and the hallway already follow.
+	if not Game.admin_unlocked() and Game.rooms.is_empty():
+		var rows: Array = PAUSE_MAIN.duplicate()
+		rows.erase("school")
+		return rows
 	return PAUSE_MAIN
 
 
@@ -4568,7 +4574,11 @@ func show_office() -> void:
 			ink, Game.term_history.size(), Game.graduated.size()])
 		# The career across every run -- said once a run has ended, not before.
 		var ended: int = int(Game.meta.get("runs_finished", 0))
-		if ended > 0:
+		# The gate, in the principal's own words, while it is still shut. It
+		# takes the career line's place: the paper holds five lines, no more.
+		if not Game.admin_unlocked():
+			lines.append("[color=#%s]Another room? Run this one well first.[/color]" % ink)
+		elif ended > 0:
 			var best: int = maxi(int(Game.meta.get("best_term", 0)), Game.term)
 			lines.append("[color=#%s]Your furthest: term %d. Runs ended: %d.[/color]" % [
 				ink, best, ended])
@@ -6110,6 +6120,10 @@ func show_day_report(report: Dictionary) -> void:
 		var m := Milestones.by_id(id)
 		lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
 			C_COIN, String(m.get("name", id)), DIM, String(m.get("blurb", ""))])
+	# The day the school opens: said once, in gold, the way a milestone is.
+	if bool(report.get("admin_opened", false)):
+		lines.append("[color=#%s]The school opens up.[/color]  [color=#%s]Another room can be opened from the hallway now.[/color]" % [
+			C_COIN, DIM])
 	if String(report.get("event", "")) != "":
 		lines.append("[color=#%s]Tomorrow: %s[/color] %s" % [
 			C_KNOW, String(report["event"]),

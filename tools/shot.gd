@@ -530,6 +530,17 @@ func _open_screen(main: Node, screen: String) -> void:
 			Game.meta["best_term"] = 6
 			hud._sel = 0
 			hud.show_office()
+		"office_locked":
+			# A new career's first visit: the gate still shut.
+			Game.admin_gate_enabled = true
+			Game.meta["admin_earned"] = false
+			hud._sel = 0
+			hud.show_office()
+		"day_admin":
+			# The evening the school opens.
+			var rep3 := Game.advance_day()
+			rep3["admin_opened"] = true
+			hud.show_day_report(rep3)
 		"principal":
 			hud.principal_says("shot_demo",
 				"Work only moves while you are at the front.")

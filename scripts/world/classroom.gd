@@ -1460,6 +1460,7 @@ func end_day() -> Dictionary:
 	Game.tick_reputation(report["rooms"])
 	report["reputation"] = Game.reputation
 	report["milestones"] = Game.check_milestones()
+	report["admin_opened"] = Game.check_admin_unlock()
 	if player != null:
 		player.drop_all_work()
 		player.drop_all_homework()
