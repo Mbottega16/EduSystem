@@ -524,6 +524,12 @@ func _open_screen(main: Node, screen: String) -> void:
 				Game.milestones.append(String(m["id"]))
 			hud._sel = 0
 			hud.show_office()
+		"office_career":
+			# A returning player: two runs over, the furthest at term six.
+			Game.meta["runs_finished"] = 2
+			Game.meta["best_term"] = 6
+			hud._sel = 0
+			hud.show_office()
 		"principal":
 			hud.principal_says("shot_demo",
 				"Work only moves while you are at the front.")

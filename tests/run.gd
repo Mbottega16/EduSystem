@@ -207,6 +207,7 @@ func _main() -> void:
 	test_names()
 	test_lifetime_counters()
 	test_meta()
+	test_career_tally()
 	test_graduate_record()
 	await test_alumni_wall()
 	await test_moments()
@@ -13477,6 +13478,8 @@ func test_lifetime_counters() -> void:
 ## the lifetime tallies -- everything a fresh RUN is not allowed to erase.
 func test_meta() -> void:
 	section("META")
+	# Earlier sections end runs, and those runs are counted, so start erased.
+	Game.wipe_everything()
 	Game.new_run(SEED)
 
 	chk("a fresh run has a meta block with every key",
@@ -13537,6 +13540,116 @@ func test_meta() -> void:
 		Game.meta)
 
 	Game.new_run(SEED)   # fully isolated from whatever follows
+
+
+## The career tallies are WRITTEN by play now, not only read: a run that ends
+## counts once, every leaver counts, a milestone outlives its run, and New on
+## the title screen keeps all of it while Erase does not.
+func test_career_tally() -> void:
+	section("CAREER TALLY")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+
+	# --- a run that ends is counted, once ---
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.10)             # nobody passes this
+	Game.sit_exam()
+	var info := Game.next_term()
+	chk("the run is over", bool(info.get("run_over", false)))
+	chk("and the career counts it", int(Game.meta["runs_finished"]) == 1,
+		Game.meta["runs_finished"])
+	Game.next_term()                       # closing it twice must not count twice
+	chk("but only once", int(Game.meta["runs_finished"]) == 1,
+		Game.meta["runs_finished"])
+	chk("the term it reached is noted", int(Game.meta["best_term"]) >= 1,
+		Game.meta["best_term"])
+
+	# --- a passed term moves the best term on, and every leaver counts ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)             # everybody sails it
+	Game.sit_exam()
+	Game.next_term()
+	chk("a passed term reaches term 2", Game.term == 2, Game.term)
+	chk("and the best term follows it", int(Game.meta["best_term"]) == 2,
+		Game.meta["best_term"])
+	chk("a new run did not reset the run count", int(Game.meta["runs_finished"]) == 1)
+	var sent: int = (Game.meta["alumni"] as Array).size()
+	chk("every leaver is counted", sent > 0 and int(Game.meta["lifetime_graduated"]) == sent,
+		"%d vs %d" % [int(Game.meta["lifetime_graduated"]), sent])
+
+	# --- a milestone outlives the run it was earned in ---
+	var fresh := Game.check_milestones()
+	var first_id: String = String(fresh[0]) if not fresh.is_empty() else ""
+	chk("the passed term earned a milestone", first_id != "", fresh)
+	chk("and the career keeps it",
+		(Game.meta["lifetime_milestones"] as Array).has(first_id),
+		Game.meta["lifetime_milestones"])
+	Game.new_run(SEED)
+	chk("a new run clears the run's own milestones", Game.milestones.is_empty())
+	chk("but not the career's", (Game.meta["lifetime_milestones"] as Array).has(first_id))
+
+	# --- an old save gets its tallies rebuilt ---
+	Game.new_run(SEED)
+	var raw := Game.to_dict()
+	var m: Dictionary = (raw["meta"] as Dictionary).duplicate(true)
+	m["alumni"] = [{"name": "Ada"}, {"name": "Bo"}]
+	m.erase("lifetime_graduated")
+	raw["meta"] = m
+	raw["milestones"] = ["first_term"]
+	Game.from_dict(raw)
+	chk("an old save's leavers are counted", int(Game.meta["lifetime_graduated"]) == 2,
+		Game.meta["lifetime_graduated"])
+	chk("its milestones join the career",
+		(Game.meta["lifetime_milestones"] as Array).has("first_term"))
+	# and a current save loads without changing (the plain round trip in
+	# test_game() already checks to_dict() == before for a fresh run)
+	var again := Game.to_dict()
+	Game.from_dict(again)
+	chk("a rebuilt career loads the same a second time", Game.to_dict() == again)
+
+	# --- New on the title keeps the career; Erase does not ---
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	Game.meta["runs_finished"] = 4
+	(Game.meta["alumni"] as Array).append({"name": "Cy"})
+	Game.save_game()
+	Game.meta = {}                         # a fresh launch: nothing in memory yet
+	Game.start_new_run_keep_career()
+	chk("New keeps the runs ended", int(Game.meta.get("runs_finished", 0)) == 4, Game.meta)
+	chk("and the alumni", (Game.meta.get("alumni", []) as Array).size() == 1)
+	chk("and starts a fresh run", Game.day == 1 and Game.term == 1 and not Game.run_over)
+	chk("and saves at once, career included",
+		Game.has_save() and int(Game.read_saved_meta().get("runs_finished", 0)) == 4)
+	Game.delete_save()
+	Game.wipe_everything()
+	chk("Erase clears the career", int(Game.meta["runs_finished"]) == 0
+		and (Game.meta["alumni"] as Array).is_empty())
+
+	# --- the principal reads the career back ---
+	Game.new_run(SEED)
+	Game.meta["runs_finished"] = 2
+	Game.meta["best_term"] = 5
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("the office names the furthest term", _hud().rich.text.contains("term 5"),
+		_hud().rich.text)
+	_hud().close()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("and says nothing of it before a run has ended",
+		not _hud().rich.text.contains("Runs ended"), _hud().rich.text)
+	_hud().close()
+
+	Game.wipe_everything()
+	Game.new_run(SEED)                     # fully isolated from whatever follows
 
 
 ## The unified graduation snapshot -- one shape from both exit paths, and

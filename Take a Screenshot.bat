@@ -1,11 +1,11 @@
 @echo off
 REM Double-click to screenshot the REAL game. Headless cannot see; this can.
-REM Optional argument: a screen to open first. All 76:
+REM Optional argument: a screen to open first. All 77:
 REM   quiz specialism hand hand_shuffle school watch hiring career alumni curriculum unit_test
 REM   student shop room staff staff_scrolled craft class_list at_board at_bell title
 REM   inspection inspector_here teaching noise day run_over new_term exam
 REM   dashboard dashboard_items dashboard_skills marking marking_stamp ads
-REM   dev_room dev_room_bare weather hallway door office principal consumables
+REM   dev_room dev_room_bare weather hallway door office office_career principal consumables
 REM   mess mess_janitor dashboard_wardrobe hat auto_teach
 REM   consumables_report intro intro_walk intro_line
 REM   term_paths desk_interruption mentor mentor_demo mentor_chain boss_fight fight_report

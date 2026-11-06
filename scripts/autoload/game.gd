@@ -119,8 +119,13 @@ func check_milestones() -> Array:
 	var fresh := Milestones.newly_earned(milestones)
 	if fresh.is_empty():
 		return []
+	_ensure_meta_keys()
+	var life: Array = meta["lifetime_milestones"]
 	for id: String in fresh:
 		milestones.append(id)
+		# The run forgets its milestones at new_run(); the career does not.
+		if not life.has(id):
+			life.append(id)
 	milestone_earned.emit(fresh)
 	return fresh
 
@@ -950,6 +955,31 @@ func wipe_everything() -> void:
 	meta.clear()
 	_ensure_meta_keys()
 	new_run()
+
+
+## The career block in the save file on disk, without loading the run.
+## Empty when there is no save, or the save is older than "meta".
+func read_saved_meta() -> Dictionary:
+	if not has_save():
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(save_path))
+	if not (parsed is Dictionary):
+		return {}
+	return ((parsed as Dictionary).get("meta", {}) as Dictionary).duplicate(true)
+
+
+## "New" on the title screen: a fresh RUN in the same career. The run on disk
+## goes; the career block (alumni, best term, runs ended) stays. It used to be
+## delete_save() + new_run(), which kept the career only when it happened to be
+## in memory -- so New after a fresh launch erased the alumni wall.
+func start_new_run_keep_career() -> void:
+	var kept := read_saved_meta()
+	delete_save()
+	new_run()
+	if not kept.is_empty():
+		meta = kept
+		_ensure_meta_keys()
+	save_game()
 
 
 func new_run(seed_value: int = 0) -> void:
@@ -2115,6 +2145,11 @@ func met_target(passed: int) -> bool:
 	return passed >= term_target()
 
 
+## The furthest term this career has reached, for the office page.
+func _note_best_term() -> void:
+	meta["best_term"] = maxi(int(meta.get("best_term", 0)), term)
+
+
 ## Close the term and open the next one.
 ##
 ## THE POINT OF THIS is that a term is a chapter rather than the whole book.
@@ -2129,6 +2164,7 @@ func met_target(passed: int) -> bool:
 ## exactly the children you got good at teaching.
 func next_term() -> Dictionary:
 	Balance.ensure_loaded()
+	_note_best_term()
 	var result := exam_result if not exam_result.is_empty() else sit_exam()
 	# The exam goes in the grade book here, where the term is closed -- once,
 	# whichever way it was reached -- and before the class moves on.
@@ -2153,6 +2189,9 @@ func next_term() -> Dictionary:
 	else:
 		hit = met_target(int(result.get("passed", 0)))
 	if not hit:
+		# The career counts a run once, on the step from playing to over.
+		if not run_over:
+			meta["runs_finished"] = int(meta.get("runs_finished", 0)) + 1
 		run_over = true
 
 	# The school moves up a stage when enough children have left it at the
@@ -2241,6 +2280,7 @@ func next_term() -> Dictionary:
 
 	term_start_concepts = concepts.size()
 	term += 1
+	_note_best_term()
 	day = 1
 	term_over = false
 	fight = null
@@ -2384,6 +2424,7 @@ func _add_graduation(s: StudentData) -> Dictionary:
 	var rec := graduate_record(s)
 	graduated.append(rec)
 	meta.alumni.append(rec.duplicate(true))
+	meta["lifetime_graduated"] = int(meta.get("lifetime_graduated", 0)) + 1
 	return rec
 
 
@@ -4755,6 +4796,17 @@ func from_dict(d: Dictionary) -> void:
 	# other forward-compat default in this function.
 	meta = (d.get("meta", {}) as Dictionary).duplicate(true)
 	_ensure_meta_keys()
+	# A save from before the career tallies were written: rebuild them from what
+	# the save already holds, so an old career does not read as empty.
+	meta["lifetime_graduated"] = maxi(int(meta.get("lifetime_graduated", 0)),
+		(meta.get("alumni", []) as Array).size())
+	var life: Array = meta["lifetime_milestones"]
+	for mid: Variant in d.get("milestones", []):
+		if not life.has(String(mid)):
+			life.append(String(mid))
+	# best_term is NOT rebuilt from the run's own term: that would change a
+	# fresh save on its first load (0 -> 1) and break the no-drift round trip.
+	# Whoever shows it reads maxi(best_term, term) instead.
 	# An older save has no size, so it simply reopens at the base room.
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))

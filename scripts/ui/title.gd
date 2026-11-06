@@ -203,8 +203,7 @@ func _activate() -> void:
 		match id:
 			"continue", "new":
 				if id == "new":
-					Game.delete_save()
-					Game.new_run()
+					Game.start_new_run_keep_career()
 				Sfx.play("confirm")
 				get_tree().change_scene_to_file(GAME_SCENE)
 			"slots": _go(Page.SLOTS)
@@ -234,10 +233,8 @@ func _activate() -> void:
 					message = "Failed to load slot."
 					_go(Page.SLOTS)
 			"new":
-				Game.delete_save()
-				Game.new_run()
+				Game.start_new_run_keep_career()
 				Game.save_to_slot(sel_slot)
-				Game.save_game()
 				Sfx.play("confirm")
 				get_tree().change_scene_to_file(GAME_SCENE)
 			"save_current":
@@ -265,7 +262,7 @@ func _activate() -> void:
 	if page == Page.CONFIRM_WIPE:
 		if id == "yes":
 			Game.delete_save()
-			Game.new_run()
+			Game.wipe_everything()
 			Sfx.play("confirm")
 			message = "Save erased."
 		_go(Page.MAIN)
@@ -514,7 +511,7 @@ func _render() -> void:
 			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "ERASE SAVE?"
 			logo.visible = false
-			lines = ["This cannot be undone.", ""]
+			lines = ["This cannot be undone.", "Your whole career goes with it.", ""]
 			for i in rows.size():
 				lines.append("%s %s" % [
 					">" if i == sel else " ",

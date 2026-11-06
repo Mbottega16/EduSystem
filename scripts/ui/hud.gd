@@ -4566,6 +4566,12 @@ func show_office() -> void:
 			_cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n), earned, all.size()])
 		lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
 			ink, Game.term_history.size(), Game.graduated.size()])
+		# The career across every run -- said once a run has ended, not before.
+		var ended: int = int(Game.meta.get("runs_finished", 0))
+		if ended > 0:
+			var best: int = maxi(int(Game.meta.get("best_term", 0)), Game.term)
+			lines.append("[color=#%s]Your furthest: term %d. Runs ended: %d.[/color]" % [
+				ink, best, ended])
 	else:
 		lines.append("[color=#8a5a10]TIP %d of %d[/color]" % [_sel, TUTORIALS.size()])
 		lines.append(String(TUTORIALS[_sel - 1]))
