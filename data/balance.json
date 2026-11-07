@@ -1836,6 +1836,13 @@
     "_admin_note": "The school layer (opening rooms, the school screen) waits until the player has run their own room: taught, planned, quizzed, marked and furnished, over at least this many finished days. Earned once per career. The owner's vision, 2026-08-24: admin opens through mastery, not on day one.",
     "admin_unlock_days": 2
   },
+  "duties": {
+    "_note": "Short arcade jobs on the staff rota in the corridor (the owner's ask, 2026-11-06). Open once the admin gate is open. Each is once a day. None touches lesson grading, so the balance contract cannot move.",
+    "janitor_seconds": 45.0,
+    "janitor_messes": 8,
+    "janitor_bonus_coins": 20,
+    "janitor_rep_full": 1.5
+  },
   "reputation": {
     "_note": "What the school is thought of, 0..100. It is the ONLY thing a badly run room costs you. The simulator showed rooms are straightforwardly profitable -- each one earns more than its wages -- so without this, 'open another room' has an obvious yes and staffing it properly is optional. Reputation is what makes a room you cannot run a liability rather than free money.",
     "_gate_note": "It GATES rather than pays: how many rooms you may open, and how good the applicants are. A gate is a better shape than a bonus here -- a bonus would just be more money in a game that already has enough.",

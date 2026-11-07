@@ -706,6 +706,7 @@ const META_DEFAULTS := {
 	"lifetime_milestones": [],   ## milestone ids ever earned, so cross-run beats fire once
 	"career_boon": {},           ## small persistent leg-up per finished run (filled in a later slice)
 	"admin_earned": false,       ## the school layer is open for good -- see admin_unlocked()
+	"duty_best": {},             ## duty id -> best shift ever, across runs
 }
 
 # --- the fork at the start of each term ------------------------------
@@ -883,6 +884,59 @@ func check_admin_unlock() -> bool:
 	meta["admin_earned"] = true
 	school_changed.emit()
 	return true
+
+
+# --- duties: the staff rota's short jobs (the owner's ask, 2026-11-06) ---
+## The duty being played right now, or "". Not saved: a save never resumes
+## mid-shift, the same way it never resumes mid-test.
+var duty_active: String = ""
+## Duty id -> the day stamp it was last done on. Saved; cleared by new_run().
+var duties_done: Dictionary = {}
+
+
+## One number for "this day of this term", so a duty is once a day.
+func duty_stamp() -> int:
+	return term * 1000 + day
+
+
+func duty_done_today(id: String) -> bool:
+	return int(duties_done.get(id, -1)) == duty_stamp()
+
+
+func mark_duty_done(id: String) -> void:
+	duties_done[id] = duty_stamp()
+
+
+## A duty's own random numbers. Seeded from the run, the term, the day and the
+## duty, so the same day plays the same shift -- and NEVER drawn from Game.rng,
+## so a shift cannot reshuffle the classroom's own day.
+func duty_rng(id: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([int(rng.seed), term, day, id])
+	return r
+
+
+## A finished duty: pay what it earned, and keep the career's best (meta).
+func record_duty(result: Dictionary) -> void:
+	Balance.ensure_loaded()
+	var id := String(result.get("id", ""))
+	if id == "janitor" and bool(result.get("all", false)):
+		add_coins(Balance.duty_janitor_bonus_coins)
+		nudge_reputation(Balance.duty_janitor_rep_full)
+	_ensure_meta_keys()
+	var best: Dictionary = meta["duty_best"]
+	if _duty_better(result, best.get(id, {}) as Dictionary):
+		best[id] = result.duplicate()
+
+
+## More done wins; on a tie, more time to spare wins. Every duty reports the
+## same keys -- id, done, total, seconds_left, all -- so one rule ranks them all.
+func _duty_better(a: Dictionary, b: Dictionary) -> bool:
+	if b.is_empty():
+		return true
+	if int(a.get("done", 0)) != int(b.get("done", 0)):
+		return int(a.get("done", 0)) > int(b.get("done", 0))
+	return float(a.get("seconds_left", 0.0)) > float(b.get("seconds_left", 0.0))
 
 
 ## A first-time moment a tutorial may hang on. The HUD listens.
@@ -1102,6 +1156,8 @@ func new_run(seed_value: int = 0) -> void:
 	call_response_taught = false
 	tutorials_seen.clear()
 	loop_done.clear()
+	duties_done.clear()
+	duty_active = ""
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -4771,6 +4827,7 @@ func to_dict() -> Dictionary:
 		"call_response_taught": call_response_taught,
 		"tutorials_seen": tutorials_seen.duplicate(),
 		"loop_done": loop_done.duplicate(),
+		"duties_done": duties_done.duplicate(),
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -4857,6 +4914,9 @@ func from_dict(d: Dictionary) -> void:
 	# Not grandfathered either -- see the var's own note.
 	call_response_taught = bool(d.get("call_response_taught", false))
 	loop_done = (d.get("loop_done", {}) as Dictionary).duplicate()
+	duties_done = (d.get("duties_done", {}) as Dictionary).duplicate()
+	# A shift never resumes across a save, so a loaded game is never mid-duty.
+	duty_active = ""
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()

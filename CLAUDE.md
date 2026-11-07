@@ -41,8 +41,8 @@ Every one was paid for. The full wording and the incidents behind each are in th
 appendix of `HISTORY.md`.
 - **Determinism.** Every random decision goes through the seeded `Game.rng`. Global
   `randi()`/`randf()` are banned project-wide; without this no balance testing can exist.
-- **Numbers do not live in code.** Every tunable is in `data/balance.json` (46 sections
-  outside the item and trait tables, 289 `static var` tunables in `balance.gd`). Nothing
+- **Numbers do not live in code.** Every tunable is in `data/balance.json` (47 sections
+  outside the item and trait tables, 293 `static var` tunables in `balance.gd`). Nothing
   tunable may be a `const` in a `.gd`.
 - **The balance contract must hold** — measured from *simulated* play, asserted by the
   suite: bare room + perfect teaching ~0.63 → C · full room + never helped ~0.71 → C ·
@@ -98,11 +98,12 @@ appendix of `HISTORY.md`.
 | `scripts/data/` | Every data layer — balance, students, curriculum, items, traits, assignments, staff, milestones, tutorials, room templates |
 | `scripts/world/` | The room and the school: grid, layout, classroom (world root), room_builder, placement, hallway, the grade wing (`live_room`, `stage_door`), trophy_case, window_butterfly, ambient_touches, mentor_room, principal_office, visit_room |
 | `scripts/actors/` · `scripts/interact/` | actor, player, student · one file per landmark verb |
+| `scripts/roles/` | The staff rota's shifts (`janitor_shift.gd`). The rota's table is `scripts/data/duties.gd` |
 | `scripts/ui/hud.gd` | Every screen (23 modes; ~ten share `REPORT`). `principal_says()` is the tutorial mascot. `scripts/ui/tutorial.gd` plays the cutscenes in `data/tutorials.json` |
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3186 assertions, 150 sections |
+| `tests/run.gd` | The suite — 3215 assertions, 151 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -130,7 +131,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3186 assertions — must pass, count must not drop
+Run Tests.bat            3215 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -200,7 +201,7 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
 - **Last Worked On (2026-10-30, the owner's ask): Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite.**
   Implemented floor underlay rug layering in `scripts/data/items.gd`, `scripts/autoload/game.gd`, `scripts/world/room_builder.gd`, `scripts/world/classroom.gd`, and `scripts/world/placement.gd`. Allows passable floor rugs/mats with zero collision blocking, z-ordering at `z_index = -1` (above room floor at -2), and allows solid furniture (chairs, stools, plants, bookshelves) and student desks to be placed directly on top of rugs. Overlapping between two underlays or two solid items remains disallowed. Conformed 11 additional sprites for a total of 19 authentic classroom items conformed to LimeZu palette and installed in `art/` with zero curator orphans. Added 13 new unit tests in `tests/run.gd` covering underlay passability, z-ordering, furniture stacking on rugs, desk stacking on rugs, and dual-layer removal.
-- **Current State (2026-10-30):** suite green at **3186 assertions** in 150 sections (all curator checks green), docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Current State (2026-10-30):** suite green at **3215 assertions** in 151 sections (all curator checks green), docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up:**
   1. Optional shop unlocks / progression ties for newly conformed stage sprites in future balance tuning.
   2. Next scheduled user milestones.

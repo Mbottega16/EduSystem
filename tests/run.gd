@@ -209,6 +209,7 @@ func _main() -> void:
 	test_meta()
 	test_career_tally()
 	test_admin_gate()
+	test_duty_rota()
 	test_graduate_record()
 	await test_alumni_wall()
 	await test_moments()
@@ -13765,6 +13766,137 @@ func test_admin_gate() -> void:
 	Game.wipe_everything()
 	Game.new_run(SEED)
 	world.get_parent().get_node("Hallway").rebuild()
+
+
+## THE STAFF ROTA (Task 4, the owner's ask 2026-11-06): the board in the
+## corridor, the janitor's shift through the real functions, the shift's own
+## numbers kept off Game.rng, once a day, saved, and the corridor dash fix.
+func test_duty_rota() -> void:
+	section("DUTY ROTA")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	var main := world.get_parent()
+	var hall: Node = main.get_node("Hallway")
+	hall.rebuild()
+
+	# --- the board: on MANAGE, and its prompt names the rota ---
+	var board: Interactable = hall.rota_board
+	chk("the corridor has a staff rota board", board != null)
+	chk("it answers on MANAGE, not on E",
+		board != null and board.uses_key == Interactable.Key.MANAGE)
+	chk("its prompt says staff rota", board != null and board.prompt_text().contains("staff rota"))
+
+	# --- hidden until the admin gate opens; the janitor is on it once it has ---
+	var offered: Array = Duties.offered()
+	chk("with the gate off the rota offers the janitor",
+		offered.size() == 1 and String((offered[0] as Dictionary).get("id", "")) == "janitor",
+		offered.size())
+	_hud()._sel = 0
+	_hud().show_rota()
+	chk("and the rota screen lists the janitor", _hud().rich.text.contains("Janitor"),
+		_hud().rich.text)
+	_hud().close()
+	Game.admin_gate_enabled = true
+	chk("a new career: the board does not answer", board != null and not board.can_interact())
+	chk("and the rota offers nothing", Duties.offered().is_empty())
+	Game.admin_gate_enabled = false
+	chk("the board answers in the open school", board != null and board.can_interact())
+
+	# --- start the shift: its own numbers leave Game.rng alone ---
+	var coins0: int = Game.coins
+	var rep0: float = Game.reputation
+	var rng0: int = Game.rng.state
+	main._start_duty("janitor")
+	var shift: JanitorShift = main._shift
+	chk("the janitor's shift is running", Game.duty_active == "janitor" and shift != null)
+	if shift == null:
+		return
+	var tiles: Array[Vector2i] = hall.duty_tiles()
+	chk("it puts one mess on each duty tile, up to the cap",
+		shift.total() == mini(Balance.duty_janitor_messes, tiles.size()) and shift.total() > 0,
+		shift.total())
+	chk("Game.rng did not move", Game.rng.state == rng0)
+	var on_tiles := true
+	for m: Interactable in shift.messes():
+		var at: Vector2i = Grid.world_to_tile((m.get_parent() as Node2D).position)
+		if not tiles.has(at):
+			on_tiles = false
+	chk("every mess sits on a duty tile", on_tiles)
+
+	# --- while it runs the doors and the board are shut, and the strip shows it ---
+	var door_free: bool = (hall.doors[0] as Interactable).can_interact()
+	chk("the doors lock while the shift runs", not door_free and not board.can_interact())
+	_hud()._update_status()
+	chk("the status strip shows the job", _hud().status.text.contains("JANITOR"),
+		_hud().status.text)
+
+	# --- the same day plays the same shift ---
+	chk("the duty's own numbers repeat for the same day",
+		Game.duty_rng("janitor").randi() == Game.duty_rng("janitor").randi())
+
+	# --- clean every mess: paid, done for the day, and not offered again ---
+	var total: int = shift.total()
+	for m in shift.messes().duplicate():
+		m.auto_complete()
+	chk("the shift is over", Game.duty_active == "")
+	chk("and it is done for the day", Game.duty_done_today("janitor"))
+	chk("it pays each mess, plus the full-sweep bonus",
+		Game.coins - coins0 == total * Balance.mess_clean_reward + Balance.duty_janitor_bonus_coins,
+		Game.coins - coins0)
+	chk("a full sweep lifts the school's standing", Game.reputation > rep0, Game.reputation)
+	chk("the career keeps the best sweep", (Game.meta["duty_best"] as Dictionary).has("janitor"))
+	chk("the report says what was cleaned", _hud().rich.text.contains("You cleaned"),
+		_hud().rich.text)
+	_hud().close()
+	chk("the rota has nothing left today", Duties.offered().is_empty())
+
+	# --- the clock: a new day offers it again, and when the clock runs out it ends ---
+	Game.day += 1
+	chk("the next day offers the janitor again", Duties.offered().size() == 1)
+	main._start_duty("janitor")
+	var late: JanitorShift = main._shift
+	if late == null:
+		chk("the next shift starts", false)
+		return
+	late.tick(Balance.duty_janitor_seconds + 1.0)
+	chk("when the clock runs out the shift ends", Game.duty_active == "" and main._shift == null)
+	chk("and the report says the clock won", _hud().rich.text.contains("The clock beat you"),
+		_hud().rich.text)
+	_hud().close()
+
+	# --- the save keeps the day's shift: a reload does not offer it again ---
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("the saved shift is still done for the day", Game.duty_done_today("janitor"))
+	Game.delete_save()
+
+	# --- the dash fix: a corridor dash no longer reads the classroom's lanes ---
+	Game.new_run(SEED)
+	Game.room_items.append({"id": "crate", "tile": Vector2i(2, 3)})
+	var p: Node = world.player
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("in the classroom a crate beside you is clutter", p._dash_room_kind() == "clutter",
+		p._dash_room_kind())
+	var corridor: Node = main.get_node("Hallway")
+	corridor.rebuild()
+	world.remove_child(p)
+	corridor.add_child(p)
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("in the corridor the same tile reads as nothing", p._dash_room_kind() == "",
+		p._dash_room_kind())
+	# back to the classroom, the way main.gd's _return_home() puts the player back
+	corridor.remove_child(p)
+	world.add_child(p)
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("and the classroom reads its own clutter again", p._dash_room_kind() == "clutter",
+		p._dash_room_kind())
+
+	# --- leave the suite as it was ---
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	hall.rebuild()
 
 
 ## The unified graduation snapshot -- one shape from both exit paths, and

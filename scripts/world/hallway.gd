@@ -87,6 +87,7 @@ const PLAQUE_X := 6.0
 const PLAQUE_SIZE := Vector2(76, 32)
 const PLAQUE_FONT := preload("res://fonts/Galmuri9.ttf")
 const STAGE_DOOR_SCRIPT := preload("res://scripts/interact/stage_door.gd")
+const ROTA_SCRIPT := preload("res://scripts/interact/rota_board.gd")
 ## The rooms, the doors and the plaques, in Balance.tier_order -- for the tests.
 var wing_rooms: Array = []
 var wing_doors: Array = []
@@ -96,9 +97,13 @@ var _w := 0.0
 ## The props along the wall, for the tests.
 var lining: Array = []
 var trophy_case: TrophyCase = null
+## The staff rota's board, on the noticeboard's wall. Built with the lining.
+var rota_board: Interactable = null
 
 ## Someone pressed E at the trophy case -- main.gd opens the list.
 signal trophies_viewed()
+## F at the staff rota's board -- main.gd opens the rota.
+signal rota_opened()
 
 var doors: Array = []
 var _door_art: Array = []
@@ -266,6 +271,14 @@ func _line_the_wall(w: float) -> void:
 		spr.z_index = -9
 		add_child(spr)
 		lining.append(spr)
+		# The first noticeboard along the wall carries the staff rota.
+		if String(row[0]) == "noticeboard" and rota_board == null:
+			rota_board = ROTA_SCRIPT.new()
+			rota_board.name = "RotaBoard"
+			rota_board.position = Vector2(spr.position.x, 8.0)
+			rota_board.set_pick_radius(28.0)
+			add_child(rota_board)
+			rota_board.used.connect(func(_by: Node) -> void: rota_opened.emit())
 		var anim: Variant = Items.get_def(String(row[0])).get("anim", null)
 		if anim is Dictionary:
 			var strip: Texture2D = load("res://art/%s.png" % String((anim as Dictionary).get("art", "")))
@@ -457,6 +470,34 @@ func rebuild() -> void:
 		d.chosen.connect(func(k: String, ri: int) -> void: door_chosen.emit(k, ri))
 		add_child(d)
 		doors.append(d)
+
+
+## Floor tiles a duty may put something on: the corridor's top two floor rows,
+## end to end, kept clear of everything that answers a key (the trophy case,
+## the rota board, the doors, the grade wing's doors), so nothing a duty puts
+## down ever steals another landmark's prompt.
+func duty_tiles() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var cols := int(_w / float(Grid.TILE))
+	var avoid_x: Array[float] = [TROPHY_CASE_X]
+	if rota_board != null:
+		avoid_x.append(rota_board.position.x)
+	for d in doors:
+		if is_instance_valid(d):
+			avoid_x.append((d as Node2D).position.x)
+	for t in Game.tier_count():
+		avoid_x.append(wing_door_x(t) + Grid.TILE * 0.5)
+	for ty: int in [0, 1]:
+		for tx in range(2, cols - 2):
+			var x: float = Grid.tile_to_world(Vector2i(tx, ty)).x
+			var clear := true
+			for ax: float in avoid_x:
+				if absf(x - ax) < 64.0:
+					clear = false
+					break
+			if clear:
+				out.append(Vector2i(tx, ty))
+	return out
 
 
 ## The colour each door kind gets tinted, so the row reads at a glance

@@ -427,7 +427,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **3186 assertions** across **150 sections** |
+| Tests | **3215 assertions** across **151 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
@@ -916,6 +916,8 @@ before anything in Phase 4 or beyond is started:
 
 **Done (Nov 2026):** the first deferral. The school layer (opening rooms, the
 school screen) now opens only once a player has run their own room — `Game.admin_unlocked()`.
+
+**Duties (Nov 2026).** The staff rota is a board in the corridor. It lists the school's other jobs. Each job is a short arcade shift, once a day. The janitor is the first job: clean every spill and wrapper before the clock runs out. The rota opens with the admin gate. The plan for the other jobs is in the vault's `roles-design.md`.
 
 ### Phase 0 — Harden what exists ✅ done
 - Milestones (§8) — the missing piece for an endless game

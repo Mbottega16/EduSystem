@@ -541,6 +541,16 @@ func _open_screen(main: Node, screen: String) -> void:
 			var rep3 := Game.advance_day()
 			rep3["admin_opened"] = true
 			hud.show_day_report(rep3)
+		"rota":
+			hud._sel = 0
+			hud.show_rota()
+		"janitor_shift":
+			# Mid-shift in the corridor: the messes down, the clock in the strip.
+			# Hints off (in memory only, never saved), so the principal's
+			# first-time line does not cover the floor the shot is for.
+			Settings.show_hints = false
+			_into_hallway(main, world, 520.0)
+			main._start_duty("janitor")
 		"principal":
 			hud.principal_says("shot_demo",
 				"Work only moves while you are at the front.")

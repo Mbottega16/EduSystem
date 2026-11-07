@@ -190,6 +190,11 @@ static var fire_cost: int = 150
 ## The school layer waits until the player has run one room over this many
 ## finished days. See data/balance.json "admin_unlock_days".
 static var admin_unlock_days: int = 2
+## The staff rota's janitor shift. Numbers in data/balance.json "duties".
+static var duty_janitor_seconds: float = 45.0
+static var duty_janitor_messes: int = 8
+static var duty_janitor_bonus_coins: int = 20
+static var duty_janitor_rep_full: float = 1.5
 
 # --- the paper you set ---------------------------------------------------
 ## A fresh count each morning, not always the same hand. See the note on
@@ -652,6 +657,12 @@ static func apply(d: Dictionary) -> void:
 	applicant_count = int(sc.get("applicants", applicant_count))
 	fire_cost = int(sc.get("fire_cost", fire_cost))
 	admin_unlock_days = int(sc.get("admin_unlock_days", admin_unlock_days))
+
+	var du: Dictionary = d.get("duties", {})
+	duty_janitor_seconds = float(du.get("janitor_seconds", duty_janitor_seconds))
+	duty_janitor_messes = int(du.get("janitor_messes", duty_janitor_messes))
+	duty_janitor_bonus_coins = int(du.get("janitor_bonus_coins", duty_janitor_bonus_coins))
+	duty_janitor_rep_full = float(du.get("janitor_rep_full", duty_janitor_rep_full))
 
 	var asg: Dictionary = d.get("assignments", {})
 	assign_hand_size_min = int(asg.get("hand_size_min", assign_hand_size_min))
