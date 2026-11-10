@@ -629,6 +629,17 @@ func _open_screen(main: Node, screen: String) -> void:
 		"shop":
 			Game.add_coins(3000)
 			hud.open_catalogue()
+		"cabinet", "cabinet_empty":
+			# The CABINET tab: what is owned and not placed. cabinet: a shelf of
+			# purchases, two of one so a stack shows. cabinet_empty: nothing yet.
+			Game.mark_tutorial_seen("cabinet")
+			Game.cabinet.clear()
+			if screen == "cabinet":
+				for id: String in ["bookshelf", "bookshelf", "lamp", "plant", "rug",
+						"beanbag", "globe", "stool"]:
+					if not Items.get_def(id).is_empty():
+						Game.cabinet.append(id)
+			hud.open_catalogue(hud.Shop.CABINET)
 		"ideas_mine", "ideas_mine_edge", "ideas_mine_zones":
 			# a believable shelf of purchases, so the arrangements have something to place
 			for id: String in ["bookshelf", "bookshelf", "lamp", "plant", "rug", "beanbag",
@@ -759,6 +770,11 @@ func _open_screen(main: Node, screen: String) -> void:
 		"pause_settings":
 			hud.show_pause()
 			hud._pause_go(hud.PauseMenu.SETTINGS)
+			hud._render_pause()
+		"pause_quit":
+			# The quit page: the two ways out, which must not look like Resume.
+			hud.show_pause()
+			hud._pause_go(hud.PauseMenu.QUIT)
 			hud._render_pause()
 		"inspection":
 			Game.event = DayEvent.by_id("inspector")

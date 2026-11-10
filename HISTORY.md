@@ -24,6 +24,17 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 0: Visual Audit, Screenshot Capture & Design Validation
+*PC · Claude (Fable 5.2) + Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. Screenshot Harness: Added `cabinet`, `cabinet_empty`, and `pause_quit` capture routes to `tools/shot.gd`.
+  2. Baseline Capture: Captured 23 baseline "before" screenshots across all game panels into `docs/ui-audit-2026-11-10/before/`.
+  3. Design & Material Validation: Experimentally verified custom Godot StyleBoxes (`MaterialBox` for Chalkboard `#134E4A`, Paper `#F5F0E1`, Wood `#C4A77D`), custom chalk grit shader (`chalk.gdshader`), and typography pairings (Kalam, Press Start 2P, VT323, Patrick Hand).
+  4. Visual Audit Document: Authored `docs/ui-audit-2026-11-10.md` detailing the 8 panel audits, the 11-item cheat icon specification, the end-of-day wrap-up report sheet spec, and the Godot implementation architecture.
+- **Why:** Execution of Phase 0 of the EduSystem UI Overhaul plan (`ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3,215 test assertions passing (`Run Tests.bat 1`), 315 doc checks passing (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A).
+- **Left open:** Phase 1 (Title Screen chalk-lettering pilot proof) awaiting owner verdict on the audit.
+
 ## 2026-10-30 — Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite
 *PC · Antigravity · commits pending*
 - **Changed:**
