@@ -24,6 +24,18 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 1: Title Screen Chalk Pilot Proof & Design System
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. Design Tokens & Fonts: Installed `Kalam` (Bold/Regular), `Press Start 2P`, and `VT323` into `fonts/` with OFL licenses. Created `scripts/ui/ui_theme.gd` for centralized tokens, dynamic font loader, and StyleBox factories. Created `theme.tres` with VT323 base font.
+  2. Procedural Materials: Created `scripts/ui/material_box.gd` rendering 2px-grid procedural Chalkboard (`#134E4A` with wood frame `#C4A77D` / `#B5651D`, eraser smudges, and dust marks), Paper (`#F5F0E1` with rim highlights, drop shadow, and fiber specks), and Wood StyleBoxes.
+  3. Chalk Shader: Created `shaders/chalk.gdshader` applying 2px screen-space grit and pressure break-up for authentic chalk lettering.
+  4. Title Screen Restyle: Updated `scripts/ui/title.gd` to render the wood-framed procedural chalkboard, chalk-lettered `"EDUSystem"` title (Kalam Bold, 44px) with subtle ambient breathing motion, chalk menu options (Kalam Regular, 16px), dedicated Accent Amber cursor (`>`), windowed pagination for Controls (8 rows/page), and smooth native fade/slide page transition tweening.
+  5. Verification & Proofs: Captured after-screenshots (`title_main_after.png`, `title_settings_after.png`, `title_controls_after.png`) in `docs/ui-audit-2026-11-10/`.
+- **Why:** Completing Phase 1 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`) to establish the title pilot proof and test the design system in live engine scenes.
+- **Verified:** All 3,215 unit test assertions green (`Run Tests.bat 1`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms chalk texture, clean layout without footer collision, and crisp amber cursor.
+- **Left open:** Ready for owner review; Phase 2 (Pause Menu Esc overhaul) is next.
+
 ## 2026-11-10 — UI Overhaul Phase 0: Visual Audit, Screenshot Capture & Design Validation
 *PC · Claude (Fable 5.2) + Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

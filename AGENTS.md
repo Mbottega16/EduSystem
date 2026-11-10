@@ -199,10 +199,15 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-30, the owner's ask): Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite.**
-  Implemented floor underlay rug layering in `scripts/data/items.gd`, `scripts/autoload/game.gd`, `scripts/world/room_builder.gd`, `scripts/world/classroom.gd`, and `scripts/world/placement.gd`. Allows passable floor rugs/mats with zero collision blocking, z-ordering at `z_index = -1` (above room floor at -2), and allows solid furniture (chairs, stools, plants, bookshelves) and student desks to be placed directly on top of rugs. Overlapping between two underlays or two solid items remains disallowed. Conformed 11 additional sprites for a total of 19 authentic classroom items conformed to LimeZu palette and installed in `art/` with zero curator orphans. Added 13 new unit tests in `tests/run.gd` covering underlay passability, z-ordering, furniture stacking on rugs, desk stacking on rugs, and dual-layer removal.
-- **Current State (2026-10-30):** suite green at **3215 assertions** in 151 sections (all curator checks green), docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
-- **Next Up:**
-  1. Optional shop unlocks / progression ties for newly conformed stage sprites in future balance tuning.
-  2. Next scheduled user milestones.
+- **Last Worked On (2026-11-10, the owner's ask): UI Overhaul Phase 0 (Audit & Specs) and Phase 1 (Title Screen Pilot Proof & Design System).**
+  - Completed Phase 0 audit report `docs/ui-audit-2026-11-10.md` with 23 baseline screenshots in `docs/ui-audit-2026-11-10/before/`, 11-cheat icon spec, and Paper Report Sheet spec.
+  - Implemented Phase 1 design foundation: installed Kalam, Press Start 2P, and VT323 in `fonts/`; created procedural classroom materials `scripts/ui/material_box.gd` (Chalkboard, Paper, Wood); created chalk grit shader `shaders/chalk.gdshader`; built centralized design tokens and style provider `scripts/ui/ui_theme.gd`; configured `theme.tres`.
+  - Overhauled Title Screen `scripts/ui/title.gd` with wood-framed procedural chalkboard, Kalam chalk title `"EDUSystem"` with gentle breathing oscillation, Kalam menu options, Amber active cursor (`>`), windowed pagination for Controls (8 rows/page), and smooth engine-native page transitions.
+  - Captured proof screenshots in `docs/ui-audit-2026-11-10/` (`title_main_after.png`, `title_settings_after.png`, `title_controls_after.png`).
+  - Authored comprehensive handoff document for Claude: `docs/fable-handoff-2026-11-10.md`.
+- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3,215 assertions** (`Run Tests.bat 1`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Next Up (for Claude/Fable or Antigravity):**
+  1. Await Michael's verdict on the Phase 1 Title Screen pilot proof.
+  2. Proceed to **Phase 2: Pause Menu (Esc)** (`scripts/ui/pause.gd`) using `MaterialBox`, `UITheme`, and `chalk.gdshader` according to `projects/edusystem/ui-overhaul-plan-2026-11-10.md`.
+  3. See `docs/fable-handoff-2026-11-10.md` for complete architecture and resumption notes.
 

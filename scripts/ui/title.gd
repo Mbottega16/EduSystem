@@ -12,6 +12,9 @@ enum Page { MAIN, SETTINGS, CONTROLS, HOWTO, CREDITS, CONFIRM_WIPE, SLOTS, SLOT_
 const GAME_SCENE := "res://scenes/main.tscn"
 const DUST_COUNT := 26
 
+const UITheme := preload("res://scripts/ui/ui_theme.gd")
+const MaterialBox := preload("res://scripts/ui/material_box.gd")
+
 @onready var menu: Label = $UI/Menu
 @onready var heading: Label = $UI/Heading
 @onready var footer: Label = $UI/Footer
@@ -24,6 +27,15 @@ var sel_slot: int = 0           ## chosen slot (0-7) when viewing slot actions
 var rebinding: String = ""      ## action awaiting a key press, "" if none
 var message: String = ""
 
+var _frame_panel: Panel = null
+var _chalk_title: Label = null
+var _amber_cursor: Label = null
+var _chalk_mat: ShaderMaterial = null
+var _chalk_menu_mat: ShaderMaterial = null
+var _font_chalk_bold: FontFile = null
+var _font_chalk_reg: FontFile = null
+var _font_hand: FontFile = null
+
 var _dust: Array[Sprite2D] = []
 var _dust_vel: Array[Vector2] = []
 var _t: float = 0.0
@@ -34,9 +46,69 @@ var _walk_timer: float = 0.0
 
 func _ready() -> void:
 	Balance.ensure_loaded()
+	_setup_chalk_theme()
 	_make_dust()
 	_render()
 	Music.play("music_title")
+
+
+func _setup_chalk_theme() -> void:
+	_font_chalk_bold = UITheme.load_font("res://fonts/Kalam-Bold.ttf")
+	_font_chalk_reg = UITheme.load_font("res://fonts/Kalam-Regular.ttf")
+	_font_hand = UITheme.load_font("res://fonts/PatrickHand-Regular.ttf")
+
+	_chalk_mat = UITheme.make_chalk_material(0.08, 0.22)
+	_chalk_menu_mat = UITheme.make_chalk_material(0.05, 0.18)
+
+	# Wood frame around the chalkboard
+	if _frame_panel == null:
+		_frame_panel = Panel.new()
+		_frame_panel.size = Vector2(640, 352)
+		_frame_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_frame_panel.add_theme_stylebox_override("panel", UITheme.make_chalkboard_box(8, 0.35))
+		add_child(_frame_panel)
+		move_child(_frame_panel, 1)
+
+	# Chalk Title: "EDUSystem"
+	if _chalk_title == null:
+		_chalk_title = Label.new()
+		_chalk_title.size = Vector2(640, 52)
+		_chalk_title.position = Vector2(0, 6)
+		_chalk_title.text = "EDUSystem"
+		_chalk_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_chalk_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_chalk_title.add_theme_font_override("font", _font_chalk_bold)
+		_chalk_title.add_theme_font_size_override("font_size", 44)
+		_chalk_title.add_theme_color_override("font_color", UITheme.CHALK)
+		_chalk_title.material = _chalk_mat
+		$UI.add_child(_chalk_title)
+
+	# Chalk Cursor in Accent Amber
+	if _amber_cursor == null:
+		_amber_cursor = Label.new()
+		_amber_cursor.size = Vector2(18, 20)
+		_amber_cursor.text = ">"
+		_amber_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_amber_cursor.add_theme_font_override("font", _font_chalk_bold)
+		_amber_cursor.add_theme_font_size_override("font_size", 16)
+		_amber_cursor.add_theme_color_override("font_color", UITheme.AMBER)
+		_amber_cursor.material = UITheme.make_chalk_material(0.04, 0.1)
+		$UI.add_child(_amber_cursor)
+
+	heading.add_theme_font_override("font", _font_chalk_bold)
+	heading.add_theme_font_size_override("font_size", 22)
+	heading.add_theme_color_override("font_color", UITheme.CHALK)
+	heading.material = _chalk_mat
+
+	menu.add_theme_font_override("font", _font_chalk_reg)
+	menu.add_theme_font_size_override("font_size", 16)
+	menu.add_theme_constant_override("line_spacing", 0)
+	menu.add_theme_color_override("font_color", UITheme.CHALK)
+	menu.material = _chalk_menu_mat
+
+	footer.add_theme_font_override("font", _font_hand)
+	footer.add_theme_font_size_override("font_size", 16)
+	footer.add_theme_color_override("font_color", Color(UITheme.CHALK.r, UITheme.CHALK.g, UITheme.CHALK.b, 0.75))
 
 
 func _make_dust() -> void:
@@ -63,8 +135,10 @@ func _process(delta: float) -> void:
 			s.position = Vector2(randf_range(16, 624), 324.0)   # doubled Aug 2026
 			s.modulate.a = randf_range(0.15, 0.6)
 
-	# the logo breathes, very slightly
-	logo.position.y = 60.0 + sin(_t * 1.3) * 3.0   # doubled Aug 2026
+	# the chalk title breathes gently on the board
+	if _chalk_title != null and _chalk_title.visible:
+		_chalk_title.position.y = 14.0 + sin(_t * 1.3) * 2.0
+	logo.visible = false
 
 	# a student wanders across the chalk tray, because an empty title screen
 	# with no living thing on it reads as a menu, not a game
@@ -144,6 +218,23 @@ func _go(p: int) -> void:
 	sel = 0
 	message = ""
 	_render()
+	_animate_transition()
+
+
+func _animate_transition() -> void:
+	if not is_inside_tree():
+		return
+	menu.modulate.a = 0.0
+	var orig_y := menu.offset_top
+	menu.offset_top = orig_y + 4.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(menu, "modulate:a", 1.0, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(menu, "offset_top", orig_y, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if heading.visible and heading.text != "":
+		heading.modulate.a = 0.0
+		var h_tw := create_tween()
+		h_tw.tween_property(heading, "modulate:a", 1.0, 0.12)
 
 
 # ------------------------------------------------------------- the pages
@@ -350,8 +441,11 @@ func _render() -> void:
 	match page:
 		Page.MAIN:
 			heading.text = ""
-			logo.visible = true
-			menu.offset_top = 100.0   # adjusted to fit rows comfortably
+			if _chalk_title != null:
+				_chalk_title.visible = true
+			logo.visible = false
+			menu.offset_left = 220.0
+			menu.offset_top = 58.0   # adjusted for chalk lettered layout
 			for i in rows.size():
 				var id := String(rows[i])
 				var names_main := {
@@ -363,11 +457,16 @@ func _render() -> void:
 				if id == "continue":
 					text += "   (day %d)" % Game.saved_day()
 				lines.append("%s %s" % [">" if i == sel else " ", text])
+			footer.offset_top = 312.0
+			footer.offset_bottom = 336.0
 			footer.text = message if message != "" else "Arrows to choose, E to pick"
 
 		Page.SLOTS:
+			if _chalk_title != null:
+				_chalk_title.visible = false
 			heading.text = "SAVE SLOTS"
 			logo.visible = false
+			menu.offset_left = 60.0
 			menu.offset_top = 58.0
 			for i in rows.size():
 				var row_id := String(rows[i])
@@ -391,8 +490,11 @@ func _render() -> void:
 			footer.text = message if message != "" else "Arrows to choose, E to select, Esc to go back"
 
 		Page.SLOT_ACTIONS:
+			if _chalk_title != null:
+				_chalk_title.visible = false
 			heading.text = "SLOT %d" % [sel_slot + 1]
 			logo.visible = false
+			menu.offset_left = 180.0
 			menu.offset_top = 80.0
 			var action_names := {
 				"load": "Load this slot",
@@ -407,8 +509,11 @@ func _render() -> void:
 			footer.text = "E to pick, Esc to go back"
 
 		Page.CONFIRM_SLOT_DELETE:
+			if _chalk_title != null:
+				_chalk_title.visible = false
 			heading.text = "ERASE SLOT %d?" % [sel_slot + 1]
 			logo.visible = false
+			menu.offset_left = 180.0
 			menu.offset_top = 80.0
 			lines = ["This cannot be undone.", ""]
 			for i in rows.size():
@@ -418,9 +523,12 @@ func _render() -> void:
 			footer.text = ""
 
 		Page.SETTINGS:
+			if _chalk_title != null:
+				_chalk_title.visible = false
 			heading.text = "SETTINGS"
 			logo.visible = false
-			menu.offset_top = 80.0   # doubled Aug 2026
+			menu.offset_left = 140.0
+			menu.offset_top = 70.0
 			var vals := {
 				"master": _bar(Settings.master_volume),
 				"sfx": _bar(Settings.sfx_volume),
@@ -443,15 +551,13 @@ func _render() -> void:
 			footer.text = "Left/Right to change, Esc to go back"
 
 		Page.CONTROLS:
+			if _chalk_title != null:
+				_chalk_title.visible = false
 			heading.text = "CONTROLS"
 			logo.visible = false
-			menu.offset_top = 64.0   # doubled Aug 2026
-			# Windowed, the same way Career/Office page past a list longer
-			# than the panel -- confirmed necessary by screenshot, not
-			# assumed: this Label does not scroll, and three more actions
-			# (quiz, homework, move_desk, added when the whole key scheme
-			# changed) pushed the flat list into the footer's own row.
-			var shown_rows := 10
+			menu.offset_left = 120.0
+			menu.offset_top = 54.0
+			var shown_rows := 8
 			var lo := 0
 			if rows.size() > shown_rows:
 				lo = clampi(sel - shown_rows / 2, 0, rows.size() - shown_rows)
@@ -474,7 +580,10 @@ func _render() -> void:
 				footer.text = prompt
 
 		Page.HOWTO:
-			menu.offset_top = 80.0   # doubled Aug 2026
+			if _chalk_title != null:
+				_chalk_title.visible = false
+			menu.offset_left = 60.0
+			menu.offset_top = 68.0
 			heading.text = "HOW TO PLAY"
 			logo.visible = false
 			lines = [
@@ -490,7 +599,10 @@ func _render() -> void:
 			footer.text = "Esc to go back"
 
 		Page.CREDITS:
-			menu.offset_top = 80.0   # doubled Aug 2026
+			if _chalk_title != null:
+				_chalk_title.visible = false
+			menu.offset_left = 100.0
+			menu.offset_top = 64.0
 			heading.text = "CREDITS"
 			logo.visible = false
 			lines = [
@@ -508,6 +620,9 @@ func _render() -> void:
 			footer.text = "Esc to go back"
 
 		Page.CONFIRM_WIPE:
+			if _chalk_title != null:
+				_chalk_title.visible = false
+			menu.offset_left = 160.0
 			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "ERASE SAVE?"
 			logo.visible = false
@@ -519,3 +634,10 @@ func _render() -> void:
 			footer.text = ""
 
 	menu.text = "\n".join(lines)
+	if _amber_cursor != null:
+		if not rows.is_empty() and sel >= 0 and sel < rows.size():
+			_amber_cursor.visible = true
+			var line_h := 25.0
+			_amber_cursor.position = Vector2(menu.offset_left, menu.offset_top + sel * line_h - 1.0)
+		else:
+			_amber_cursor.visible = false
