@@ -76,7 +76,7 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3258 / 3258 assertions passing** (151 sections).
+- **Unit Tests:** **3258 / 3261 assertions passing** (151 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
@@ -139,17 +139,30 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ---
 
-## 8. Next Up: Phase 5 — The Cabinet & Store
+## 8. Phase 5: The Cabinet & Store — Completed & Verified
 
-Consult `docs/ui-audit-2026-11-10.md` (Panel 5: The Cabinet & Store).
+- **Target Files:** `scripts/ui/hud.gd`, `tests/run.gd`.
+- **What was done:**
+  - **Left-Page Table of Contents (`_shop_contents`):** Structured table of contents with ruled sand divider (`-----------------`), dynamic storage count badge (`Your cabinet (%d)`), amber active-page indicator (`[color=#D97706]>[/color] [b]%s[/b]`), and muted unselected section links.
+  - **Empty Cabinet Warm Teacher Note (`cabinet_empty.png`):** Transformed the stark single-line empty message into an authentic classroom note with a bold header, ruled sand separator, warm invitation (`"Your shelves are ready for supplies."`), pedagogical quote (`"Every great classroom begins with a clear desk and an open mind."`), and clear navigation prompt in Accent Amber.
+  - **Scannable Raised Rows in Cabinet & Store (`cabinet.png`, `shop.png`):**
+    - Active row highlight with amber cursor (`>`), bold item name, quantity badge in Olive (`#6B7B3C`), and sell price tag in muted pencil without jitter.
+    - Furniture Catalogue (`BUY` mode): bold active category header with bracketed tabs, amber selection indicator, bold item name, formatted price tags, and clean desk-item capacity indicators without text wrapping.
+  - Added 3 unit tests in `tests/run.gd` (+3 assertions, total 3261).
+  - Captured after-screenshots in `docs/ui-audit-2026-11-10/after/` (`cabinet.png`, `cabinet_empty.png`, `shop.png`).
 
-### Phase 5 Implementation Guide:
-- **Target Files:** `scripts/ui/hud.gd` (cabinet & shop rendering methods, such as `show_cabinet()`, `show_shop()`, etc.).
-- **Screenshots to Audit:** `cabinet.png`, `cabinet_empty.png`, `shop.png`.
+---
+
+## 9. Next Up: Phase 6 — Watching Panel (Other Teachers' Classrooms)
+
+Consult `docs/ui-audit-2026-11-10.md` (Panel 6: Watching Panel).
+
+### Phase 6 Implementation Guide:
+- **Target Files:** `scripts/ui/hud.gd` (observation and visit methods: `show_watch()`, `show_visit()`, `show_auto_teach()`, etc.).
+- **Screenshots to Audit:** `watch.png`, `visit.png`, `auto_teach.png`.
 - **Design Specifications:**
-  - Two-page book metaphor (`BOOK_BLUE` cover, left page preview, right page list).
-  - Selected inventory row renders as raised card (`Paper-bright` with 2px shadow and amber trim).
-  - Empty cabinet state (`cabinet_empty.png`): charming warm teacher note ("Your shelves are ready for supplies...").
-  - Wood-trimmed header tabs.
-  - Capture after screenshots into `docs/ui-audit-2026-11-10/after/` (`cabinet.png`, `cabinet_empty.png`, `shop.png`).
+  - Clipboard observation motif or distinct header plate (`"OBSERVING: ROOM %d"`).
+  - Clear side-by-side comparison cards using VT323 and Press Start 2P.
+  - Distinct styling so player immediately recognizes they are observing a colleague's room, not their own.
+  - Capture after screenshots into `docs/ui-audit-2026-11-10/after/` (`watch.png`, `visit.png`, `auto_teach.png`).
   - Keep 100% tests green, doc facts synced, and balance contract intact.

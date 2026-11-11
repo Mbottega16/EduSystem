@@ -6472,11 +6472,16 @@ func _inkify(text: String) -> String:
 ## The contents list on the left page of every shop section but the first.
 func _shop_contents() -> String:
 	var out: Array[String] = []
+	out.append("[b]CONTENTS[/b]")
+	out.append("[font_size=%d][color=#%s]-----------------[/color][/font_size]" % [UI_SMALL, UITheme.hex(&"sand_dark")])
 	for i in SHOP_SECTIONS.size():
+		var sec_name: String = String(SHOP_SECTIONS[i])
+		if i == Shop.CABINET and not Game.cabinet.is_empty():
+			sec_name = "Your cabinet (%d)" % Game.cabinet.size()
 		if i == _shop:
-			out.append("> %s" % SHOP_SECTIONS[i])
+			out.append("[color=#%s]>[/color] [b]%s[/b]" % [UITheme.hex(&"accent"), sec_name])
 		else:
-			out.append("[color=#%s]  %s[/color]" % [DIM, SHOP_SECTIONS[i]])
+			out.append("[color=#%s]  %s[/color]" % [DIM, sec_name])
 	return "\n".join(out)
 
 
@@ -6517,7 +6522,7 @@ func _render_catalogue() -> void:
 			# The open category is named in full on its own line; the strip
 			# under it marks where it sits among the others.
 			if i == _cat:
-				tabs = "[color=#%s]%s[/color]" % [hue, label]
+				tabs = "[b][color=#%s]%s[/color][/b]" % [hue, label]
 				strip += "[color=#%s][%s][/color]" % [hue, label.substr(0, 3)]
 			else:
 				strip += "[color=#%s] %s [/color]" % [hue, label.substr(0, 3)]
@@ -6564,7 +6569,14 @@ func _render_catalogue() -> void:
 		# the list of ideas is the left page; the picture is the right
 		left = "\n".join(_render_ideas(rows))
 	elif rows.is_empty():
-		lines.append("   The cabinet is empty. Buy something first.")
+		if _shop == Shop.CABINET:
+			lines.append("[b]YOUR CABINET[/b]")
+			lines.append("[font_size=%d][color=#%s]-------------------------[/color][/font_size]" % [UI_SMALL, UITheme.hex(&"sand_dark")])
+			lines.append("Your shelves are ready for supplies.")
+			lines.append("\n[font_size=%d][color=#%s]\"Every great classroom begins with\n a clear desk and an open mind.\"[/color][/font_size]" % [UI_SMALL, UITheme.hex(&"pencil")])
+			lines.append("\n[font_size=%d][color=#%s]Press [Tab] to visit Furniture Catalogue\nand order items for your room.[/color][/font_size]" % [UI_SMALL, UITheme.hex(&"accent")])
+		else:
+			lines.append("   The catalogue is empty.")
 	elif _shop == Shop.BUY:
 		left = tabs
 		# A window, not the whole list: a category can hold more than a
@@ -6578,18 +6590,15 @@ func _render_catalogue() -> void:
 			var price := Game.shop_price(id)
 			var afford: bool = Game.can_afford(price)
 			var hue := cat_colour(Items.category_of(id))
-			# The price is the thing you are actually deciding on, so it
-			# carries the yes/no colour rather than the name doing it.
-			var mark := ">" if i == _sel else " "
+			var mark := ("[color=#%s]>[/color]" % UITheme.hex(&"accent")) if i == _sel else " "
+			var raw_name := String(d["name"]).substr(0, 13)
+			var name_padded := "%-13s" % raw_name
+			var name_str := ("[b]%s[/b]" % name_padded) if i == _sel else name_padded
 			if String(d.get("cat", "")) == "consumable":
-				# No range, no bonus -- it is not placed anywhere.
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]today[/color][/font_size]" % [
-					mark, hue if afford else DIM, String(d["name"]).substr(0, 13),
+				lines.append("%s [color=#%s]%s[/color] [color=#%s]%4d[/color] [font_size=%d][color=#%s]today[/color][/font_size]" % [
+					mark, hue if afford else DIM, name_str,
 					C_GOOD if afford else C_BAD, price, UI_SMALL, DIM])
 			elif Items.is_desk_top(id):
-				# Stands on one child's desk: it reaches nobody else, so it
-				# says where it goes, and when you have all the copies a
-				# decision about WHO is worth.
 				var cap := Items.max_owned(id)
 				var full: bool = cap > 0 and Game.owned_count(id) >= cap
 				var tag := "on one desk, no chatting"
@@ -6597,12 +6606,12 @@ func _render_catalogue() -> void:
 					tag = "you have them all"
 				elif not bool(d.get("screens_neighbours", false)) and float(d.get("desk_work_mult", 1.0)) > 1.0:
 					tag = "on one desk, +%d%% work speed" % int(round((float(d.get("desk_work_mult", 1.0)) - 1.0) * 100.0))
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color]\n     [font_size=%d][color=#%s]%s[/color][/font_size]" % [
-					mark, hue if afford and not full else DIM, String(d["name"]).substr(0, 13),
+				lines.append("%s [color=#%s]%s[/color] [color=#%s]%4d[/color]\n     [font_size=%d][color=#%s]%s[/color][/font_size]" % [
+					mark, hue if afford and not full else DIM, name_str,
 					C_GOOD if afford and not full else C_BAD, price, UI_SMALL, DIM, tag])
 			else:
-				lines.append("%s [color=#%s]%-13s[/color] [color=#%s]%4d[/color]" % [
-					mark, hue if afford else DIM, String(d["name"]).substr(0, 13),
+				lines.append("%s [color=#%s]%s[/color] [color=#%s]%4d[/color]" % [
+					mark, hue if afford else DIM, name_str,
 					C_GOOD if afford else C_BAD, price])
 		if lo + SHOP_ROWS < rows.size():
 			lines.append("   ...")
@@ -6610,7 +6619,7 @@ func _render_catalogue() -> void:
 		# (for furniture) how much it helps and how far it reaches.
 		var cur := String(rows[_sel])
 		var cd := Items.get_def(cur)
-		var cap_lines: Array[String] = ["[color=#%s]%s[/color]" % [
+		var cap_lines: Array[String] = ["[b][color=#%s]%s[/color][/b]" % [
 			cat_colour(Items.category_of(cur)), String(cd.get("name", cur))]]
 		_shop_blurb = String(cd.get("blurb", ""))
 		cap_lines.append("[font_size=%d]%s[/font_size]" % [UI_SMALL, _shop_blurb])
@@ -6629,13 +6638,21 @@ func _render_catalogue() -> void:
 		for i in range(lo2, mini(rows.size(), lo2 + SHOP_ROWS)):
 			var cid := String(rows[i])
 			var cn := Game.cabinet_count(cid)
-			lines.append("%s %-12s x%d  sell %3d" % [
-				">" if i == _sel else " ",
-				String(Items.get_def(cid).get("name", cid)).substr(0, 12),
-				cn, Game.sell_value(cid)])
+			var item_raw := String(Items.get_def(cid).get("name", cid)).substr(0, 12)
+			var item_padded := "%-12s" % item_raw
+			var item_str := ("[b]%s[/b]" % item_padded) if i == _sel else item_padded
+			var sell_val := Game.sell_value(cid)
+			if i == _sel:
+				lines.append("[color=#%s]>[/color] %s [color=#%s]x%d[/color]  [font_size=%d][color=#%s]sell %3d[/color][/font_size]" % [
+					UITheme.hex(&"accent"), item_str,
+					UITheme.hex(&"olive"), cn, UI_SMALL, UITheme.hex(&"pencil"), sell_val])
+			else:
+				lines.append("  %s [color=#%s]x%d[/color]  [font_size=%d][color=#%s]sell %3d[/color][/font_size]" % [
+					item_str,
+					UITheme.hex(&"pencil"), cn, UI_SMALL, UITheme.hex(&"pencil"), sell_val])
 		if lo2 + SHOP_ROWS < rows.size():
 			lines.append("   ...")
-		lines.append("[font_size=%d]E takes one out to place.  Left sells one for half.[/font_size]" % UI_SMALL)
+		lines.append("[font_size=%d][color=#%s]E takes one out to place.  Left sells one for half.[/color][/font_size]" % [UI_SMALL, UITheme.hex(&"pencil")])
 	if _shop != Shop.BUY and _shop != Shop.IDEAS:
 		left = _shop_contents()
 	rich_left.text = _inkify(left)

@@ -24,6 +24,19 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 5: The Cabinet & Store (Table of Contents, Warm Empty Note & Raised Rows)
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. Table of Contents & Navigation: Redesigned the left page of the blue catalogue (`_shop_contents` in `scripts/ui/hud.gd`) with a bold `CONTENTS` header, ruled sand separator, dynamic storage count badge (`Your cabinet (%d)`), amber active-page indicator (`[color=#D97706]>[/color] [b]%s[/b]`), and muted unselected section links.
+  2. Empty Cabinet Note (`cabinet_empty.png`): Replaced the stark single line with a warm, authentic classroom supply shelf note: `YOUR CABINET` header, ruled sand divider, warm invitation (`"Your shelves are ready for supplies."`), pedagogical quote (`"Every great classroom begins with a clear desk and an open mind."` in pencil), and clear action prompt (`"Press [Tab] to visit Furniture Catalogue and order items for your room."` in Accent Amber).
+  3. Raised Scannable Row Architecture:
+     - Cabinet view (`_shop == Shop.CABINET`): Active row highlighted with amber cursor (`>`), bold ink item name (`[b]%-12s[/b]`), quantity badge in Olive (`#6B7B3C`), and sell price tag in muted pencil without column jitter.
+     - Furniture Catalogue (`_shop == Shop.BUY`): Bold active category header with bracketed tabs, amber selection indicator, bold item name, formatted price tags, and clean desk-item capacity indicators without text wrapping.
+  4. Test Suite & Verification: Added unit tests in `tests/run.gd` validating that the empty cabinet displays the warm teacher note, the cabinet list displays quantities and sell values, and the shop contents list includes a contents header (+3 assertions, total 3261). Captured after-screenshots (`cabinet.png`, `cabinet_empty.png`, `shop.png`) in `docs/ui-audit-2026-11-10/after/`.
+- **Why:** Full completion of Phase 5 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3261 unit test assertions green (`tests/run.tscn`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms clear table of contents, warm empty cabinet quote, and clean raised inventory rows.
+- **Left open:** Ready for owner review; Phase 6 (Watching Panel: Other Teachers' Classrooms) is next.
+
 ## 2026-11-10 — UI Overhaul Phase 4: Lesson Plan Tab & Curriculum Redesign (Subject Marks & Pedagogical Dossier)
 *PC · Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

@@ -9688,6 +9688,12 @@ func test_shop() -> void:
 	chk("the cabinet list shows what you actually own",
 		hud.rich.text.contains("Bookshelf") and hud.rich.text.contains("Potted Plant"),
 		hud.rich.text)
+	chk("the cabinet list displays quantity and sell price",
+		hud.rich.text.contains("sell") and hud.rich.text.contains("x"),
+		hud.rich.text)
+	chk("the shop contents list includes a contents header",
+		hud.rich_left.text.contains("CONTENTS"),
+		hud.rich_left.text)
 
 	# Left sells one copy for half.
 	var coins_before: int = Game.coins
@@ -9713,6 +9719,14 @@ func test_shop() -> void:
 	chk("then to room ideas", hud._shop == hud.Shop.IDEAS)
 	await tap("menu")
 	chk("and round again to buying", hud._shop == hud.Shop.BUY)
+	var test_cab: Array = Game.cabinet.duplicate()
+	Game.cabinet.clear()
+	hud.open_catalogue(hud.Shop.CABINET)
+	chk("the empty cabinet displays the warm teacher note",
+		hud.rich.text.contains("ready for supplies") or hud.rich.text.contains("open mind"),
+		hud.rich.text)
+	Game.cabinet = test_cab
+	hud.open_catalogue(hud.Shop.CABINET)
 	await tap("cancel")
 	chk("Esc closes the shop", hud.mode == hud.Mode.NONE and not p.input_locked)
 
