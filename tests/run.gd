@@ -9265,6 +9265,24 @@ func test_dev_panel() -> void:
 	dbg._render()
 	chk("the list scrolls to keep the cursor row on screen",
 		dbg._label.text.contains(String(dbg.CHEATS[dbg.CHEATS.size() - 1]["label"])))
+
+	var all_cheats_have_icons := func() -> bool:
+		for c: Dictionary in dbg.CHEATS:
+			var cid := String(c.get("id", ""))
+			if not dbg.ICONS.has(cid) or dbg.ICONS[cid] == null:
+				return false
+		return true
+	chk("every cheat has an icon texture loaded", all_cheats_have_icons.call())
+
+	var all_cheats_have_descs := func() -> bool:
+		for c: Dictionary in dbg.CHEATS:
+			if String(c.get("title", "")).is_empty() or String(c.get("desc", "")).is_empty():
+				return false
+		return true
+	chk("every cheat has a title and a scannable effect description", all_cheats_have_descs.call())
+
+	chk("the debug panel uses the PaperSheet material variation",
+		dbg._panel.theme_type_variation == &"PaperSheet")
 	dbg._toggle(false)
 	dbg.open = false
 	if dbg._backtick_edge(true):

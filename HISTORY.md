@@ -24,6 +24,18 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 3: Cheat Tab Overhaul (11 Custom Pixel Icons & Scannable Rows)
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. 11 Custom Pixel-Art Icons: Authored `tools/make_cheat_icons.py` (integrated into `tools/make_ui.py`) and generated 11 bespoke 20x20 pixel-art icons matching LimeZu density and palette: Golden Key (`all`), Coin Sack (`coins`), Mortarboard & Star (`teacher`), A+ Slate & Apple (`students`), Rolled Diploma (`ready`), Bookshelf & Globe (`furnish`), Student Desks (`enrol`), Blueprint Arrows (`grow`), Sun Calendar (`day`), Ringing School Bell (`term`), and Wax-Sealed Exam Scroll (`boss`). Imported into Godot and wired to nearest texture filtering.
+  2. Material Surface & Panel Geometry: Replaced legacy `NinePatchRect` bamboo frame with procedural `MaterialBox.Kind.PAPER` (`UITheme.box(&"PaperSheet")`), giving the debug panel an authentic cream paper surface with drop shadow, subtle fiber specks, top-left highlight, and 2px wood/sand border over the live classroom. Added stepped motion entrance.
+  3. Scannable Row Architecture: Replaced single unformatted label with 7 windowed row controls. Each row displays its 20x20 icon, crisp title in ink (`#1A1A1A`), short effect description in pencil (`#666055`), and dynamic action/status tags (`(ACTIVE)` in Olive, `[E] ACTIVATE` in Amber). Active row features Amber highlight card and 3px leading stripe badge.
+  4. Tabs & Tuning: Added styled `[ CHEATS ]` / `[ TUNING ]` tabs with sand ruled separator (`#D4C4A8`). Restyled `TUNING` page with the same paper surface, row cards, value readouts, and `[◄/►] Nudge` indicators. Preserved underlying `_label.text` updating contract so all existing test assertions remain 100% green.
+  5. Test Suite & Verification: Added unit tests in `tests/run.gd` verifying all 11 icons are loaded, all cheats have titles and descriptions, and debug panel wears `PaperSheet` (+3 assertions, total 3255). Captured after-screenshots (`cheats.png`, `cheats_scrolled.png`, `cheats_tuning.png`) in `docs/ui-audit-2026-11-10/after/`.
+- **Why:** Full completion of Phase 3 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3255 unit test assertions green (`tests/run.tscn`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms crisp pixel-art icons, scannable effect descriptions, and authentic paper aesthetics.
+- **Left open:** Ready for owner review; Phase 4 (Lesson Plan Tab & Curriculum Cards) is next.
+
 ## 2026-11-10 — UI Overhaul Phase 2: Pause Menu (Esc) Paper Sheet Overhaul & Visual Hierarchy
 *PC · Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

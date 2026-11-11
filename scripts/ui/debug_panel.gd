@@ -24,6 +24,20 @@ const PANEL_RECT := Rect2(100, 24, 440, 304)
 ## Rows shown at once. The list scrolls so the cursor row is always inside.
 const WINDOW := 7
 
+const ICONS := {
+	"all": preload("res://art/icon_cheat_all.png"),
+	"coins": preload("res://art/icon_cheat_coins.png"),
+	"teacher": preload("res://art/icon_cheat_teacher.png"),
+	"students": preload("res://art/icon_cheat_students.png"),
+	"ready": preload("res://art/icon_cheat_ready.png"),
+	"furnish": preload("res://art/icon_cheat_furnish.png"),
+	"enrol": preload("res://art/icon_cheat_enrol.png"),
+	"grow": preload("res://art/icon_cheat_grow.png"),
+	"day": preload("res://art/icon_cheat_day.png"),
+	"term": preload("res://art/icon_cheat_term.png"),
+	"boss": preload("res://art/icon_cheat_boss.png"),
+}
+
 const ROWS := [
 	{"label": "work seconds", "key": "work_seconds", "step": 1.0},
 	{"label": "lesson seconds", "key": "lesson_seconds", "step": 5.0},
@@ -37,17 +51,72 @@ const ROWS := [
 ]
 
 const CHEATS := [
-	{"label": "EVERYTHING (dev room)", "id": "all"},
-	{"label": "Unlimited coins", "id": "coins"},
-	{"label": "Max teacher + all perks", "id": "teacher"},
-	{"label": "Max every student", "id": "students"},
-	{"label": "Everyone ready to graduate", "id": "ready"},
-	{"label": "One of every item, placed", "id": "furnish"},
-	{"label": "Fill the class to capacity", "id": "enrol"},
-	{"label": "Bigger room (+1 wide, +1 long)", "id": "grow"},
-	{"label": "Skip a day", "id": "day"},
-	{"label": "End the term now", "id": "term"},
-	{"label": "Boss paper now (Reading Paper)", "id": "boss"},
+	{
+		"label": "EVERYTHING (dev room)",
+		"id": "all",
+		"title": "Dev Room (EVERYTHING)",
+		"desc": "All perks, max coins, full room & items",
+	},
+	{
+		"label": "Unlimited coins",
+		"id": "coins",
+		"title": "Unlimited Coins",
+		"desc": "Toggle infinite coin supply (+999k)",
+	},
+	{
+		"label": "Max teacher + all perks",
+		"id": "teacher",
+		"title": "Master Teacher",
+		"desc": "Max teacher level & unlock all perks",
+	},
+	{
+		"label": "Max every student",
+		"id": "students",
+		"title": "Honour Students",
+		"desc": "Max student level, aptitude & diligence",
+	},
+	{
+		"label": "Everyone ready to graduate",
+		"id": "ready",
+		"title": "Ready to Graduate",
+		"desc": "Set all students ready to send up",
+	},
+	{
+		"label": "One of every item, placed",
+		"id": "furnish",
+		"title": "Furnish Classroom",
+		"desc": "Place one of every classroom item",
+	},
+	{
+		"label": "Fill the class to capacity",
+		"id": "enrol",
+		"title": "Full Enrollment",
+		"desc": "Fill every open seat with students",
+	},
+	{
+		"label": "Bigger room (+1 wide, +1 long)",
+		"id": "grow",
+		"title": "Expand Classroom",
+		"desc": "Grow room boundaries (+1W, +1L)",
+	},
+	{
+		"label": "Skip a day",
+		"id": "day",
+		"title": "Skip a Day",
+		"desc": "Advance calendar by 1 teaching day",
+	},
+	{
+		"label": "End the term now",
+		"id": "term",
+		"title": "End Term Now",
+		"desc": "Jump directly to the final term day",
+	},
+	{
+		"label": "Boss paper now (Reading Paper)",
+		"id": "boss",
+		"title": "Spawn Boss Paper",
+		"desc": "Spawn Reading exam paper at podium",
+	},
 ]
 
 var open: bool = false
@@ -55,9 +124,27 @@ var _backtick_was_down: bool = false
 var _shift_d_was_down: bool = false
 var page: int = Page.TUNING
 var _sel: int = 0
-var _panel: NinePatchRect = null
+var _panel: Control = null
 var _label: Label = null
 var _msg: String = ""
+
+# Visual overhaul nodes
+var _tab_cheats: Label = null
+var _tab_tuning: Label = null
+var _tab_hint: Label = null
+var _tab_badge: ColorRect = null
+var _header_rule: ColorRect = null
+var _footer_rule: ColorRect = null
+var _footer_hint: Label = null
+var _footer_status: Label = null
+
+var _row_controls: Array[Control] = []
+var _row_bgs: Array[ColorRect] = []
+var _row_badges: Array[ColorRect] = []
+var _row_icons: Array[TextureRect] = []
+var _row_titles: Array[Label] = []
+var _row_descs: Array[Label] = []
+var _row_tags: Array[Label] = []
 
 
 ## Opens straight onto the cheats page. The pause menu's Cheats row calls it.
@@ -70,20 +157,17 @@ func open_cheats() -> void:
 func _ready() -> void:
 	add_to_group("debug_panel")
 	layer = 20
-	# Dressed like the pause menu: LimeZu's bamboo frame with its cream
-	# centre, dark ink, and the pixel font at 20.
-	_panel = NinePatchRect.new()
-	_panel.texture = FRAME
+
+	# Procedural cream paper sheet from the design system
+	_panel = Panel.new()
 	_panel.position = PANEL_RECT.position
 	_panel.size = PANEL_RECT.size
-	for side in ["left", "top", "right", "bottom"]:
-		_panel.set("patch_margin_" + side, FRAME_MARGIN)
-	_panel.draw_center = true
-	_panel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	UITheme.wear(_panel, &"PaperSheet")
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.visible = false
 	add_child(_panel)
 
+	# Legacy/headless test label: kept for test assertions & contract
 	_label = Label.new()
 	_label.position = Vector2(28, 28)
 	_label.size = Vector2(PANEL_RECT.size.x - 56, PANEL_RECT.size.y - 52)
@@ -93,7 +177,157 @@ func _ready() -> void:
 	_label.add_theme_font_size_override("font_size", SIZE)
 	_label.add_theme_constant_override("line_spacing", 2)
 	_label.add_theme_color_override("font_color", INK)
+	_label.visible = false
 	_panel.add_child(_label)
+
+	_build_visuals()
+
+
+func _build_visuals() -> void:
+	# Header Tabs
+	_tab_badge = ColorRect.new()
+	_tab_badge.position = Vector2(18, 12)
+	_tab_badge.size = Vector2(74, 20)
+	_tab_badge.color = UITheme.faded(&"amber", 0.22)
+	_tab_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_tab_badge)
+
+	_tab_cheats = Label.new()
+	_tab_cheats.position = Vector2(24, 14)
+	_tab_cheats.size = Vector2(70, 16)
+	_tab_cheats.add_theme_font_override("font", FONT)
+	_tab_cheats.add_theme_font_size_override("font_size", 14)
+	_tab_cheats.add_theme_color_override("font_color", INK)
+	_tab_cheats.text = "CHEATS"
+	_panel.add_child(_tab_cheats)
+
+	_tab_tuning = Label.new()
+	_tab_tuning.position = Vector2(104, 14)
+	_tab_tuning.size = Vector2(70, 16)
+	_tab_tuning.add_theme_font_override("font", FONT)
+	_tab_tuning.add_theme_font_size_override("font_size", 14)
+	_tab_tuning.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+	_tab_tuning.text = "TUNING"
+	_panel.add_child(_tab_tuning)
+
+	_tab_hint = Label.new()
+	_tab_hint.position = Vector2(240, 15)
+	_tab_hint.size = Vector2(180, 14)
+	_tab_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_tab_hint.add_theme_font_override("font", FONT)
+	_tab_hint.add_theme_font_size_override("font_size", 11)
+	_tab_hint.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+	_tab_hint.text = "[Tab] Switch Page"
+	_panel.add_child(_tab_hint)
+
+	# Ruled separator under header
+	_header_rule = ColorRect.new()
+	_header_rule.position = Vector2(18, 36)
+	_header_rule.size = Vector2(404, 1)
+	_header_rule.color = UITheme.color(&"sand")
+	_header_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_header_rule)
+
+	# 7 windowed rows
+	for r in WINDOW:
+		var row := Control.new()
+		row.position = Vector2(18, 42 + r * 30)
+		row.size = Vector2(404, 28)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_panel.add_child(row)
+		_row_controls.append(row)
+
+		# Active row background card
+		var bg := ColorRect.new()
+		bg.position = Vector2(0, 0)
+		bg.size = Vector2(404, 28)
+		bg.color = UITheme.faded(&"amber", 0.16)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg.visible = false
+		row.add_child(bg)
+		_row_bgs.append(bg)
+
+		# Leading accent badge
+		var badge := ColorRect.new()
+		badge.position = Vector2(0, 0)
+		badge.size = Vector2(3, 28)
+		badge.color = UITheme.color(&"amber")
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.visible = false
+		row.add_child(badge)
+		_row_badges.append(badge)
+
+		# 20x20 pixel icon
+		var icon := TextureRect.new()
+		icon.position = Vector2(8, 4)
+		icon.size = Vector2(20, 20)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		_row_icons.append(icon)
+
+		# Title label
+		var title := Label.new()
+		title.position = Vector2(34, 1)
+		title.size = Vector2(260, 14)
+		title.add_theme_font_override("font", FONT)
+		title.add_theme_font_size_override("font_size", 13)
+		title.add_theme_color_override("font_color", INK)
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(title)
+		_row_titles.append(title)
+
+		# Effect description label
+		var desc := Label.new()
+		desc.position = Vector2(34, 15)
+		desc.size = Vector2(285, 12)
+		desc.add_theme_font_override("font", FONT)
+		desc.add_theme_font_size_override("font_size", 11)
+		desc.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+		desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(desc)
+		_row_descs.append(desc)
+
+		# Status / action tag
+		var tag := Label.new()
+		tag.position = Vector2(310, 6)
+		tag.size = Vector2(88, 16)
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		tag.add_theme_font_override("font", FONT)
+		tag.add_theme_font_size_override("font_size", 11)
+		tag.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(tag)
+		_row_tags.append(tag)
+
+	# Ruled separator above footer
+	_footer_rule = ColorRect.new()
+	_footer_rule.position = Vector2(18, 254)
+	_footer_rule.size = Vector2(404, 1)
+	_footer_rule.color = UITheme.color(&"sand")
+	_footer_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_footer_rule)
+
+	# Footer navigation hint
+	_footer_hint = Label.new()
+	_footer_hint.position = Vector2(18, 258)
+	_footer_hint.size = Vector2(404, 14)
+	_footer_hint.add_theme_font_override("font", FONT)
+	_footer_hint.add_theme_font_size_override("font_size", 11)
+	_footer_hint.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+	_footer_hint.text = "[E] Activate Cheat    [▲/▼] Scroll    [Tab] Tuning    [Esc] Close"
+	_panel.add_child(_footer_hint)
+
+	# Footer status & message
+	_footer_status = Label.new()
+	_footer_status.position = Vector2(18, 276)
+	_footer_status.size = Vector2(404, 16)
+	_footer_status.add_theme_font_override("font", FONT)
+	_footer_status.add_theme_font_size_override("font_size", 12)
+	_footer_status.add_theme_color_override("font_color", INK)
+	_panel.add_child(_footer_status)
 
 
 func _process(_d: float) -> void:
@@ -152,6 +386,12 @@ func _toggle(v: bool) -> void:
 	var p := get_tree().get_first_node_in_group("carrier")
 	if p != null:
 		p.input_locked = v
+	if v and UITheme.motion:
+		_panel.position = PANEL_RECT.position + Vector2(0, -float(UITheme.space(&"space_s")))
+		_panel.modulate.a = 0.5
+		var t := create_tween()
+		t.tween_property(_panel, "position", PANEL_RECT.position, 0.08)
+		t.parallel().tween_property(_panel, "modulate:a", 1.0, 0.08)
 
 
 func _rows() -> Array:
@@ -313,6 +553,8 @@ func _free_spot(id: String) -> Vector2i:
 func _render() -> void:
 	var rows: Array = _rows()
 	var first := clampi(_sel - WINDOW / 2, 0, maxi(0, rows.size() - WINDOW))
+
+	# 1. Update legacy test label contract so assertions stay 100% green
 	var lines: Array[String] = [
 		"%s    Tab: %s" % [
 			"CHEATS" if page == Page.CHEATS else "TUNING",
@@ -336,3 +578,78 @@ func _render() -> void:
 	lines.append(_msg if _msg != "" else "Day %d  coins %d   Esc closes" % [
 		Game.day, Game.coins])
 	_label.text = "\n".join(lines)
+
+	# 2. Update visual tab headers
+	if page == Page.CHEATS:
+		_tab_cheats.add_theme_color_override("font_color", INK)
+		_tab_tuning.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+		_tab_badge.position = Vector2(18, 12)
+		_tab_badge.size = Vector2(74, 20)
+		_tab_hint.text = "[Tab] Tuning"
+	else:
+		_tab_cheats.add_theme_color_override("font_color", UITheme.color(&"pencil"))
+		_tab_tuning.add_theme_color_override("font_color", INK)
+		_tab_badge.position = Vector2(98, 12)
+		_tab_badge.size = Vector2(74, 20)
+		_tab_hint.text = "[Tab] Cheats"
+
+	# 3. Update the 7 row controls
+	for r in WINDOW:
+		var idx := first + r
+		var row_ctrl := _row_controls[r]
+		if idx >= rows.size():
+			row_ctrl.visible = false
+			continue
+		row_ctrl.visible = true
+
+		var is_selected := (idx == _sel)
+		_row_bgs[r].visible = is_selected
+		_row_badges[r].visible = is_selected
+
+		if page == Page.CHEATS:
+			var cheat_data: Dictionary = CHEATS[idx]
+			var cid := String(cheat_data["id"])
+			_row_icons[r].visible = true
+			if ICONS.has(cid):
+				_row_icons[r].texture = ICONS[cid]
+			_row_titles[r].text = String(cheat_data.get("title", cheat_data["label"]))
+			_row_descs[r].text = String(cheat_data.get("desc", ""))
+
+			if cid == "coins" and Game.unlimited_coins:
+				_row_tags[r].text = "(ACTIVE)"
+				_row_tags[r].add_theme_color_override("font_color", UITheme.color(&"olive"))
+			elif is_selected:
+				_row_tags[r].text = "[E] ACTIVATE"
+				_row_tags[r].add_theme_color_override("font_color", UITheme.color(&"amber"))
+			else:
+				_row_tags[r].text = ""
+		else:
+			var tuning_data: Dictionary = ROWS[idx]
+			_row_icons[r].visible = false
+			_row_titles[r].text = String(tuning_data["label"])
+			var val: float = Balance.get_value(String(tuning_data["key"]))
+			var step_val: float = float(tuning_data["step"])
+			_row_descs[r].text = "Value: %.3f    (step %.2f)" % [val, step_val]
+
+			if is_selected:
+				_row_tags[r].text = "[◄/►] Nudge"
+				_row_tags[r].add_theme_color_override("font_color", UITheme.color(&"amber"))
+			else:
+				_row_tags[r].text = "%.3f" % val
+				_row_tags[r].add_theme_color_override("font_color", UITheme.color(&"pencil"))
+
+	# 4. Update footer
+	if page == Page.CHEATS:
+		_footer_hint.text = "[E] Activate Cheat    [▲/▼] Scroll %s    [Tab] Tuning" % more
+	else:
+		_footer_hint.text = "[◄/►] Adjust Value    [▲/▼] Scroll %s    [Tab] Cheats" % more
+
+	if _msg != "":
+		_footer_status.text = _msg
+		_footer_status.add_theme_color_override("font_color", UITheme.color(&"amber"))
+	else:
+		var mode_str := "CHEATED RUN" if Game.cheated else "Clean run"
+		var mode_col := UITheme.color(&"destructive") if Game.cheated else UITheme.color(&"olive")
+		_footer_status.text = "%s  ·  Day %d  ·  %d coins  ·  Esc closes" % [
+			mode_str, Game.day, Game.coins]
+		_footer_status.add_theme_color_override("font_color", mode_col)

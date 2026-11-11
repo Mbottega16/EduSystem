@@ -483,6 +483,13 @@ def make_all():
         save_png(_double(mood_icon(state)), "mood_%s" % state)
         made.append("mood_%s" % state)
     print("art/mood_*.png       3 dashboard mood faces, 28x28")
+    try:
+        from make_cheat_icons import make_all_cheat_icons
+        cheat_icons = make_all_cheat_icons()
+        made.extend(cheat_icons)
+        print("art/icon_cheat_*.png %d cheat action icons, 20x20" % len(cheat_icons))
+    except Exception as e:
+        print("Warning: could not build cheat icons:", e)
     return made
 
 

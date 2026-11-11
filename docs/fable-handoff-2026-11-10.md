@@ -76,7 +76,7 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3,252 / 3,252 assertions passing** (152 sections).
+- **Unit Tests:** **3255 / 3255 assertions passing** (151 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
@@ -98,28 +98,40 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ---
 
-## 6. Next Up: Phase 3 — Cheat Tab (11 Custom Pixel Icons)
+## 6. Phase 3: Cheat Tab (11 Custom Pixel Icons) — Completed & Verified
 
-Consult the master plan: `projects/edusystem/ui-overhaul-plan-2026-11-10.md` and Section 4 of `docs/ui-audit-2026-11-10.md`.
+- **Target Files:** `scripts/ui/debug_panel.gd`, `tools/make_cheat_icons.py`, `tools/make_ui.py`, `art/icon_cheat_*.png`.
+- **What was done:**
+  - Generated 11 bespoke 20x20 pixel-art icons matching LimeZu density and palette:
+    1. `all`: Master Golden Key with glints (`art/icon_cheat_all.png`)
+    2. `coins`: Overflowing Burlap Coin Sack (`art/icon_cheat_coins.png`)
+    3. `teacher`: Mortarboard with Gold Tassel & Rank Star (`art/icon_cheat_teacher.png`)
+    4. `students`: Golden Apple & A+ Slate (`art/icon_cheat_students.png`)
+    5. `ready`: Rolled Diploma with Red Ribbon (`art/icon_cheat_ready.png`)
+    6. `furnish`: Bookshelf with Colored Books & Miniature Globe (`art/icon_cheat_furnish.png`)
+    7. `enrol`: Group of Student Desks with Pencils (`art/icon_cheat_enrol.png`)
+    8. `grow`: Blueprint with 4-Way Expanding Arrows (`art/icon_cheat_grow.png`)
+    9. `day`: Tear-off Desk Calendar with Radiating Sun (`art/icon_cheat_day.png`)
+    10. `term`: Brass Ringing Bell with Sound Waves (`art/icon_cheat_term.png`)
+    11. `boss`: Red Wax-Sealed Exam Scroll (`art/icon_cheat_boss.png`)
+  - Panel rebuilt using `MaterialBox.Kind.PAPER` (`UITheme.box(&"PaperSheet")`) on `theme.tres`.
+  - Scannable 7-row windowed architecture with Amber selection highlight card, 3px leading stripe badge, 20x20 icon, crisp title in ink, short effect description in pencil, and dynamic status tags (`(ACTIVE)`, `[E] ACTIVATE`).
+  - Tab cards for `[CHEATS]` / `[TUNING]` with sand separator. Restyled `TUNING` page with value nudges.
+  - Test contract maintained for headless tests via synchronized `_label.text`.
+  - Added 3 unit tests in `tests/run.gd` (+3 assertions, total 3255).
+  - Captured after-screenshots in `docs/ui-audit-2026-11-10/after/` (`cheats.png`, `cheats_scrolled.png`, `cheats_tuning.png`).
 
-### Phase 3 Implementation Guide:
-- **Target File:** `scripts/ui/debug_panel.gd` (and `scenes/ui/debug_panel.tscn`).
-- **Requirements from Audit Spec:**
-  - All 11 cheats currently in `debug_panel.gd` lack visuals.
-  - Add 11 custom pixel-art icons (16x16 or 20x20) matching the LimeZu palette / classroom art style (procedural in `tools/make_art.py` or pixel-drawn into `art/`).
-  - Cheat inventory from Section 4 of `docs/ui-audit-2026-11-10.md`:
-    1. `all`: EVERYTHING (dev room) — Master Golden Key
-    2. `coins`: Unlimited coins — Burlap Coin Sack
-    3. `teacher`: Max teacher + all perks — Mortarboard with Gold Tassel
-    4. `students`: Max every student — Golden Apple & Slate
-    5. `ready`: Everyone ready to graduate — Rolled Diploma
-    6. `furnish`: One of every item, placed — Bookshelf & Globe
-    7. `enrol`: Fill the class to capacity — Group of Student Desks
-    8. `grow`: Bigger room — Diagonal Arrows on Grid
-    9. `day`: Skip a day — Tear-off Calendar & Sun
-    10. `term`: End the term now — Brass School Bell
-    11. `boss`: Boss paper now — Red Wax-Sealed Exam Scroll
-  - Card/Row layout: `[Icon] [Cheat Title] — [Brief Description]`.
-  - Rebuild base panel with `MaterialBox` on `theme.tres`.
-  - Capture before/after shots using `tools/shot.gd` route `cheats`.
-  - Ensure all unit tests and doc checks remain green.
+---
+
+## 7. Next Up: Phase 4 — Lesson Plan Tab & Curriculum Card Redesign
+
+Consult the master plan: `projects/edusystem/ui-overhaul-plan-2026-11-10.md` and `docs/ui-audit-2026-11-10.md` (Panel 3: Lesson Plan Screen / Hand Screen).
+
+### Phase 4 Implementation Guide:
+- **Target File:** `scripts/ui/hud.gd` (specifically `show_hand()`, `_render_hand()`, curriculum cards, and hand book presentation).
+- **The Ask from Owner:** What you can teach would benefit from an update:
+  - Make teachable options scannable: clear grouping, consistent cards/rows on the theme, cost/effect of choices readable without opening anything.
+  - Move from monolithic text lines to structured curriculum cards on the design system.
+  - Spacing and typography per `theme.tres`. Reserve handwritten voice (`Patrick Hand` / `Kalam`) for genuine teacher note elements.
+  - Capture after screenshots (`hand.png`, `hand_long.png`, `curriculum.png`) into `docs/ui-audit-2026-11-10/after/`.
+  - Ensure all 3255+ assertions pass with 0 regressions.

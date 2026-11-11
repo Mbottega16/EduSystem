@@ -758,6 +758,16 @@ func _open_screen(main: Node, screen: String) -> void:
 			hud.show_curriculum()
 		"cheats":
 			get_tree().get_first_node_in_group("debug_panel").open_cheats()
+		"cheats_scrolled":
+			var dbg_s: Node = get_tree().get_first_node_in_group("debug_panel")
+			dbg_s.open_cheats()
+			dbg_s._sel = dbg_s.CHEATS.size() - 1
+			dbg_s._render()
+		"cheats_tuning":
+			var dbg_t: Node = get_tree().get_first_node_in_group("debug_panel")
+			dbg_t.page = dbg_t.Page.TUNING
+			dbg_t._toggle(true)
+			dbg_t._render()
 		"pause":
 			hud.show_pause()
 		"pause_tutorials":

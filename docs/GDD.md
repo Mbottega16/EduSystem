@@ -427,7 +427,7 @@ milestone and having taught it, not a number going up.
 | Art | 224 PNGs · Audio: 20 WAVs (11 SFX, 9 music/ambience) |
 | Screens | 23 modes |
 | Input actions | 27 (26 rebindable) |
-| Tests | **3252 assertions** across **151 sections** |
+| Tests | **3255 assertions** across **151 sections** |
 
 ### What is on offer, everywhere
 *Verbatim from `tools/audit.gd`, which stands at every landmark in every
