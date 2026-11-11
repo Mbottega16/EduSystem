@@ -3357,6 +3357,7 @@ func show_hand(fresh: bool = false) -> void:
 	_book(true)
 	rich.add_theme_constant_override("line_separation", 2)
 	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	rich_left.add_theme_font_size_override("normal_font_size", UI_SIZE)
 
 	if Game.hand.is_empty():
 		close()
@@ -3415,10 +3416,15 @@ func _render_hand() -> void:
 	var lesson := Curriculum.by_id(String(card.get("lesson", "")))
 
 	title.text = "LESSON PLANS  -  %d of %d" % [_sel + 1, n]
+	var strand := String(lesson.get("strand", ""))
 
 	# The LEFT page says what this plan IS; the right page says what it asks
 	# of you. Nothing crosses the spine.
 	var left: Array[String] = []
+	left.append("%s [color=#%s][%s][/color]" % [
+		strand_icon(strand),
+		strand_colour(strand),
+		Curriculum.strand_label(strand).to_upper()])
 	# Not manually wrapped: the label autowraps to the page, and a hand-broken
 	# title stops being the string anything can match on.
 	left.append("[color=#%s]%s[/color]" % [hue, Assignments.title(card)])
@@ -3429,8 +3435,9 @@ func _render_hand() -> void:
 	left.append("[color=#%s]%s[/color]" % [INK_DIM,
 		String(lesson.get("standard", "")) if String(lesson.get("standard", "")) != ""
 			else "no citation"])
-	rich_left.text = "
-".join(left)
+	left.append("")
+	left.append("[color=#666055]%s[/color]" % _lesson_plan_note(String(card.get("form", "Worksheet")), strand))
+	rich_left.text = "\n".join(left)
 
 	var lines: Array[String] = []
 	# what it actually asks of them
@@ -5627,42 +5634,50 @@ func show_curriculum() -> void:
 		# dropping one of the four: the difficulty bar and the mastery words
 		# each have a test asserting they are on every row, and both tests
 		# are right that they should be.
+		var is_selected := (i == _sel)
+		var cursor := "[color=#D97706]>[/color]" if is_selected else " "
+		var badge := "+" if Game.is_prestige(lid) else ("*" if mine else " ")
+		var name_col := "1A1A1A" if is_selected else (hue if taught else INK_DIM)
+		var mastered := (total > 0 and got >= total)
+		var mastery_col := "6B7B3C" if mastered else INK_DIM
 		lines.append("%s%s%s [color=#%s]%s[/color] %s [color=#%s]%s[/color]" % [
-			"+" if Game.is_prestige(lid) else ("*" if mine else " "),
-			">" if i == _sel else " ",
+			badge,
+			cursor,
 			strand_icon(String(l.get("strand", ""))),
-			hue if taught else INK_DIM,
+			name_col,
 			Curriculum.short_name(l).rpad(9),
 			_difficulty_bar(Curriculum.difficulty(l)),
-			INK_DIM, _mastery_words(l, got, total)])
+			mastery_col,
+			_mastery_words(l, got, total)])
 
 	# The left page doubles as a detail panel for whatever the marker is on.
 	# That is a better home for the difficulty bar than a column was: it is
 	# about the one subject you are actually deciding on.
 	var pick: Dictionary = lessons[_sel]
-	left.append("")
-	left.append("%s [color=#%s]%s[/color]" % [
-		strand_icon(String(pick.get("strand", ""))),
-		strand_colour(String(pick.get("strand", ""))),
-		Curriculum.short_name(pick)])
-	# How many times you have stood at the podium and taught THIS.
-	#
-	# The number was already kept (Game.taught, which is what unlocks
-	# concepts) and had never been shown; the screen said "you know it well"
-	# and left you to guess whether that was two lessons or nine. It is a
-	# count of what YOU have done, not a score standing in for a child's
-	# ability, which is the side of the prose-never-numbers rule that
-	# CLAUDE.md names as the sanctioned exception -- the same side a coin
-	# total and a day counter sit on.
-	left.append("[color=#%s]%s[/color]" % [INK_DIM, _taught_words(
-		String(pick.get("id", "")))])
-	left.append("[color=#%s]%s[/color]" % [INK_DIM, _wrap(_mastery_words(pick,
-		_known_of(pick),
-		Curriculum.concepts_of(String(pick.get("id", ""))).size()), 22, 1)])
-	left.append("[color=#%s]%s[/color]" % ["8a5200", _prestige_words(pick)])
+	var pick_id := String(pick.get("id", ""))
+	var pick_strand := String(pick.get("strand", ""))
+	var pick_total := Curriculum.concepts_of(pick_id).size()
+	var pick_got := _known_of(pick)
+	var pick_mastered := (pick_total > 0 and pick_got >= pick_total)
+	var pick_taught := Game.times_taught(pick_id) > 0
+	var status_tag := "[MASTERED]" if pick_mastered else ("[PRACTICING]" if pick_taught else "[UNTOUCHED]")
+	var status_col := "6B7B3C" if pick_mastered else ("D97706" if pick_taught else INK_DIM)
 
-	rich_left.text = "
-".join(left)
+	left.append("")
+	left.append("%s [color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+		strand_icon(pick_strand),
+		strand_colour(pick_strand),
+		Curriculum.short_name(pick),
+		status_col,
+		status_tag])
+	left.append("[color=#%s]%s[/color]" % [INK_DIM, _taught_words(pick_id)])
+	left.append("[color=#%s]%s[/color]" % [INK_DIM, _wrap(_mastery_words(pick,
+		pick_got,
+		pick_total), 22, 1)])
+	left.append("[color=#%s]%s[/color]" % ["8a5200", _prestige_words(pick)])
+	left.append("[color=#666055]%s[/color]" % _curriculum_tip(pick))
+
+	rich_left.text = "\n".join(left)
 
 	rich.text = "\n".join(lines)
 	_reveal_rich(0.3)
@@ -5936,6 +5951,43 @@ func _mastery_bar(got: int, total: int, hue: String) -> String:
 	var n := int(round(float(got) / float(total) * float(width)))
 	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
 		hue, _cells(BAR_FULL, n), BAR_TRACK, _cells(BAR_EMPTY, width - n)]
+
+
+func _lesson_plan_note(form: String, strand: String) -> String:
+	match form:
+		"Project":
+			return "Group synthesis: keeps hands busy, high XP payout."
+		"Problem Set":
+			return "Independent trials: check desks 2 & 4 for early stalls."
+		"Worksheet":
+			return "Direct practice: ideal for solidifying core mechanics."
+		_:
+			match strand:
+				"math":
+					return "Keep number lines visible on the front board."
+				"ela":
+					return "Encourage reading aloud for phonetic rhythm."
+				"science":
+					return "Review diagrams before beginning observation."
+				"social":
+					return "Connect historical ideas to classroom citizenship."
+				_:
+					return "Standard classroom assignment sheet."
+
+
+func _curriculum_tip(lesson: Dictionary) -> String:
+	var strand := String(lesson.get("strand", ""))
+	match strand:
+		"math":
+			return "Visual models and warm-ups help desks retain steps."
+		"ela":
+			return "Encourage reading aloud for phonetic fluency and voice."
+		"science":
+			return "Diagrams first, observation notes second for clarity."
+		"social":
+			return "Relate civic concepts to practical classroom rules."
+		_:
+			return "Consistent daily review builds long-term retention."
 
 
 ## Wipe the rich body on, left to right.

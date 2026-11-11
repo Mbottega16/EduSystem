@@ -7002,6 +7002,13 @@ func test_assignment_cards() -> void:
 	chk("and it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
 			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
+	chk("the hand card left page carries the strand mark and a pedagogical note",
+		hud.rich_left.text.contains("icon_") and (hud.rich_left.text.contains("practice")
+			or hud.rich_left.text.contains("trials") or hud.rich_left.text.contains("synthesis")
+			or hud.rich_left.text.contains("reading") or hud.rich_left.text.contains("lines")
+			or hud.rich_left.text.contains("diagrams") or hud.rich_left.text.contains("citizenship")
+			or hud.rich_left.text.contains("assignment")),
+		hud.rich_left.text)
 	# Every lesson's plan, not just the ones this seed dealt: the page is
 	# 256px wide and the longest objective is 261 characters.
 	var saved_hand: Array = Game.hand.duplicate(true)
@@ -15276,6 +15283,11 @@ func test_subjects_and_skip() -> void:
 		(hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
 			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
+	chk("the curriculum detail dossier displays a status badge and pedagogical tip",
+		(hud.rich_left.text.contains("MASTERED") or hud.rich_left.text.contains("PRACTICING") or hud.rich_left.text.contains("UNTOUCHED"))
+		and (hud.rich_left.text.contains("Visual") or hud.rich_left.text.contains("warm-ups") or hud.rich_left.text.contains("fluency") or hud.rich_left.text.contains("Diagrams") or hud.rich_left.text.contains("civic") or hud.rich_left.text.contains("retention")))
+	chk("the curriculum right page highlights the selected row with an amber cursor",
+		hud.rich.text.contains("D97706") and hud.rich.text.contains(">"))
 	hud.close()
 	await step(2)
 

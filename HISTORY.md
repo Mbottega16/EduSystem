@@ -24,6 +24,21 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 4: Lesson Plan Tab & Curriculum Redesign (Subject Marks & Pedagogical Dossier)
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. Redesigned Lesson Plan Tab (`show_hand` / `_render_hand` in `scripts/ui/hud.gd`):
+     - Left page: Structured as an authentic teacher assignment document with 16x16 subject strand mark (`res://art/icon_<strand>.png`), bold capitalized strand badge (`[MATH]`, `[ELA]`, `[SCI]`, `[ART]`, `[HIST]`), assignment title rendered in paper rarity-based ink tint, rarity and payout multiplier readout (`[Prestige/Rarity]  pays x%.2f`), standard curriculum citation code, and authentic handwritten pedagogical classroom notes via `_lesson_plan_note(form, strand)` providing classroom flavor.
+     - Right page: Clean length difficulty bar, clear objective text with automatic fit protection for long objectives (up to 261 characters on `division`), and page turn pips.
+  2. Redesigned Curriculum Mastery Dossier (`show_curriculum` in `scripts/ui/hud.gd`):
+     - Left page: Active teaching header (`You teach %s`, `trained in %s`, `Knowing your subjects %s`), selected lesson dossier with 16x16 strand mark, status badges (`[MASTERED]` in Olive `#6B7B3C`, `[PRACTICING]` in Amber `#D97706`, `[UNTOUCHED]` in pencil `#6B5F4A`), teaching count (`Taught %d times`), mastery description, prestige milestone status, and authentic teacher's pedagogical tip via `_curriculum_tip(lesson)`.
+     - Right page: 7 scannable rows with active cursor (`[color=#D97706]>[/color]`), status badges (`+` prestige, `*` specialism), 16x16 strand icon, crisp name contrast (`#1A1A1A` on active selection), 5-cell difficulty bar, and mastery words in Olive/pencil without wrapping.
+     - Prose-never-numbers rule preserved: no raw ability percentages shown to the teacher; words describe pedagogical grasp.
+  3. Test Suite & Verification: Added unit tests in `tests/run.gd` validating that curriculum detail dossier displays a status badge and pedagogical tip, right page highlights active row with amber cursor, and hand card carries strand mark and pedagogical note (+3 assertions, total 3258). Captured after-screenshots (`hand.png`, `hand_long.png`, `curriculum.png`) in `docs/ui-audit-2026-11-10/after/`.
+- **Why:** Full completion of Phase 4 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3258 unit test assertions green (`tests/run.tscn`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms clear strand icons, authentic classroom notes, and clean fit for long objectives.
+- **Left open:** Ready for owner review; Phase 5 (The Cabinet & Store) is next.
+
 ## 2026-11-10 — UI Overhaul Phase 3: Cheat Tab Overhaul (11 Custom Pixel Icons & Scannable Rows)
 *PC · Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

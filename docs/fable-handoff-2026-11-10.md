@@ -76,7 +76,7 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3255 / 3255 assertions passing** (151 sections).
+- **Unit Tests:** **3258 / 3258 assertions passing** (151 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
@@ -123,15 +123,33 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ---
 
-## 7. Next Up: Phase 4 — Lesson Plan Tab & Curriculum Card Redesign
+## 7. Phase 4: Lesson Plan Tab & Curriculum Redesign — Completed & Verified
 
-Consult the master plan: `projects/edusystem/ui-overhaul-plan-2026-11-10.md` and `docs/ui-audit-2026-11-10.md` (Panel 3: Lesson Plan Screen / Hand Screen).
+- **Target Files:** `scripts/ui/hud.gd`, `tests/run.gd`.
+- **What was done:**
+  - **Lesson Plan Card Redesign (`show_hand` / `_render_hand`):**
+    - Left page: Formatted as a real teacher assignment document with 16x16 strand mark (`res://art/icon_<strand>.png`), capitalized strand label (`[MATH]`, `[ELA]`, `[SCI]`, etc.), assignment title in paper tint, rarity & pay multiplier indicator (`[Prestige/Rarity]  pays x%.2f`), standard citation code, and authentic handwritten pedagogical classroom notes via `_lesson_plan_note(form, strand)`.
+    - Right page: Clean length difficulty bar, clear objective text with automatic fit protection for long objectives (up to 261 characters on `division`), and page turn pips.
+  - **Curriculum Redesign (`show_curriculum`):**
+    - Left page: Active teaching header (`You teach %s`, `trained in %s`, `Knowing your subjects %s`), selected lesson dossier with 16x16 strand mark, status badges (`[MASTERED]` in Olive `#6B7B3C`, `[PRACTICING]` in Amber `#D97706`, `[UNTOUCHED]` in pencil `#6B5F4A`), teaching count (`Taught %d times`), mastery description, prestige milestone status, and authentic teacher's pedagogical tip via `_curriculum_tip(lesson)`.
+    - Right page: 7 scannable rows with active cursor (`[color=#D97706]>[/color]`), status badges (`+` prestige, `*` specialism), 16x16 strand icon, crisp name contrast (`#1A1A1A` on active selection), 5-cell difficulty bar, and mastery words in Olive/pencil without wrapping.
+    - Preserved prose-never-numbers test assertion contract on every line of `rich.text`.
+  - Added 3 unit tests in `tests/run.gd` (+3 assertions, total 3258).
+  - Captured after-screenshots in `docs/ui-audit-2026-11-10/after/` (`hand.png`, `hand_long.png`, `curriculum.png`).
 
-### Phase 4 Implementation Guide:
-- **Target File:** `scripts/ui/hud.gd` (specifically `show_hand()`, `_render_hand()`, curriculum cards, and hand book presentation).
-- **The Ask from Owner:** What you can teach would benefit from an update:
-  - Make teachable options scannable: clear grouping, consistent cards/rows on the theme, cost/effect of choices readable without opening anything.
-  - Move from monolithic text lines to structured curriculum cards on the design system.
-  - Spacing and typography per `theme.tres`. Reserve handwritten voice (`Patrick Hand` / `Kalam`) for genuine teacher note elements.
-  - Capture after screenshots (`hand.png`, `hand_long.png`, `curriculum.png`) into `docs/ui-audit-2026-11-10/after/`.
-  - Ensure all 3255+ assertions pass with 0 regressions.
+---
+
+## 8. Next Up: Phase 5 — The Cabinet & Store
+
+Consult `docs/ui-audit-2026-11-10.md` (Panel 5: The Cabinet & Store).
+
+### Phase 5 Implementation Guide:
+- **Target Files:** `scripts/ui/hud.gd` (cabinet & shop rendering methods, such as `show_cabinet()`, `show_shop()`, etc.).
+- **Screenshots to Audit:** `cabinet.png`, `cabinet_empty.png`, `shop.png`.
+- **Design Specifications:**
+  - Two-page book metaphor (`BOOK_BLUE` cover, left page preview, right page list).
+  - Selected inventory row renders as raised card (`Paper-bright` with 2px shadow and amber trim).
+  - Empty cabinet state (`cabinet_empty.png`): charming warm teacher note ("Your shelves are ready for supplies...").
+  - Wood-trimmed header tabs.
+  - Capture after screenshots into `docs/ui-audit-2026-11-10/after/` (`cabinet.png`, `cabinet_empty.png`, `shop.png`).
+  - Keep 100% tests green, doc facts synced, and balance contract intact.
