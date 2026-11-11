@@ -60,7 +60,7 @@ func _draw(ci: RID, rect: Rect2) -> void:
 			_draw_smudges(ci, board)
 			_draw_specks(ci, board, mark, 0.10, 14, 1)
 			# the frame's lip throws a line of shade along the board's top and left
-			var lip := Color(0, 0, 0, 0.22)
+			var lip := Color(shadow_color.r, shadow_color.g, shadow_color.b, shadow_color.a * 0.75)
 			_rect(ci, Rect2(board.position, Vector2(board.size.x, CELL)), lip)
 			_rect(ci, Rect2(board.position, Vector2(CELL, board.size.y)), lip)
 		Kind.PAPER:
@@ -83,17 +83,19 @@ func _draw_frame(ci: RID, inner: Rect2) -> void:
 		return
 	_rect(ci, inner, edge)
 	_rect(ci, Rect2(inner.position, Vector2(inner.size.x, CELL)), highlight)
-	var f := float(frame)
-	# grain along the four rails, kept clear of the corners
-	var salt := 7
+	if frame < 6:
+		return
+	# a streak of grain here and there along the top and bottom rails,
+	# kept clear of the corners
+	var lanes := maxi(1, (frame - 4) / CELL)
 	for x in range(int(inner.position.x) + 12, int(inner.end.x) - 24, 16):
-		for y: float in [inner.position.y + CELL, inner.end.y - f + CELL]:
-			if f < 6.0:
+		for rail_y: float in [inner.position.y + CELL, inner.end.y - float(frame) + CELL]:
+			var h := _hash(x, int(rail_y), 7)
+			if h % 3 != 0:
 				continue
-			var h := _hash(x, int(y), salt)
-			if h % 3 == 0:
-				_rect(ci, Rect2(float(x + (h >> 3) % 8), y + float((h >> 7) % maxi(1, int(f) - 4) / CELL * CELL),
-					float(6 + (h >> 5) % 5 * CELL), CELL), edge_shade)
+			var lane := float(((h >> 7) % lanes) * CELL)
+			var length := float(6 + ((h >> 5) % 5) * CELL)
+			_rect(ci, Rect2(float(x + (h >> 3) % 8), rail_y + lane, length, CELL), edge_shade)
 
 
 ## Eraser smudges: a few soft patches where the board was wiped.

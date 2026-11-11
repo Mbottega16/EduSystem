@@ -133,7 +133,7 @@ const PLAYER_PORTRAIT := preload("res://art/portrait_player.png")
 const SPEECH_FONT := preload("res://fonts/Galmuri9.ttf")
 const SPEECH_SIZE := 20
 ## ...and since Oct 2026 every other word the HUD prints is in it too
-## (fonts/ui_theme.tres on the HUD's root), on the owner's call. Two sizes
+## (res://theme.tres on the HUD's root, as its default font), on the owner's call. Two sizes
 ## only, both whole multiples of the 10px em: UI_SIZE for text, UI_SMALL for
 ## the odd tiny label. Anything else would smear its pixels.
 const UI_SIZE := 20

@@ -37,7 +37,9 @@ func _ready() -> void:
 
 	t._go(t.Page[page_name.to_upper()])
 
-	for i in 4:
+	# Long enough for the title to finish being written on and the rows to
+	# step in (Nov 2026): four frames photographed the first two letters.
+	for i in 60:
 		await get_tree().physics_frame
 
 	await RenderingServer.frame_post_draw

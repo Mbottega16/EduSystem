@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ui/save_manager_ui.gd" id="1_script"]
 [ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="2_font"]
-[ext_resource type="Theme" path="res://fonts/ui_theme.tres" id="3_theme"]
+[ext_resource type="Theme" path="res://theme.tres" id="3_theme"]
 [ext_resource type="Texture2D" path="res://art/ui_frame.png" id="4_frame"]
 
 [node name="SaveManager" type="Control"]

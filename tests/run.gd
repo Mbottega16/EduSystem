@@ -36,6 +36,10 @@ func _ready() -> void:
 	# Blinking is random decoration: a frame assertion must never catch a
 	# child mid-blink. test_blinking() turns it on to test it, then off.
 	Actor.blinks = false
+	# A panel's stepped entrance and exit take a few frames, and most checks
+	# read a panel on the tick it opens or shuts. Off here; test_design_system()
+	# turns the motion on to test it, then off again.
+	UITheme.motion = false
 	var cmd_args := OS.get_cmdline_user_args()
 	if not cmd_args.is_empty():
 		_filter = cmd_args[0]
@@ -187,6 +191,7 @@ func _main() -> void:
 	test_term()
 	test_settings()
 	await test_title()
+	await test_design_system()
 	await test_dash()
 	await test_flares()
 	await test_mid_lesson_mess()
@@ -10459,7 +10464,7 @@ func test_title() -> void:
 	var all_ok := true
 	for p: int in pages:
 		t._go(p)
-		if t.menu.text.strip_edges() == "" and p != t.Page.MAIN:
+		if t.page_text().strip_edges() == "" or t.rows_box.get_child_count() == 0:
 			all_ok = false
 	chk("every page renders something", all_ok)
 
@@ -10500,7 +10505,7 @@ func test_title() -> void:
 	chk("main page offers save slots", t._rows().has("slots"))
 	t._go(t.Page.SLOTS)
 	chk("slots page lists 8 slots plus back", t._rows().size() == 9 and t._rows().has("slot_0") and t._rows().has("back"))
-	chk("empty slot renders cleanly", t.menu.text.contains("Slot 1: [Empty]"))
+	chk("empty slot renders cleanly", t.page_text().contains("Slot 1  empty"), t.page_text())
 
 	# Select empty slot 0
 	t.sel = 0
@@ -10513,7 +10518,7 @@ func test_title() -> void:
 	Game.day = 7
 	Game.save_to_slot(0)
 	t._go(t.Page.SLOTS)
-	chk("populated slot shows day", t.menu.text.contains("Slot 1: Day 7"))
+	chk("populated slot shows day", t.page_text().contains("Slot 1  Day 7"), t.page_text())
 
 	# Open populated slot 0 actions
 	t.sel = 0
@@ -10526,6 +10531,283 @@ func test_title() -> void:
 
 	t.queue_free()
 	await step(2)
+	Game.delete_save()
+
+
+## THE DESIGN SYSTEM (UI overhaul, Nov 2026).
+##
+## One theme, res://theme.tres, is the single source of truth for every UI
+## colour, font, size, gap and material, and UITheme reads it. These checks
+## pin the theme to the plan (vault: projects/edusystem/ui-overhaul-plan-
+## 2026-11-10.md), so a colour cannot drift and a panel cannot quietly name
+## one of its own. The title screen is the first screen built from it.
+const DS_PALETTE := {
+	"chalkboard": "134e4a", "chalk": "fdfbf7", "paper": "f5f0e1",
+	"paper_bright": "fafaf8", "wood": "c4a77d", "wood_dark": "b5651d",
+	"sand": "d4c4a8", "terracotta": "c67b5c", "olive": "6b7b3c",
+	"amber": "d97706", "ink": "1a1a1a", "pencil": "4a4a4a",
+	"destructive": "dc2626",
+}
+## A source file that has moved onto the system names no colour of its own:
+## no Color literal, no named Color constant, no hex string.
+const DS_COLOUR_LITERAL := "Color\\(\\s*[\\d.\"]|Color\\.[A-Z]{3,}|#[0-9a-fA-F]{6}\\b|\"[0-9a-fA-F]{6}\""
+
+
+## Every label and stroke on the title's board, as [rect, node].
+func _title_marks(t: Node2D) -> Array:
+	var out: Array = []
+	for c: Control in t.rows_box.get_children():
+		var size: Vector2 = c.size if c is ColorRect else c.get_minimum_size()
+		out.append([Rect2(c.position, size), c])
+	return out
+
+
+## What is wrong with the title page now showing, in words. Empty when every
+## mark is on the board, clear of the frame and the footer, and no two labels
+## on one row run into each other.
+func _title_misfits(t: Node2D) -> Array:
+	var bad: Array = []
+	var marks := _title_marks(t)
+	var pointers := 0
+	for m: Array in marks:
+		var r: Rect2 = m[0]
+		if r.position.x < t.FRAME or r.end.x > t.STAGE.x - t.FRAME \
+				or r.position.y < t.FRAME or r.end.y > t.footer.position.y + 1.0:
+			bad.append("off the board: %s at %s" % [m[1].get("text"), r])
+		if m[1] is Label and (m[1] as Label).text == ">":
+			pointers += 1
+	for i in marks.size():
+		for j in range(i + 1, marks.size()):
+			var a: Rect2 = marks[i][0]
+			var b: Rect2 = marks[j][0]
+			if marks[i][1] is Label and marks[j][1] is Label \
+					and is_equal_approx(a.position.y, b.position.y) \
+					and a.position.x < b.end.x and b.position.x < a.end.x:
+				bad.append("run together: %s | %s" % [marks[i][1].text, marks[j][1].text])
+	if not t._rows().is_empty() and t.page != t.Page.HOWTO and t.page != t.Page.CREDITS \
+			and pointers != 1:
+		bad.append("%d pointers" % pointers)
+	return bad
+
+
+func test_design_system() -> void:
+	section("DESIGN SYSTEM")
+	var theme: Theme = load("res://theme.tres")
+	chk("the one theme loads", theme != null and UITheme.THEME == theme)
+
+	# --- the palette ---
+	var wrong: Array = []
+	var tokens: Array = []
+	for token: String in DS_PALETTE:
+		tokens.append(String(DS_PALETTE[token]))
+		if UITheme.hex(StringName(token)) != String(DS_PALETTE[token]):
+			wrong.append("%s is %s" % [token, UITheme.hex(StringName(token))])
+	chk("the palette is the plan's thirteen tokens, to the hex", wrong.is_empty(), wrong)
+	chk("and there is no fourteenth",
+		theme.get_color_list("Edu").size() == DS_PALETTE.size(), theme.get_color_list("Edu"))
+	chk("a faded colour is still the token, part rubbed out",
+		UITheme.faded(&"chalk", 0.5).to_html(false) == String(DS_PALETTE["chalk"])
+		and is_equal_approx(UITheme.faded(&"chalk", 0.5).a, 0.5))
+
+	# --- the voices ---
+	const VOICES := {
+		"display": "PressStart2P-Regular.ttf", "body": "VT323-Regular.ttf",
+		"chalk": "Kalam-Regular.ttf", "chalk_bold": "Kalam-Bold.ttf",
+		"note": "PatrickHand-Regular.ttf",
+	}
+	chk("the voices are the plan's fonts: display, body, chalk, note", (func() -> bool:
+		for v: String in VOICES:
+			var f := UITheme.font(StringName(v))
+			if f == null or not f.resource_path.ends_with(String(VOICES[v])):
+				return false
+		return true).call())
+	chk("each font ships with its licence beside it", (func() -> bool:
+		for name: String in ["OFL.txt", "PatrickHand-OFL.txt", "Kalam-OFL.txt",
+				"VT323-OFL.txt", "PressStart2P-OFL.txt"]:
+			if not FileAccess.file_exists("res://fonts/%s" % name):
+				return false
+		return true).call())
+	chk("the default font is still Galmuri9 at 20, so a screen not yet moved is unchanged",
+		theme.default_font.resource_path.ends_with("Galmuri9.ttf")
+		and theme.default_font_size == 20)
+	chk("the new fonts are drawn without smoothing: a pixel stays a pixel", (func() -> bool:
+		for v: String in ["display", "body", "chalk", "chalk_bold"]:
+			if (UITheme.font(StringName(v)) as FontFile).antialiasing \
+					!= TextServer.FONT_ANTIALIASING_NONE:
+				return false
+		return true).call())
+	# A pixel font is only crisp on its own grid: Press Start 2P is drawn on an
+	# 8px em, VT323 on 12.5 (so 25), Galmuri9 on 10. Kalam and Patrick Hand
+	# are outlines and take any size.
+	const GRID := {"PressStart2P-Regular.ttf": 8, "VT323-Regular.ttf": 25, "Galmuri9.ttf": 10}
+	var smeared: Array = []
+	for type: String in theme.get_font_type_list():
+		for item: String in theme.get_font_list(type):
+			var file := theme.get_font(item, type).resource_path.get_file()
+			if not GRID.has(file):
+				continue
+			for size_name: String in theme.get_font_size_list(type):
+				# a variation pairs its font with its font_size; a token voice
+				# with the sizes named after it (display, display_small)
+				if type == "Edu" and not size_name.begins_with(item):
+					continue
+				var px := theme.get_font_size(size_name, type)
+				if px % int(GRID[file]) != 0:
+					smeared.append("%s/%s: %s at %d" % [type, size_name, file, px])
+	chk("every pixel-font size in the theme sits on that font's grid", smeared.is_empty(), smeared)
+
+	# --- spacing ---
+	chk("the spacing scale is 8 / 12 / 16, the border 2, the corner 4 at most",
+		UITheme.space(&"space_s") == 8 and UITheme.space(&"space_m") == 12
+		and UITheme.space(&"space_l") == 16 and UITheme.space(&"border") == 2
+		and UITheme.space(&"corner") <= 4)
+
+	# --- the materials ---
+	var stray: Array = []
+	var kinds := {}
+	for type: String in theme.get_stylebox_type_list():
+		for item: String in theme.get_stylebox_list(type):
+			var sb := theme.get_stylebox(item, type)
+			if not (sb is MaterialBox):
+				stray.append("%s/%s is not a MaterialBox" % [type, item])
+				continue
+			var box := sb as MaterialBox
+			kinds[box.kind] = true
+			for prop: String in ["fill", "mark", "edge", "edge_shade", "highlight", "shadow_color"]:
+				var c: Color = box.get(prop)
+				if not tokens.has(c.to_html(false)):
+					stray.append("%s.%s is #%s" % [type, prop, c.to_html(false)])
+			if box.border != UITheme.space(&"border") or box.corner > 4:
+				stray.append("%s: border %d, corner %d" % [type, box.border, box.corner])
+	chk("every panel material is drawn by MaterialBox, from palette tokens only",
+		stray.is_empty(), stray)
+	chk("and all three are there: chalkboard, paper, wood",
+		kinds.has(MaterialBox.Kind.CHALKBOARD) and kinds.has(MaterialBox.Kind.PAPER)
+		and kinds.has(MaterialBox.Kind.WOOD), kinds.keys())
+	chk("a sheet's shadow is part of what it draws",
+		(UITheme.box(&"PaperSheet") as MaterialBox)._get_draw_rect(Rect2(0, 0, 100, 60)).size
+			== Vector2(104, 64))
+	var off_palette: Array = []
+	for type: String in theme.get_color_type_list():
+		for item: String in theme.get_color_list(type):
+			if not tokens.has(theme.get_color(item, type).to_html(false)):
+				off_palette.append("%s/%s" % [type, item])
+	chk("every label variation is in a palette colour too", off_palette.is_empty(), off_palette)
+
+	# --- no screen that has moved onto the system names a colour ---
+	var literal := RegEx.new()
+	literal.compile(DS_COLOUR_LITERAL)
+	var named: Array = []
+	for path: String in ["res://scripts/ui/title.gd", "res://scenes/ui/title.tscn",
+			"res://scripts/ui/ui_theme.gd"]:
+		for m in literal.search_all(FileAccess.get_file_as_string(path)):
+			named.append("%s: %s" % [path.get_file(), m.get_string()])
+	chk("a converted screen names no colour of its own", named.is_empty(), named)
+
+	# --- the title screen, the first screen built from it ---
+	Game.new_run(SEED)
+	Game.day = 7
+	Game.subject = "Speaking & Listening"
+	Game.coins = 987654
+	Game.save_game()
+	Game.save_to_slot(0)
+	var t: Node2D = load("res://scenes/ui/title.tscn").instantiate()
+	add_child(t)
+	await step(3)
+	t._go(t.Page.MAIN)
+	chk("the title is lettered in chalk: Kalam, the chalk colour, the chalk shader",
+		t.wordmark.get_theme_font("font").resource_path.ends_with("Kalam-Bold.ttf")
+		and t.wordmark.get_theme_color("font_color").to_html(false) == String(DS_PALETTE["chalk"])
+		and t.wordmark.material is ShaderMaterial
+		and (t.wordmark.material as ShaderMaterial).shader.resource_path.ends_with("chalk.gdshader"))
+	var board_is_chalkboard := func() -> bool:
+		var sb: StyleBox = t.board.get_theme_stylebox("panel")
+		return sb is MaterialBox and (sb as MaterialBox).kind == MaterialBox.Kind.CHALKBOARD and (sb as MaterialBox).frame > 0
+	chk("the board is the theme's chalkboard in its wood frame", board_is_chalkboard.call())
+	chk("every row is in the same chalk hand", (func() -> bool:
+		for c: Node in t.rows_box.get_children():
+			if c is Label and not (c as Label).get_theme_font("font").resource_path.contains("Kalam"):
+				return false
+		return t.rows_box.get_child_count() > 0).call())
+	chk("only the title's thick strokes break up: no pixel drops out of a row",
+		is_zero_approx(float(UITheme.chalk(&"text").get_shader_parameter("grit")))
+		and float(UITheme.chalk(&"title").get_shader_parameter("grit")) > 0.0)
+	chk("the main page reads the same as plain text",
+		t.page_text().contains("Continue  day 7") and t.page_text().contains("Quit"), t.page_text())
+	chk("the chosen row is the amber one, and it has the pointer", (func() -> bool:
+		var amber := 0
+		for c: Node in t.rows_box.get_children():
+			if c is Label and (c as Label).get_theme_color("font_color").to_html(false) \
+					== String(DS_PALETTE["amber"]):
+				amber += 1
+		return amber == 2).call())     # the row and its ">"
+	var red := func() -> int:
+		var n := 0
+		for c: Node in t.rows_box.get_children():
+			if c is ColorRect and (c as ColorRect).color.to_html(false) == String(DS_PALETTE["destructive"]):
+				n += 1
+		return n
+	chk("Erase save is the one row marked in red chalk", red.call() == 1, red.call())
+	t._go(t.Page.SETTINGS)
+	chk("a safe page carries no red at all", red.call() == 0, red.call())
+	chk("each volume is ten chalk ticks, not a row of hashes", (func() -> bool:
+		var ticks := 0
+		for c: Node in t.rows_box.get_children():
+			if c is ColorRect:
+				ticks += 1
+		return ticks == 3 * t.BAR_CELLS and not t.page_text().contains("#")).call())
+	t._go(t.Page.CONFIRM_WIPE)
+	chk("Yes, erase it is marked in red chalk; No, keep it is not", red.call() == 1, red.call())
+
+	# Every page, with the cursor on every row: nothing on the frame, nothing
+	# under the footer, no name run into its value. The old screen failed all
+	# three (see docs/ui-audit-2026-11-10.md).
+	var misfits: Array = []
+	t.sel_slot = 0
+	for p: int in [t.Page.MAIN, t.Page.SETTINGS, t.Page.CONTROLS, t.Page.HOWTO, t.Page.CREDITS,
+			t.Page.CONFIRM_WIPE, t.Page.SLOTS, t.Page.SLOT_ACTIONS, t.Page.CONFIRM_SLOT_DELETE]:
+		t._go(p)
+		for i in maxi(1, t._rows().size()):
+			t.sel = i
+			t._render()
+			for bad: String in _title_misfits(t):
+				misfits.append("page %d row %d: %s" % [p, i, bad])
+	chk("every title page fits the board, on every row", misfits.is_empty(), misfits.slice(0, 6))
+	t._go(t.Page.SLOTS)
+	chk("a slot with a long subject and a fortune still fits its row",
+		t.page_text().contains("Slot 1  Day 7") and t.page_text().contains("987654 coins"),
+		t.page_text())
+	t._go(t.Page.CONTROLS)
+	chk("the controls are two real columns: every key starts at one x", (func() -> bool:
+		var xs := {}
+		for c: Node in t.rows_box.get_children():
+			if c is Label:
+				xs[(c as Label).position.x] = true
+		return xs.size() == 3).call())      # the pointer, the names, the keys
+
+	# --- motion: stepped, and it ends at rest ---
+	UITheme.motion = true
+	t._go(t.Page.SETTINGS)
+	chk("a page's rows arrive in steps: part of the way in on the first frame",
+		t.rows_box.modulate.a < 1.0 and t.rows_box.position.x > 0.0,
+		[t.rows_box.modulate.a, t.rows_box.position])
+	await step(30)
+	chk("and at rest a moment later",
+		is_equal_approx(t.rows_box.modulate.a, 1.0) and t.rows_box.position == Vector2.ZERO,
+		[t.rows_box.modulate.a, t.rows_box.position])
+	t.queue_free()
+	var t2: Node2D = load("res://scenes/ui/title.tscn").instantiate()
+	add_child(t2)
+	chk("the title is written on, a letter at a time: none at first",
+		t2.wordmark.visible_characters == 0, t2.wordmark.visible_characters)
+	await step(90)
+	chk("and all of it inside two seconds, with its rule under it",
+		t2.wordmark.visible_characters == -1 and t2.underline.visible,
+		t2.wordmark.visible_characters)
+	UITheme.motion = false
+	t2.queue_free()
+	await step(2)
+	Game.delete_slot(0)
 	Game.delete_save()
 
 
@@ -15602,7 +15884,7 @@ func test_global_classes_registered() -> void:
 	for cls: String in ["Fx", "Floater", "Items", "Traits", "Curriculum",
 			"Balance", "Layout", "Grid", "Progress", "StudentData",
 			"Interactable", "Placement", "RoomBuilder", "DayEvent", "DayBeats",
-			"BossFight", "RoomTemplates", "RoomPreview"]:
+			"BossFight", "RoomTemplates", "RoomPreview", "UITheme", "MaterialBox"]:
 		chk("%s is a registered global class" % cls,
 			ClassDB.class_exists(cls) or _gdscript_class_exists(cls), cls)
 
@@ -15897,10 +16179,10 @@ func test_limezu_art() -> void:
 	var t: Node2D = scene.instantiate()
 	add_child(t)
 	t._go(t.Page.CREDITS)
-	chk("the credits page credits LimeZu", t.menu.text.findn("LimeZu") >= 0, t.menu.text)
-	chk("...with the page the licence names", t.menu.text.findn("limezu.itch.io") >= 0)
+	chk("the credits page credits LimeZu", t.page_text().findn("LimeZu") >= 0, t.page_text())
+	chk("...with the page the licence names", t.page_text().findn("limezu.itch.io") >= 0)
 	chk("...and no longer claims every image is drawn by the game's own script",
-		t.menu.text.findn("Nothing here was sourced") < 0)
+		t.page_text().findn("Nothing here was sourced") < 0)
 	t.queue_free()
 
 
@@ -15991,8 +16273,11 @@ func test_curator() -> void:
 	#                         same reason and shown nowhere for the same one
 	# (`principal` was a fifth until Oct 2026: her walk-cycle sheet had no
 	# one to wear it. She sits at her desk in her office now.)
+	#   logo                  the pixel wordmark. The title screen is lettered in
+	#                         chalk since Nov 2026 and no longer shows it; it is
+	#                         kept for the store page (docs/ITCHIO_READY.md)
 	const ART_SAMPLES := ["table", "poster_abc", "portrait_inspector",
-		"portrait_inspector_talk"]
+		"portrait_inspector_talk", "logo"]
 	chk("nothing on disk is left unexplained", (func() -> bool:
 		for f: String in c._files:
 			if not c._referenced.has(f) and not ART_SAMPLES.has(f):
@@ -16271,7 +16556,7 @@ func test_music() -> void:
 	chk("Left turns the music down", Settings.music_volume < before)
 	t._adjust(1)
 	chk("and Right turns it back up", is_equal_approx(Settings.music_volume, before))
-	chk("the row shows itself", t.menu.text.contains("Music"))
+	chk("the row shows itself", t.page_text().contains("Music"))
 	t.queue_free()
 	await step(2)
 	Music.stop(0.0)

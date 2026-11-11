@@ -1,95 +1,165 @@
 class_name UITheme
 extends RefCounted
 
-const MaterialBox := preload("res://scripts/ui/material_box.gd")
+## The reader for the design system.
+##
+## res://theme.tres is the single source of truth: every UI colour, font,
+## size, gap, material and motion number lives there. This script names no
+## colour and no size of its own. A panel asks here for a token, or wears one
+## of the theme's type variations (wear()), and so follows the theme.
+##
+##   UITheme.color(&"chalk")        a palette colour
+##   UITheme.hex(&"olive")          the same, as BBCode hex
+##   UITheme.font(&"body")          a voice: display, body, chalk, chalk_bold, note
+##   UITheme.size(&"body")          a type size
+##   UITheme.space(&"space_m")      a gap, border or motion constant
+##   UITheme.box(&"PaperSheet")     a material: TitleBoard, ChalkBoard,
+##                                  PaperSheet, PaperCard, WoodPlank
+##   UITheme.wear(label, &"ChalkRow")   put a control in a theme variation
+##   UITheme.chalk(&"title")        the chalk shader, set for big or small text
+##   UITheme.step_in(panel)         the stepped entrance every panel shares
 
-## Central design system constants and material helpers for EduSystem.
-## Palette, typography tokens, and StyleBox factories matching ui-overhaul-plan-2026-11-10.md.
+const THEME: Theme = preload("res://theme.tres")
+const CHALK_SHADER: Shader = preload("res://shaders/chalk.gdshader")
+## The theme type that holds the tokens.
+const TOKENS := &"Edu"
 
-const CHALKBOARD := Color("134E4A")
-const CHALK := Color("FDFBF7")
-const PAPER := Color("F5F0E1")
-const PAPER_BRIGHT := Color("FAFAF8")
-const WOOD := Color("C4A77D")
-const WOOD_DARK := Color("B5651D")
-const SAND := Color("D4C4A8")
-const TERRACOTTA := Color("C67B5C")
-const OLIVE := Color("6B7B3C")
-const AMBER := Color("D97706")
-const INK := Color("1A1A1A")
-const PENCIL := Color("4A4A4A")
-const DESTRUCTIVE := Color("DC2626")
+## Off in the suite, where a check reads a panel the same tick it opens or
+## closes. The motion tests turn it on for themselves.
+static var motion: bool = true
 
-const FONT_CHALK_BOLD := "res://fonts/Kalam-Bold.ttf"
-const FONT_CHALK := "res://fonts/Kalam-Regular.ttf"
-const FONT_DISPLAY := "res://fonts/PressStart2P-Regular.ttf"
-const FONT_BODY := "res://fonts/VT323-Regular.ttf"
-const FONT_HAND := "res://fonts/PatrickHand-Regular.ttf"
-const FONT_RETRO := "res://fonts/Galmuri9.ttf"
-
-const SHADER_CHALK := "res://shaders/chalk.gdshader"
-
-
-static func load_font(res_path: String, aa: int = 0) -> FontFile:
-	var f := FontFile.new()
-	var err := f.load_dynamic_font(res_path)
-	if err != OK:
-		# Fallback to Galmuri if dynamic load fails
-		return load("res://fonts/Galmuri9.ttf") as FontFile
-	f.antialiasing = aa
-	f.hinting = TextServer.HINTING_NONE
-	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	return f
+static var _chalk: Dictionary = {}
 
 
-static func make_chalkboard_box(frame_px: int = 6, grain_val: float = 0.5) -> MaterialBox:
-	var b := MaterialBox.new()
-	b.kind = MaterialBox.Kind.CHALKBOARD
-	b.fill = CHALKBOARD
-	b.mark = CHALK
-	b.edge = WOOD
-	b.edge_shade = WOOD_DARK
-	b.highlight = Color(PAPER_BRIGHT.r, PAPER_BRIGHT.g, PAPER_BRIGHT.b, 0.45)
-	b.border = 2
-	b.frame = frame_px
-	b.corner = 2
-	b.grain = grain_val
-	return b
+static func color(token: StringName) -> Color:
+	return THEME.get_color(token, TOKENS)
 
 
-static func make_paper_box(shadow_px: int = 4, grain_val: float = 0.5) -> MaterialBox:
-	var b := MaterialBox.new()
-	b.kind = MaterialBox.Kind.PAPER
-	b.fill = PAPER
-	b.mark = SAND
-	b.edge = SAND
-	b.edge_shade = PENCIL
-	b.highlight = PAPER_BRIGHT
-	b.border = 2
-	b.corner = 2
-	b.grain = grain_val
-	b.shadow = shadow_px
-	b.shadow_color = Color(INK.r, INK.g, INK.b, 0.3)
-	return b
+## A palette colour as six hex digits, for [color=#...] in a RichTextLabel.
+static func hex(token: StringName) -> String:
+	return color(token).to_html(false)
 
 
-static func make_wood_box() -> MaterialBox:
-	var b := MaterialBox.new()
-	b.kind = MaterialBox.Kind.WOOD
-	b.fill = WOOD
-	b.mark = WOOD_DARK
-	b.edge = WOOD_DARK
-	b.edge_shade = WOOD_DARK
-	b.highlight = Color(PAPER_BRIGHT.r, PAPER_BRIGHT.g, PAPER_BRIGHT.b, 0.5)
-	b.border = 2
-	b.corner = 2
-	b.grain = 0.5
-	return b
+## A palette colour at part strength: chalk that was half rubbed out.
+static func faded(token: StringName, alpha: float) -> Color:
+	var c := color(token)
+	return Color(c.r, c.g, c.b, alpha)
 
 
-static func make_chalk_material(grit: float = 0.16, press: float = 0.3) -> ShaderMaterial:
-	var mat := ShaderMaterial.new()
-	mat.shader = load(SHADER_CHALK)
-	mat.set_shader_parameter("grit", grit)
-	mat.set_shader_parameter("press", press)
-	return mat
+static func font(voice: StringName) -> Font:
+	return THEME.get_font(voice, TOKENS)
+
+
+static func size(voice: StringName) -> int:
+	return THEME.get_font_size(voice, TOKENS)
+
+
+static func space(step: StringName) -> int:
+	return THEME.get_constant(step, TOKENS)
+
+
+## The material a panel is made of: one of the theme's panel variations.
+static func box(material: StringName) -> StyleBox:
+	return THEME.get_stylebox(&"panel", material)
+
+
+## Put `c` in a theme variation (a voice for a Label, a material for a Panel).
+static func wear(c: Control, variation: StringName) -> void:
+	c.theme = THEME
+	c.theme_type_variation = variation
+
+
+## A Label in a voice, placed and ready to add. Mouse-transparent, like every
+## other word in this game.
+static func label(variation: StringName, text: String = "", at: Vector2 = Vector2.ZERO) -> Label:
+	var l := Label.new()
+	wear(l, variation)
+	l.text = text
+	l.position = at
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## How wide `text` is in a label variation's font, in px.
+static func text_width(text: String, variation: StringName) -> float:
+	var f := THEME.get_font(&"font", variation)
+	return f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		THEME.get_font_size(&"font_size", variation)).x
+
+
+## The chalk shader as a material. `kind` is "title" for big letters, whose
+## strokes are thick enough to break up, or "text" for anything read as a
+## line: there the pressure varies but no pixel drops out of a letter.
+static func chalk(kind: StringName) -> ShaderMaterial:
+	if not _chalk.has(kind):
+		var m := ShaderMaterial.new()
+		m.shader = CHALK_SHADER
+		m.set_shader_parameter("grit", float(space(StringName("chalk_grit_%s" % kind))) / 100.0)
+		m.set_shader_parameter("press", float(space(&"chalk_press")) / 100.0)
+		_chalk[kind] = m
+	return _chalk[kind]
+
+
+# ------------------------------------------------------------------ motion
+#
+# One entrance and one exit for every panel. STEPPED: the panel is drawn in
+# a few fixed poses a few hundredths of a second apart, the way a sprite is
+# animated, instead of gliding on a curve. The numbers are theme constants.
+
+## Slide `node` in from `from` px away while its alpha rises, in steps.
+static func step_in(node: CanvasItem, from: Vector2 = Vector2(0, 8)) -> void:
+	_settle(node)
+	if not motion or not node.is_inside_tree():
+		return
+	var steps := maxi(2, space(&"motion_steps"))
+	var rest: Vector2 = node.get("position")
+	node.set_meta(&"ui_rest", rest)
+	_pose(node, rest, from, 1.0 / float(steps))
+	var tw := node.create_tween()
+	node.set_meta(&"ui_tween", tw)
+	for i in range(2, steps + 1):
+		tw.tween_interval(float(space(&"motion_step_ms")) / 1000.0)
+		tw.tween_callback(_pose.bind(node, rest, from, float(i) / float(steps)))
+
+
+## The entrance run backwards, then `then` (which hides or frees the node).
+static func step_out(node: CanvasItem, to: Vector2 = Vector2(0, 8),
+		then: Callable = Callable()) -> void:
+	_settle(node)
+	if not motion or not node.is_inside_tree() or not node.visible:
+		if then.is_valid():
+			then.call()
+		return
+	var steps := maxi(2, space(&"motion_steps"))
+	var rest: Vector2 = node.get("position")
+	node.set_meta(&"ui_rest", rest)
+	var tw := node.create_tween()
+	node.set_meta(&"ui_tween", tw)
+	for i in range(steps - 1, 0, -1):
+		tw.tween_callback(_pose.bind(node, rest, to, float(i) / float(steps)))
+		tw.tween_interval(float(space(&"motion_step_ms")) / 1000.0)
+	tw.tween_callback(func() -> void:
+		_settle(node)
+		if then.is_valid():
+			then.call())
+
+
+## Stop any entrance or exit on `node` and put it back at rest.
+static func _settle(node: CanvasItem) -> void:
+	if node.has_meta(&"ui_tween"):
+		var tw: Tween = node.get_meta(&"ui_tween")
+		if tw != null and tw.is_valid():
+			tw.kill()
+		node.remove_meta(&"ui_tween")
+	if node.has_meta(&"ui_rest"):
+		node.set("position", node.get_meta(&"ui_rest"))
+		node.remove_meta(&"ui_rest")
+	node.modulate.a = 1.0
+
+
+## One pose of the entrance: `k` of the way in, on the 2px art grid.
+static func _pose(node: CanvasItem, rest: Vector2, from: Vector2, k: float) -> void:
+	if not is_instance_valid(node):
+		return
+	node.set("position", rest + (from * (1.0 - k)).snapped(Vector2(2, 2)))
+	node.modulate.a = k

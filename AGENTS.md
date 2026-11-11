@@ -103,7 +103,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3215 assertions, 151 sections |
+| `tests/run.gd` | The suite — 3249 assertions, 151 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -131,7 +131,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3215 assertions — must pass, count must not drop
+Run Tests.bat            3249 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -205,7 +205,7 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
   - Overhauled Title Screen `scripts/ui/title.gd` with wood-framed procedural chalkboard, Kalam chalk title `"EDUSystem"` with gentle breathing oscillation, Kalam menu options, Amber active cursor (`>`), windowed pagination for Controls (8 rows/page), and smooth engine-native page transitions.
   - Captured proof screenshots in `docs/ui-audit-2026-11-10/` (`title_main_after.png`, `title_settings_after.png`, `title_controls_after.png`).
   - Authored comprehensive handoff document for Claude: `docs/fable-handoff-2026-11-10.md`.
-- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3,215 assertions** (`Run Tests.bat 1`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3249 assertions** (`Run Tests.bat 1`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up (for Claude/Fable or Antigravity):**
   1. Await Michael's verdict on the Phase 1 Title Screen pilot proof.
   2. Proceed to **Phase 2: Pause Menu (Esc)** (`scripts/ui/pause.gd`) using `MaterialBox`, `UITheme`, and `chalk.gdshader` according to `projects/edusystem/ui-overhaul-plan-2026-11-10.md`.

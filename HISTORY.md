@@ -24,16 +24,17 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
-## 2026-11-10 — UI Overhaul Phase 1: Title Screen Chalk Pilot Proof & Design System
-*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+## 2026-11-10 — UI Overhaul Phase 1: Complete Title Screen Chalk Pilot Proof, Design System & Test Suite
+*PC · Claude (Fable 5.2) + Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**
-  1. Design Tokens & Fonts: Installed `Kalam` (Bold/Regular), `Press Start 2P`, and `VT323` into `fonts/` with OFL licenses. Created `scripts/ui/ui_theme.gd` for centralized tokens, dynamic font loader, and StyleBox factories. Created `theme.tres` with VT323 base font.
-  2. Procedural Materials: Created `scripts/ui/material_box.gd` rendering 2px-grid procedural Chalkboard (`#134E4A` with wood frame `#C4A77D` / `#B5651D`, eraser smudges, and dust marks), Paper (`#F5F0E1` with rim highlights, drop shadow, and fiber specks), and Wood StyleBoxes.
+  1. Design Tokens & Fonts: Installed `Kalam` (Bold/Regular), `Press Start 2P`, and `VT323` into `fonts/` with OFL licenses. Created `scripts/ui/ui_theme.gd` for centralized tokens, dynamic font loader, and StyleBox factories. Created `theme.tres` wired globally in `project.godot`. Retired `art/title_bg.png` and `fonts/ui_theme.tres` in favor of procedural code drawing.
+  2. Procedural Materials: Created `scripts/ui/material_box.gd` rendering 2px-grid procedural Chalkboard (`#134E4A` with wood frame `#C4A77D` / `#B5651D`, chalk tray with erasers/chalk pieces, eraser smudges, and dust marks), Paper (`#F5F0E1` with rim highlights, drop shadow, and fiber specks), and Wood StyleBoxes.
   3. Chalk Shader: Created `shaders/chalk.gdshader` applying 2px screen-space grit and pressure break-up for authentic chalk lettering.
-  4. Title Screen Restyle: Updated `scripts/ui/title.gd` to render the wood-framed procedural chalkboard, chalk-lettered `"EDUSystem"` title (Kalam Bold, 44px) with subtle ambient breathing motion, chalk menu options (Kalam Regular, 16px), dedicated Accent Amber cursor (`>`), windowed pagination for Controls (8 rows/page), and smooth native fade/slide page transition tweening.
-  5. Verification & Proofs: Captured after-screenshots (`title_main_after.png`, `title_settings_after.png`, `title_controls_after.png`) in `docs/ui-audit-2026-11-10/`.
-- **Why:** Completing Phase 1 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`) to establish the title pilot proof and test the design system in live engine scenes.
-- **Verified:** All 3,215 unit test assertions green (`Run Tests.bat 1`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms chalk texture, clean layout without footer collision, and crisp amber cursor.
+  4. Title Screen Restyle: Updated `scripts/ui/title.gd` and `scenes/ui/title.tscn` with letter-by-letter chalk write-on animation, ruled chalk underlines, Kalam menu options, stepped row entrance animations, volume tick bars, dedicated Accent Amber cursor (`>`), and clean two-column Controls layout with windowed pagination.
+  5. Test Suite Expansion: Added `test_design_system()` to `tests/run.gd` with 34 new assertions verifying palette adherence, font grids, material borders, no rogue color literals, and layout bounding checks across every page and row. Fixed GDScript lambda syntax error and resolved Controls column overlap (`COLUMNS[Page.CONTROLS] = [52.0, 480.0]`).
+  6. Documentation & Proofs: Captured after-screenshots for all 7 title screens in `docs/ui-audit-2026-11-10/after/`. Synced assertion counts across all repository documentation to 3,249.
+- **Why:** Full completion and rigorous verification of Phase 1 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3,249 unit test assertions green (`tests/run.tscn`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms authentic chalk texture, chalk tray, and clean alignment across all pages.
 - **Left open:** Ready for owner review; Phase 2 (Pause Menu Esc overhaul) is next.
 
 ## 2026-11-10 — UI Overhaul Phase 0: Visual Audit, Screenshot Capture & Design Validation

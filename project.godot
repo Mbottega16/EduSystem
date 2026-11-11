@@ -49,6 +49,16 @@ window/stretch/aspect="expand"
 ; was never written down, and nothing in the game said so.
 window/size/resizable=true
 
+[editor]
+
+; Import one file at a time. Godot 4.7.1 crashes -- a segfault, measured with
+; `--headless --import` in Nov 2026 -- when it imports several fonts on
+; separate threads at once, and the UI's voices are six font files (fonts/).
+; Two fonts used to get away with it; any pairing with Kalam did not. One
+; thread never crashed. It costs a few seconds on a full re-import and
+; nothing at runtime.
+import/use_multiple_threads=false
+
 [input]
 
 ; Every action is bound by PHYSICAL keycode so WASD keeps its geometry on

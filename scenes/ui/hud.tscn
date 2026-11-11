@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scripts/ui/homework_sheet.gd" id="2_sheet"]
 [ext_resource type="Texture2D" path="res://art/ui_speech.png" id="3_speech"]
 [ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="4_font"]
-[ext_resource type="Theme" path="res://fonts/ui_theme.tres" id="5_theme"]
+[ext_resource type="Theme" path="res://theme.tres" id="5_theme"]
 
 ; A CENTRED 640x352 box, not the whole viewport.
 ;

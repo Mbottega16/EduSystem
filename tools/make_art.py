@@ -2575,7 +2575,13 @@ def draw_dust():
     return im
 
 
-TITLE_ART = {"logo": draw_logo, "title_bg": draw_title_bg, "dust": draw_dust}
+# title_bg is RETIRED (Nov 2026, the UI overhaul): the title screen is now the
+# theme's chalkboard material, drawn in code (scripts/ui/material_box.gd), so
+# no backdrop PNG is written. draw_title_bg() is kept above so the old board
+# and its dusk classroom can be redrawn: put "title_bg": draw_title_bg back
+# here and point a Sprite2D at it. The logo is still drawn; the title no
+# longer shows it, and the store page does (docs/ITCHIO_READY.md).
+TITLE_ART = {"logo": draw_logo, "dust": draw_dust}
 
 
 if __name__ == "__main__":

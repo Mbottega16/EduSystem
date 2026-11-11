@@ -6,19 +6,76 @@ extends Node2D
 ## project's main scene and the classroom is not built until you actually
 ## choose to play. That also means "New game" is a clean scene load rather
 ## than an in-place reset of a running world.
+##
+## IT IS THE CLASSROOM'S CHALKBOARD (UI overhaul, Nov 2026, the owner's ask:
+## "the white text should look like actual words written on the chalkboard").
+## The board is the theme's chalkboard material in its wood frame; the title,
+## the headings and every row are hand-lettered in chalk (Kalam, through the
+## chalk shader). Nothing here names a colour, a font or a size: each label
+## wears a variation of res://theme.tres, and UITheme hands out the rest.
+##
+## Each row is its own label, so a row can sit in two columns (a setting and
+## its value, an action and its key) whatever the width of the letters. The
+## old screen padded one block of text with spaces, which lines up only in a
+## fixed-width font.
 
 enum Page { MAIN, SETTINGS, CONTROLS, HOWTO, CREDITS, CONFIRM_WIPE, SLOTS, SLOT_ACTIONS, CONFIRM_SLOT_DELETE }
 
 const GAME_SCENE := "res://scenes/main.tscn"
 const DUST_COUNT := 26
 
-const UITheme := preload("res://scripts/ui/ui_theme.gd")
-const MaterialBox := preload("res://scripts/ui/material_box.gd")
+## Every position below is in the game's own 640x352 stage.
+const STAGE := Vector2(640, 352)
+## Where the first row sits: under the wordmark on the main page, under the
+## heading on every other.
+const MAIN_TOP := 84.0
+const PAGE_TOP := 58.0
+## From one row to the next. Nine rows must clear the footer on the main page.
+const MAIN_PITCH := 23.0
+const ROW_PITCH := 24.0
+## From one line of prose to the next (how to play, the credits).
+const PROSE_PITCH := 21.0
+## Rows of the controls list on the board at once. The list scrolls.
+const CONTROLS_SHOWN := 9
+## The chalk pointer sits this far left of the row it marks.
+const CURSOR_GAP := 22.0
+## Seconds per letter while the title is written on.
+const WRITE_SECONDS := 0.06
+## The wood frame the theme draws round the board: nothing is written on it.
+const FRAME := 10.0
+## A volume bar: ten chalk ticks.
+const BAR_CELLS := 10
+const BAR_CELL := Vector2(8, 12)
+const BAR_STEP := 12.0
 
-@onready var menu: Label = $UI/Menu
-@onready var heading: Label = $UI/Heading
-@onready var footer: Label = $UI/Footer
-@onready var logo: Sprite2D = $Logo
+## Where each page's rows sit: the left edge of the names, and of the values
+## beside them (0 when the page has one column).
+const COLUMNS := {
+	Page.MAIN: [238.0, 0.0],
+	Page.SETTINGS: [142.0, 348.0],
+	Page.CONTROLS: [52.0, 480.0],
+	Page.SLOTS: [112.0, 208.0],
+	Page.SLOT_ACTIONS: [196.0, 0.0],
+	Page.CONFIRM_SLOT_DELETE: [214.0, 0.0],
+	Page.CONFIRM_WIPE: [214.0, 0.0],
+	Page.HOWTO: [106.0, 0.0],
+	Page.CREDITS: [128.0, 0.0],
+}
+
+const MAIN_NAMES := {
+	"continue": "Continue", "slots": "Save slots", "new": "New term", "howto": "How to play",
+	"settings": "Settings", "controls": "Controls",
+	"credits": "Credits", "wipe": "Erase save", "quit": "Quit",
+}
+
+@onready var board: Panel = $Board/Panel
+@onready var tray: Control = $Board/Tray
+@onready var root: Control = $UI/Root
+@onready var wordmark: Label = $UI/Root/Wordmark
+@onready var underline: ColorRect = $UI/Root/Underline
+@onready var heading: Label = $UI/Root/Heading
+@onready var rows_box: Control = $UI/Root/Rows
+@onready var footer: Label = $UI/Root/Footer
 @onready var walker: Sprite2D = $Walker
 
 var page: int = Page.MAIN
@@ -27,14 +84,12 @@ var sel_slot: int = 0           ## chosen slot (0-7) when viewing slot actions
 var rebinding: String = ""      ## action awaiting a key press, "" if none
 var message: String = ""
 
-var _frame_panel: Panel = null
-var _chalk_title: Label = null
-var _amber_cursor: Label = null
-var _chalk_mat: ShaderMaterial = null
-var _chalk_menu_mat: ShaderMaterial = null
-var _font_chalk_bold: FontFile = null
-var _font_chalk_reg: FontFile = null
-var _font_hand: FontFile = null
+## What is written on the board right now, top to bottom. One Dictionary a
+## line: "text", and optionally "value", "aside", "bar", "option" (its index
+## in _rows(), -1 for a line that cannot be chosen), "danger", "prose".
+var _lines: Array = []
+## Seconds since the title began to be written. INF once it is all there.
+var _written: float = INF
 
 var _dust: Array[Sprite2D] = []
 var _dust_vel: Array[Vector2] = []
@@ -46,69 +101,54 @@ var _walk_timer: float = 0.0
 
 func _ready() -> void:
 	Balance.ensure_loaded()
-	_setup_chalk_theme()
+	wordmark.material = UITheme.chalk(&"title")
+	heading.material = UITheme.chalk(&"title")
+	underline.material = UITheme.chalk(&"title")
+	underline.color = UITheme.color(&"chalk")
+	footer.material = UITheme.chalk(&"text")
+	_place_stage()
+	get_viewport().size_changed.connect(_place_stage)
 	_make_dust()
+	# The title is written on, a letter at a time, the first time the board
+	# is seen. Coming back to the main page from another does not rewrite it.
+	if UITheme.motion:
+		_written = 0.0
+		wordmark.visible_characters = 0
 	_render()
+	UITheme.step_in(rows_box, Vector2(UITheme.space(&"motion_slide"), 0))
 	Music.play("music_title")
 
 
-func _setup_chalk_theme() -> void:
-	_font_chalk_bold = UITheme.load_font("res://fonts/Kalam-Bold.ttf")
-	_font_chalk_reg = UITheme.load_font("res://fonts/Kalam-Regular.ttf")
-	_font_hand = UITheme.load_font("res://fonts/PatrickHand-Regular.ttf")
+## Centre the stage in a window that is not exactly 20:11, and put the chalk
+## and the eraser back on the board's bottom rail, wherever that now is.
+func _place_stage() -> void:
+	position = ((get_viewport_rect().size - STAGE) * 0.5).floor()
+	_dress_tray()
 
-	_chalk_mat = UITheme.make_chalk_material(0.08, 0.22)
-	_chalk_menu_mat = UITheme.make_chalk_material(0.05, 0.18)
 
-	# Wood frame around the chalkboard
-	if _frame_panel == null:
-		_frame_panel = Panel.new()
-		_frame_panel.size = Vector2(640, 352)
-		_frame_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_frame_panel.add_theme_stylebox_override("panel", UITheme.make_chalkboard_box(8, 0.35))
-		add_child(_frame_panel)
-		move_child(_frame_panel, 1)
-
-	# Chalk Title: "EDUSystem"
-	if _chalk_title == null:
-		_chalk_title = Label.new()
-		_chalk_title.size = Vector2(640, 52)
-		_chalk_title.position = Vector2(0, 6)
-		_chalk_title.text = "EDUSystem"
-		_chalk_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_chalk_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_chalk_title.add_theme_font_override("font", _font_chalk_bold)
-		_chalk_title.add_theme_font_size_override("font_size", 44)
-		_chalk_title.add_theme_color_override("font_color", UITheme.CHALK)
-		_chalk_title.material = _chalk_mat
-		$UI.add_child(_chalk_title)
-
-	# Chalk Cursor in Accent Amber
-	if _amber_cursor == null:
-		_amber_cursor = Label.new()
-		_amber_cursor.size = Vector2(18, 20)
-		_amber_cursor.text = ">"
-		_amber_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_amber_cursor.add_theme_font_override("font", _font_chalk_bold)
-		_amber_cursor.add_theme_font_size_override("font_size", 16)
-		_amber_cursor.add_theme_color_override("font_color", UITheme.AMBER)
-		_amber_cursor.material = UITheme.make_chalk_material(0.04, 0.1)
-		$UI.add_child(_amber_cursor)
-
-	heading.add_theme_font_override("font", _font_chalk_bold)
-	heading.add_theme_font_size_override("font_size", 22)
-	heading.add_theme_color_override("font_color", UITheme.CHALK)
-	heading.material = _chalk_mat
-
-	menu.add_theme_font_override("font", _font_chalk_reg)
-	menu.add_theme_font_size_override("font_size", 16)
-	menu.add_theme_constant_override("line_spacing", 0)
-	menu.add_theme_color_override("font_color", UITheme.CHALK)
-	menu.material = _chalk_menu_mat
-
-	footer.add_theme_font_override("font", _font_hand)
-	footer.add_theme_font_size_override("font_size", 16)
-	footer.add_theme_color_override("font_color", Color(UITheme.CHALK.r, UITheme.CHALK.g, UITheme.CHALK.b, 0.75))
+## Three sticks of chalk and the eraser, resting on the bottom rail of the
+## frame. Drawn from the palette, like everything else on this screen.
+func _dress_tray() -> void:
+	for c in tray.get_children():
+		tray.remove_child(c)
+		c.queue_free()
+	var view := get_viewport_rect().size
+	var rail := view.y - FRAME
+	var right := view.x - FRAME
+	var pieces := [
+		[right - 150.0, rail - 4.0, 14.0, 4.0, &"chalk"],
+		[right - 130.0, rail - 4.0, 10.0, 4.0, &"amber"],
+		[right - 114.0, rail - 4.0, 12.0, 4.0, &"terracotta"],
+		[right - 84.0, rail - 8.0, 26.0, 6.0, &"wood_dark"],
+		[right - 84.0, rail - 2.0, 26.0, 2.0, &"pencil"],
+	]
+	for p: Array in pieces:
+		var r := ColorRect.new()
+		r.position = Vector2(p[0], p[1])
+		r.size = Vector2(p[2], p[3])
+		r.color = UITheme.color(p[4])
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tray.add_child(r)
 
 
 func _make_dust() -> void:
@@ -117,7 +157,7 @@ func _make_dust() -> void:
 		var s := Sprite2D.new()
 		s.texture = tex
 		s.position = Vector2(randf_range(16, 624), randf_range(20, 320))   # doubled Aug 2026
-		s.modulate.a = randf_range(0.15, 0.6)
+		s.modulate = UITheme.faded(&"chalk", randf_range(0.15, 0.6))
 		add_child(s)
 		_dust.append(s)
 		_dust_vel.append(Vector2(randf_range(-7, 7), randf_range(-11, -3)))
@@ -125,6 +165,17 @@ func _make_dust() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+
+	# the title being written on: one more letter every WRITE_SECONDS
+	if _written != INF:
+		_written += delta
+		var shown := int(_written / WRITE_SECONDS)
+		if shown >= wordmark.text.length():
+			_written = INF
+			wordmark.visible_characters = -1
+			_rule_under(heading.text)
+		else:
+			wordmark.visible_characters = shown
 
 	# chalk dust drifting up off the board
 	for i in _dust.size():
@@ -135,16 +186,11 @@ func _process(delta: float) -> void:
 			s.position = Vector2(randf_range(16, 624), 324.0)   # doubled Aug 2026
 			s.modulate.a = randf_range(0.15, 0.6)
 
-	# the chalk title breathes gently on the board
-	if _chalk_title != null and _chalk_title.visible:
-		_chalk_title.position.y = 14.0 + sin(_t * 1.3) * 2.0
-	logo.visible = false
-
-	# a student wanders across the chalk tray, because an empty title screen
-	# with no living thing on it reads as a menu, not a game
+	# a student wanders across the foot of the board, because an empty title
+	# screen with no living thing on it reads as a menu, not a game
 	_walk_x += 44.0 * delta   # doubled Aug 2026
-	if _walk_x > 680.0:
-		_walk_x = -40.0
+	if _walk_x > 680.0 + position.x:
+		_walk_x = -40.0 - position.x
 	# The walker is a character sheet like any other: a 15-wide one carries the
 	# pack's six-frame walk (Actor.WALK_CYCLE_FULL), a 9-wide one the old four.
 	var cols := int(walker.texture.get_width() / Actor.CELL_W)
@@ -213,28 +259,13 @@ func _capture_rebind(event: InputEvent) -> void:
 	_render()
 
 
+## Turn to another page. The rows arrive with the system's stepped entrance.
 func _go(p: int) -> void:
 	page = p
 	sel = 0
 	message = ""
 	_render()
-	_animate_transition()
-
-
-func _animate_transition() -> void:
-	if not is_inside_tree():
-		return
-	menu.modulate.a = 0.0
-	var orig_y := menu.offset_top
-	menu.offset_top = orig_y + 4.0
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(menu, "modulate:a", 1.0, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(menu, "offset_top", orig_y, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	if heading.visible and heading.text != "":
-		heading.modulate.a = 0.0
-		var h_tw := create_tween()
-		h_tw.tween_property(heading, "modulate:a", 1.0, 0.12)
+	UITheme.step_in(rows_box, Vector2(UITheme.space(&"motion_slide"), 0))
 
 
 # ------------------------------------------------------------- the pages
@@ -426,76 +457,81 @@ func _label_for(action: String) -> String:
 	return action
 
 
-## A 10-step bar, because a number from 0 to 1 means nothing at a glance.
-func _bar(v: float) -> String:
-	var filled := int(round(v * 10.0))
-	return "[%s%s] %3d%%" % ["#".repeat(filled), ".".repeat(10 - filled), int(round(v * 100.0))]
-
-
 # --------------------------------------------------------------- drawing
+
+## One line that can be chosen: row `i` of _rows().
+func _option(i: int, text: String, value: String = "") -> Dictionary:
+	return {"text": text, "value": value, "option": i}
+
+
+## One line that is only read.
+func _plain(text: String, prose: bool = false) -> Dictionary:
+	return {"text": text, "option": -1, "prose": prose}
+
+
+## Everything written on the board, as plain text, one line a row. What a
+## screen reader would say, and what the suite reads.
+func page_text() -> String:
+	var out: Array[String] = []
+	for line: Dictionary in _lines:
+		var s := String(line.get("text", ""))
+		for key: String in ["aside", "value"]:
+			if String(line.get(key, "")) != "":
+				s += "  " + String(line[key])
+		out.append(s)
+	return "\n".join(out)
+
 
 func _render() -> void:
 	var rows := _rows()
-	var lines: Array[String] = []
+	var lines: Array = []
+	var top := PAGE_TOP
+	var pitch := ROW_PITCH
+	var note := ""
+	var head := ""
 
 	match page:
 		Page.MAIN:
-			heading.text = ""
-			if _chalk_title != null:
-				_chalk_title.visible = true
-			logo.visible = false
-			menu.offset_left = 220.0
-			menu.offset_top = 58.0   # adjusted for chalk lettered layout
+			top = MAIN_TOP
+			pitch = MAIN_PITCH
 			for i in rows.size():
 				var id := String(rows[i])
-				var names_main := {
-					"continue": "Continue", "slots": "Save slots", "new": "New term", "howto": "How to play",
-					"settings": "Settings", "controls": "Controls",
-					"credits": "Credits", "wipe": "Erase save", "quit": "Quit",
-				}
-				var text: String = String(names_main.get(id, id))
+				var line := _option(i, String(MAIN_NAMES.get(id, id)))
 				if id == "continue":
-					text += "   (day %d)" % Game.saved_day()
-				lines.append("%s %s" % [">" if i == sel else " ", text])
-			footer.offset_top = 312.0
-			footer.offset_bottom = 336.0
-			footer.text = message if message != "" else "Arrows to choose, E to pick"
+					line["aside"] = "day %d" % Game.saved_day()
+				line["danger"] = id == "wipe"
+				lines.append(line)
+			note = message if message != "" else "Arrows to choose, E to pick"
 
 		Page.SLOTS:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			heading.text = "SAVE SLOTS"
-			logo.visible = false
-			menu.offset_left = 60.0
-			menu.offset_top = 58.0
+			head = "Save slots"
 			for i in rows.size():
 				var row_id := String(rows[i])
 				if row_id == "back":
-					lines.append("%s Back" % [">" if i == sel else " "])
-				else:
-					var slot_idx := int(row_id.trim_prefix("slot_"))
-					var label := ""
-					if Game.has_slot(slot_idx):
-						var info := Game.slot_info(slot_idx)
-						label = "Slot %d: Day %d  (Term %d, %s, %d coins)" % [
-							slot_idx + 1,
-							info.get("day", 1),
-							info.get("term", 1),
-							String(info.get("subject", "general")).capitalize(),
-							info.get("coins", 0)
-						]
-					else:
-						label = "Slot %d: [Empty]" % [slot_idx + 1]
-					lines.append("%s %s" % [">" if i == sel else " ", label])
-			footer.text = message if message != "" else "Arrows to choose, E to select, Esc to go back"
+					lines.append(_option(i, "Back"))
+					continue
+				var slot_idx := int(row_id.trim_prefix("slot_"))
+				var what := "empty"
+				if Game.has_slot(slot_idx):
+					var info := Game.slot_info(slot_idx)
+					what = "Day %d, term %d, %s, %d coins" % [
+						info.get("day", 1),
+						info.get("term", 1),
+						String(info.get("subject", "general")).capitalize(),
+						info.get("coins", 0)
+					]
+					# A long subject and a large purse run off the board: the
+					# subject is the part a save can be told apart without.
+					var room: float = STAGE.x - FRAME - float(UITheme.space(&"space_s")) 						- float(COLUMNS[Page.SLOTS][1])
+					if UITheme.text_width(what, &"ChalkRow") > room:
+						what = "Day %d, term %d, %d coins" % [
+							info.get("day", 1), info.get("term", 1), info.get("coins", 0)]
+				lines.append(_option(i, "Slot %d" % [slot_idx + 1], what))
+			note = message if message != "" else "Arrows to choose, E to select, Esc to go back"
 
 		Page.SLOT_ACTIONS:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			heading.text = "SLOT %d" % [sel_slot + 1]
-			logo.visible = false
-			menu.offset_left = 180.0
-			menu.offset_top = 80.0
+			head = "Slot %d" % [sel_slot + 1]
+			top = PAGE_TOP + ROW_PITCH
 			var action_names := {
 				"load": "Load this slot",
 				"new": "Start new game in this slot",
@@ -505,139 +541,207 @@ func _render() -> void:
 			}
 			for i in rows.size():
 				var aid := String(rows[i])
-				lines.append("%s %s" % [">" if i == sel else " ", action_names.get(aid, aid)])
-			footer.text = "E to pick, Esc to go back"
+				var line := _option(i, String(action_names.get(aid, aid)))
+				line["danger"] = aid == "delete"
+				lines.append(line)
+			note = "E to pick, Esc to go back"
 
 		Page.CONFIRM_SLOT_DELETE:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			heading.text = "ERASE SLOT %d?" % [sel_slot + 1]
-			logo.visible = false
-			menu.offset_left = 180.0
-			menu.offset_top = 80.0
-			lines = ["This cannot be undone.", ""]
+			head = "Erase slot %d?" % [sel_slot + 1]
+			top = PAGE_TOP + ROW_PITCH
+			lines = [_plain("This cannot be undone."), _plain("")]
 			for i in rows.size():
-				lines.append("%s %s" % [
-					">" if i == sel else " ",
-					"No, keep it" if String(rows[i]) == "no" else "Yes, erase it"])
-			footer.text = ""
+				var line := _option(i,
+					"No, keep it" if String(rows[i]) == "no" else "Yes, erase it")
+				line["danger"] = String(rows[i]) == "yes"
+				lines.append(line)
 
 		Page.SETTINGS:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			heading.text = "SETTINGS"
-			logo.visible = false
-			menu.offset_left = 140.0
-			menu.offset_top = 70.0
-			var vals := {
-				"master": _bar(Settings.master_volume),
-				"sfx": _bar(Settings.sfx_volume),
-				"music": _bar(Settings.music_volume),
-				"scale": "x%d" % Settings.window_scale,
-				"fullscreen": "on" if Settings.fullscreen else "off",
-				"hints": "on" if Settings.show_hints else "off",
-				"back": "",
-			}
+			head = "Settings"
+			top = PAGE_TOP + ROW_PITCH
 			var names := {
 				"master": "Master volume", "sfx": "Sound effects",
 				"music": "Music",
 				"scale": "Window size", "fullscreen": "Fullscreen",
 				"hints": "Show hints", "back": "Back",
 			}
+			var volumes := {
+				"master": Settings.master_volume, "sfx": Settings.sfx_volume,
+				"music": Settings.music_volume,
+			}
+			var vals := {
+				"scale": "x%d" % Settings.window_scale,
+				"fullscreen": "on" if Settings.fullscreen else "off",
+				"hints": "on" if Settings.show_hints else "off",
+			}
 			for i in rows.size():
 				var id := String(rows[i])
-				lines.append("%s %-15s %s" % [
-					">" if i == sel else " ", String(names[id]), String(vals[id])])
-			footer.text = "Left/Right to change, Esc to go back"
+				var line := _option(i, String(names[id]), String(vals.get(id, "")))
+				if volumes.has(id):
+					# a bar of ten chalk ticks, and the figure beside it: a
+					# number from 0 to 1 means nothing at a glance
+					line["bar"] = float(volumes[id])
+					line["value"] = "%d%%" % int(round(float(volumes[id]) * 100.0))
+				lines.append(line)
+			note = "Left/Right to change, Esc to go back"
 
 		Page.CONTROLS:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			heading.text = "CONTROLS"
-			logo.visible = false
-			menu.offset_left = 120.0
-			menu.offset_top = 54.0
-			var shown_rows := 8
+			head = "Controls"
+			# Windowed, the same way Career/Office page past a list longer
+			# than the panel: the list is longer than the board is tall.
 			var lo := 0
-			if rows.size() > shown_rows:
-				lo = clampi(sel - shown_rows / 2, 0, rows.size() - shown_rows)
-			for i in range(lo, mini(rows.size(), lo + shown_rows)):
+			if rows.size() > CONTROLS_SHOWN:
+				lo = clampi(sel - CONTROLS_SHOWN / 2, 0, rows.size() - CONTROLS_SHOWN)
+			for i in range(lo, mini(rows.size(), lo + CONTROLS_SHOWN)):
 				var id := String(rows[i])
 				if id == "back" or id == "reset":
-					lines.append("%s %s" % [
-						">" if i == sel else " ",
-						"Back" if id == "back" else "Reset to defaults"])
+					lines.append(_option(i, "Back" if id == "back" else "Reset to defaults"))
 				else:
-					var shown := "press a key..." if rebinding == id \
-						else Settings.binding_text(id)
-					lines.append("%s %-13s %s" % [
-						">" if i == sel else " ", _label_for(id), shown])
+					var line := _option(i, _label_for(id), Settings.binding_text(id))
+					if rebinding == id:
+						line["value"] = "press a key..."
+						line["waiting"] = true
+					lines.append(line)
 			var prompt := message if message != "" else "E to rebind, Esc to go back"
-			if rows.size() > shown_rows:
-				footer.text = "%s  (%d-%d of %d)" % [
-					prompt, lo + 1, mini(rows.size(), lo + shown_rows), rows.size()]
+			if rows.size() > CONTROLS_SHOWN:
+				note = "%s  (%d-%d of %d)" % [
+					prompt, lo + 1, mini(rows.size(), lo + CONTROLS_SHOWN), rows.size()]
 			else:
-				footer.text = prompt
+				note = prompt
 
 		Page.HOWTO:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			menu.offset_left = 60.0
-			menu.offset_top = 68.0
-			heading.text = "HOW TO PLAY"
-			logo.visible = false
-			lines = [
+			head = "How to play"
+			top = PAGE_TOP + 8.0
+			for s: String in [
 				"Start the lesson at the PODIUM.",
-				"A ? means that student is STUCK and their",
-				"work has stopped. Walk over, press %s." % Settings.binding_text("interact"),
-				"Collect finished work, hand it in at YOUR",
-				"desk. The INTERCOM, top left, ends the day.",
-				"Buy furniture at the CORKBOARD - it only",
-				"helps the desks in range, shown in green.",
+				"A ? means that student is STUCK and their work",
+				"has stopped. Walk over, press %s." % Settings.binding_text("interact"),
+				"Collect finished work, hand it in at YOUR desk.",
+				"The INTERCOM, top left, ends the day.",
+				"Buy furniture at the CORKBOARD. It only helps",
+				"the desks in range, shown in green.",
 				"A term is %d days, then they sit an exam." % Balance.term_days,
-			]
-			footer.text = "Esc to go back"
+			]:
+				lines.append(_plain(s, true))
+			note = "Esc to go back"
 
 		Page.CREDITS:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			menu.offset_left = 100.0
-			menu.offset_top = 64.0
-			heading.text = "CREDITS"
-			logo.visible = false
-			lines = [
+			head = "Credits"
+			for s: String in [
 				"A small game about paying attention.",
 				"",
 				"Pixel art by LimeZu (limezu.itch.io):",
 				"Modern Interiors, Modern Office, Modern UI",
 				"The rest is drawn by tools/make_art.py",
 				"Every sound is synthesised by make_audio.py",
-				"Text in Galmuri by Lee Minseo (SIL OFL)",
 				"Furniture: 0_mem0ry. Flags, weather: Pixel-boy",
+				"Lettering: Kalam, Patrick Hand, Galmuri by",
+				"Lee Minseo, VT323, Press Start 2P (SIL OFL)",
 				"",
 				"Built with Godot 4.",
-			]
-			footer.text = "Esc to go back"
+			]:
+				lines.append(_plain(s, true))
+			note = "Esc to go back"
 
 		Page.CONFIRM_WIPE:
-			if _chalk_title != null:
-				_chalk_title.visible = false
-			menu.offset_left = 160.0
-			menu.offset_top = 80.0   # doubled Aug 2026
-			heading.text = "ERASE SAVE?"
-			logo.visible = false
-			lines = ["This cannot be undone.", "Your whole career goes with it.", ""]
+			head = "Erase save?"
+			top = PAGE_TOP + ROW_PITCH
+			lines = [_plain("This cannot be undone."),
+				_plain("Your whole career goes with it."), _plain("")]
 			for i in rows.size():
-				lines.append("%s %s" % [
-					">" if i == sel else " ",
-					"No, keep it" if String(rows[i]) == "no" else "Yes, erase it"])
-			footer.text = ""
+				var line := _option(i,
+					"No, keep it" if String(rows[i]) == "no" else "Yes, erase it")
+				line["danger"] = String(rows[i]) == "yes"
+				lines.append(line)
 
-	menu.text = "\n".join(lines)
-	if _amber_cursor != null:
-		if not rows.is_empty() and sel >= 0 and sel < rows.size():
-			_amber_cursor.visible = true
-			var line_h := 25.0
-			_amber_cursor.position = Vector2(menu.offset_left, menu.offset_top + sel * line_h - 1.0)
-		else:
-			_amber_cursor.visible = false
+	_lines = lines
+	wordmark.visible = page == Page.MAIN
+	heading.text = head
+	heading.visible = head != ""
+	_rule_under(head)
+	footer.text = note
+	_write(lines, top, pitch)
+
+
+## The chalk rule: under the wordmark on the main page, under the heading on
+## every other. Ruled by hand, so it is not quite level.
+func _rule_under(head: String) -> void:
+	if head == "":
+		underline.position = Vector2(214, 78)
+		underline.size = Vector2(212, 4)
+		underline.visible = _written == INF
+	else:
+		var w := UITheme.text_width(head, &"ChalkHeading") + float(UITheme.space(&"space_l")) * 2.0
+		underline.position = Vector2(roundf((STAGE.x - w) * 0.5), 52)
+		underline.size = Vector2(w, 2)
+		underline.visible = true
+	underline.pivot_offset = underline.size * 0.5
+	underline.rotation = -0.012
+
+
+## Put `lines` on the board: one label a row, a second for its value, the
+## chalk pointer beside the chosen one.
+func _write(lines: Array, top: float, pitch: float) -> void:
+	for c in rows_box.get_children():
+		rows_box.remove_child(c)
+		c.queue_free()
+	var cols: Array = COLUMNS[page]
+	var x: float = cols[0]
+	var value_x: float = cols[1]
+	var row_font := UITheme.font(&"chalk")
+	var ascent := row_font.get_ascent(UITheme.size(&"chalk"))
+	var y := top
+	for line: Dictionary in lines:
+		var text := String(line.get("text", ""))
+		var prose := bool(line.get("prose", false))
+		var chosen: bool = int(line.get("option", -1)) >= 0 and int(line["option"]) == sel
+		if text != "":
+			var voice := &"ChalkProse" if prose else (&"ChalkRowSelected" if chosen else &"ChalkRow")
+			_chalk(voice, text, Vector2(x, y))
+			var end_x := x + UITheme.text_width(text, voice)
+			if chosen:
+				_chalk(&"ChalkRowSelected", ">", Vector2(x - CURSOR_GAP, y))
+			if bool(line.get("danger", false)):
+				# the one mark a way out that cannot be undone carries: a
+				# line of red chalk under it. The words stay white, to be read.
+				_stroke(Rect2(x, y + ascent + 3.0, end_x - x, 2.0), &"destructive")
+			if String(line.get("aside", "")) != "":
+				var drop := ascent - row_font.get_ascent(UITheme.size(&"chalk_small"))
+				_chalk(&"ChalkNote", String(line["aside"]),
+					Vector2(end_x + float(UITheme.space(&"space_m")), y + roundf(drop)))
+			var value := String(line.get("value", ""))
+			if line.has("bar"):
+				_bar(Vector2(value_x, y + ascent - BAR_CELL.y), float(line["bar"]))
+				_chalk(&"ChalkRow", value, Vector2(value_x + BAR_STEP * BAR_CELLS + 8.0, y))
+			elif value != "":
+				_chalk(&"ChalkRowSelected" if bool(line.get("waiting", false)) else &"ChalkRow",
+					value, Vector2(value_x, y))
+		y += PROSE_PITCH if prose else pitch
+
+
+## One piece of chalk writing, on the board at `at`.
+func _chalk(voice: StringName, text: String, at: Vector2) -> Label:
+	var l := UITheme.label(voice, text, at)
+	l.material = UITheme.chalk(&"text")
+	rows_box.add_child(l)
+	return l
+
+
+## A stroke of chalk: a rule, or one tick of a bar.
+func _stroke(r: Rect2, token: StringName, alpha: float = 1.0) -> void:
+	var c := ColorRect.new()
+	c.position = r.position.round()
+	c.size = r.size.round()
+	c.color = UITheme.faded(token, alpha)
+	c.material = UITheme.chalk(&"text")
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rows_box.add_child(c)
+
+
+## A level from 0 to 1 as ten chalk ticks: the ones reached drawn firmly,
+## the rest faint, as if rubbed out.
+func _bar(at: Vector2, v: float) -> void:
+	var filled := int(round(v * float(BAR_CELLS)))
+	for i in BAR_CELLS:
+		_stroke(Rect2(at.x + float(i) * BAR_STEP, at.y, BAR_CELL.x, BAR_CELL.y),
+			&"chalk", 1.0 if i < filled else 0.25)

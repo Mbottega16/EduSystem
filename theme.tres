@@ -1,7 +1,225 @@
-[gd_resource type="Theme" load_steps=2 format=3]
+[gd_resource type="Theme" format=3]
 
-[ext_resource type="FontFile" path="res://fonts/VT323-Regular.ttf" id="1_body"]
+; THE DESIGN SYSTEM. One theme, the single source of truth for every UI
+; colour, font, size, gap and material (UI overhaul, Nov 2026).
+;
+; Panels never name a colour. They read a token from here through
+; scripts/ui/ui_theme.gd (UITheme.color / font / size / space / box), or
+; they wear one of the type variations below. Change a value here and every
+; screen that uses it follows. tests/run.gd, section DESIGN SYSTEM, pins the
+; palette to the plan and fails on a material colour that is not a token.
+;
+; Palette (token = hex):
+;   chalkboard 134E4A   chalk FDFBF7        paper F5F0E1   paper_bright FAFAF8
+;   wood C4A77D         wood_dark B5651D    sand D4C4A8    terracotta C67B5C
+;   olive 6B7B3C        amber D97706        ink 1A1A1A     pencil 4A4A4A
+;   destructive DC2626
+;
+; Voices: display = Press Start 2P (8px grid), body = VT323 (crisp at 25),
+; chalk = Kalam (handwriting on a board), note = Patrick Hand (handwriting on
+; paper). The default font stays Galmuri9 at 20 so a screen that has not been
+; moved onto the system yet looks exactly as it did.
+;
+; NOTE: the Godot editor drops these comments when it saves this file.
+
+[ext_resource type="Script" path="res://scripts/ui/material_box.gd" id="1_box"]
+[ext_resource type="FontFile" path="res://fonts/Galmuri9.ttf" id="2_galmuri"]
+[ext_resource type="FontFile" path="res://fonts/PressStart2P-Regular.ttf" id="3_display"]
+[ext_resource type="FontFile" path="res://fonts/VT323-Regular.ttf" id="4_body"]
+[ext_resource type="FontFile" path="res://fonts/Kalam-Regular.ttf" id="5_chalk"]
+[ext_resource type="FontFile" path="res://fonts/Kalam-Bold.ttf" id="6_chalk_bold"]
+[ext_resource type="FontFile" path="res://fonts/PatrickHand-Regular.ttf" id="7_note"]
+
+; --- materials: a chalkboard in its wood frame, a sheet of paper, wood ---
+
+[sub_resource type="StyleBox" id="box_title_board"]
+script = ExtResource("1_box")
+kind = 0
+fill = Color(0.0745, 0.3059, 0.2902, 1)
+mark = Color(0.9922, 0.9843, 0.9686, 1)
+edge = Color(0.7686, 0.6549, 0.4902, 1)
+edge_shade = Color(0.7098, 0.3961, 0.1137, 1)
+highlight = Color(0.9804, 0.9804, 0.9725, 0.45)
+border = 2
+frame = 8
+corner = 2
+grain = 0.4
+shadow_color = Color(0.102, 0.102, 0.102, 0.3)
+
+[sub_resource type="StyleBox" id="box_chalkboard"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
+script = ExtResource("1_box")
+kind = 0
+fill = Color(0.0745, 0.3059, 0.2902, 1)
+mark = Color(0.9922, 0.9843, 0.9686, 1)
+edge = Color(0.7686, 0.6549, 0.4902, 1)
+edge_shade = Color(0.7098, 0.3961, 0.1137, 1)
+highlight = Color(0.9804, 0.9804, 0.9725, 0.45)
+border = 2
+frame = 6
+corner = 2
+grain = 0.4
+shadow = 4
+shadow_color = Color(0.102, 0.102, 0.102, 0.3)
+
+[sub_resource type="StyleBox" id="box_paper"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+script = ExtResource("1_box")
+kind = 1
+fill = Color(0.9608, 0.9412, 0.8824, 1)
+mark = Color(0.8314, 0.7686, 0.6588, 1)
+edge = Color(0.8314, 0.7686, 0.6588, 1)
+edge_shade = Color(0.2902, 0.2902, 0.2902, 1)
+highlight = Color(0.9804, 0.9804, 0.9725, 1)
+border = 2
+corner = 2
+grain = 0.5
+shadow = 4
+shadow_color = Color(0.102, 0.102, 0.102, 0.3)
+
+[sub_resource type="StyleBox" id="box_card"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+script = ExtResource("1_box")
+kind = 1
+fill = Color(0.9804, 0.9804, 0.9725, 1)
+mark = Color(0.8314, 0.7686, 0.6588, 1)
+edge = Color(0.851, 0.4667, 0.0235, 1)
+edge_shade = Color(0.2902, 0.2902, 0.2902, 1)
+highlight = Color(0.9804, 0.9804, 0.9725, 1)
+border = 2
+corner = 2
+grain = 0.0
+shadow = 2
+shadow_color = Color(0.102, 0.102, 0.102, 0.25)
+
+[sub_resource type="StyleBox" id="box_wood"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+script = ExtResource("1_box")
+kind = 2
+fill = Color(0.7686, 0.6549, 0.4902, 1)
+mark = Color(0.7098, 0.3961, 0.1137, 1)
+edge = Color(0.7098, 0.3961, 0.1137, 1)
+edge_shade = Color(0.7098, 0.3961, 0.1137, 1)
+highlight = Color(0.9804, 0.9804, 0.9725, 0.5)
+border = 2
+corner = 2
+grain = 0.5
+shadow_color = Color(0.102, 0.102, 0.102, 0.3)
 
 [resource]
-default_font = ExtResource("1_body")
+default_font = ExtResource("2_galmuri")
 default_font_size = 20
+
+; --- tokens: read with UITheme.color / font / size / space ---
+Edu/colors/chalkboard = Color(0.0745, 0.3059, 0.2902, 1)
+Edu/colors/chalk = Color(0.9922, 0.9843, 0.9686, 1)
+Edu/colors/paper = Color(0.9608, 0.9412, 0.8824, 1)
+Edu/colors/paper_bright = Color(0.9804, 0.9804, 0.9725, 1)
+Edu/colors/wood = Color(0.7686, 0.6549, 0.4902, 1)
+Edu/colors/wood_dark = Color(0.7098, 0.3961, 0.1137, 1)
+Edu/colors/sand = Color(0.8314, 0.7686, 0.6588, 1)
+Edu/colors/terracotta = Color(0.7765, 0.4824, 0.3608, 1)
+Edu/colors/olive = Color(0.4196, 0.4824, 0.2353, 1)
+Edu/colors/amber = Color(0.851, 0.4667, 0.0235, 1)
+Edu/colors/ink = Color(0.102, 0.102, 0.102, 1)
+Edu/colors/pencil = Color(0.2902, 0.2902, 0.2902, 1)
+Edu/colors/destructive = Color(0.8627, 0.149, 0.149, 1)
+Edu/fonts/display = ExtResource("3_display")
+Edu/fonts/body = ExtResource("4_body")
+Edu/fonts/chalk = ExtResource("5_chalk")
+Edu/fonts/chalk_bold = ExtResource("6_chalk_bold")
+Edu/fonts/note = ExtResource("7_note")
+Edu/font_sizes/display = 16
+Edu/font_sizes/display_small = 8
+Edu/font_sizes/body = 25
+Edu/font_sizes/chalk_title = 56
+Edu/font_sizes/chalk_heading = 32
+Edu/font_sizes/chalk = 22
+Edu/font_sizes/chalk_small = 18
+Edu/font_sizes/note = 20
+; spacing scale, border and corner, in px
+Edu/constants/space_s = 8
+Edu/constants/space_m = 12
+Edu/constants/space_l = 16
+Edu/constants/border = 2
+Edu/constants/corner = 2
+; motion: stepped, never eased. A panel arrives in `motion_steps` frames
+; `motion_step_ms` apart, from `motion_slide` px away.
+Edu/constants/motion_steps = 4
+Edu/constants/motion_step_ms = 30
+Edu/constants/motion_slide = 8
+; chalk: the share of a stroke that drops out (per cent), big letters only,
+; and how uneven the pressure is
+Edu/constants/chalk_grit_title = 14
+Edu/constants/chalk_grit_text = 0
+Edu/constants/chalk_press = 28
+
+; --- materials as panels ---
+TitleBoard/base_type = &"Panel"
+TitleBoard/styles/panel = SubResource("box_title_board")
+ChalkBoard/base_type = &"Panel"
+ChalkBoard/styles/panel = SubResource("box_chalkboard")
+PaperSheet/base_type = &"Panel"
+PaperSheet/styles/panel = SubResource("box_paper")
+PaperCard/base_type = &"Panel"
+PaperCard/styles/panel = SubResource("box_card")
+WoodPlank/base_type = &"Panel"
+WoodPlank/styles/panel = SubResource("box_wood")
+
+; --- voices as labels ---
+ChalkTitle/base_type = &"Label"
+ChalkTitle/colors/font_color = Color(0.9922, 0.9843, 0.9686, 1)
+ChalkTitle/fonts/font = ExtResource("6_chalk_bold")
+ChalkTitle/font_sizes/font_size = 56
+ChalkHeading/base_type = &"Label"
+ChalkHeading/colors/font_color = Color(0.9922, 0.9843, 0.9686, 1)
+ChalkHeading/fonts/font = ExtResource("6_chalk_bold")
+ChalkHeading/font_sizes/font_size = 32
+ChalkRow/base_type = &"Label"
+ChalkRow/colors/font_color = Color(0.9922, 0.9843, 0.9686, 1)
+ChalkRow/fonts/font = ExtResource("5_chalk")
+ChalkRow/font_sizes/font_size = 22
+ChalkRowSelected/base_type = &"Label"
+ChalkRowSelected/colors/font_color = Color(0.851, 0.4667, 0.0235, 1)
+ChalkRowSelected/fonts/font = ExtResource("6_chalk_bold")
+ChalkRowSelected/font_sizes/font_size = 22
+ChalkNote/base_type = &"Label"
+ChalkNote/colors/font_color = Color(0.9922, 0.9843, 0.9686, 0.75)
+ChalkNote/fonts/font = ExtResource("5_chalk")
+ChalkNote/font_sizes/font_size = 18
+ChalkProse/base_type = &"Label"
+ChalkProse/colors/font_color = Color(0.9922, 0.9843, 0.9686, 1)
+ChalkProse/fonts/font = ExtResource("5_chalk")
+ChalkProse/font_sizes/font_size = 18
+DisplayLabel/base_type = &"Label"
+DisplayLabel/colors/font_color = Color(0.102, 0.102, 0.102, 1)
+DisplayLabel/fonts/font = ExtResource("3_display")
+DisplayLabel/font_sizes/font_size = 16
+DisplaySmall/base_type = &"Label"
+DisplaySmall/colors/font_color = Color(0.2902, 0.2902, 0.2902, 1)
+DisplaySmall/fonts/font = ExtResource("3_display")
+DisplaySmall/font_sizes/font_size = 8
+BodyLabel/base_type = &"Label"
+BodyLabel/colors/font_color = Color(0.102, 0.102, 0.102, 1)
+BodyLabel/fonts/font = ExtResource("4_body")
+BodyLabel/font_sizes/font_size = 25
+BodyDim/base_type = &"Label"
+BodyDim/colors/font_color = Color(0.2902, 0.2902, 0.2902, 1)
+BodyDim/fonts/font = ExtResource("4_body")
+BodyDim/font_sizes/font_size = 25
+NoteLabel/base_type = &"Label"
+NoteLabel/colors/font_color = Color(0.102, 0.102, 0.102, 1)
+NoteLabel/fonts/font = ExtResource("7_note")
+NoteLabel/font_sizes/font_size = 20
