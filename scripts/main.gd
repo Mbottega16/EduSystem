@@ -127,7 +127,7 @@ func _ready() -> void:
 	visit.exit_chosen.connect(_leave_visit)
 	visit.teacher_chosen.connect(func(i: int) -> void:
 		if hud._can_watch(i):
-			hud.show_watch(i)
+			hud.show_watch(i, true)
 		else:
 			hud._sel = i
 			hud.show_school())
@@ -727,6 +727,7 @@ func _enter_visit(room_index: int) -> void:
 	hallway.visible = false
 	world.visible = false
 	RoomLight.phase_in(visit)
+	hud.show_visit_plate(room_index)
 	hud.principal_says("visit_room_first",
 		"Yesterday in this room, as it happened. Ask the teacher at the front how it went.")
 
@@ -747,6 +748,7 @@ func _leave_visit() -> void:
 	visit.visible = false
 	world.visible = false
 	hallway.visible = true
+	hud.hide_visit_plate()
 	RoomLight.phase_in(hallway)
 
 

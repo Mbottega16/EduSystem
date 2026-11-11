@@ -7294,11 +7294,19 @@ func test_auto_teach() -> void:
 	chk("and opens the watch screen", hud.mode == hud.Mode.WATCH, hud.mode)
 	chk("naming auto-teach, not a hired archetype",
 		hud.title.text.contains("Auto-teach"), hud.title.text)
+	chk("on the same clipboard as a colleague's room, marked as your own",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "YOUR ROOM"
+		and hud.desk_sheet.heading.text == "AUTO-TEACH"
+		and hud.desk_sheet.cards_text() == "TODAY ?",
+		[hud.desk_sheet.tag_label.text, hud.desk_sheet.cards_text()])
 	var furnished_grade := Game.roster[0].last_grade
 
 	await tap("watch")   # the "skip to the bell" key, same as a delegated room
 	chk("skipping lands on the last frame",
 		hud._watch_i == hud._watch_frames.size() - 1)
+	chk("and the bell puts today's grade on its card",
+		hud.desk_sheet.cards_text() == "TODAY %s" % Game.grade_letter(Game.class_average()),
+		hud.desk_sheet.cards_text())
 	await tap("interact")
 	chk("closing it hands off to the ordinary lesson report, not the school board",
 		hud.mode == hud.Mode.REPORT, hud.mode)
@@ -8063,8 +8071,22 @@ func test_the_school() -> void:
 		not (last.get("history", []) as Array).is_empty(), last.get("history", []))
 	hud.show_watch(0)
 	chk("watching opens its own screen", hud.mode == hud.Mode.WATCH)
-	chk("on cream paper over the room, not a dark window",
-		hud._paper.visible and hud.overlay.color.a <= hud.PAPER_DIM + 0.01, hud.overlay.color)
+	chk("on a clipboard's paper over the room, not a dark window",
+		hud.desk_sheet.is_clipboard() and not hud._frame.visible
+		and hud.overlay.color.a <= hud.PAPER_DIM + 0.01, hud.overlay.color)
+	chk("the sheet says at a glance that this is someone else's room",
+		hud.desk_sheet.tag.visible and hud.desk_sheet.tag_label.text == "OBSERVING"
+		and hud.desk_sheet.heading.text == String(Game.rooms[0]["name"]).to_upper(),
+		[hud.desk_sheet.tag_label.text, hud.desk_sheet.heading.text])
+	chk("their room's grade sits beside yours, and theirs waits for the bell",
+		hud.desk_sheet.cards_text() == "THEIR ROOM ?, YOUR ROOM %s"
+			% Game.grade_letter(Game.class_average()), hud.desk_sheet.cards_text())
+	chk("its lines are in ink, in the theme's body voice",
+		hud.rich.get_theme_color("default_color").to_html(false) == String(DS_PALETTE["ink"])
+		and hud.rich.get_theme_font("normal_font") == UITheme.font(&"body"))
+	chk("and its keys are key caps on the sheet, the way forward first, named as they are bound",
+		hud.desk_sheet.keys_text() == "%s close %s skip to the bell" % [
+			hud._key_cap("interact"), hud._key_cap("watch")], hud.desk_sheet.keys_text())
 	chk("and it fits too", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
 			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
@@ -8073,13 +8095,39 @@ func test_the_school() -> void:
 		hud.rich.text)
 	hud._watch_i = hud._watch_frames.size() - 1
 	hud._render_watch_frame()
-	chk("the last frame reports the same grade resolve_rooms recorded",
-		hud.rich.text.contains(String(last.get("letter", "?"))), hud.rich.text)
+	chk("at the bell their card shows the same grade resolve_rooms recorded",
+		hud.desk_sheet.cards_text().begins_with("THEIR ROOM %s," % String(last.get("letter", "?"))),
+		hud.desk_sheet.cards_text())
+	chk("and the bell's tally is in the sheet's own lines",
+		hud.rich.text.contains("The bell:"), hud.rich.text)
 	await step(2)
 	chk("and the bell's tally still fits the card", not hud._rich_overflows(),
 		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
+	# The most children the sheet lists, two to a row: the clipboard still
+	# ends on the screen, and its lines still fit their paper.
+	var real_frames: Array = hud._watch_frames
+	var crowd: Array = []
+	for n in hud.WATCH_MAX_KIDS:
+		crowd.append({"name": "Maximilian Featherstone", "state": "stuck" if n % 2 == 0 else "disrupting"})
+	hud._watch_frames = [{"at_front": false, "faces": crowd}, {"at_front": true, "faces": crowd}]
+	hud._watch_i = 0
+	hud._watch_paper()
+	hud._render_watch_frame()
+	chk("a full class fits the clipboard, and the clipboard fits the screen",
+		not hud._rich_overflows() and hud.desk_sheet.clip.position.y >= 12.0
+		and hud.desk_sheet.wood.position.y + hud.desk_sheet.wood.size.y <= 352.0,
+		[hud.rich.get_content_height(), int(hud.rich.size.y), hud.desk_sheet.wood.position,
+			hud.desk_sheet.wood.size])
+	hud._watch_frames = real_frames
+	hud._watch_i = hud._watch_frames.size() - 1
+	hud._watch_paper()
+	hud._render_watch_frame()
 	await tap("cancel")
 	chk("Esc backs out to the school board", hud.mode == hud.Mode.SCHOOL)
+	chk("which gets its dark backing, its bamboo frame and its own font back",
+		not hud.desk_sheet.visible and hud._frame.visible and hud.title.visible
+		and hud.overlay.color == hud.OVERLAY_COLOUR
+		and not hud.rich.has_theme_font_override("normal_font"))
 	hud.close()
 
 	Game.new_run(SEED)
@@ -8317,6 +8365,14 @@ func test_hallway() -> void:
 	chk("a staffed room's door walks you into the room",
 		world.player.get_parent() == visit and visit.visible and not hallway.visible
 		and visit.room_index == ri, [world.player.get_parent(), visit.room_index])
+	# The status strip still reads your own day in here; the plate is what
+	# says whose room you are standing in.
+	var plate_words: String = (hud.visit_plate.get_node("Words") as Label).text \
+		if hud.visit_plate.visible else ""
+	chk("a plate over the room says whose it is: the room and its teacher",
+		plate_words.contains(String(Game.rooms[ri]["name"]).to_upper())
+		and plate_words.contains(String((Game.rooms[ri]["teacher"] as Dictionary)["name"]).to_upper()),
+		plate_words)
 	chk("in its own floor and walls, not a copy of the classroom's",
 		visit._look == RoomBuilder.ROOM_LOOKS[ri % RoomBuilder.ROOM_LOOKS.size()]
 		and ResourceLoader.exists("res://art/tile_floor_a0_%s.png" % visit._look)
@@ -8349,6 +8405,11 @@ func test_hallway() -> void:
 	await tap("interact")
 	chk("E at the front asks how the day went: the watch screen",
 		hud.mode == hud.Mode.WATCH, hud.mode)
+	# Asked for in the room, so closing it goes back to the room. It used to
+	# land on the school board, a screen the player had never opened.
+	await tap("cancel")
+	chk("and closing it puts you back in the room, not on the school board",
+		hud.mode == hud.Mode.NONE and world.player.get_parent() == visit, hud.mode)
 	hud.close()
 	var visit_out: Node2D = null
 	for c in visit.get_children():
@@ -8365,6 +8426,7 @@ func test_hallway() -> void:
 		world.player.get_parent() == hallway and not visit.visible
 		and world.player.position.distance_to(back_at) < 40.0,
 		[world.player.position, back_at])
+	chk("and the plate comes down on the way out", not hud.visit_plate.visible)
 
 	# Home again.
 	var home_door: Node2D = null
@@ -10745,7 +10807,7 @@ func test_design_system() -> void:
 	literal.compile(DS_COLOUR_LITERAL)
 	var named: Array = []
 	for path: String in ["res://scripts/ui/title.gd", "res://scenes/ui/title.tscn",
-			"res://scripts/ui/ui_theme.gd"]:
+			"res://scripts/ui/ui_theme.gd", "res://scripts/ui/desk_sheet.gd"]:
 		for m in literal.search_all(FileAccess.get_file_as_string(path)):
 			named.append("%s: %s" % [path.get_file(), m.get_string()])
 	chk("a converted screen names no colour of its own", named.is_empty(), named)

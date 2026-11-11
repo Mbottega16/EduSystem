@@ -2,6 +2,7 @@ extends Control
 
 const UITheme := preload("res://scripts/ui/ui_theme.gd")
 const MaterialBox := preload("res://scripts/ui/material_box.gd")
+const DeskSheet := preload("res://scripts/ui/desk_sheet.gd")
 const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 ## Status strip, interaction prompt, and the full-screen overlays.
@@ -318,16 +319,27 @@ var _watch_clock: float = 0.0
 var _watch_own_results: Array = []
 ## Seconds of real time per frame (each frame is one simulated second).
 const WATCH_FRAME_SECONDS := 0.12
-## The watch screen is a cream paper card over the room (Oct 2026, the owner's
-## "no black window"): how many children it lists, two to a row.
+## The watch screen is a sheet over the room (Oct 2026, the owner's "no black
+## window"; on a clipboard since Nov 2026): how many children it lists, two to
+## a row.
 const WATCH_MAX_KIDS := 12
-## Ink on paper for the watch card: a child working, stuck, unsettled, done.
-const PAPER_WORKING := "6b5f4a"
+## Ink on paper for a stage's card: what holds you back, good news, a name.
 const PAPER_STUCK := "b0602a"
-const PAPER_NOISY := "a0302a"
 const PAPER_DONE := "3f7a3a"
 const PAPER_GOLD := "8a5a10"
-const PAPER_FAINT := "b8a890"
+## The sheet of paper two screens are laid on (desk_sheet.gd): the day's
+## report on the teacher's desk, the watch card on a clipboard. Built once in
+## _ready; _sheet_on() lays it, _sheet_off() puts it away.
+var desk_sheet: DeskSheet = null
+## The clipboard's paper is this wide and starts here; its height follows the
+## class it lists.
+const WATCH_SHEET_X := 28.0
+const WATCH_SHEET_W := 584.0
+## The watch card was opened by asking the teacher in their own room, so
+## closing it goes back to that room rather than to the school board.
+var _watch_from_visit: bool = false
+## The plate that says whose room you are standing in, on a visit.
+var visit_plate: Panel = null
 ## Which stage's card is open (Mode.STAGE), and what moving up just said.
 var _stage_i: int = 0
 var _stage_note: String = ""
@@ -390,6 +402,11 @@ func _ready() -> void:
 	_set_ideas_ui(false)
 	# the paper sits behind the overlay's own text, in front of the bamboo frame
 	overlay.move_child(_paper, 1)
+	# ...and so does the desk sheet
+	desk_sheet = DeskSheet.new()
+	overlay.add_child(desk_sheet)
+	overlay.move_child(desk_sheet, 2)
+	_build_visit_plate()
 	# A new run must not inherit the last one's screen.
 	Game.run_started.connect(func() -> void:
 		if mode != Mode.TITLE:
@@ -1435,6 +1452,117 @@ func _paper_sentences(text: String, para_start: bool) -> Array:
 	return out
 
 
+## SHEETS (UI overhaul, Nov 2026). The end-of-day report and the watch card are
+## a sheet of paper on wood, drawn by desk_sheet.gd from theme.tres: the
+## report lies on the teacher's desk, the watch card is on a clipboard held up
+## in the room it is about. The sheet draws its own heading and key caps, so
+## the overlay's title and hint keep their text (tests and tools read it) but
+## are not shown. The screen's lines stay in `rich`, in the theme's voices:
+##   plain   the body voice, printed
+##   [i]     the note voice, handwritten -- on a sheet, scores are printed
+##           and sentences are written by hand
+##   [b]     small pixel print: bar cells, and a line that shrank to fit
+func _sheet_on(kind: int, paper_rect: Rect2) -> void:
+	desk_sheet.lay(kind, paper_rect)
+	_frame.visible = false
+	title.visible = false
+	hint.visible = false
+	body.visible = false
+	rich.visible = true
+	var r: Rect2 = desk_sheet.text_rect()
+	rich.offset_left = r.position.x
+	rich.offset_top = r.position.y
+	rich.offset_right = r.end.x
+	rich.offset_bottom = r.end.y
+	rich.add_theme_font_override("normal_font", UITheme.font(&"body"))
+	rich.add_theme_font_size_override("normal_font_size", UITheme.size(&"body"))
+	rich.add_theme_font_override("italics_font", UITheme.font(&"note"))
+	rich.add_theme_font_size_override("italics_font_size", UITheme.size(&"note"))
+	rich.add_theme_font_override("bold_font", SPEECH_FONT)
+	rich.add_theme_font_size_override("bold_font_size", UI_SMALL)
+	rich.add_theme_color_override("default_color", UITheme.color(&"ink"))
+	rich.add_theme_constant_override("line_separation", 0)
+
+
+## The sheet's entrance, in the system's stepped motion (UITheme.step_in): the
+## clipboard is lifted into view, the desk's sheet simply arrives. Only the
+## sheet moves; its lines are revealed where they will rest.
+func _sheet_arrive() -> void:
+	var from := Vector2.ZERO
+	if desk_sheet.is_clipboard():
+		from = Vector2(0.0, float(UITheme.space(&"motion_slide")))
+	UITheme.step_in(desk_sheet, from)
+
+
+## Put the sheet away and give the overlay's own nodes back to the next
+## screen. _open() and close() both call it. The hint is left to _open(),
+## which already decides it for every screen.
+func _sheet_off() -> void:
+	if desk_sheet == null or not desk_sheet.visible:
+		return
+	desk_sheet.put_away()
+	_frame.visible = true
+	title.visible = true
+	for item: String in ["normal_font", "italics_font", "bold_font"]:
+		rich.remove_theme_font_override(item)
+	for item: String in ["italics_font_size", "bold_font_size"]:
+		rich.remove_theme_font_size_override(item)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	rich.remove_theme_color_override("default_color")
+
+
+## The key an action is bound to, as it goes on a key cap: the first binding,
+## the way the badges over the teacher's head name it. A rebind shows on the cap.
+func _key_cap(action: String) -> String:
+	return Settings.binding_text(action).split(",")[0].strip_edges()
+
+
+## A sentence in the teacher's own hand.
+func _note(text: String) -> String:
+	return "[i]%s[/i]" % text
+
+
+## A handwritten line that would not fit, set in small pixel print instead.
+func _small_print(line: String) -> String:
+	if line.begins_with("[b]"):
+		return line
+	var inner := line
+	if inner.begins_with("[i]") and inner.ends_with("[/i]"):
+		inner = inner.substr(3, inner.length() - 7)
+	return "[b]%s[/b]" % inner
+
+
+## A sheet's lines as one rich text. The break after a small-print line goes
+## INSIDE its span: outside, it is set at the body size and makes the small
+## line as tall as a full one (the same trap _join_rich() closes).
+func _sheet_join(parts: Array[String]) -> String:
+	var out := ""
+	for i in parts.size():
+		var s: String = parts[i]
+		if i < parts.size() - 1:
+			if s.begins_with("[b]") and s.ends_with("[/b]"):
+				s = s.substr(0, s.length() - 4) + "\n[/b]"
+			else:
+				s += "\n"
+		out += s
+	return out
+
+
+## A bar on a sheet: `cells` blocks of small pixel print, the first `share` of
+## them in `token`, the rest the paper's own sand. Solid both ways -- a shaded
+## track is too faint to see on cream.
+func _sheet_bar(share: float, cells: int, token: StringName) -> String:
+	var n := clampi(int(round(share * float(cells))), 0, cells)
+	return "[b][color=#%s]%s[/color][color=#%s]%s[/color][/b]" % [
+		UITheme.hex(token), BAR_FULL.repeat(n),
+		UITheme.hex(&"sand"), BAR_FULL.repeat(cells - n)]
+
+
+## Words run over with a highlighter: ink on a wash of `token`.
+func _highlighted(text: String, token: StringName) -> String:
+	return "[bgcolor=#%s]%s[/bgcolor]" % [UITheme.faded(token, 0.42).to_html(true), text]
+
+
 func _open(m: int) -> void:
 	# Which page the book is showing survives a re-open of the SAME screen,
 	# because that is what a page turn is: show_curriculum()/show_hand() are
@@ -1468,6 +1596,7 @@ func _open(m: int) -> void:
 	sheet.visible = false
 	body.visible = true
 	_paper_off()
+	_sheet_off()
 	if m != Mode.TUTORIAL and tutorial != null:
 		tutorial.stop()
 	# ...and the intro slate's see-through backing and hidden hint, which it
@@ -1514,6 +1643,7 @@ func close() -> void:
 	_book(false)
 	flip.visible = false
 	_book_page_shown = -1
+	_sheet_off()
 	if _player != null and is_instance_valid(_player):
 		_player.input_locked = false
 
@@ -3648,18 +3778,21 @@ func _can_watch(i: int) -> bool:
 
 
 ## Open the day room `i` already had, and start stepping through it.
-func show_watch(i: int) -> void:
+## `from_visit` is true when the player asked the teacher in that room, and
+## closing the card then puts them back in it.
+func show_watch(i: int, from_visit: bool = false) -> void:
 	if not _can_watch(i):
 		return
 	_watch_room = i
+	_watch_from_visit = from_visit
 	var r: Dictionary = Game.rooms[i]
 	_watch_result = r.get("last", {})
 	_watch_frames = _watch_result.get("history", [])
 	_watch_i = 0
 	_watch_clock = 0.0
 	_open(Mode.WATCH)
-	_watch_paper()
 	title.text = "WATCHING  -  %s" % String(r.get("name", "Room"))
+	_watch_paper()
 	_render_watch_frame()
 
 
@@ -3670,37 +3803,61 @@ func show_watch(i: int) -> void:
 ## and the WATCH input handler this is not a room in Game.rooms.
 func show_own_watch(history: Array, results: Array) -> void:
 	_watch_room = -1
+	_watch_from_visit = false
 	_watch_own_results = results
 	_watch_result = {"letter": Game.grade_letter(Game.class_average())}
 	_watch_frames = history
 	_watch_i = 0
 	_watch_clock = 0.0
 	_open(Mode.WATCH)
-	_watch_paper()
 	title.text = "WATCHING  -  Auto-teach"
+	_watch_paper()
 	_render_watch_frame()
 
 
-## The watch screen's card: cream paper over the room it is about, sized once
-## for the whole day so it does not jump as the frames step. One line for the
-## teacher, a row per two children, one line for the bar or the bell, and one
-## line of slack for the space the table puts between its rows.
+## The watch screen's sheet: an observation sheet on a clipboard, held up in
+## the room it is about (UI overhaul phase 6). Sized once for the whole day so
+## it does not jump as the frames step: a line for the teacher, a row per two
+## children, a line for the bar or the bell.
+##
+## A colleague's room and your own auto-taught lesson share the sheet -- they
+## are shown the same honest way -- and the chip before the heading says which
+## this is: OBSERVING in the wood's dark, YOUR ROOM in olive. A colleague's
+## sheet carries two cards, their room's grade beside yours; the first stays
+## "?" until the bell.
 func _watch_paper() -> void:
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	var kids := 0
 	for f: Dictionary in _watch_frames:
 		kids = maxi(kids, (f.get("faces", []) as Array).size())
 	kids = mini(kids, WATCH_MAX_KIDS)
-	_paper_on(null, 1 + (kids + 1) / 2 + 2)
+	var rows := 2 + (kids + 1) / 2
+	var row_px := ceilf(UITheme.font(&"body").get_height(UITheme.size(&"body"))) + 1.0
+	var h := DeskSheet.paper_height(DeskSheet.Kind.CLIPBOARD, float(rows) * row_px + 2.0)
+	# centred under the status strip, the clip standing clear of it
+	var y := maxf(30.0, snappedf((352.0 - h) * 0.5 + 8.0, 2.0))
+	overlay.color = UITheme.faded(&"ink", PAPER_DIM)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(WATCH_SHEET_X, y, WATCH_SHEET_W, h))
+	# a pixel between the rows, so two highlighted words do not run together
+	rich.add_theme_constant_override("line_separation", 1)
+	var yours := Game.grade_letter(Game.class_average())
+	if _watch_room >= 0:
+		var room_name := String((Game.rooms[_watch_room] as Dictionary).get("name", "Room"))
+		desk_sheet.set_heading(room_name.to_upper(), "YESTERDAY'S LESSON, AS IT HAPPENED",
+			"OBSERVING", &"wood_dark")
+		desk_sheet.set_cards([["THEIR ROOM", "?", &"wood_dark"], ["YOUR ROOM", yours, &"olive"]])
+	else:
+		desk_sheet.set_heading("AUTO-TEACH", "TODAY'S LESSON, AS IT HAPPENED",
+			"YOUR ROOM", &"olive")
+		desk_sheet.set_cards([["TODAY", "?", &"olive"]])
+	desk_sheet.set_keys([[_key_cap("interact"), "close"], [_key_cap("watch"), "skip to the bell"]])
 	hint.text = "V skip to the bell   E or Esc - close"
+	_sheet_arrive()
 
 
-## One frame: who is where, coloured the same way the rest of the game
-## colours a struggling or noisy child, plus a running tally so the letter
-## at the end does not land as a surprise.
+## One frame: who is where. A child working is in pencil and one finished in
+## olive; a child stuck or unsettled is run over with a highlighter, because
+## those are the two a teacher walks to. A running bar, then the tally at the
+## bell, so the grade on the card does not land as a surprise.
 func _render_watch_frame() -> void:
 	var lines: Array[String] = []
 	var frame: Dictionary = _watch_frames[_watch_i] if _watch_i < _watch_frames.size() else {}
@@ -3708,57 +3865,99 @@ func _render_watch_frame() -> void:
 	if _watch_room >= 0:
 		teacher_name = String((Game.rooms[_watch_room] as Dictionary).get("teacher", {}).get("name", ""))
 	var at_front: bool = bool(frame.get("at_front", false))
-	lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
-		PAPER_GOLD, teacher_name,
-		PAPER_DONE if at_front else PAPER_WORKING,
+	lines.append("%s  [color=#%s]%s[/color]" % [teacher_name,
+		UITheme.hex(&"olive") if at_front else UITheme.hex(&"pencil"),
 		"at the front, teaching" if at_front else "away from the front"])
 
-	# Two children to a row, each in the colour of what they are doing --
-	# ink on the paper, not the dark screen's pastels.
+	# Two children to a row. The body voice is fixed-width, so padding the
+	# name and the word lines the columns up without a table.
 	var faces: Array = frame.get("faces", [])
 	var stuck := 0
 	var noisy := 0
 	var done := 0
 	var cells: Array[String] = []
 	for f: Dictionary in faces:
-		var st := String(f.get("state", "working"))
-		var hue := PAPER_WORKING
-		var tag := "working"
-		match st:
+		var word := "[color=#%s] working   [/color]" % UITheme.hex(&"pencil")
+		match String(f.get("state", "working")):
 			"disrupting":
-				hue = PAPER_NOISY
-				tag = "unsettled"
+				word = _highlighted(" unsettled ", &"terracotta")
 				noisy += 1
 			"stuck":
-				hue = PAPER_STUCK
-				tag = "stuck"
+				word = _highlighted(" stuck ", &"amber") + "    "
 				stuck += 1
 			"done":
-				hue = PAPER_DONE
-				tag = "finished"
+				word = "[color=#%s] finished  [/color]" % UITheme.hex(&"olive")
 				done += 1
 		if cells.size() < WATCH_MAX_KIDS:
-			cells.append("[cell padding=0,0,28,0][color=#%s]%s [color=#%s]%s[/color][/color][/cell]" % [
-				INK_PLAIN, String(f.get("name", "")).substr(0, 13), hue, tag])
-	if cells.size() % 2 == 1:
-		cells.append("[cell] [/cell]")
-	if not cells.is_empty():
-		lines.append("[table=2]%s[/table]" % "".join(cells))
+			cells.append(String(f.get("name", "")).substr(0, 13).rpad(13) + word)
+	for k in range(0, cells.size(), 2):
+		lines.append(cells[k] + ("     " + cells[k + 1] if k + 1 < cells.size() else ""))
 
-	var frac: float = float(_watch_i) / maxf(1.0, float(_watch_frames.size() - 1))
-	if _watch_i >= _watch_frames.size() - 1:
-		lines.append("[color=#%s]Bell: %d done, %d stuck, %d unsettled.[/color] [color=#%s]Grade %s[/color]" % [
-			INK_DIM, done, stuck, noisy, PAPER_DONE, String(_watch_result.get("letter", "-"))])
+	var last := maxi(0, _watch_frames.size() - 1)
+	if _watch_i >= last:
+		lines.append("[color=#%s]The bell: %d finished, %d stuck, %d unsettled.[/color]" % [
+			UITheme.hex(&"pencil"), done, stuck, noisy])
+		desk_sheet.set_card_value(0, String(_watch_result.get("letter", "-")))
 	else:
-		lines.append(_watch_bar(frac))
+		lines.append("[color=#%s]the lesson [/color]%s" % [UITheme.hex(&"pencil"),
+			_sheet_bar(float(_watch_i) / maxf(1.0, float(last)), 20, &"ink")])
+		desk_sheet.set_card_value(0, "?")
 
 	rich.text = "\n".join(lines)
 
 
-func _watch_bar(frac: float) -> String:
-	var n := clampi(int(round(frac * 20.0)), 0, 20)
-	return "[color=#%s]%s[/color][color=#%s]%s[/color]" % [
-		PAPER_GOLD, _cells(BAR_FULL, n), PAPER_FAINT, _cells(BAR_EMPTY, 20 - n)]
+## THE VISIT PLATE (UI overhaul phase 6). Standing in a room you hold, the
+## status strip still reads your own day and nothing said whose room this was.
+## A wood plate over the room's top wall says it: VISITING, the room, and the
+## teacher in it. Under the overlay, so any screen opened in the room covers it.
+func _build_visit_plate() -> void:
+	visit_plate = Panel.new()
+	UITheme.wear(visit_plate, &"WoodPlank")
+	visit_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	visit_plate.visible = false
+	add_child(visit_plate)
+	move_child(visit_plate, overlay.get_index())
+	# a new run starts in your own room, whatever the last one was doing
+	Game.run_started.connect(hide_visit_plate)
+
+
+## Show the plate for room `i` of Game.rooms. main.gd calls it on the way in.
+func show_visit_plate(i: int) -> void:
+	if i < 0 or i >= Game.rooms.size():
+		hide_visit_plate()
+		return
+	for c in visit_plate.get_children():
+		visit_plate.remove_child(c)
+		c.queue_free()
+	var r: Dictionary = Game.rooms[i]
+	var who := String((r.get("teacher", {}) as Dictionary).get("name", ""))
+	var gap := float(UITheme.space(&"space_s"))
+	var chip := ColorRect.new()
+	chip.color = UITheme.color(&"wood_dark")
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.position = Vector2(gap, 4.0)
+	chip.size = Vector2(UITheme.text_width("VISITING", &"DisplaySmall") + 12.0, 16.0)
+	visit_plate.add_child(chip)
+	var chip_label := UITheme.label(&"DisplaySmall", "VISITING", Vector2(6.0, 4.0))
+	chip_label.add_theme_color_override("font_color", UITheme.color(&"paper_bright"))
+	chip.add_child(chip_label)
+	var words := String(r.get("name", "Room")).to_upper()
+	if who != "":
+		words += "  ·  " + who.to_upper()
+	var label := UITheme.label(&"DisplaySmall", words,
+		Vector2(chip.position.x + chip.size.x + gap, 8.0))
+	label.name = "Words"
+	label.add_theme_color_override("font_color", UITheme.color(&"ink"))
+	visit_plate.add_child(label)
+	var w := label.position.x + UITheme.text_width(words, &"DisplaySmall") + gap
+	visit_plate.size = Vector2(w, 24.0)
+	visit_plate.position = Vector2(roundf((640.0 - w) * 0.5), 16.0)
+	visit_plate.visible = true
+
+
+func hide_visit_plate() -> void:
+	if visit_plate != null:
+		visit_plate.visible = false
 
 
 ## A STAGE'S CARD (the grade wing, Oct 2026): E at a stage's door in the
@@ -7283,10 +7482,13 @@ func _handle_input() -> void:
 			Sfx.play("blip")
 			# Your own auto-taught lesson hands off to the ordinary lesson
 			# report -- exactly where a manually-played lesson's end would
-			# have landed -- rather than back to the school board, which
-			# is where watching a DELEGATED room's day always goes.
+			# have landed. A delegated room's day goes back to where it was
+			# asked for: the room itself, if you were standing in it, and
+			# the school board otherwise.
 			if _watch_room == -1:
 				show_lesson_report(_watch_own_results)
+			elif _watch_from_visit:
+				close()
 			else:
 				show_school()
 		elif Input.is_action_just_pressed("watch"):

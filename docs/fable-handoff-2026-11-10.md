@@ -76,7 +76,7 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3258 / 3261 assertions passing** (151 sections).
+- **Unit Tests:** **3273 / 3273 assertions passing** (151 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
@@ -153,16 +153,24 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ---
 
-## 9. Next Up: Phase 6 — Watching Panel (Other Teachers' Classrooms)
+## 9. Phase 6: Watching Panel (Other Teachers' Classrooms) — Completed & Verified
 
-Consult `docs/ui-audit-2026-11-10.md` (Panel 6: Watching Panel).
+- **Target Files:** `scripts/ui/desk_sheet.gd`, `scripts/ui/hud.gd`, `tools/shot.gd`, `tests/run.gd`.
+- **What was done:**
+  - Created `scripts/ui/desk_sheet.gd` (`DeskSheet.Kind.CLIPBOARD` and `DeskSheet.Kind.DESK`) providing a shared clipboard and desk-report sheet node with wood backing, cream paper, brass spring clip, status tag, side-by-side comparison cards, tilted rubber stamp, right-hand ledger column, pencil on the wood desk, and bottom key caps.
+  - Rebuilt `show_watch()`, `show_auto_teach()`, and `set_visit_room()` in `scripts/ui/hud.gd`:
+    - Clipboard observation motif (`[OBSERVING]` in olive for a colleague's room, `[YOUR ROOM]` in amber for auto-teach) over a lighter room dim (`PAPER_DIM = 0.38`) so the classroom remains visible behind the clipboard.
+    - Side-by-side comparison cards (`THEIR ROOM ?` / `YOUR ROOM B`, or `TODAY ?` for auto-teach) that fill in with the final letter grade at the bell.
+    - Student status rows packed two to a line with coloured status words; automatic shrink to small print when a large class or long bell tally would overflow.
+    - Small framed chalkboard plate (`visit_plate`) at the top-left when walking inside a colleague's room (`ROOM 1 · MS. REYES — THE DRILL SERGEANT`) while keeping the main top status strip untouched.
+    - Fixed navigation bug where pressing `Esc` from a clipboard opened inside a visited room jumped to the school board instead of returning to the visited room.
+  - Added 12 unit tests in `tests/run.gd` (+12 assertions, total 3273).
+  - Captured after-screenshots in `docs/ui-audit-2026-11-10/after/` (`watch.png`, `watch_bell.png`, `watch_full.png`, `auto_teach.png`, `visit.png`).
 
-### Phase 6 Implementation Guide:
-- **Target Files:** `scripts/ui/hud.gd` (observation and visit methods: `show_watch()`, `show_visit()`, `show_auto_teach()`, etc.).
-- **Screenshots to Audit:** `watch.png`, `visit.png`, `auto_teach.png`.
-- **Design Specifications:**
-  - Clipboard observation motif or distinct header plate (`"OBSERVING: ROOM %d"`).
-  - Clear side-by-side comparison cards using VT323 and Press Start 2P.
-  - Distinct styling so player immediately recognizes they are observing a colleague's room, not their own.
-  - Capture after screenshots into `docs/ui-audit-2026-11-10/after/` (`watch.png`, `visit.png`, `auto_teach.png`).
-  - Keep 100% tests green, doc facts synced, and balance contract intact.
+---
+
+## 10. Next Up: Phase 7 — End-of-Day Wrap-Up Summary & Phase 8 — Flavor Pass (Proposals Only)
+
+- **Phase 7 Target Files:** `scripts/ui/hud.gd` (`show_day_report`, `_grade_rows`, `_part_line`, `_diagnosis`, `_pacing_line` using `DeskSheet.Kind.DESK`), `tools/shot.gd`, `tests/run.gd`.
+- **Phase 7 Screenshots:** `day.png`, `day_admin.png`, `consumables_report.png`.
+- **Phase 8 Deliverable:** Concrete flavor pass proposals (Section 13 in `docs/ui-audit-2026-11-10.md`) — proposals only, nothing built until Michael chooses.

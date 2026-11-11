@@ -1,6 +1,6 @@
 @echo off
 REM Double-click to screenshot the REAL game. Headless cannot see; this can.
-REM Optional argument: a screen to open first. All 85:
+REM Optional argument: a screen to open first. All 87:
 REM   quiz specialism hand hand_shuffle school watch hiring career alumni curriculum unit_test
 REM   student shop room staff staff_scrolled craft class_list at_board at_bell title
 REM   inspection inspector_here teaching noise day day_admin run_over new_term exam
@@ -13,7 +13,7 @@ REM   skip skip_report chatter chatter_build chatter_file
 REM   folder folder_place folder_shop grade_book grade_book_empty at_desk help_sheet
 REM   grade_book_register at_curriculum butterfly_out butterfly_in
 REM   grade_wing grade_wing_far grade_wing_later stage_card stage_moved
-REM   rota janitor_shift
+REM   rota janitor_shift watch_bell watch_full
 REM Saves into shots\ (gitignored), named after the screen so repeat runs
 REM do not overwrite each other and nothing lands in the tracked root the
 REM way six shot_*.png files once did.

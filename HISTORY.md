@@ -24,6 +24,13 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-11 — UI overhaul phase 6: the watch card is a clipboard
+*PC · Claude · branch `ui-overhaul-2026-11-10`*
+- **Changed:** The watch card is an observation sheet on a clipboard, for a colleague's room and for your own auto-taught lesson. The new `scripts/ui/desk_sheet.gd` draws it from `theme.tres` tokens; its lines stay in the HUD's `rich` label (`hud._sheet_on()` / `_sheet_off()`). A chip says whose room it is (`OBSERVING` or `YOUR ROOM`). Two cards put their grade beside yours, and theirs waits for the bell. A stuck or unsettled child is highlighted. The keys are key caps that read the real binding. On a visit, a wood plate names the room and the teacher (`hud.show_visit_plate()`). If you asked the teacher in their room, closing the card puts you back in that room, not on the school board. VT323's ligatures are off in its import file: the "fi" glyph moved a row one cell to the left.
+- **Why:** Phase 6 of the UI overhaul plan (vault: `projects/edusystem/ui-overhaul-plan-2026-11-10.md`). The owner's ask: the panel for other teachers' classrooms must read as someone else's room, with comparison data as cards.
+- **Verified:** Suite green at 3273 assertions (+12). `python tools/check_docs.py` green. Screenshots `watch`, `watch_bell`, `watch_full`, `auto_teach` and `visit` are in `docs/ui-audit-2026-11-10/after/`, and I looked at each. No number in `data/balance.json` changed.
+- **Left open:** The school board and the hiring list are still the dark window (audit doc, phase 8, proposal 1). This sheet uses the plan's fonts (Press Start 2P, VT323). Phases 2 to 5 kept Galmuri9 for their lines. The owner must choose one.
+
 ## 2026-11-10 — UI Overhaul Phase 5: The Cabinet & Store (Table of Contents, Warm Empty Note & Raised Rows)
 *PC · Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

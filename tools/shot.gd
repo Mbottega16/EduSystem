@@ -567,6 +567,42 @@ func _open_screen(main: Node, screen: String) -> void:
 			# room mid-day, not its bookends.
 			hud._watch_i = mini(10, hud._watch_frames.size() - 1)
 			hud._render_watch_frame()
+		"watch_bell":
+			# The same sheet at the bell: the tally, and their grade on its card.
+			Game.coins = 999999
+			Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate()]
+			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.hire(0, 0)
+			Game.resolve_rooms()
+			hud.show_watch(0)
+			hud._watch_i = hud._watch_frames.size() - 1
+			hud._render_watch_frame()
+		"watch_full":
+			# The clipboard at its tallest: the most children the sheet lists,
+			# in every state it can show. The room is real; the frames are made
+			# up for the shot, since no delegated room holds this many.
+			Game.coins = 999999
+			Game.open_room()
+			Game.applicants = [Staff.archetype("veteran").duplicate()]
+			Game.applicants[0]["name"] = "Dr Okafor"
+			Game.hire(0, 0)
+			Game.resolve_rooms()
+			hud.show_watch(0)
+			var crowd: Array = []
+			var crowd_names := ["Rafi Gray", "Remy Yoon", "Fern Yoon", "Asa Hale", "Opal Lee",
+				"Cleo Doyle", "Omar Lin", "Vera Rios", "June Soto", "Suki Doyle",
+				"Silas Park", "Sana Dunn"]
+			var crowd_states := ["working", "stuck", "working", "disrupting", "done", "working"]
+			for n in mini(hud.WATCH_MAX_KIDS, crowd_names.size()):
+				crowd.append({"name": crowd_names[n], "state": crowd_states[n % crowd_states.size()]})
+			var crowd_frames: Array = []
+			for n in 400:
+				crowd_frames.append({"at_front": false, "faces": crowd})
+			hud._watch_frames = crowd_frames
+			hud._watch_i = 150
+			hud._watch_paper()
+			hud._render_watch_frame()
 		"hiring":
 			Game.coins = 999999
 			Game.open_room()

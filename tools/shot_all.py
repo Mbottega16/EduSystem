@@ -34,7 +34,8 @@ boot_title room ideas ideas_science ideas_explorers ideas_calm birthday
 desk_cold_snap desk_book_fair chatter chatter_build chatter_file
 folder folder_place folder_shop grade_book grade_book_empty at_desk help_sheet
 grade_book_register at_curriculum butterfly_out butterfly_in
-grade_wing grade_wing_far grade_wing_later stage_card stage_moved""".split()
+grade_wing grade_wing_far grade_wing_later stage_card stage_moved
+watch_bell watch_full day_admin visit""".split()
 
 
 def godot():

@@ -103,7 +103,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3261 assertions, 151 sections |
+| `tests/run.gd` | The suite — 3273 assertions, 151 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -131,7 +131,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3261 assertions — must pass, count must not drop
+Run Tests.bat            3273 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -199,15 +199,16 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-11-10, the owner's ask): UI Overhaul Phase 0 (Audit & Specs), Phase 1 (Title Screen & Tokens), Phase 2 (Pause Menu Overhaul), Phase 3 (Cheat Tab Overhaul), Phase 4 (Lesson Plan Tab & Curriculum Redesign), and Phase 5 (The Cabinet & Store).**
+- **Last Worked On (2026-11-11, the owner's ask): UI Overhaul Phases 0–6 (Audit, Title Screen, Pause Menu, Cheat Tab, Lesson Plan & Curriculum, Cabinet & Store, and Watching Panel).**
   - Phase 0: Full audit report `docs/ui-audit-2026-11-10.md` with 23 baseline screenshots, 11-cheat icon spec, and Paper Report Sheet spec.
   - Phase 1: Installed Kalam, Press Start 2P, and VT323 in `fonts/`; created procedural `material_box.gd` (Chalkboard, Paper, Wood); built `ui_theme.gd`, `chalk.gdshader`, and `theme.tres`; revamped Title Screen `scripts/ui/title.gd` with write-on chalk animation, stepped row arrival, volume tick marks, and 2-column controls layout. Captured all 7 title after-shots in `docs/ui-audit-2026-11-10/after/`.
   - Phase 2: Overhauled Pause Menu in `scripts/ui/hud.gd` onto `theme.tres` with procedural `PaperSheet` material panel, ruled sand separator, active row highlight card, olive primary indicator for Resume, destructive red warning for Quit, and stepped motion. Captured after-screenshots (`pause.png`, `pause_quit.png`, `pause_settings.png`, `pause_tutorials.png`).
   - Phase 3: Overhauled Cheat Tab in `scripts/ui/debug_panel.gd` onto `theme.tres` with procedural `PaperSheet` material panel, `[CHEATS]` / `[TUNING]` tabs, active row amber highlight card & badge, 11 custom-drawn 20x20 pixel-art icons in `art/icon_cheat_*.png`, scannable titles & effect descriptions, status tags `(ACTIVE)` / `[E] ACTIVATE`, and scroller index `(5-11 of 11)`. Captured after-screenshots (`cheats.png`, `cheats_scrolled.png`, `cheats_tuning.png`).
   - Phase 4: Overhauled Lesson Plan Tab and Curriculum in `scripts/ui/hud.gd`. Added 16x16 strand marks (`res://art/icon_<strand>.png`), capitalized strand labels, rarity & pay multiplier indicator (`[Prestige/Rarity]  pays x%.2f`), standard citation code, authentic handwritten pedagogical notes (`_lesson_plan_note`), clean length difficulty bar with overflow protection for long objectives (up to 261 characters), curriculum mastery status badges (`[MASTERED]`, `[PRACTICING]`, `[UNTOUCHED]`), teaching count, and authentic teacher's pedagogical tips (`_curriculum_tip`). Captured after-screenshots (`hand.png`, `hand_long.png`, `curriculum.png`).
   - Phase 5: Overhauled The Cabinet & Store in `scripts/ui/hud.gd`. Redesigned left-page table of contents (`_shop_contents`) with ruled sand divider and dynamic storage count (`Your cabinet (%d)`), transformed empty cabinet state (`cabinet_empty.png`) with an authentic warm teacher note and quote, added raised scannable row selection in cabinet and furniture store with amber cursors, bold item names, olive quantities, and muted sell prices. Captured after-screenshots (`cabinet.png`, `cabinet_empty.png`, `shop.png`).
-- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3261 assertions** (`tests/run.tscn`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+  - Phase 6: Overhauled Watching Panel (`show_watch`, `show_auto_teach`, `set_visit_room`) in `scripts/ui/hud.gd` and created `scripts/ui/desk_sheet.gd` (`DeskSheet.Kind.CLIPBOARD` and `DeskSheet.Kind.DESK`). Added clipboard observation sheet with brass clip, `[OBSERVING]` / `[YOUR ROOM]` tag, side-by-side comparison cards (`THEIR ROOM` / `YOUR ROOM` / `TODAY`), room-visit chalkboard plate, and fixed Esc from a visited room's clipboard to return to the room. Captured after-screenshots (`watch.png`, `watch_bell.png`, `watch_full.png`, `auto_teach.png`, `visit.png`).
+- **Current State (2026-11-11):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3273 assertions** (`tests/run.tscn`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
 - **Next Up (for Antigravity or Claude):**
-  1. **Phase 6: Watching Panel (Other Teachers' Classrooms)** in `scripts/ui/hud.gd` (`show_watch`, `show_visit`, `show_auto_teach`, clipboard motif, side-by-side comparison cards).
+  1. **Phase 7: End-of-Day Wrap-Up Summary** in `scripts/ui/hud.gd` (`show_day_report`, `_grade_rows`, `_part_line`, `_diagnosis`, `_pacing_line` on `DeskSheet.Kind.DESK`) and **Phase 8: Flavor Pass (Proposals Only)** in `docs/ui-audit-2026-11-10.md`.
   2. See `docs/fable-handoff-2026-11-10.md` for complete roadmap and architecture.
 
