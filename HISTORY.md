@@ -24,6 +24,17 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-10 — UI Overhaul Phase 2: Pause Menu (Esc) Paper Sheet Overhaul & Visual Hierarchy
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. Panel Material & Geometry: Replaced old bamboo ninepatch frame (`UI_FRAME`) with procedural `MaterialBox.Kind.PAPER` (`UITheme.box(&"PaperSheet")`), giving the pause menu an authentic cream paper surface with drop shadow, subtle fiber specks, top-left highlight, and 2px wood/sand border over the live classroom.
+  2. Visual Hierarchy: Added dynamic active-row highlight card (`_pause_cursor_rect`) and leading accent stripe (`_pause_badge_rect`). Highlighted "Resume" in Olive (`#6B7B3C`) as the primary safe action. Highlighted destructive quit actions ("Save and quit to title", "Save and quit the game") in Destructive Red (`#DC2626`) to clearly warn the player. Added subtle sand ruled separator (`#D4C4A8`) under the section header. Restyled secondary footer prompt in pencil (`UITheme.color(&"pencil")`).
+  3. Motion: Integrated stepped entrance animation when `UITheme.motion` is active.
+  4. Test Suite & Verification: Added unit tests in `tests/run.gd` verifying `MaterialBox.Kind.PAPER` panel styling, Olive safe highlight for Resume, and Destructive Red highlight for Quit options (+3 assertions, total 3,252). Captured all 4 after-screenshots (`pause.png`, `pause_quit.png`, `pause_settings.png`, `pause_tutorials.png`) in `docs/ui-audit-2026-11-10/after/`.
+- **Why:** Execution of Phase 2 of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** All 3,252 unit test assertions green (`tests/run.tscn`), 341 doc checks green (`python tools/check_docs.py`), balance contract intact (0.63 C / 0.72 C / 0.97 A). Visual audit of rendered screenshots confirms authentic paper sheet, clean typography, and distinctive action hierarchy.
+- **Left open:** Ready for owner review; Phase 3 (Cheat Tab 11 custom pixel icons) is next.
+
 ## 2026-11-10 — UI Overhaul Phase 1: Complete Title Screen Chalk Pilot Proof, Design System & Test Suite
 *PC · Claude (Fable 5.2) + Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

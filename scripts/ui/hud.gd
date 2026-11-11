@@ -1,5 +1,7 @@
 extends Control
 
+const UITheme := preload("res://scripts/ui/ui_theme.gd")
+const MaterialBox := preload("res://scripts/ui/material_box.gd")
 const BUILD_STAMP := preload("res://scripts/data/version.gd")
 
 ## Status strip, interaction prompt, and the full-screen overlays.
@@ -167,11 +169,14 @@ const UI_FRAME := preload("res://art/ui_frame.png")
 const UI_FRAME_MARGIN := 12
 var _frame: NinePatchRect = null     ## the bamboo border round the overlay
 var _slot: NinePatchRect = null      ## the cream slot behind a shop item's picture
-## The pause menu is a small cream panel over the live room, not the shared
-## full-screen overlay. Built once in _ready; hidden by close() and _open().
-var pause_panel: NinePatchRect = null
+## The pause menu is a paper sheet over the live room, styled with PaperSheet.
+## Built once in _ready; hidden by close() and _open().
+var pause_panel: Control = null
 var pause_label: Label = null        ## title line plus a window of rows
 var pause_hint: Label = null         ## small print under the rows
+var _pause_cursor_rect: ColorRect = null  ## highlight card under the chosen row
+var _pause_badge_rect: ColorRect = null   ## leading accent badge on the chosen row
+var _pause_rule: ColorRect = null         ## ruled line under the section header
 ## The cream paper the talk screens sit on (office, mentor, caller). A child of
 ## the overlay, so it hides with it. _paper_on() sizes it; _open() puts the
 ## overlay's own look back.
@@ -1214,11 +1219,39 @@ func _flip_frame(i: int) -> void:
 	Sfx.play_varied("paper")
 
 
-## One cream bamboo panel, 320x240, centred. Dark ink on cream, Galmuri9.
+## The pause menu is a paper sheet on the desk, 320x240, centred. Ink on paper.
 func _build_pause_panel() -> void:
-	pause_panel = _nine_patch(UI_FRAME, PAUSE_RECT, true)
+	pause_panel = Panel.new()
+	pause_panel.position = PAUSE_RECT.position
+	pause_panel.size = PAUSE_RECT.size
+	UITheme.wear(pause_panel, &"PaperSheet")
 	pause_panel.visible = false
 	add_child(pause_panel)
+
+	# Active row highlight card
+	_pause_cursor_rect = ColorRect.new()
+	_pause_cursor_rect.position = Vector2(20, 42)
+	_pause_cursor_rect.size = Vector2(PAUSE_RECT.size.x - 40, 22)
+	_pause_cursor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_cursor_rect.visible = false
+	pause_panel.add_child(_pause_cursor_rect)
+
+	# Leading accent badge on the chosen row
+	_pause_badge_rect = ColorRect.new()
+	_pause_badge_rect.position = Vector2(20, 42)
+	_pause_badge_rect.size = Vector2(3, 20)
+	_pause_badge_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_badge_rect.visible = false
+	pause_panel.add_child(_pause_badge_rect)
+
+	# Ruled line separating header from the options window
+	_pause_rule = ColorRect.new()
+	_pause_rule.position = Vector2(20, 39)
+	_pause_rule.size = Vector2(PAUSE_RECT.size.x - 40, 2)
+	_pause_rule.color = UITheme.color(&"sand")
+	_pause_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pause_panel.add_child(_pause_rule)
+
 	pause_label = Label.new()
 	pause_label.position = Vector2(24, 18)
 	pause_label.size = Vector2(PAUSE_RECT.size.x - 44, PAUSE_ROWS_H)
@@ -1227,8 +1260,9 @@ func _build_pause_panel() -> void:
 	pause_label.add_theme_font_override("font", SPEECH_FONT)
 	pause_label.add_theme_font_size_override("font_size", UI_SIZE)
 	pause_label.add_theme_constant_override("line_spacing", PAUSE_SPACING)
-	pause_label.add_theme_color_override("font_color", INK)
+	pause_label.add_theme_color_override("font_color", UITheme.color(&"ink"))
 	pause_panel.add_child(pause_label)
+
 	pause_hint = Label.new()
 	pause_hint.position = Vector2(24, PAUSE_RECT.size.y - 14 - PAUSE_HINT_H)
 	pause_hint.size = Vector2(PAUSE_RECT.size.x - 44, PAUSE_HINT_H)
@@ -1237,7 +1271,7 @@ func _build_pause_panel() -> void:
 	pause_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pause_hint.add_theme_font_override("font", SPEECH_FONT)
 	pause_hint.add_theme_font_size_override("font_size", 10)
-	pause_hint.add_theme_color_override("font_color", Color(0.34, 0.3, 0.26))
+	pause_hint.add_theme_color_override("font_color", UITheme.color(&"pencil"))
 	pause_panel.add_child(pause_hint)
 
 
@@ -1455,6 +1489,8 @@ func _open(m: int) -> void:
 	# the pause panel belongs to Mode.PAUSE alone; show_pause() turns it on
 	if pause_panel != null:
 		pause_panel.visible = false
+		pause_panel.position = PAUSE_RECT.position
+		pause_panel.modulate.a = 1.0
 	# a banner belongs to the room; it has no business under a report
 	banner.visible = false
 	if _player != null and is_instance_valid(_player):
@@ -1468,6 +1504,8 @@ func close() -> void:
 		tutorial.stop()
 	if pause_panel != null:
 		pause_panel.visible = false
+		pause_panel.position = PAUSE_RECT.position
+		pause_panel.modulate.a = 1.0
 	hide_dialogue()
 	# The book has to be put away here as well as in _open(). close() can be
 	# reached without another screen ever opening -- show_hand() closes
@@ -1698,6 +1736,16 @@ func show_pause() -> void:
 	_pause_page = PauseMenu.MAIN
 	Sfx.play("blip")
 	_render_pause()
+	if UITheme.motion:
+		pause_panel.position = PAUSE_RECT.position + Vector2(0, -float(UITheme.space(&"space_s")))
+		pause_panel.modulate.a = 0.5
+		var t := create_tween()
+		t.set_parallel(true)
+		t.tween_property(pause_panel, "position", PAUSE_RECT.position, 0.08)
+		t.tween_property(pause_panel, "modulate:a", 1.0, 0.08)
+	else:
+		pause_panel.position = PAUSE_RECT.position
+		pause_panel.modulate.a = 1.0
 
 
 func _pause_rows() -> Array:
@@ -1777,6 +1825,35 @@ func _render_pause() -> void:
 			Game.day, Balance.term_days, Game.subject]
 	else:
 		pause_hint.text = "E picks.  Esc goes back."
+
+	# Update active row highlight card & accent badge
+	if _pause_cursor_rect != null and _pause_badge_rect != null:
+		var visible_idx := _pause_sel - _pause_top
+		if visible_idx >= 0 and visible_idx < PAUSE_VISIBLE and visible_idx < (rows.size() - _pause_top):
+			var line_h: float = pause_label.get_line_height() + float(PAUSE_SPACING)
+			# Line 0 is header; lines 1..6 are the rows
+			var row_y := 18.0 + float(visible_idx + 1) * line_h
+			_pause_cursor_rect.position = Vector2(18, row_y - 1.0)
+			_pause_cursor_rect.size = Vector2(PAUSE_RECT.size.x - 36, line_h)
+			_pause_cursor_rect.visible = true
+
+			var sel_id := String(rows[_pause_sel])
+			if _pause_page == PauseMenu.MAIN and sel_id == "resume":
+				_pause_cursor_rect.color = UITheme.faded(&"olive", 0.16)
+				_pause_badge_rect.color = UITheme.color(&"olive")
+			elif _pause_page == PauseMenu.QUIT and (sel_id == "title" or sel_id == "game"):
+				_pause_cursor_rect.color = UITheme.faded(&"destructive", 0.16)
+				_pause_badge_rect.color = UITheme.color(&"destructive")
+			else:
+				_pause_cursor_rect.color = UITheme.faded(&"amber", 0.12)
+				_pause_badge_rect.color = UITheme.color(&"amber")
+
+			_pause_badge_rect.position = Vector2(18, row_y)
+			_pause_badge_rect.size = Vector2(3, line_h - 2.0)
+			_pause_badge_rect.visible = true
+		else:
+			_pause_cursor_rect.visible = false
+			_pause_badge_rect.visible = false
 
 
 func _vol_bar(v: float = -1.0) -> String:

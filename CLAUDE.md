@@ -103,7 +103,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3249 assertions, 151 sections |
+| `tests/run.gd` | The suite — 3252 assertions, 151 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -131,7 +131,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3249 assertions — must pass, count must not drop
+Run Tests.bat            3252 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -199,15 +199,12 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-11-10, the owner's ask): UI Overhaul Phase 0 (Audit & Specs) and Phase 1 (Title Screen Pilot Proof & Design System).**
-  - Completed Phase 0 audit report `docs/ui-audit-2026-11-10.md` with 23 baseline screenshots in `docs/ui-audit-2026-11-10/before/`, 11-cheat icon spec, and Paper Report Sheet spec.
-  - Implemented Phase 1 design foundation: installed Kalam, Press Start 2P, and VT323 in `fonts/`; created procedural classroom materials `scripts/ui/material_box.gd` (Chalkboard, Paper, Wood); created chalk grit shader `shaders/chalk.gdshader`; built centralized design tokens and style provider `scripts/ui/ui_theme.gd`; configured `theme.tres`.
-  - Overhauled Title Screen `scripts/ui/title.gd` with wood-framed procedural chalkboard, Kalam chalk title `"EDUSystem"` with gentle breathing oscillation, Kalam menu options, Amber active cursor (`>`), windowed pagination for Controls (8 rows/page), and smooth engine-native page transitions.
-  - Captured proof screenshots in `docs/ui-audit-2026-11-10/` (`title_main_after.png`, `title_settings_after.png`, `title_controls_after.png`).
-  - Authored comprehensive handoff document for Claude: `docs/fable-handoff-2026-11-10.md`.
-- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3249 assertions** (`Run Tests.bat 1`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
-- **Next Up (for Claude/Fable or Antigravity):**
-  1. Await Michael's verdict on the Phase 1 Title Screen pilot proof.
-  2. Proceed to **Phase 2: Pause Menu (Esc)** (`scripts/ui/pause.gd`) using `MaterialBox`, `UITheme`, and `chalk.gdshader` according to `projects/edusystem/ui-overhaul-plan-2026-11-10.md`.
-  3. See `docs/fable-handoff-2026-11-10.md` for complete architecture and resumption notes.
+- **Last Worked On (2026-11-10, the owner's ask): UI Overhaul Phase 0 (Audit & Specs), Phase 1 (Title Screen & Tokens), and Phase 2 (Pause Menu Overhaul).**
+  - Phase 0: Full audit report `docs/ui-audit-2026-11-10.md` with 23 baseline screenshots, 11-cheat icon spec, and Paper Report Sheet spec.
+  - Phase 1: Installed Kalam, Press Start 2P, and VT323 in `fonts/`; created procedural `material_box.gd` (Chalkboard, Paper, Wood); built `ui_theme.gd`, `chalk.gdshader`, and `theme.tres`; revamped Title Screen `scripts/ui/title.gd` with write-on chalk animation, stepped row arrival, volume tick marks, and 2-column controls layout. Captured all 7 title after-shots in `docs/ui-audit-2026-11-10/after/`.
+  - Phase 2: Overhauled Pause Menu in `scripts/ui/hud.gd` onto `theme.tres` with procedural `PaperSheet` material panel, ruled sand separator, active row highlight card, olive primary indicator for Resume, destructive red warning for Quit, and stepped motion. Captured after-screenshots (`pause.png`, `pause_quit.png`, `pause_settings.png`, `pause_tutorials.png`).
+- **Current State (2026-11-10):** On branch `ui-overhaul-2026-11-10`. Full test suite green at **3252 assertions** (`tests/run.tscn`), doc checks **341 / 341** green (`python tools/check_docs.py`), balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Next Up (for Antigravity or Claude):**
+  1. **Phase 3: Cheat Tab (11 custom pixel icons)** in `scripts/ui/debug_panel.gd` from Section 4 specification of `docs/ui-audit-2026-11-10.md`.
+  2. See `docs/fable-handoff-2026-11-10.md` for complete roadmap and architecture.
 

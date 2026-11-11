@@ -76,32 +76,50 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3,249 / 3,249 assertions passing** (152 sections).
+- **Unit Tests:** **3,252 / 3,252 assertions passing** (152 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
 
 ---
 
-## 5. Next Up: Phase 2 — Pause Menu (Esc)
+## 5. Phase 2: Pause Menu (Esc) — Completed & Verified
 
-Consult the master plan: `projects/edusystem/ui-overhaul-plan-2026-11-10.md`.
+- **Target File:** `scripts/ui/hud.gd` (pause panel system).
+- **What was done:**
+  - Panel rebuilt using `MaterialBox.Kind.PAPER` (`UITheme.box(&"PaperSheet")`), replacing the old bamboo ninepatch texture with procedural cream paper and drop shadow.
+  - Active-row highlight card and leading accent badge added.
+  - "Resume" clearly highlighted in Olive (`#6B7B3C`) as the primary safe action.
+  - Destructive exit actions ("Save and quit to title", "Save and quit the game") highlighted with Destructive Red warning card and badge (`#DC2626`).
+  - Subtle sand separator line added below the section header.
+  - Stepped motion integrated.
+  - All 4 after-screenshots captured in `docs/ui-audit-2026-11-10/after/` (`pause.png`, `pause_quit.png`, `pause_settings.png`, `pause_tutorials.png`).
+  - 3 new unit tests added in `tests/run.gd` validating paper material, olive safe highlight, and red destructive highlight.
 
-### Phase 2 Implementation Guide:
-- **Target File:** `scripts/ui/pause.gd` (and `scenes/ui/pause.tscn`).
-- **Pages/States:** Main Pause, Settings sub-menu, Tutorials sub-menu, Confirm Quit.
-- **Visual Design:**
-  - Base panel: Use `MaterialBox.Kind.PAPER` (or `CHALKBOARD` if styled as teacher's slate) with unified border from `UITheme`.
-  - Visual hierarchy:
-    - "Resume" clearly highlighted as primary safe option (Accent Amber cursor or Olive highlight).
-    - Settings / Tutorials in standard UI ink.
-    - Destructive actions ("Quit to Title" / "Abandon") clearly styled in Destructive Red (`#DC2626`).
-  - Typography:
-    - Section headers / Key hints: Press Start 2P (`UITheme.get_font(UITheme.FontRole.DISPLAY, 12)`).
-    - Options list / Descriptions: VT323 (`UITheme.get_font(UITheme.FontRole.BODY, 20)`).
-  - Animations: Stepped entrance and exit transitions matching Phase 1 style.
-- **Validation Checklist:**
-  - Run Godot test runner to ensure 3,249+ tests pass.
-  - Run `python tools/check_docs.py`.
-  - Capture before/after comparison shots using `tools/shot.gd` (`pause`, `pause_quit`).
-  - Log in `HISTORY.md` and commit.
+---
+
+## 6. Next Up: Phase 3 — Cheat Tab (11 Custom Pixel Icons)
+
+Consult the master plan: `projects/edusystem/ui-overhaul-plan-2026-11-10.md` and Section 4 of `docs/ui-audit-2026-11-10.md`.
+
+### Phase 3 Implementation Guide:
+- **Target File:** `scripts/ui/debug_panel.gd` (and `scenes/ui/debug_panel.tscn`).
+- **Requirements from Audit Spec:**
+  - All 11 cheats currently in `debug_panel.gd` lack visuals.
+  - Add 11 custom pixel-art icons (16x16 or 20x20) matching the LimeZu palette / classroom art style (procedural in `tools/make_art.py` or pixel-drawn into `art/`).
+  - Cheat inventory from Section 4 of `docs/ui-audit-2026-11-10.md`:
+    1. `all`: EVERYTHING (dev room) — Master Golden Key
+    2. `coins`: Unlimited coins — Burlap Coin Sack
+    3. `teacher`: Max teacher + all perks — Mortarboard with Gold Tassel
+    4. `students`: Max every student — Golden Apple & Slate
+    5. `ready`: Everyone ready to graduate — Rolled Diploma
+    6. `furnish`: One of every item, placed — Bookshelf & Globe
+    7. `enrol`: Fill the class to capacity — Group of Student Desks
+    8. `grow`: Bigger room — Diagonal Arrows on Grid
+    9. `day`: Skip a day — Tear-off Calendar & Sun
+    10. `term`: End the term now — Brass School Bell
+    11. `boss`: Boss paper now — Red Wax-Sealed Exam Scroll
+  - Card/Row layout: `[Icon] [Cheat Title] — [Brief Description]`.
+  - Rebuild base panel with `MaterialBox` on `theme.tres`.
+  - Capture before/after shots using `tools/shot.gd` route `cheats`.
+  - Ensure all unit tests and doc checks remain green.

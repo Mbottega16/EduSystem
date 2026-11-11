@@ -3902,6 +3902,11 @@ func test_panels_fit() -> void:
 	chk("the pause menu is a panel, not the full overlay",
 		hud.pause_panel.visible and not hud.overlay.visible)
 	chk("the pause menu fits", _pause_fits(hud), _pause_overflow(hud))
+	var psb: StyleBox = hud.pause_panel.get_theme_stylebox("panel")
+	chk("the pause menu is drawn on the theme's paper sheet",
+		psb is MaterialBox and (psb as MaterialBox).kind == MaterialBox.Kind.PAPER)
+	chk("Resume is highlighted in olive as the primary safe action",
+		hud._pause_badge_rect.visible and hud._pause_badge_rect.color == UITheme.color(&"olive"))
 	# Settings page: every row shows, the page fits, and a toggle flips.
 	hud._pause_go(hud.PauseMenu.SETTINGS)
 	hud._render_pause()
@@ -3932,6 +3937,8 @@ func test_panels_fit() -> void:
 	chk("and quitting the game",
 		hud.pause_label.text.contains("quit the game"), hud.pause_label.text)
 	chk("the quit page fits", _pause_fits(hud), _pause_overflow(hud))
+	chk("destructive quit actions are highlighted in red",
+		hud._pause_badge_rect.visible and hud._pause_badge_rect.color == UITheme.color(&"destructive"))
 	hud.close()
 	chk("closing hides the pause panel", not hud.pause_panel.visible)
 	hud.show_pause()
