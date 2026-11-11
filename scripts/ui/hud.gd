@@ -331,6 +331,8 @@ const PAPER_GOLD := "8a5a10"
 ## report on the teacher's desk, the watch card on a clipboard. Built once in
 ## _ready; _sheet_on() lays it, _sheet_off() puts it away.
 var desk_sheet: DeskSheet = null
+## The desk report's paper, leaving room at the foot for the pencil and key cap.
+const DAY_SHEET_RECT := Rect2(24, 12, 592, 300)
 ## The clipboard's paper is this wide and starts here; its height follows the
 ## class it lists.
 const WATCH_SHEET_X := 28.0
@@ -6394,33 +6396,28 @@ func _grade_rows(split: Dictionary, before: Dictionary) -> Array[String]:
 	var hw := float(split.get("homework", 0.0))
 	var know := float(split.get("known", 0.0))
 
-	var out: Array[String] = []
-	out.append(_stacked_bar([[room, C_ROOM], [lesson, C_LESSON],
-		[hw, C_HOMEWORK], [know, C_KNOW]]))
-	out.append(_part_line("the room", room, Balance.room_cap, C_ROOM, before, "room"))
-	out.append(_part_line("the lesson", lesson, Balance.lesson_cap, C_LESSON,
-		before, "lesson"))
-	out.append(_part_line("homework", hw, Balance.homework_cap, C_HOMEWORK,
-		before, "homework"))
-	out.append(_part_line("what you know", know, Balance.concept_bonus_cap,
-		C_KNOW, before, "known"))
-	return out
+	return [
+		_part_line("the room", room, Balance.room_cap, &"wood_dark", before, "room"),
+		_part_line("the lesson", lesson, Balance.lesson_cap, &"olive", before, "lesson"),
+		_part_line("homework", hw, Balance.homework_cap, &"amber", before, "homework"),
+		_part_line("what you know", know, Balance.concept_bonus_cap, &"terracotta", before, "known"),
+	]
 
 
 ## One part of the grade: what it was worth, out of what it could have been.
-func _part_line(label: String, got: float, ceiling: float, hue: String,
+func _part_line(label: String, got: float, ceiling: float, token: StringName,
 		before: Dictionary, key: String) -> String:
 	var share: float = 0.0 if ceiling <= 0.0 else clampf(got / ceiling, 0.0, 1.0)
 	var arrow := ""
 	if before.has(key):
 		var was := float(before[key])
 		if got > was + 0.005:
-			arrow = "[color=#%s] up[/color]" % C_GOOD
+			arrow = "[color=#%s] up[/color]" % UITheme.hex(&"olive")
 		elif got < was - 0.005:
-			arrow = "[color=#%s] down[/color]" % C_BAD
+			arrow = "[color=#%s] down[/color]" % UITheme.hex(&"terracotta")
 	return "[color=#%s]%s[/color] %s [color=#%s]%d of %d[/color]%s" % [
-		hue, label.rpad(14), _stacked_bar([[share, hue]], 10),
-		DIM, int(round(got * 100.0)), int(round(ceiling * 100.0)), arrow]
+		UITheme.hex(&"ink"), label.rpad(14), _sheet_bar(share, 10, token),
+		UITheme.hex(&"pencil"), int(round(got * 100.0)), int(round(ceiling * 100.0)), arrow]
 
 
 ## The one sentence the screen exists for: what is holding the class back,
@@ -6450,8 +6447,10 @@ func _diagnosis(split: Dictionary) -> String:
 			worst = String(part[0])
 			advice = String(part[3])
 	if worst_share >= 0.9:
-		return "[color=#%s]Nothing is holding them back. That is as good as it gets.[/color]" % C_GOOD
-	return "[color=#%s]Weakest: %s.[/color] %s" % [C_BAD, worst, advice]
+		return _note("[color=#%s]Nothing is holding them back. That is as good as it gets.[/color]"
+			% UITheme.hex(&"olive"))
+	return _note("[color=#%s]Weakest: %s.[/color] %s" % [
+		UITheme.hex(&"terracotta"), worst, advice])
 
 
 ## Ten-commits.md step 3: is the curriculum moving fast enough to finish
@@ -6461,47 +6460,55 @@ func _diagnosis(split: Dictionary) -> String:
 ## printing it every day instead of only at the very end.
 func _pacing_line(pacing: Dictionary) -> String:
 	if bool(pacing.get("on_pace", true)):
-		return "[color=#%s]On pace with the curriculum.[/color] Bonus paid." % C_GOOD
+		return _note("[color=#%s]On pace with the curriculum.[/color] [color=#%s]Bonus paid.[/color]" % [
+			UITheme.hex(&"olive"), UITheme.hex(&"pencil")])
 	var left := int(pacing.get("days_left", 0))
 	if left <= Balance.pace_escalate_days_left:
-		return "[color=#%s]Badly behind, and only %d day%s left.[/color] Teach something new tomorrow, or the term ends short of it." \
-			% [C_BAD, left, "" if left == 1 else "s"]
-	return "[color=#%s]Behind on new material.[/color] Teach a different lesson to unlock more of it." \
-		% C_BAD
+		return _note("[color=#%s]Badly behind, and only %d day%s left.[/color] Teach something new tomorrow, or the term ends short of it." \
+			% [UITheme.hex(&"destructive"), left, "" if left == 1 else "s"])
+	return _note("[color=#%s]Behind on new material.[/color] Teach a different lesson to unlock more of it." \
+		% UITheme.hex(&"terracotta"))
 
 
 func show_day_report(report: Dictionary) -> void:
 	Sfx.play("grade")
 	_open(Mode.REPORT)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
-	# The frame's whole inner width: its sentences ("Weakest: the lesson.
-	# Teach for longer, and collect the work.") are the screen's point, and
-	# at 576px the pixel font wrapped most of them.
-	rich.offset_left = 22.0
-	rich.offset_right = 618.0
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
 
+	var day_n := int(report.get("day", 0))
+	var left_n := int(report.get("days_left", 0))
 	var avg := float(report.get("average", 0.0))
-	title.text = "DAY %d  -  %s  -  %d LEFT" % [
-		int(report.get("day", 0)), Game.grade_letter(avg),
-		int(report.get("days_left", 0))]
+	var letter := Game.grade_letter(avg)
+	title.text = "DAY %d  -  %s  -  %d LEFT" % [day_n, letter, left_n]
+	desk_sheet.set_heading("DAY %d" % day_n,
+		"%d DAY%s LEFT IN TERM %d" % [left_n, "" if left_n == 1 else "S", Game.term])
+	var stamp_token: StringName = &"olive" if letter in ["A", "B"] else (
+		&"amber" if letter == "C" else (&"terracotta" if letter == "D" else &"destructive"))
+	desk_sheet.set_stamp("GRADE %s" % letter, stamp_token)
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
+
+	var earned: int = int(report.get("coins", 0))
+	var upkeep: int = int(report.get("upkeep", 0))
+	var done: int = int(report.get("homework_done", 0))
+	var of: int = maxi(1, Game.roster.size())
+	desk_sheet.set_side("\n".join([
+		"[color=#%s]+%d coins[/color]" % [UITheme.hex(&"olive"), earned],
+		"[color=#%s]-%d upkeep[/color]" % [
+			UITheme.hex(&"terracotta" if upkeep > 0 else &"pencil"), upkeep],
+		"[color=#%s]purse %d[/color]" % [UITheme.hex(&"pencil"), Game.coins],
+		"[color=#%s]homework[/color] [color=#%s]%d of %d[/color]" % [
+			UITheme.hex(&"pencil"),
+			UITheme.hex(&"olive" if done * 2 >= of else &"terracotta"), done, of],
+	]))
 
 	var split: Dictionary = report.get("split", Game.grade_split())
 	var before: Dictionary = report.get("split_before", {})
 
 	var lines: Array[String] = []
 	lines.append_array(_grade_rows(split, before))
+	lines.append(_small_print(" "))
 	lines.append(_diagnosis(split))
 
-	var earned: int = int(report.get("coins", 0))
-	var upkeep: int = int(report.get("upkeep", 0))
-	var done: int = int(report.get("homework_done", 0))
-	var of: int = maxi(1, Game.roster.size())
-	lines.append("[color=#%s]+%d coins[/color] [color=#%s]-%d upkeep[/color]   homework [color=#%s]%d of %d[/color]" % [
-		C_COIN, earned, C_BAD, upkeep,
-		C_GOOD if done * 2 >= of else C_BAD, done, of])
 	# Everything from here on is news rather than the grade, and goes to small
 	# print if the screen would overflow (see the end of this function).
 	var news_from := lines.size()
@@ -6516,64 +6523,61 @@ func show_day_report(report: Dictionary) -> void:
 		var cid := String(cres.get("lesson_id", ""))
 		var cname := String(Curriculum.by_id(cid).get("name", cid))
 		var cstyle := Game.craft_style(cid)
-		var clabel := "%s — [color=#%s]%s[/color]" % [cname, craft_style_colour(cstyle), cstyle] \
-			if cstyle != "" else cname
+		var clabel := "%s — [color=#%s]%s[/color]" % [
+			cname, _on_paper(craft_style_colour(cstyle)), cstyle] if cstyle != "" else cname
 		if bool(cres.get("success", false)):
-			lines.append("[color=#%s]%s came out of the oven -- it teaches easier now.[/color]" % [
-				C_GOOD, clabel])
+			lines.append(_note("[color=#%s]%s came out of the oven -- it teaches easier now.[/color]" % [
+				UITheme.hex(&"olive"), clabel]))
 		else:
-			lines.append("[color=#%s]%s didn't take. The coins and the days are spent either way.[/color]" % [
-				C_BAD, clabel])
+			lines.append(_note("[color=#%s]%s didn't take. The coins and the days are spent either way.[/color]" % [
+				UITheme.hex(&"terracotta"), clabel]))
 	# A craft still in the oven -- it belongs on the same screen as
 	# everything else those bought, not buried a tab away in a catalogue
 	# nobody has a reason to reopen mid-attempt.
 	elif not Game.pending_craft.is_empty():
 		var pl := String(Game.pending_craft.get("lesson_id", ""))
 		var pdays := int(Game.pending_craft.get("days_left", 0))
-		lines.append("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
-			C_KNOW, String(Curriculum.by_id(pl).get("name", pl)),
-			pdays, "" if pdays == 1 else "s"])
+		lines.append(_note("[color=#%s]%s is in the oven - %d day%s left.[/color]" % [
+			UITheme.hex(&"amber"), String(Curriculum.by_id(pl).get("name", pl)),
+			pdays, "" if pdays == 1 else "s"]))
 
 	var bought: Array = report.get("consumables", [])
 	if not bought.is_empty():
-		lines.append("[color=#%s]Today: %s[/color]" % [
-			DIM, ", ".join(bought)])
+		lines.append(_note("[color=#%s]Today: %s[/color]" % [
+			UITheme.hex(&"pencil"), ", ".join(bought)]))
 	if String(report.get("joined", "")) != "":
-		lines.append("[color=#%s]%s has joined the class.[/color]" % [
-			C_GOOD, String(report["joined"])])
+		lines.append(_note("[color=#%s]%s has joined the class.[/color]" % [
+			UITheme.hex(&"olive"), String(report["joined"])]))
 	# A milestone is the one thing on this screen that is not a number, so
 	# it goes last and it goes in gold.
 	for id: String in report.get("milestones", []):
 		var m := Milestones.by_id(id)
-		lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
-			C_COIN, String(m.get("name", id)), DIM, String(m.get("blurb", ""))])
+		lines.append(_note("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"amber"), String(m.get("name", id)),
+			UITheme.hex(&"pencil"), String(m.get("blurb", ""))]))
 	# The day the school opens: said once, in gold, the way a milestone is.
 	if bool(report.get("admin_opened", false)):
-		lines.append("[color=#%s]The school opens up.[/color]  [color=#%s]Another room can be opened from the hallway now.[/color]" % [
-			C_COIN, DIM])
+		lines.append(_note("[color=#%s]The school opens up.[/color]  [color=#%s]Another room can be opened from the hallway now.[/color]" % [
+			UITheme.hex(&"amber"), UITheme.hex(&"pencil")]))
 	if String(report.get("event", "")) != "":
-		lines.append("[color=#%s]Tomorrow: %s[/color] %s" % [
-			C_KNOW, String(report["event"]),
-			String(report.get("event_blurb", ""))])
+		lines.append(_note("[color=#%s]Tomorrow: %s[/color]  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"terracotta"), String(report["event"]),
+			UITheme.hex(&"pencil"), String(report.get("event_blurb", ""))]))
 
-	rich.text = "\n".join(lines)
-	# MEASURED, not counted (Oct 2026). The fit test counted "\n"s, so a day
-	# with the pacing warning, a new child and tomorrow's event -- three
-	# sentences that each wrap -- passed at ten "lines" while the last one ran
-	# under the footer on screen. When the wrapped text is taller than the box,
-	# the news goes to small print a line at a time from the bottom, until it
-	# fits; if all of it in small print is still too tall, the stacked bar over
-	# the four parts goes (they say the same thing, broken down).
+	rich.text = _sheet_join(lines)
+	# MEASURED, not counted (Oct 2026). When the wrapped text is taller than the
+	# sheet, the news goes to small print a line at a time from the bottom; if
+	# that is still not enough, drop the half-line gap under the four parts too.
 	var k := lines.size() - 1
 	while _rich_overflows() and k >= news_from:
-		lines[k] = "[font_size=%d]%s[/font_size]" % [UI_SMALL, lines[k]]
-		rich.text = _join_rich(lines)
+		lines[k] = _small_print(lines[k])
+		rich.text = _sheet_join(lines)
 		k -= 1
-	if _rich_overflows():
-		lines.remove_at(0)
-		rich.text = _join_rich(lines)
-	_reveal_rich(0.45)
+	if _rich_overflows() and lines.size() > 4 and lines[4] == _small_print(" "):
+		lines.remove_at(4)
+		rich.text = _sheet_join(lines)
 	hint.text = "E - close"
+	_sheet_arrive()
 
 
 ## Lines into one rich text, with each line break that follows a small-print

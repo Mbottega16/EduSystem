@@ -6103,8 +6103,43 @@ func test_screens_explain_themselves() -> void:
 	chk("and ends with something to DO about it",
 		hud.rich.text.contains("Weakest:")
 		or hud.rich.text.contains("as good as it gets"), hud.rich.text)
+	chk("the day report is a sheet on the teacher's desk, with a pencil beside it",
+		hud.desk_sheet.visible and hud.desk_sheet.kind == hud.DeskSheet.Kind.DESK
+		and hud.desk_sheet.pencil.visible and not hud._frame.visible)
+	chk("the sheet's heading names the day and the days left in the term",
+		hud.desk_sheet.heading.text == "DAY %d" % int(report["day"])
+		and hud.desk_sheet.sub.text.contains("LEFT IN TERM %d" % Game.term),
+		[hud.desk_sheet.heading.text, hud.desk_sheet.sub.text])
+	chk("the day's letter grade is stamped at the top right",
+		hud.desk_sheet.stamp_text() == "GRADE %s" % Game.grade_letter(float(report["average"])),
+		hud.desk_sheet.stamp_text())
+	chk("the ledger down the right shows coins, upkeep, purse and homework",
+		hud.desk_sheet.side.visible and hud.desk_sheet.side.text.contains("coins")
+		and hud.desk_sheet.side.text.contains("upkeep")
+		and hud.desk_sheet.side.text.contains("purse")
+		and hud.desk_sheet.side.text.contains("homework"), hud.desk_sheet.side.text)
+	chk("its notes are in the teacher's hand, and its key cap names the close key",
+		hud.rich.get_theme_font("italics_font") == UITheme.font(&"note")
+		and hud.rich.text.contains("[i]")
+		and hud.desk_sheet.keys_text() == "%s close" % hud._key_cap("interact"),
+		hud.desk_sheet.keys_text())
 	chk("the day report still fits",
 		not hud._rich_overflows(),
+		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
+	hud.show_day_report({
+		"day": 12, "average": 0.85, "days_left": 8,
+		"coins": 140, "upkeep": 60, "homework_done": 6,
+		"pacing": "behind",
+		"craft_result": {"lesson_id": "basic_arithmetic", "success": true},
+		"consumables": ["Coffee", "Bake Sale"],
+		"joined": "Someone New",
+		"milestones": ["first_up"],
+		"admin_opened": true,
+		"event": "An inspector is visiting",
+		"event_blurb": "They will watch the lesson. Have the room ready.",
+	})
+	chk("even a day with every kind of news shrinks to small print and still fits the sheet",
+		not hud._rich_overflows() and hud.rich.text.contains("[b]"),
 		"%d px of text in a %d px box" % [hud.rich.get_content_height(), int(hud.rich.size.y)])
 	hud.close()
 

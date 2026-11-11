@@ -76,7 +76,7 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ## 4. Current Verification State
 
-- **Unit Tests:** **3273 / 3273 assertions passing** (151 sections).
+- **Unit Tests:** **3279 / 3279 assertions passing** (151 sections).
 - **Doc Checks:** `python tools/check_docs.py` -> **341 / 341 checks passing**.
 - **Balance Contract:** Intact (`0.63 C / 0.72 C / 0.97 A` in `data/balance.json`).
 - **Git Branch:** `ui-overhaul-2026-11-10`.
@@ -169,8 +169,28 @@ Phase 1 is **100% complete, fully verified, and committed**.
 
 ---
 
-## 10. Next Up: Phase 7 — End-of-Day Wrap-Up Summary & Phase 8 — Flavor Pass (Proposals Only)
+## 10. Phase 7: End-of-Day Wrap-Up Summary — Completed & Verified
 
-- **Phase 7 Target Files:** `scripts/ui/hud.gd` (`show_day_report`, `_grade_rows`, `_part_line`, `_diagnosis`, `_pacing_line` using `DeskSheet.Kind.DESK`), `tools/shot.gd`, `tests/run.gd`.
-- **Phase 7 Screenshots:** `day.png`, `day_admin.png`, `consumables_report.png`.
-- **Phase 8 Deliverable:** Concrete flavor pass proposals (Section 13 in `docs/ui-audit-2026-11-10.md`) — proposals only, nothing built until Michael chooses.
+- **Target Files:** `scripts/ui/hud.gd` (`show_day_report`, `_grade_rows`, `_part_line`, `_diagnosis`, `_pacing_line` using `DeskSheet.Kind.DESK`), `tests/run.gd`.
+- **What was done:**
+  - Replaced the old dark bamboo modal on `show_day_report()` with `DeskSheet.Kind.DESK` (`DAY_SHEET_RECT := Rect2(24, 12, 592, 300)`): full-screen oak desk (`WoodPlank`), cream paper sheet (`PaperSheet`), and yellow pencil on the wood.
+  - Added printed display heading (`DAY %d`, `%d DAYS LEFT IN TERM %d`) and tilted rubber grade stamp (`GRADE %s` in `olive`, `amber`, `terracotta`, or `destructive`).
+  - Aligned the 4 grade part rows (`the room`, `the lesson`, `homework`, `what you know`) on the left with the 4-line financial/homework ledger (`+%d coins`, `-%d upkeep`, `purse %d`, `homework %d of %d`) down the right behind a vertical sand rule.
+  - Styled all diagnosis and news sentences in the teacher's handwritten voice (`Patrick Hand` 18px via `_note()`), with bottom-up overflow shrinking into `_small_print()` and an `E close` key cap on the wood.
+  - Captured and visually verified `day.png`, `day_admin.png`, and `consumables_report.png` in `docs/ui-audit-2026-11-10/after/`.
+  - Added 6 unit tests in `tests/run.gd` (+6 assertions, total 3279).
+
+---
+
+## 11. Phase 8: Flavor Pass (Proposals Only) — Completed
+
+- **Target File:** `docs/ui-audit-2026-11-10.md` (Section 13).
+- **What was done:**
+  - Wrote 6 concrete, sized proposals in Section 13 of `docs/ui-audit-2026-11-10.md` (nothing built, per plan):
+    1. *Put the School Board and Hiring Sheet on a Staffroom Noticeboard* (`show_school`, `show_hiring` — Medium)
+    2. *Move the Other End-of-Lesson and End-of-Term Reports onto Desk Sheets* (`show_lesson_report`, `show_quiz_report`, `show_test_report`, `show_inspection`, `show_exam`, `show_new_term`, `show_run_over` — Medium–Large)
+    3. *Student File and Class Register as a Manila Dossier Folder* (`show_class_list`, `show_student` — Medium)
+    4. *Teacher Dashboard, Career Wall, and Staff Rota on Paper Cards* (`show_dashboard`, `show_career`, `show_rota` — Medium)
+    5. *One Body Voice Across All Paper Screens (`VT323` vs `Galmuri9`)* (Medium)
+    6. *Small Tactile Paper Details (Red Margin Rule, Three-Ring Holes, Stamp Thud)* (Small)
+- **Status:** All phases (0 through 8) of `ui-overhaul-plan-2026-11-10.md` are complete and ready for owner review.
