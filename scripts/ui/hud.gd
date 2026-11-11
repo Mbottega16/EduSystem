@@ -1565,6 +1565,17 @@ func _highlighted(text: String, token: StringName) -> String:
 	return "[bgcolor=#%s]%s[/bgcolor]" % [UITheme.faded(token, 0.42).to_html(true), text]
 
 
+## Which palette token a letter grade prints in on paper.
+func _grade_token(letter: String) -> StringName:
+	if letter in ["A", "B"]:
+		return &"olive"
+	if letter == "C":
+		return &"amber"
+	if letter == "D":
+		return &"terracotta"
+	return &"destructive"
+
+
 func _open(m: int) -> void:
 	# Which page the book is showing survives a re-open of the SAME screen,
 	# because that is what a page turn is: show_curriculum()/show_hand() are
@@ -2425,6 +2436,7 @@ var _banner_until: float = 0.0
 ## spent points on, read-only -- spending them is still the staff room's
 ## job; this is a mirror, not a second till).
 func show_dashboard() -> void:
+	var fresh_open := (mode != Mode.DASHBOARD)
 	_open(Mode.DASHBOARD)
 	# THE BUG THIS FIXES: every other screen sets its own title.text, but
 	# this one never did -- _open() does not clear it, so the dashboard
@@ -2432,21 +2444,35 @@ func show_dashboard() -> void:
 	# Open Career, close it, then open the dashboard with I, and it read
 	# "YOUR CAREER 6/23" over the tab strip. Confirmed by screenshot.
 	title.text = "YOUR DASHBOARD"
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
+	rich.add_theme_constant_override("line_separation", 0)
 	_render_dashboard()
+	if fresh_open:
+		_sheet_arrive()
 
 
 func _render_dashboard() -> void:
 	Balance.ensure_loaded()
 	var lines: Array[String] = []
 	var tabs := ["Overview", "Items", "Skills", "Wardrobe"]
+	desk_sheet.set_heading("YOUR DASHBOARD", tabs[_dash].to_upper(), "TEACHER", &"olive")
+	if _dash == Dash.WARDROBE:
+		desk_sheet.set_keys([
+			["Left/Right", "choose"],
+			[_key_cap("menu"), "page"],
+			["Esc", "close"],
+		])
+	else:
+		desk_sheet.set_keys([
+			[_key_cap("menu"), "next page"],
+			["Esc", "close"],
+		])
 	var strip := ""
 	for i in tabs.size():
-		strip += "[color=#%s]%s[/color]  " % [
-			C_LESSON if i == _dash else DIM, tabs[i]]
+		if i == _dash:
+			strip += "%s  " % _highlighted("[color=#%s]%s[/color]" % [UITheme.hex(&"ink"), tabs[i]], &"amber")
+		else:
+			strip += "[color=#%s]%s[/color]  " % [UITheme.hex(&"pencil"), tabs[i]]
 	lines.append(strip)
 	lines.append("")
 
@@ -2509,14 +2535,14 @@ func _render_dash_overview() -> Array[String]:
 	# whatever the budget arithmetic claims should just barely fit.
 	var lines: Array[String] = []
 	lines.append("[color=#%s]Level %d[/color]   [color=#%s]%s[/color]" % [
-		C_KNOW, Game.teacher_level, DIM,
+		UITheme.hex(&"olive"), Game.teacher_level, UITheme.hex(&"pencil"),
 		Curriculum.strand_label(Game.specialism) if Game.specialism != ""
 			else "no speciality yet"])
-	lines.append("[color=#%s]Class[/color]      %d of %d seats" % [
-		DIM, Game.roster.size(), Game.seat_capacity()])
-	lines.append("[color=#%s]Furniture[/color]  %d piece%s, %d coins" % [
-		DIM, Game.room_items.size(), "" if Game.room_items.size() == 1 else "s",
-		Game.coins])
+	lines.append("[color=#%s]Class[/color]      [color=#%s]%d of %d seats[/color]" % [
+		UITheme.hex(&"wood_dark"), UITheme.hex(&"ink"), Game.roster.size(), Game.seat_capacity()])
+	lines.append("[color=#%s]Furniture[/color]  [color=#%s]%d piece%s, %d coins[/color]" % [
+		UITheme.hex(&"wood_dark"), UITheme.hex(&"ink"), Game.room_items.size(),
+		"" if Game.room_items.size() == 1 else "s", Game.coins])
 	# A day-count progress bar -- calendar/time, not a judgement of a
 	# child, so it is outside the prose-not-numbers rule the mood icon
 	# above has to carry an explicit exception note for (day counters are
@@ -2525,12 +2551,15 @@ func _render_dash_overview() -> Array[String]:
 	# not a new visual language.
 	var term_days: int = Balance.term_days
 	var pips: int = int(round(8.0 * float(Game.day) / float(maxi(term_days, 1))))
-	lines.append("[color=#%s]Term[/color]       day %d of %d  [%s%s]" % [
-		DIM, Game.day, term_days, "|".repeat(pips), ".".repeat(8 - pips)])
+	lines.append("[color=#%s]Term[/color]       [color=#%s]day %d of %d[/color]  [color=#%s][%s%s][/color]" % [
+		UITheme.hex(&"wood_dark"), UITheme.hex(&"ink"), Game.day, term_days,
+		UITheme.hex(&"amber"), "|".repeat(pips), ".".repeat(8 - pips)])
 	lines.append("")
 	# Deliberately unimplemented -- see the function doc above.
-	lines.append("[color=#%s]Hat[/color]         none chosen yet" % DIM)
-	lines.append("[color=#%s]Background[/color]  none chosen yet" % DIM)
+	lines.append("[color=#%s]Hat[/color]         [color=#%s]none chosen yet[/color]" % [
+		UITheme.hex(&"wood_dark"), UITheme.hex(&"pencil")])
+	lines.append("[color=#%s]Background[/color]  [color=#%s]none chosen yet[/color]" % [
+		UITheme.hex(&"wood_dark"), UITheme.hex(&"pencil")])
 	return lines
 
 
@@ -2542,7 +2571,7 @@ func _render_dash_overview() -> Array[String]:
 func _render_dash_items() -> Array[String]:
 	var lines: Array[String] = []
 	if Game.room_items.is_empty():
-		lines.append("[color=#%s]Nothing bought yet.[/color]" % DIM)
+		lines.append(_note("[color=#%s]Nothing bought yet.[/color]" % UITheme.hex(&"pencil")))
 		return lines
 	var counts: Dictionary = {}
 	var worth: Dictionary = {}
@@ -2554,13 +2583,14 @@ func _render_dash_items() -> Array[String]:
 	for cat: String in Items.categories():
 		if not counts.has(cat):
 			continue
+		var share := clampf(float(worth[cat]) / 0.15, 0.0, 1.0)
 		lines.append("[color=#%s]%-10s[/color] %2d   %s" % [
-			cat_colour(cat), Items.category_label(cat), int(counts[cat]),
-			_worth_bar(float(worth[cat]))])
+			_on_paper(cat_colour(cat)), Items.category_label(cat), int(counts[cat]),
+			_sheet_bar(share, 8, &"olive")])
 	lines.append("")
-	lines.append("[color=#%s]%d piece%s, worth %d coins new[/color]" % [
-		DIM, Game.room_items.size(), "" if Game.room_items.size() == 1 else "s",
-		_room_spend()])
+	lines.append(_note("[color=#%s]%d piece%s, worth %d coins new[/color]" % [
+		UITheme.hex(&"pencil"), Game.room_items.size(),
+		"" if Game.room_items.size() == 1 else "s", _room_spend()]))
 	return lines
 
 
@@ -2583,22 +2613,22 @@ func _room_spend() -> int:
 func _render_dash_skills() -> Array[String]:
 	var lines: Array[String] = []
 	lines.append("[color=#%s]%d point%s unspent[/color]" % [
-		C_COIN, Game.perk_points_free(),
+		UITheme.hex(&"amber"), Game.perk_points_free(),
 		"" if Game.perk_points_free() == 1 else "s"])
 	lines.append("")
 	var order := Progress.perk_order()
 	if order.is_empty():
-		lines.append("[color=#%s]No perks defined.[/color]" % DIM)
+		lines.append("[color=#%s]No perks defined.[/color]" % UITheme.hex(&"pencil"))
 		return lines
 	var ranked := 0
 	for id: String in order:
 		if Game.perk_rank(id) > 0:
 			ranked += 1
 	lines.append("[color=#%s]%d of %d skills trained[/color]" % [
-		C_LESSON if ranked > 0 else DIM, ranked, order.size()])
+		UITheme.hex(&"olive" if ranked > 0 else &"pencil"), ranked, order.size()])
 	lines.append("")
-	lines.append("[color=#%s]See the Staff Room for the full list and[/color]" % DIM)
-	lines.append("[color=#%s]what each rank does.[/color]" % DIM)
+	lines.append(_note("[color=#%s]See the Staff Room for the full list and[/color]" % UITheme.hex(&"pencil")))
+	lines.append(_note("[color=#%s]what each rank does.[/color]" % UITheme.hex(&"pencil")))
 	return lines
 
 
@@ -2611,12 +2641,12 @@ func _render_dash_skills() -> Array[String]:
 func _render_dash_wardrobe() -> Array[String]:
 	_sel = clampi(_sel, 0, 1)
 	var lines: Array[String] = []
-	lines.append("[color=#%s]%sHat[/color]         %s" % [
-		C_LESSON if _sel == 0 else DIM, ">" if _sel == 0 else " ",
-		String(Cosmetics.hat_by_id(Game.hat_id).get("name", "None"))])
-	lines.append("[color=#%s]%sBackground[/color]  %s" % [
-		C_LESSON if _sel == 1 else DIM, ">" if _sel == 1 else " ",
-		String(Cosmetics.background_by_id(Game.background_id).get("name", "None"))])
+	lines.append("[color=#%s]%sHat[/color]         [color=#%s]%s[/color]" % [
+		UITheme.hex(&"amber" if _sel == 0 else &"wood_dark"), ">" if _sel == 0 else " ",
+		UITheme.hex(&"ink"), String(Cosmetics.hat_by_id(Game.hat_id).get("name", "None"))])
+	lines.append("[color=#%s]%sBackground[/color]  [color=#%s]%s[/color]" % [
+		UITheme.hex(&"amber" if _sel == 1 else &"wood_dark"), ">" if _sel == 1 else " ",
+		UITheme.hex(&"ink"), String(Cosmetics.background_by_id(Game.background_id).get("name", "None"))])
 	return lines
 
 
@@ -2647,6 +2677,7 @@ func show_class_list(keep_sel: bool = false) -> void:
 		_sel = 0
 	_sel = clampi(_sel, 0, maxi(0, Game.roster.size() - 1))
 	_render_class_list()
+	_sheet_arrive()
 
 
 ## Split out from show_class_list so moving the selection can redraw without
@@ -2658,7 +2689,23 @@ func _render_class_list() -> void:
 	# default size; the panel is 128px and this needs about 13 rows
 	body.add_theme_font_size_override("font_size", UI_SIZE)
 	body.add_theme_constant_override("line_spacing", 0)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 18, 592, 324))
+	rich.add_theme_constant_override("line_separation", -2)
+	var avg_let := "-" if Game.roster.is_empty() else Game.grade_letter(Game.class_average())
+	desk_sheet.set_heading("YOUR CLASS",
+		"TODAY: %s  [%s]" % [
+			String(Game.lesson.get("name", "")).to_upper(),
+			String(Game.lesson.get("standard", ""))],
+		"REGISTER", &"olive")
+	desk_sheet.set_cards([
+		["CLASS AVG", avg_let, &"pencil" if avg_let == "-" else _grade_token(avg_let)],
+	])
+	desk_sheet.set_keys([
+		[_key_cap("interact"), "their file"],
+		["Esc", "close"],
+	])
 	var lines: Array[String] = []
+	var rich_lines: Array[String] = []
 	# The objective is the source document's own wording, so a player can
 	# see what the lesson is genuinely for rather than just a subject word.
 	# Two header lines, not three. Eight students plus a three-line header
@@ -2667,6 +2714,7 @@ func _render_class_list() -> void:
 	lines.append(_clip("Today: %s  [%s]" % [
 		String(Game.lesson.get("name", "")),
 		String(Game.lesson.get("standard", ""))]))
+	var lo := _window_start(Game.roster.size(), 8)
 	# No column header. A full class is eight rows and the panel holds nine
 	# lines including the lesson line, so the header was the difference
 	# between showing everyone and hiding whoever sits in seat eight.
@@ -2689,12 +2737,28 @@ func _render_class_list() -> void:
 		# hw_true_accuracy, which is hidden on purpose, so printing it would
 		# hand the player the answer to the marking game for free and make
 		# careful marking pointless.
+		var let_s := "-" if s.grades.is_empty() else Game.grade_letter(s.average_grade())
 		lines.append("%s %-10s %-9s %-5s %s" % [
 			">" if i == _sel else " ",
 			s.first_name(), Curriculum.strand_label(s.favourite),
-			"-" if s.grades.is_empty() else Game.grade_letter(s.average_grade()),
+			let_s,
 			", ".join(notes)])
+		if i >= lo and i < lo + 8:
+			var let_tok: StringName = &"pencil" if let_s == "-" else _grade_token(let_s)
+			var note_s := _note(", ".join(notes)) if not notes.is_empty() else ""
+			rich_lines.append("[color=#%s]%s %-10s[/color] [color=#%s]%-10s[/color] [color=#%s]%-3s[/color] [color=#%s]%s[/color]" % [
+				UITheme.hex(&"amber" if i == _sel else &"ink"),
+				">" if i == _sel else " ",
+				s.first_name().substr(0, 10),
+				UITheme.hex(&"wood_dark"),
+				Curriculum.strand_label(s.favourite).substr(0, 10),
+				UITheme.hex(let_tok),
+				let_s,
+				UITheme.hex(&"pencil"),
+				note_s])
 	body.text = "\n".join(lines)
+	body.visible = false
+	rich.text = _sheet_join(rich_lines)
 	hint.text = "Up/Down choose    E their file    Esc close"
 
 
@@ -2707,6 +2771,7 @@ func _render_class_list() -> void:
 func show_student(s: StudentData) -> void:
 	if s == null:
 		return
+	var fresh_open := (mode != Mode.STUDENT or _bio != s)
 	if _bio != s:
 		_bio_page = BIO_FILE      # a file just opened always starts on page one
 		_student_book_page = 0
@@ -2714,6 +2779,8 @@ func show_student(s: StudentData) -> void:
 	_open(Mode.STUDENT)
 	body.add_theme_font_size_override("font_size", UI_SIZE)
 	body.add_theme_constant_override("line_spacing", 0)
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
+	rich.add_theme_constant_override("line_separation", -2)
 
 	title.text = s.display_name
 	if title.text.length() > 22:
@@ -2723,39 +2790,92 @@ func show_student(s: StudentData) -> void:
 	# frame stretched up to portrait size.
 	portrait.texture = load("res://art/portrait_%s.png" % s.art)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_portrait_at(PORTRAIT_FILE)
+	_portrait_at(Rect2(552, 16, 48, 48))
 	portrait.visible = true
 
 	if _bio_page == BIO_STORY:
 		_render_student_story(s)
+		if fresh_open:
+			_sheet_arrive()
 		return
 	if _bio_page == BIO_ACTING:
 		_render_student_acting(s)
+		if fresh_open:
+			_sheet_arrive()
 		return
 	if _student_book_open:
 		_render_student_book(s)
+		if fresh_open:
+			_sheet_arrive()
 		return
+
+	var avg_let := "-" if s.grades.is_empty() else Game.grade_letter(s.average_grade())
+	var sub_head := "SEAT %d" % (s.seat_index + 1) if title.text.length() > 13 \
+		else "SEAT %d · LV.%d · AVG %s" % [s.seat_index + 1, s.student_level(), avg_let]
+	desk_sheet.set_heading(title.text.to_upper(), sub_head, "FILE", &"terracotta")
+	desk_sheet.set_keys([
+		[_key_cap("menu"), "page"],
+		[_key_cap("interact"), "do it"],
+		["Esc", "back"],
+	])
 
 	# The portrait sits top-RIGHT and the text runs full width beneath it.
 	var lines: Array[String] = []
-	lines.append("Seat %d, day %d · Lv.%d · %s" % [
-		s.seat_index + 1, s.joined_day, s.student_level(), _bio_scales_line(s)])
+	var rich_lines: Array[String] = []
+	var seat_line := "Seat %d, day %d · Lv.%d · %s" % [
+		s.seat_index + 1, s.joined_day, s.student_level(), _bio_scales_line(s)]
+	lines.append(seat_line)
+	var rich_scales := "Intel %s Talk %s Sleep %s" % [
+		_sheet_bar(float(s.intelligence_tier()) / 4.0, 3, &"olive"),
+		_sheet_bar(float(s.talkativeness) / 4.0, 3, &"amber"),
+		_sheet_bar(float(s.sleepiness) / 3.0, 3, &"terracotta"),
+	]
+	rich_lines.append("[color=#%s]Seat %d, day %d · Lv.%d[/color]  [color=#%s]%s[/color]" % [
+		UITheme.hex(&"wood_dark"), s.seat_index + 1, s.joined_day, s.student_level(),
+		UITheme.hex(&"ink"), rich_scales])
 	if not s.consumable_def().is_empty():
-		lines.append("%s (%.0fs) · Whispers: %dt · Best: %s" % [
+		var c_line := "%s (%.0fs) · Whispers: %dt · Best: %s" % [
 			String(s.consumable_def().get("name", "Treat")), s.consumable_left,
 			s.effective_distraction_radius(),
-			s.best_subject().capitalize() if s.best_subject() != "" else "All"])
+			s.best_subject().capitalize() if s.best_subject() != "" else "All"]
+		lines.append(c_line)
+		rich_lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"olive"), c_line])
 	else:
-		lines.append("Whispers reach %d tiles · Best: %s" % [
+		var w_line := "Whispers reach %d tiles · Best: %s" % [
 			s.effective_distraction_radius(),
-			s.best_subject().capitalize() if s.best_subject() != "" else "All"])
-	lines.append(_ability_line(s))
-	lines.append(_grades_line(s))
-	lines.append(_homework_line(s))
-	lines.append(_help_line(s))
-	lines.append_array(_bio_actions(s))
+			s.best_subject().capitalize() if s.best_subject() != "" else "All"]
+		lines.append(w_line)
+		rich_lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"), w_line])
+	var ab := _ability_line(s)
+	var gr := _grades_line(s)
+	var hw := _homework_line(s)
+	var hp := _help_line(s)
+	lines.append(ab)
+	lines.append(gr)
+	lines.append(hw)
+	lines.append(hp)
+	var notes_from := rich_lines.size()
+	rich_lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"ink"), ab]))
+	rich_lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"olive" if not s.grades.is_empty() else &"pencil"), gr]))
+	rich_lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"), hw]))
+	rich_lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"), hp]))
+	var acts := _bio_actions(s)
+	lines.append_array(acts)
+	var full_acts := _bio_actions_unclipped(s)
+	for i in full_acts.size():
+		var act_col := UITheme.hex(&"amber" if i == _bio_sel else &"ink")
+		rich_lines.append("[color=#%s]%s[/color]" % [act_col, full_acts[i]])
 	body.text = "\n".join(lines)
+	body.visible = false
+	rich.text = _sheet_join(rich_lines)
+	var k := notes_from + 3
+	while _rich_overflows() and k >= notes_from:
+		rich_lines[k] = _small_print(rich_lines[k])
+		rich.text = _sheet_join(rich_lines)
+		k -= 1
 	hint.text = "Tab page   Up/Down choose   E do it   Esc back"
+	if fresh_open:
+		_sheet_arrive()
 
 
 func _pip_bar(val: int, max_val: int) -> String:
@@ -2790,6 +2910,12 @@ func _bio_scales_line(s: StudentData) -> String:
 ## wrong. Capped to the panel budget, so a child with everything going on
 ## still fits.
 func _render_student_acting(s: StudentData) -> void:
+	var sub_head := "" if title.text.length() > 14 else "WHAT'S ACTING ON THEM"
+	desk_sheet.set_heading(title.text.to_upper(), sub_head, "PULLS", &"amber")
+	desk_sheet.set_keys([
+		[_key_cap("menu"), "back to the file"],
+		["Esc", "back"],
+	])
 	# The builder itself lives in StudentRead.acting_on() now -- shared with
 	# the in-room read above a desk, so the two can never disagree about a
 	# child. See scripts/data/student_read.gd for why it moved.
@@ -2798,22 +2924,40 @@ func _render_student_acting(s: StudentData) -> void:
 	var helping: Array[String] = read.get("helping", [])
 
 	var lines: Array[String] = []
+	var rich_lines: Array[String] = []
 	if against.is_empty() and helping.is_empty():
 		lines.append("Nothing much is pulling on them either way today.")
+		rich_lines.append(_note("[color=#%s]Nothing much is pulling on them either way today.[/color]" % UITheme.hex(&"pencil")))
 	else:
 		if not against.is_empty():
 			lines.append("AGAINST THEM")
+			rich_lines.append("[color=#%s]AGAINST THEM[/color]" % UITheme.hex(&"terracotta"))
 			lines.append_array(against)
+			for a: String in against:
+				rich_lines.append(_note("[color=#%s]· %s[/color]" % [UITheme.hex(&"ink"), a]))
 		if not helping.is_empty():
 			if not against.is_empty():
 				lines.append("")
+				rich_lines.append(_small_print(" "))
 			lines.append("FOR THEM")
+			rich_lines.append("[color=#%s]FOR THEM[/color]" % UITheme.hex(&"olive"))
 			lines.append_array(helping)
+			for h: String in helping:
+				rich_lines.append(_note("[color=#%s]· %s[/color]" % [UITheme.hex(&"ink"), h]))
 	# The panel is the panel. Anything past it is the least urgent thing on
 	# a page that is already ordered worst-first.
 	if lines.size() > 11:
 		lines = lines.slice(0, 11)
+	if rich_lines.size() > 10:
+		rich_lines = rich_lines.slice(0, 10)
 	body.text = "\n".join(lines)
+	body.visible = false
+	rich.text = _sheet_join(rich_lines)
+	var k := rich_lines.size() - 1
+	while _rich_overflows() and k >= 0:
+		rich_lines[k] = _small_print(rich_lines[k])
+		rich.text = _sheet_join(rich_lines)
+		k -= 1
 	hint.text = "Tab back to the file    Esc back"
 
 
@@ -2824,12 +2968,24 @@ func _render_student_book(s: StudentData) -> void:
 
 	title.text = "%s's Assignment Book (%d/%d)" % [s.first_name(), _student_book_page + 1, total_pages]
 	portrait.visible = false
+	desk_sheet.set_heading("%s'S WORKBOOK" % s.first_name().to_upper(),
+		"PAGE %d OF %d" % [_student_book_page + 1, total_pages],
+		"WORKBOOK", &"olive")
+	desk_sheet.set_keys([
+		["Left/Right", "flip"],
+		[_key_cap("menu"), "next page"],
+		["Esc", "back"],
+	])
 
 	var lines: Array[String] = []
+	var rich_lines: Array[String] = []
 	if s.transcript.is_empty():
 		lines.append("No completed assignments in this workbook yet.")
 		lines.append("")
 		lines.append("Grades received will appear here as lessons finish.")
+		rich_lines.append(_note("[color=#%s]No completed assignments in this workbook yet.[/color]" % UITheme.hex(&"pencil")))
+		rich_lines.append("")
+		rich_lines.append(_note("[color=#%s]Grades received will appear here as lessons finish.[/color]" % UITheme.hex(&"ink")))
 	else:
 		var start_i := _student_book_page * per_page
 		var end_i := mini(start_i + per_page, s.transcript.size())
@@ -2840,7 +2996,13 @@ func _render_student_book(s: StudentData) -> void:
 			var letter: String = _book_letter(g_val)
 			var day_i: int = int(entry.get("day", 1))
 			lines.append("Day %2d · %-16s · %s" % [day_i, l_name.substr(0, 16), letter])
+			rich_lines.append("[color=#%s]Day %2d[/color] · [color=#%s]%-16s[/color] · [color=#%s]%s[/color]" % [
+				UITheme.hex(&"pencil"), day_i,
+				UITheme.hex(&"ink"), l_name.substr(0, 16),
+				UITheme.hex(_grade_token(letter[0])), letter])
 	body.text = "\n".join(lines)
+	body.visible = false
+	rich.text = _sheet_join(rich_lines)
 	hint.text = "Left/Right flip   Tab next page   Esc back"
 
 
@@ -2850,15 +3012,35 @@ func _render_student_book(s: StudentData) -> void:
 ## rule the stored data obeys and only the screen bends. Read-only: no
 ## actions, so Up/Down/E do nothing here and only Tab / Esc are live.
 func _render_student_story(s: StudentData) -> void:
+	var sub_head := "" if title.text.length() > 14 else "THEIR STORY"
+	desk_sheet.set_heading(title.text.to_upper(), sub_head, "STORY", &"olive")
+	desk_sheet.set_keys([
+		[_key_cap("menu"), "acting on them"],
+		["Esc", "back"],
+	])
 	var lines: Array[String] = []
-	lines.append(_transcript_line(s))
+	var rich_lines: Array[String] = []
+	var tr := _transcript_line(s)
+	lines.append(tr)
 	lines.append("")
+	rich_lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"wood_dark"), tr])
+	rich_lines.append(_small_print(" "))
 	var story := _moments_prose(s)
 	if story.is_empty():
 		lines.append("Nothing has stood out yet -- early days for them.")
+		rich_lines.append(_note("[color=#%s]Nothing has stood out yet -- early days for them.[/color]" % UITheme.hex(&"pencil")))
 	else:
 		lines.append_array(story)
+		for st_line: String in story:
+			rich_lines.append(_note("[color=#%s]· %s[/color]" % [UITheme.hex(&"ink"), st_line]))
 	body.text = "\n".join(lines)
+	body.visible = false
+	rich.text = _sheet_join(rich_lines)
+	var k := rich_lines.size() - 1
+	while _rich_overflows() and k >= 0:
+		rich_lines[k] = _small_print(rich_lines[k])
+		rich.text = _sheet_join(rich_lines)
+		k -= 1
 	hint.text = "Tab what's acting on them    Esc back"
 
 
@@ -2973,6 +3155,29 @@ func _bio_actions(s: StudentData) -> Array[String]:
 	return out
 
 
+func _bio_actions_unclipped(s: StudentData) -> Array[String]:
+	Balance.ensure_loaded()
+	var out: Array[String] = []
+	var tuition := s.coaching_cost(Balance.coach_tuition_cost)
+	var parents := s.coaching_cost(Balance.coach_parents_cost)
+	var t_label := "Extra tuition          %d" % tuition
+	var p_label := "A word with parents    %d" % parents
+	if not s.can_be_coached():
+		t_label = "Extra tuition          (had enough)"
+		p_label = "A word with parents    (had enough)"
+	var g_label := "Send them up           not ready yet"
+	if s.is_ready_to_graduate():
+		var extra := maxi(0, s.level - Balance.stu_ready_level)
+		g_label = "Send them up           +%d coins" % [
+			Balance.grad_base_coins + Balance.grad_coins_per_level * extra]
+	if s.is_capped():
+		g_label += " (all they can learn)"
+	var labels := [t_label, p_label, g_label]
+	for i in labels.size():
+		out.append("%s %s" % [">" if i == _bio_sel else " ", labels[i]])
+	return out
+
+
 ## What they are good at, and what they have turned out to be good at.
 ##
 ## Folded into ONE line rather than given its own. The file already runs to
@@ -3077,15 +3282,26 @@ func show_exam(result: Dictionary) -> void:
 	_open(Mode.REPORT)
 	_showing_exam = true
 	Sfx.play("grade")
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
 
 	var boss_term: bool = String(Game.term_path.get("kind", "")) == "boss"
-	title.text = "%s  -  %s" % [
-		String(Game.term_path.get("name", "")).to_upper() if boss_term else "END OF TERM",
-		String(result.get("letter", "F"))]
+	var letter := String(result.get("letter", "F"))
+	var passed: int = int(result.get("passed", 0))
+	var total: int = int(result.get("total", 0))
+	var head_name := String(Game.term_path.get("name", "")).to_upper() if boss_term else "END OF TERM"
+	title.text = "%s  -  %s" % [head_name, letter]
+	var exam_sub := "TERM %d" % Game.term if head_name.length() > 10 \
+		else "TERM %d · %s" % [Game.term, _term_verdict(passed, total).to_upper()]
+	desk_sheet.set_heading(head_name, exam_sub, "EXAM", _grade_token(letter))
+	desk_sheet.set_stamp("GRADE %s" % letter, _grade_token(letter))
+	desk_sheet.set_keys([[_key_cap("interact"), "begin term %d" % (Game.term + 1)]])
+	desk_sheet.set_side("\n".join([
+		"[color=#%s]%s[/color]" % [UITheme.hex(&"ink"), _term_verdict(passed, total)],
+		"[color=#%s]%d of %d passed[/color]" % [
+			UITheme.hex(&"olive" if passed > 0 else &"terracotta"), passed, total],
+		"[color=#%s]%d concepts[/color]" % [UITheme.hex(&"pencil"), Game.concepts.size()],
+		"[color=#%s]%d room items[/color]" % [UITheme.hex(&"pencil"), Game.room_items.size()],
+	]))
 
 	# Two children to a line, in the colour of their verdict. Twenty days
 	# come down to this screen, and a column of identical "(no)"s says
@@ -3096,13 +3312,11 @@ func show_exam(result: Dictionary) -> void:
 	while i < rows.size():
 		var cell := _exam_cell_rich(rows[i])
 		if i + 1 < rows.size():
-			cell += "  " + _exam_cell_rich(rows[i + 1])
+			cell += "    " + _exam_cell_rich(rows[i + 1])
 		lines.append(cell)
 		i += 2
 
-	var passed: int = int(result.get("passed", 0))
-	var total: int = int(result.get("total", 0))
-	lines.append("")
+	lines.append(_small_print(" "))
 	# The TARGET, not just the count. A number you are measured against
 	# after the fact is a punishment; the same number known all term is a
 	# thing to play towards -- and this is the only screen where it resolves.
@@ -3114,25 +3328,32 @@ func show_exam(result: Dictionary) -> void:
 		var cleared: bool = float(result.get("average", 0.0)) \
 			>= float(Game.term_path.get("target", 1.0))
 		lines.append("[color=#%s]%d of %d passed[/color]   [color=#%s]%s[/color]" % [
-			C_GOOD if cleared else C_BAD, passed, total,
-			C_GOOD if cleared else C_BAD,
+			UITheme.hex(&"olive" if cleared else &"terracotta"), passed, total,
+			UITheme.hex(&"olive" if cleared else &"terracotta"),
 			"the paper is CLEARED" if cleared else "the paper is NOT cleared"])
 	else:
 		var target: int = Game.term_target()
 		var met: bool = passed >= target
-		lines.append("[color=#%s]%d of %d passed[/color]   need %d   [color=#%s]%s[/color]" % [
-			C_GOOD if met else C_BAD, passed, total, target,
-			C_GOOD if met else C_BAD,
+		lines.append("[color=#%s]%d of %d passed[/color]   [color=#%s]need %d[/color]   [color=#%s]%s[/color]" % [
+			UITheme.hex(&"olive" if met else &"terracotta"), passed, total,
+			UITheme.hex(&"pencil"), target,
+			UITheme.hex(&"olive" if met else &"terracotta"),
 			"kept the job" if met else "NOT ENOUGH"])
 
 	# What you BUILT, not just what they scored. The room, the curriculum
 	# and the children you saw all the way through are the three things a
 	# term actually leaves behind, and none of them were on this screen.
-	lines.append("[color=#%s]%s[/color]" % [DIM, _term_legacy()])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.6)
+	var tail_from := lines.size() - 1
+	lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"), _term_legacy()]))
+	rich.text = _sheet_join(lines)
+	var k := lines.size() - 1
+	while _rich_overflows() and k >= tail_from:
+		lines[k] = _small_print(lines[k])
+		rich.text = _sheet_join(lines)
+		k -= 1
 	hint.text = _hint_clip("E - begin term %d%s" % [Game.term + 1,
 		"   (cheats were used)" if Game.cheated else ""])
+	_sheet_arrive()
 
 
 ## One line on what kind of term that was. It is the last sentence the game
@@ -3168,9 +3389,9 @@ func _term_legacy() -> String:
 func _exam_cell_rich(row: Dictionary) -> String:
 	var s: StudentData = row["student"]
 	var ok: bool = bool(row.get("passed", false))
-	var hue := strand_colour("ela") if ok else "d08a86"
-	return "[color=#%s]%-7s %s[/color]" % [
-		hue, s.first_name().substr(0, 7), String(row.get("letter", "?"))]
+	var hue := UITheme.hex(&"olive" if ok else &"terracotta")
+	return "[color=#%s]%-9s %s[/color]" % [
+		hue, s.first_name().substr(0, 9), String(row.get("letter", "?"))]
 
 
 ## One child on the exam board.
@@ -3190,30 +3411,40 @@ func _exam_cell(row: Dictionary) -> String:
 func show_fight_report(report: Dictionary) -> void:
 	_open(Mode.REPORT)
 	Sfx.play("grade")
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
-	title.text = "%s  -  %s" % [String(report.get("boss", "THE PAPER")).to_upper(),
-		String(report.get("composure", "")).to_upper()]
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 24, 592, 312))
+	var boss_name := String(report.get("boss", "THE PAPER")).to_upper()
+	var comp := String(report.get("composure", ""))
+	var comp_tok: StringName = &"olive" if comp == "steady" else (
+		&"amber" if comp == "wobbling" else (&"terracotta" if comp == "cracking" else &"destructive"))
+	title.text = "%s  -  %s" % [boss_name, comp.to_upper()]
+	desk_sheet.set_heading(boss_name, "MORNING PAPER · RESULTS READ AT THE BELL", "PAPER", comp_tok)
+	desk_sheet.set_cards([["ROOM", comp.to_upper() if comp != "" else "SAT", comp_tok]])
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
+
 	var rows: Array = report.get("rows", [])
 	var lines: Array[String] = []
 	var i := 0
-	while i < rows.size() and lines.size() < 7:
+	while i < rows.size() and lines.size() < 5:
 		var cell := _fight_cell(rows[i])
 		if i + 1 < rows.size():
 			cell += "  " + _fight_cell(rows[i + 1])
 		lines.append(cell)
 		i += 2
 	if i < rows.size():
-		lines.append("[color=#%s]...[/color]" % DIM)
-	lines.append("")
-	lines.append("[color=#%s]%s[/color]" % [C_KNOW,
-		_composure_sentence(String(report.get("composure", "")))])
-	lines.append("[color=#%s]The results are read at the bell.[/color]" % DIM)
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.6)
+		lines.append("[color=#%s]...[/color]" % UITheme.hex(&"pencil"))
+	lines.append(_small_print(" "))
+	var tail_from := lines.size()
+	lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(comp_tok),
+		_composure_sentence(comp)]))
+	lines.append(_note("[color=#%s]The results are read at the bell.[/color]" % UITheme.hex(&"pencil")))
+	rich.text = _sheet_join(lines)
+	var k := lines.size() - 1
+	while _rich_overflows() and k >= tail_from:
+		lines[k] = _small_print(lines[k])
+		rich.text = _sheet_join(lines)
+		k -= 1
 	hint.text = "E - close.   Ring the bell to sit the results."
+	_sheet_arrive()
 
 
 ## One child on the paper board: their name and how they held up, green
@@ -3223,13 +3454,13 @@ func _fight_cell(row: Dictionary) -> String:
 	var r := int(row.get("rallied", 0))
 	var h := int(row.get("held", 0))
 	var d := int(row.get("dropped", 0))
-	var hue := DIM
+	var hue := UITheme.hex(&"pencil")
 	if d > 0 and r + h < d:
-		hue = "d08a86"
+		hue = UITheme.hex(&"terracotta")
 	elif r > 0 and d == 0:
-		hue = strand_colour("ela")
+		hue = UITheme.hex(&"olive")
 	elif r + h + d > 0:
-		hue = "cfcfcf"
+		hue = UITheme.hex(&"ink")
 	return "[color=#%s]%-7s %-14s[/color]" % [hue, s.first_name().substr(0, 7),
 		String(row.get("word", ""))]
 
@@ -3253,26 +3484,73 @@ func _composure_sentence(word: String) -> String:
 func show_inspection(report: Dictionary) -> void:
 	_open(Mode.REPORT)
 	Sfx.play("grade")
-	title.text = "INSPECTION  -  %s" % String(report.get("letter", "F"))
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
+	var letter := String(report.get("letter", "F"))
+	var class_let := Game.grade_letter(Game.class_average())
+	var std_code := String(report.get("standard", ""))
+	title.text = "INSPECTION  -  %s" % letter
+	desk_sheet.set_heading("INSPECTION",
+		"%s · %s TODAY" % [std_code if std_code != "" else "VISIT", class_let],
+		"INSPECTOR", &"amber")
+	desk_sheet.set_stamp("GRADE %s" % letter, _grade_token(letter))
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
+
+	var passed := bool(report.get("passed", false))
+	var grant := int(report.get("grant", 0))
+	desk_sheet.set_side("\n".join([
+		"[color=#%s]%s[/color]" % [
+			UITheme.hex(&"olive" if passed else &"terracotta"),
+			"passed" if passed else "not passed"],
+		"[color=#%s]%s[/color]" % [
+			UITheme.hex(&"amber" if passed else &"pencil"),
+			"+%d grant" % grant if passed else "no grant"],
+		"[color=#%s]purse %d[/color]" % [UITheme.hex(&"pencil"), Game.coins],
+	]))
+
+	var r_val := float(report.get("room", 0.0))
+	var l_val := float(report.get("lesson", 0.0))
+	var k_val := float(report.get("knowledge", 0.0))
+	var r_words := _insp_verdict(r_val, "doing its job", "helping a little", "bare")
+	var l_words := _insp_verdict(l_val, "well run", "getting there", "not under control")
+	var k_words := _insp_verdict(k_val, "you know it", "you are learning it", "you have not taught this")
+
 	var lines: Array[String] = [
-		_clip("The room:     %s" % _insp_verdict(float(report.get("room", 0.0)),
-			"doing its job", "helping a little", "bare")),
-		_clip("The lesson:   %s" % _insp_verdict(float(report.get("lesson", 0.0)),
-			"well run", "getting there", "not under control")),
-		_clip("The material: %s" % _insp_verdict(float(report.get("knowledge", 0.0)),
-			"you know it", "you are learning it", "you have not taught this")),
+		_clip("The room:     %s" % r_words),
+		_clip("The lesson:   %s" % l_words),
+		_clip("The material: %s" % k_words),
 	]
-	if bool(report.get("passed", false)):
-		lines.append(_clip("Funding of %d coins follows." % int(report.get("grant", 0))))
+	if passed:
+		lines.append(_clip("Funding of %d coins follows." % grant))
 	else:
 		lines.append("No funding this time.")
-	body.text = "
-".join(lines)
+	body.text = "\n".join(lines)
+
+	var rich_lines: Array[String] = [
+		"[color=#%s]%-14s[/color] %s  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"ink"), "the room",
+			_sheet_bar(clampf(r_val, 0.0, 1.0), 8, &"wood_dark"),
+			UITheme.hex(&"ink"), r_words],
+		"[color=#%s]%-14s[/color] %s  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"ink"), "the lesson",
+			_sheet_bar(clampf(l_val, 0.0, 1.0), 8, &"olive"),
+			UITheme.hex(&"ink"), l_words],
+		"[color=#%s]%-14s[/color] %s  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"ink"), "the material",
+			_sheet_bar(clampf(k_val, 0.0, 1.0), 8, &"terracotta"),
+			UITheme.hex(&"ink"), k_words],
+		_small_print(" "),
+	]
+	if passed:
+		rich_lines.append(_note("[color=#%s]Funding of %d coins follows.[/color]" % [
+			UITheme.hex(&"olive"), grant]))
+	else:
+		rich_lines.append(_note("[color=#%s]No funding this time.[/color]" % UITheme.hex(&"terracotta")))
+	rich.text = _sheet_join(rich_lines)
+
 	# The average and the citation ride on the hint bar. Four verdict lines
 	# is already the whole panel, and the fifth was landing under it.
-	hint.text = _hint_clip("E - close.   %s today.   %s" % [
-		Game.grade_letter(Game.class_average()),
-		String(report.get("standard", ""))])
+	hint.text = _hint_clip("E - close.   %s today.   %s" % [class_let, std_code])
+	_sheet_arrive()
 
 
 ## Three bands, in words. The thresholds are deliberately generous at the
@@ -3293,36 +3571,55 @@ func _insp_verdict(v: float, good: String, middling: String, poor: String) -> St
 ## so an explanation here would be a lie about where the result came from.
 func show_test_report(results: Array) -> void:
 	_open(Mode.REPORT)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 34, 592, 290))
 	var total := 0.0
 	for r: Dictionary in results:
 		total += float(r["grade"])
 	var avg: float = total / maxf(1.0, float(results.size()))
+	var avg_letter := Game.grade_letter(avg)
+	var l_name := String(Game.lesson.get("name", "")).to_upper()
+	var std_code := String(Game.lesson.get("standard", ""))
 
 	# The average goes in the title and the names run TWO to a line. A full
 	# class is eight children, and the panel holds about six lines -- one
 	# name per line plus a summary ran straight under the hint bar.
-	title.text = "%s  -  %s" % [
-		String(Game.lesson.get("name", "")).to_upper(), Game.grade_letter(avg)]
+	title.text = "%s  -  %s" % [l_name, avg_letter]
+	desk_sheet.set_heading(l_name,
+		"%s · THE ROOM YOU BUILT, NOT THE DAY" % std_code,
+		"UNIT TEST", &"amber")
+	desk_sheet.set_cards([["CLASS AVG", avg_letter, _grade_token(avg_letter)]])
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
 
 	var lines: Array[String] = []
+	var rich_lines: Array[String] = []
 	var i := 0
 	while i < results.size():
 		var left: Dictionary = results[i]
-		var cell := "%-11s %s" % [
-			(left["student"] as StudentData).first_name(), String(left["letter"])]
+		var l_stu: StudentData = left["student"]
+		var l_let := String(left["letter"])
+		var cell := "%-11s %s" % [l_stu.first_name(), l_let]
+		var r_cell := "[color=#%s]%-11s[/color] [color=#%s]%s[/color]" % [
+			UITheme.hex(&"ink"), l_stu.first_name().substr(0, 11),
+			UITheme.hex(_grade_token(l_let)), l_let]
 		if i + 1 < results.size():
 			var right: Dictionary = results[i + 1]
-			cell += "     %-11s %s" % [
-				(right["student"] as StudentData).first_name(),
-				String(right["letter"])]
+			var r_stu: StudentData = right["student"]
+			var r_let := String(right["letter"])
+			cell += "     %-11s %s" % [r_stu.first_name(), r_let]
+			r_cell += "      [color=#%s]%-11s[/color] [color=#%s]%s[/color]" % [
+				UITheme.hex(&"ink"), r_stu.first_name().substr(0, 11),
+				UITheme.hex(_grade_token(r_let)), r_let]
 		lines.append(cell)
+		rich_lines.append(r_cell)
 		i += 2
-	body.text = "
-".join(lines)
+	body.text = "\n".join(lines)
+	rich_lines.append(_small_print(" "))
+	rich_lines.append(_note("[color=#%s]A unit test measures the room and what you have taught, not today's lesson.[/color]" % UITheme.hex(&"pencil")))
+	rich.text = _sheet_join(rich_lines)
 	# No "why" column, unlike the lesson report: there is nothing you could
 	# have done differently on the day, which is the point of the instrument.
-	hint.text = "%s   E - close.   The room you built, not the day." % String(
-		Game.lesson.get("standard", ""))
+	hint.text = "%s   E - close.   The room you built, not the day." % std_code
+	_sheet_arrive()
 
 
 ## A panning shot over every student taught this run, before the term-by-term
@@ -3425,6 +3722,8 @@ func show_run_over(info: Dictionary) -> void:
 	_open(Mode.REPORT)
 	_showing_run_over = true
 	Sfx.play("deny")
+	_frame.visible = false
+	hint.visible = false
 	body.visible = false
 	rich.visible = false
 	# The yearbook carries its own header; the panel's title still held the
@@ -3435,26 +3734,40 @@ func show_run_over(info: Dictionary) -> void:
 
 
 func _show_run_over_report() -> void:
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
-
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
 	title.text = "THAT IS THE END OF IT"
+	desk_sheet.set_heading("END OF THE RUN",
+		"%d TERM%s TAUGHT" % [
+			Game.term_history.size(), "" if Game.term_history.size() == 1 else "S"],
+		"CAREER", &"terracotta")
+	desk_sheet.set_stamp("TERM %d" % Game.term, &"terracotta")
+	desk_sheet.set_keys([[_key_cap("interact"), "start again"]])
+	desk_sheet.set_side("\n".join([
+		"[color=#%s]%d term%s[/color]" % [
+			UITheme.hex(&"ink"), Game.term_history.size(),
+			"" if Game.term_history.size() == 1 else "s"],
+		"[color=#%s]%d sent up[/color]" % [UITheme.hex(&"olive"), Game.graduated.size()],
+		"[color=#%s]%d concepts[/color]" % [UITheme.hex(&"amber"), Game.concepts.size()],
+	]))
+
 	var lines: Array[String] = []
-	for row: Dictionary in Game.term_history:
+	var hist: Array = Game.term_history
+	var start_i := maxi(0, hist.size() - 6)
+	for i in range(start_i, hist.size()):
+		var row: Dictionary = hist[i]
 		var met: bool = bool(row.get("met", false))
 		lines.append("[color=#%s]Term %-2d  %s   %d of %d passed   needed %d[/color]" % [
-			C_GOOD if met else C_BAD, int(row["term"]),
+			UITheme.hex(&"olive" if met else &"terracotta"), int(row["term"]),
 			String(row["letter"]), int(row["passed"]), int(row["total"]),
 			int(row.get("target", Balance.term_target_base))])
-	lines.append("")
-	lines.append("[color=#%s]%d term%s taught.  %d children sent up.  %d concepts.[/color]" % [
-		C_KNOW, Game.term_history.size(),
+	lines.append(_small_print(" "))
+	lines.append(_note("[color=#%s]%d term%s taught.  %d children sent up.  %d concepts.[/color]" % [
+		UITheme.hex(&"pencil"), Game.term_history.size(),
 		"" if Game.term_history.size() == 1 else "s",
-		Game.graduated.size(), Game.concepts.size()])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.6)
+		Game.graduated.size(), Game.concepts.size()]))
+	rich.text = _sheet_join(lines)
 	hint.text = "E - start again"
+	_sheet_arrive()
 
 
 ## THE HAND. A shuffled hand of 3-7 papers, drawn at the podium, and you
@@ -3694,6 +4007,7 @@ func _render_term_paths() -> void:
 ## resolved, and the point of the screen is the comparison.
 func show_school() -> void:
 	Balance.ensure_loaded()
+	var fresh_open: bool = mode != Mode.SCHOOL
 	_open(Mode.SCHOOL)
 	# _sel can outlive the school it indexed -- a room closed under it, or a
 	# larger school from a previous run -- and both show_school() below and
@@ -3702,18 +4016,18 @@ func show_school() -> void:
 	# entered through here. (Was four silent "out of bounds get index"
 	# errors a test run: they fail no assertion, so the suite never saw them.)
 	_sel = clampi(_sel, 0, maxi(0, Game.rooms.size() - 1))
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	var room_total := Game.rooms.size() + 1
 	title.text = "THE SCHOOL  -  %d room%s" % [
-		Game.rooms.size() + 1, "" if Game.rooms.is_empty() else "s"]
+		room_total, "" if Game.rooms.is_empty() else "s"]
 
+	var yours_letter := Game.grade_letter(Game.class_average())
 	var lines: Array[String] = []
-	lines.append("[color=#%s]%-9s %-13s %s[/color]" % [
-		DIM, "YOURS", "you", Game.grade_letter(Game.class_average())])
+	lines.append("  [color=#%s]%-9s %-16s %s[/color]" % [
+		UITheme.hex(&"pencil"), "YOURS", "you", yours_letter])
 
-	for i in Game.rooms.size():
+	var shown := mini(Game.rooms.size(), 3)
+	var lo := _window_start(Game.rooms.size(), shown) if Game.rooms.size() > shown else 0
+	for i in range(lo, lo + shown):
 		var r: Dictionary = Game.rooms[i]
 		var t: Dictionary = r.get("teacher", {})
 		var last: Dictionary = r.get("last", {})
@@ -3721,49 +4035,87 @@ func show_school() -> void:
 		var staffed: bool = not t.is_empty()
 		# An unstaffed room is the loudest thing on this screen, because it
 		# is costing you a room and teaching nobody.
-		var hue := C_BAD if not staffed else (
-			C_GOOD if letter in ["A", "B"] else (DIM if letter == "-" else C_HOMEWORK))
-		lines.append("%s [color=#%s]%-9s %-13s %s[/color]" % [
-			">" if i == _sel else " ", hue, String(r.get("name", "Room")),
-			String(t.get("name", "NOBODY")).substr(0, 13), letter])
+		var ptr := "[color=#%s]>[/color]" % UITheme.hex(&"amber") if i == _sel else " "
+		if not staffed:
+			lines.append("%s [color=#%s]%-9s[/color] %s         [color=#%s]%s[/color]" % [
+				ptr, UITheme.hex(&"terracotta"), String(r.get("name", "Room")),
+				_highlighted(" NOBODY ", &"terracotta"),
+				UITheme.hex(&"terracotta"), letter])
+		else:
+			var hue := UITheme.hex(&"olive") if letter in ["A", "B"] else (
+				UITheme.hex(&"pencil") if letter == "-" else UITheme.hex(&"amber"))
+			lines.append("%s [color=#%s]%-9s %-16s %s[/color]" % [
+				ptr, hue, String(r.get("name", "Room")),
+				String(t.get("name", "NOBODY")).substr(0, 15), letter])
 
-	lines.append("")
+	lines.append(_small_print(" "))
 	if Game.rooms.is_empty():
-		lines.append("[color=#%s]One room, and it is yours. Open another and[/color]" % DIM)
-		lines.append("[color=#%s]somebody else will have to teach it.[/color]" % DIM)
+		lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"),
+			_note("One room, and it is yours. Open another and somebody else will have to teach it.")])
 	else:
 		var sel: Dictionary = Game.rooms[_sel] if _sel < Game.rooms.size() else {}
 		var t2: Dictionary = sel.get("teacher", {})
 		if t2.is_empty():
-			lines.append("[color=#%s]Nobody is teaching it. The children sit there.[/color]" % C_BAD)
+			lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"terracotta"),
+				_note("Nobody is teaching it. The children sit there.")])
 		else:
-			lines.append("[color=#%s]%s[/color]  [color=#%s]but %s[/color]" % [
-				C_GOOD, Staff.strengths(t2), C_BAD, Staff.weakness(t2)])
-			lines.append("[color=#%s]letting them go costs %d coins[/color]" % [
-				DIM, Balance.fire_cost])
-		lines.append("[color=#%s]furniture %s   %d/day in wages[/color]" % [
-			DIM, _furniture_bar(int(sel.get("furniture", 0))), Game.wage_bill()])
+			lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+				UITheme.hex(&"olive"), _note(Staff.strengths(t2)),
+				UITheme.hex(&"terracotta"), _note("but " + Staff.weakness(t2))])
+			lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"),
+				_note("letting them go costs %d coins" % Balance.fire_cost)])
+		lines.append("[color=#%s]furniture [/color]%s[color=#%s]   %d/day in wages[/color]" % [
+			UITheme.hex(&"pencil"), _furniture_bar(int(sel.get("furniture", 0))),
+			UITheme.hex(&"pencil"), Game.wage_bill()])
 
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.3)
+	var row_px := ceilf(UITheme.font(&"body").get_height(UITheme.size(&"body"))) + 1.0
+	var h := minf(312.0, DeskSheet.paper_height(DeskSheet.Kind.CLIPBOARD,
+		float(maxi(5, lines.size())) * row_px + 8.0))
+	var y := maxf(30.0, snappedf((352.0 - h) * 0.5 + 8.0, 2.0))
+	overlay.color = UITheme.faded(&"ink", PAPER_DIM)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(WATCH_SHEET_X, y, WATCH_SHEET_W, h))
+	rich.add_theme_constant_override("line_separation", 1)
+	var sub_line := "%d ROOM%s  ·  %d/DAY IN WAGES" % [
+		room_total, "" if room_total == 1 else "S", Game.wage_bill()]
+	desk_sheet.set_heading("THE SCHOOL", sub_line, "ADMIN", &"wood_dark")
+	var cards: Array = [["YOUR ROOM", yours_letter, _grade_token(yours_letter)]]
+	if not Game.rooms.is_empty():
+		var sel_room: Dictionary = Game.rooms[_sel]
+		var sel_last: Dictionary = sel_room.get("last", {})
+		var sel_letter := String(sel_last.get("letter", "-"))
+		var sel_staffed_card: bool = not (sel_room.get("teacher", {}) as Dictionary).is_empty()
+		var sel_tok: StringName = &"terracotta" if not sel_staffed_card else (
+			&"pencil" if sel_letter == "-" else _grade_token(sel_letter))
+		cards.push_front([String(sel_room.get("name", "Room")).to_upper(), sel_letter, sel_tok])
+	desk_sheet.set_cards(cards)
+	rich.text = _sheet_join(lines)
+	if _rich_overflows() and lines.size() >= 3 and lines[lines.size() - 3] == "":
+		lines.remove_at(lines.size() - 3)
+		rich.text = _sheet_join(lines)
+	_reveal_rich(0.25)
+
 	var watch_hint := ""
 	if _can_watch(_sel):
 		watch_hint = "V watch  "
 	var sel_staffed: bool = Game.rooms.is_empty() or \
 		not (Game.rooms[_sel].get("teacher", {}) as Dictionary).is_empty()
-	# Whichever of hire/fire actually applies to the selected room, never
-	# both -- a staffed room cannot be hired into (see hire()'s own refusal)
-	# and an empty one has nobody to let go, so offering the wrong verb
-	# would just train the player to expect a press that does nothing. The
-	# cost lives in the body text above, not here -- adding "G fire" pushed
-	# this line past LINE_CHARS with every other verb still spelled out in
-	# full, so Up/Down and Esc (arrows-to-navigate and Escape-to-back-out
-	# both being true on nearly every screen this game has) are the two
-	# left unstated to make room. Found by screenshotting the actual
-	# result, not by counting characters -- the truncation was silent.
 	var staff_hint := "G fire" if sel_staffed else "E hire"
 	hint.text = _hint_clip("%s  F furnish  %sB new(%d)" % [
 		staff_hint, watch_hint, Game.room_cost()])
+	var key_rows: Array = []
+	if not Game.rooms.is_empty():
+		if not sel_staffed:
+			key_rows.append([_key_cap("interact"), "hire"])
+		elif _can_watch(_sel):
+			key_rows.append([_key_cap("watch"), "watch"])
+		key_rows.append([_key_cap("manage"), "furnish"])
+		if sel_staffed:
+			key_rows.append([_key_cap("fire"), "fire"])
+	key_rows.append([_key_cap("build"), "new (%d)" % Game.room_cost()])
+	key_rows.append(["Esc", "close"])
+	desk_sheet.set_keys(key_rows)
+	if fresh_open:
+		_sheet_arrive()
 
 
 ## Whether room `i` has a day worth watching -- staffed and resolved at
@@ -4032,20 +4384,16 @@ func _handle_stage_input() -> void:
 func _furniture_bar(level: int) -> String:
 	Balance.ensure_loaded()
 	var n: int = clampi(level, 0, Balance.furniture_steps)
-	return "[color=#%s]%s[/color][color=#3a3a42]%s[/color]" % [
-		C_ROOM, _cells(BAR_FULL, n),
-		_cells(BAR_EMPTY, Balance.furniture_steps - n)]
+	return _sheet_bar(float(n) / maxf(1.0, float(Balance.furniture_steps)),
+		Balance.furniture_steps * 2, &"olive")
 
 
 ## Who is going. Prose, never numbers -- the same rule the rest of the game
 ## follows, and the reason a hire reads as a person rather than a stat line.
 func show_hiring() -> void:
+	var fresh_open: bool = not _hiring
 	_open(Mode.SCHOOL)
 	_hiring = true
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "WHO WILL TEACH IT?"
 
 	if Game.applicants.is_empty():
@@ -4054,16 +4402,46 @@ func show_hiring() -> void:
 	var lines: Array[String] = []
 	for i in Game.applicants.size():
 		var t: Dictionary = Game.applicants[i]
-		lines.append("%s [color=#%s]%-15s[/color] [color=#%s]%d/day[/color]" % [
-			">" if i == _sel else " ", C_LESSON, String(t.get("name", "")),
-			C_COIN, int(t.get("wage", 0))])
-		lines.append("  [color=#%s]%s[/color]" % [
-			DIM, String(t.get("blurb", ""))])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.25)
+		var chosen: bool = i == _sel
+		var ptr := "[color=#%s]>[/color]" % UITheme.hex(&"amber") if chosen else " "
+		var name_col := UITheme.hex(&"ink") if chosen else UITheme.hex(&"pencil")
+		var name_cell := _highlighted(" " + String(t.get("name", "")).rpad(14), &"amber") if chosen \
+			else " [color=#%s]%-14s[/color]" % [name_col, String(t.get("name", ""))]
+		lines.append("%s%s   [color=#%s]%d coins/day[/color]" % [
+			ptr, name_cell, UITheme.hex(&"wood_dark" if chosen else &"pencil"),
+			int(t.get("wage", 0))])
+
 	var sel: Dictionary = Game.applicants[_sel] if _sel < Game.applicants.size() else {}
+	if not sel.is_empty():
+		lines.append(_small_print(" "))
+		lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"ink"),
+			_note(String(sel.get("blurb", "")))])
+		lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"olive"),
+			_note("Strengths: %s." % Staff.strengths(sel))])
+		lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"terracotta"),
+			_note("Weakness: %s." % Staff.weakness(sel))])
+
+	var row_px := ceilf(UITheme.font(&"body").get_height(UITheme.size(&"body"))) + 1.0
+	var h := minf(312.0, DeskSheet.paper_height(DeskSheet.Kind.CLIPBOARD,
+		float(maxi(6, lines.size())) * row_px + 8.0))
+	var y := maxf(30.0, snappedf((352.0 - h) * 0.5 + 8.0, 2.0))
+	overlay.color = UITheme.faded(&"ink", PAPER_DIM)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(WATCH_SHEET_X, y, WATCH_SHEET_W, h))
+	rich.add_theme_constant_override("line_separation", 1)
+	var room_name := "NEW ROOM"
+	if _hiring_for >= 0 and _hiring_for < Game.rooms.size():
+		room_name = String((Game.rooms[_hiring_for] as Dictionary).get("name", "Room")).to_upper()
+	desk_sheet.set_heading("HIRE TEACHER", "FOR %s  ·  PURSE %d" % [room_name, Game.coins],
+		"HIRING", &"amber")
+	var sel_wage := int(sel.get("wage", 0))
+	desk_sheet.set_cards([["WAGE", "%d/D" % sel_wage, &"amber"]])
+	rich.text = _sheet_join(lines)
+	_reveal_rich(0.25)
 	hint.text = "E hire   Esc back.   " + _fit_px("%s, but %s" % [
 		Staff.strengths(sel), Staff.weakness(sel)], 340.0)
+	desk_sheet.set_keys([[_key_cap("interact"), "hire"], ["Esc", "back"]])
+	if fresh_open:
+		_sheet_arrive()
 
 
 ## YOUR CAREER: every milestone, earned and unearned.
@@ -4087,37 +4465,57 @@ func _career_rows() -> Array:
 
 
 func show_career() -> void:
+	var fresh_open := (mode != Mode.CAREER)
 	_open(Mode.CAREER)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
+	rich.add_theme_constant_override("line_separation", -2)
 
 	title.text = "YOUR CAREER  %d/%d   trophies %d/%d" % [
 		Game.milestones.size(), Milestones.count(),
 		Game.trophies.size(), Trophies.count()]
 
 	if _career_page == CAREER_ALUMNI:
-		_render_alumni()
+		_render_alumni(fresh_open)
 		return
+
+	desk_sheet.set_heading("YOUR CAREER",
+		"MILESTONES %d/%d · TROPHIES %d/%d" % [
+			Game.milestones.size(), Milestones.count(),
+			Game.trophies.size(), Trophies.count()],
+		"CAREER", &"amber")
+	desk_sheet.set_keys([
+		[_key_cap("menu"), "the ones who left"],
+		["Esc", "close"],
+	])
 
 	var rows := _career_rows()
 	# a window, because there are more entries than the panel holds
 	_sel = clampi(_sel, 0, maxi(0, rows.size() - 1))
-	var lo := _window_start(rows.size(), 9)
+	var lo := _window_start(rows.size(), 8)
 	var lines: Array[String] = []
-	for i in range(lo, mini(rows.size(), lo + 9)):
+	for i in range(lo, mini(rows.size(), lo + 8)):
 		var r: Dictionary = rows[i]
 		var won: bool = bool(r.get("won", false))
+		var col := UITheme.hex(&"amber" if won else (&"wood_dark" if i == _sel else &"pencil"))
 		lines.append("%s [color=#%s]%s[/color]" % [
-			">" if i == _sel else " ", C_COIN if won else DIM,
+			">" if i == _sel else " ", col,
 			String(r.get("name", "")) if won else "- - -"])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.25)
-
 	var sel: Dictionary = rows[_sel] if _sel < rows.size() else {}
+	var sel_won := bool(sel.get("won", false))
+	lines.append(_note("[color=#%s]%s%s[/color]" % [
+		UITheme.hex(&"olive" if sel_won else &"pencil"),
+		"" if sel_won else "Not yet: ",
+		String(sel.get("blurb", ""))]))
+	rich.text = _sheet_join(lines)
+	if _rich_overflows():
+		lines[lines.size() - 1] = _small_print(lines[lines.size() - 1])
+		rich.text = _sheet_join(lines)
+	rich.visible_ratio = 1.0
+
 	hint.text = _hint_clip("Esc - close.   Tab - the ones who left.   %s%s" % [
-		"" if bool(sel.get("won", false)) else "Not yet: ", String(sel.get("blurb", ""))])
+		"" if sel_won else "Not yet: ", String(sel.get("blurb", ""))])
+	if fresh_open:
+		_sheet_arrive()
 
 
 ## The alumni wall -- every child ever sent up, newest first, read from
@@ -4126,12 +4524,23 @@ func show_career() -> void:
 ## helpers as a living child's file page two (transcript arc + moments
 ## reel), fed a throwaway StudentData rebuilt from the graduation
 ## snapshot -- so the wall can never drift from the file it mirrors.
-func _render_alumni() -> void:
+func _render_alumni(fresh_open: bool = false) -> void:
 	var al: Array = Game.meta.get("alumni", [])
 	if al.is_empty():
-		rich.text = "[color=#%s]No one has left yet.[/color]\n\nWhen you send a child up -- or one passes the exam -- they are remembered here, for the rest of your career." % DIM
-		_reveal_rich(0.2)
+		desk_sheet.set_heading("THE ALUMNI WALL", "NO ONE HAS LEFT YET", "ALUMNI", &"olive")
+		desk_sheet.set_keys([
+			[_key_cap("menu"), "back to milestones"],
+			["Esc", "close"],
+		])
+		rich.text = _sheet_join([
+			"[color=#%s]No one has left yet.[/color]" % UITheme.hex(&"wood_dark"),
+			"",
+			_note("[color=#%s]When you send a child up -- or one passes the exam -- they are remembered here, for the rest of your career.[/color]" % UITheme.hex(&"pencil")),
+		])
+		rich.visible_ratio = 1.0
 		hint.text = "Tab - back to milestones    Esc - close"
+		if fresh_open:
+			_sheet_arrive()
 		return
 
 	# newest first
@@ -4141,33 +4550,55 @@ func _render_alumni() -> void:
 	if _alum_open >= 0 and _alum_open < recs.size():
 		var rec: Dictionary = recs[_alum_open]
 		var s := _alum_student(rec)
+		var alum_name := String(rec.get("name", ""))
+		desk_sheet.set_heading(alum_name.to_upper(),
+			"" if alum_name.length() > 14 else _alum_left_line(rec).to_upper(),
+			"ALUMNI", &"olive")
+		desk_sheet.set_keys([["Esc", "back to the list"]])
 		var lines: Array[String] = []
-		lines.append("[color=#%s]%s[/color]" % [C_COIN, String(rec.get("name", ""))])
-		lines.append("[color=#%s]%s[/color]" % [DIM, _alum_left_line(rec)])
-		lines.append("")
-		lines.append(_transcript_line(s))
-		lines.append("")
+		lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+			UITheme.hex(&"amber"), alum_name,
+			UITheme.hex(&"pencil"), _alum_left_line(rec)])
+		lines.append("[color=#%s]%s[/color]" % [UITheme.hex(&"wood_dark"), _transcript_line(s)])
+		lines.append(_small_print(" "))
 		var story := _moments_prose(s)
 		if story.is_empty():
-			lines.append("Nothing much stood out in their time with you -- a quiet run through.")
+			lines.append(_note("[color=#%s]Nothing much stood out in their time with you -- a quiet run through.[/color]" % UITheme.hex(&"pencil")))
 		else:
-			lines.append_array(story)
-		rich.text = "\n".join(lines)
-		_reveal_rich(0.2)
+			for st_line: String in story:
+				lines.append(_note("[color=#%s]· %s[/color]" % [UITheme.hex(&"ink"), st_line]))
+		rich.text = _sheet_join(lines)
+		var k := lines.size() - 1
+		while _rich_overflows() and k >= 0:
+			lines[k] = _small_print(lines[k])
+			rich.text = _sheet_join(lines)
+			k -= 1
+		rich.visible_ratio = 1.0
 		hint.text = "Esc - back to the list"
+		if fresh_open:
+			_sheet_arrive()
 		return
 
+	desk_sheet.set_heading("THE ALUMNI WALL", "%d GRADUATED" % recs.size(), "ALUMNI", &"olive")
+	desk_sheet.set_keys([
+		[_key_cap("interact"), "their story"],
+		[_key_cap("menu"), "back"],
+		["Esc", "close"],
+	])
 	_sel = clampi(_sel, 0, recs.size() - 1)
 	var lo := _window_start(recs.size(), 9)
 	var out: Array[String] = []
 	for i in range(lo, mini(recs.size(), lo + 9)):
 		var r: Dictionary = recs[i]
 		out.append("%s [color=#%s]%-16s[/color] [color=#%s]Class of Term %d[/color]" % [
-			">" if i == _sel else " ", C_COIN, String(r.get("name", "")),
-			DIM, int(r.get("term", 1))])
-	rich.text = "\n".join(out)
-	_reveal_rich(0.2)
+			">" if i == _sel else " ",
+			UITheme.hex(&"amber" if i == _sel else &"ink"), String(r.get("name", "")),
+			UITheme.hex(&"pencil"), int(r.get("term", 1))])
+	rich.text = _sheet_join(out)
+	rich.visible_ratio = 1.0
 	hint.text = "Up/Down choose   E open their story   Tab back   Esc close"
+	if fresh_open:
+		_sheet_arrive()
 
 
 ## A throwaway StudentData carrying only what the story helpers read --
@@ -4961,37 +5392,47 @@ func _handle_trophies_input() -> void:
 ## shift each a day. Opened at the corridor's board (F). Up/Down choose, E starts
 ## the shift, Esc closes.
 func show_rota() -> void:
+	var fresh_open := (mode != Mode.ROTA)
 	_open(Mode.ROTA)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 0)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
 	title.text = "THE STAFF ROTA"
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 34, 592, 290))
+	desk_sheet.set_heading("THE STAFF ROTA", "ONE SHIFT A DAY", "ROTA", &"amber")
 	var rows := Duties.offered()
 	var lines: Array[String] = []
 	if rows.is_empty():
-		lines.append("[color=#%s]Nothing on the rota today. Come back tomorrow.[/color]" % DIM)
-		rich.text = "\n".join(lines)
-		_reveal_rich(0.2)
+		desk_sheet.set_keys([["Esc", "close"]])
+		lines.append(_note("[color=#%s]Nothing on the rota today. Come back tomorrow.[/color]" % UITheme.hex(&"pencil")))
+		rich.text = _sheet_join(lines)
+		rich.visible_ratio = 1.0
 		hint.text = "Esc - close"
+		if fresh_open:
+			_sheet_arrive()
 		return
+	desk_sheet.set_keys([
+		["Up/Down", "choose"],
+		[_key_cap("interact"), "start the shift"],
+		["Esc", "close"],
+	])
 	_sel = clampi(_sel, 0, rows.size() - 1)
 	for i in rows.size():
 		var d: Dictionary = rows[i]
 		lines.append("%s [color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
-			">" if i == _sel else " ", C_COIN, String(d.get("name", "")),
-			DIM, String(d.get("job", ""))])
+			">" if i == _sel else " ",
+			UITheme.hex(&"amber" if i == _sel else &"ink"), String(d.get("name", "")),
+			UITheme.hex(&"wood_dark"), String(d.get("job", ""))])
 	var sel: Dictionary = rows[_sel]
 	lines.append("")
-	lines.append(String(sel.get("blurb", "")))
+	lines.append(_note("[color=#%s]%s[/color]" % [UITheme.hex(&"ink"), String(sel.get("blurb", ""))]))
 	var best: Dictionary = (Game.meta.get("duty_best", {}) as Dictionary).get(
 		String(sel.get("id", "")), {})
 	if not best.is_empty():
-		lines.append("[color=#%s]Your best: %d of %d.[/color]" % [
-			DIM, int(best.get("done", 0)), int(best.get("total", 0))])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.2)
+		lines.append(_note("[color=#%s]Your best: %d of %d.[/color]" % [
+			UITheme.hex(&"pencil"), int(best.get("done", 0)), int(best.get("total", 0))]))
+	rich.text = _sheet_join(lines)
+	rich.visible_ratio = 1.0
 	hint.text = "Up/Down choose   E start the shift   Esc close"
+	if fresh_open:
+		_sheet_arrive()
 
 
 func _handle_rota_input() -> void:
@@ -5022,25 +5463,30 @@ func _handle_rota_input() -> void:
 ## The end of a shift: what got done, and what it paid.
 func show_duty_report(result: Dictionary) -> void:
 	_open(Mode.REPORT)
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 48, 592, 260))
 	var cleaned := int(result.get("done", 0))
 	var total := int(result.get("total", 0))
+	var all_done := bool(result.get("all", false))
 	title.text = "CLOCKED OFF"
+	desk_sheet.set_heading("CLOCKED OFF", "END OF SHIFT",
+		"DUTY", &"olive" if all_done else &"terracotta")
+	desk_sheet.set_cards([["CLEANED", "%d/%d" % [cleaned, total],
+		&"olive" if all_done else &"terracotta"]])
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
+
 	var lines: Array[String] = []
 	lines.append("[color=#%s]You cleaned %d of %d.[/color]" % [
-		C_GOOD if cleaned == total else C_BAD, cleaned, total])
-	if bool(result.get("all", false)):
-		lines.append("[color=#%s]Every last one, with %d seconds to spare.[/color]" % [
-			C_COIN, int(result.get("seconds_left", 0.0))])
-		lines.append("[color=#%s]The school looks cared for. People notice.[/color]" % DIM)
+		UITheme.hex(&"olive" if cleaned == total else &"terracotta"), cleaned, total])
+	lines.append(_small_print(" "))
+	if all_done:
+		lines.append(_note("[color=#%s]Every last one, with %d seconds to spare.[/color]" % [
+			UITheme.hex(&"amber"), int(result.get("seconds_left", 0.0))]))
+		lines.append(_note("[color=#%s]The school looks cared for. People notice.[/color]" % UITheme.hex(&"pencil")))
 	else:
-		lines.append("[color=#%s]The clock beat you this time.[/color]" % DIM)
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.3)
+		lines.append(_note("[color=#%s]The clock beat you this time.[/color]" % UITheme.hex(&"pencil")))
+	rich.text = _sheet_join(lines)
 	hint.text = "E - close"
+	_sheet_arrive()
 
 
 # ------------------------------------------------------------ the grade book
@@ -5611,59 +6057,72 @@ func show_new_term(info: Dictionary) -> void:
 	# straight back to play -- see the Mode.REPORT close handling.
 	_showing_new_term = true
 	Sfx.play("start")
-	body.visible = false
-	rich.visible = true
-	rich.add_theme_constant_override("line_separation", 2)
-	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	_sheet_on(DeskSheet.Kind.DESK, DAY_SHEET_RECT)
 
 	var prev: Dictionary = info.get("previous", {})
-	title.text = "TERM %d" % int(info.get("term", Game.term))
+	var term_n := int(info.get("term", Game.term))
+	var prev_let := String(prev.get("letter", "?"))
+	var target_n := int(info.get("target", Game.term_target()))
+	title.text = "TERM %d" % term_n
+	var tier_short := Game.tier_name().split("/")[0].strip_edges().to_upper()
+	desk_sheet.set_heading("TERM %d" % term_n,
+		"%s · NEED %d" % [tier_short, target_n],
+		"NEW TERM", &"olive")
+	desk_sheet.set_stamp("LAST %s" % prev_let,
+		_grade_token(prev_let) if prev_let != "?" else &"pencil")
+	desk_sheet.set_keys([[_key_cap("interact"), "first day of term %d" % term_n]])
 
 	var moved: Array = info.get("moved_up", [])
 	var joined: Array = info.get("joined", [])
 	var lines: Array[String] = []
 	lines.append("[color=#%s]Last term: %s, %d of %d passed.[/color]" % [
-		DIM, String(prev.get("letter", "?")), int(prev.get("passed", 0)),
+		UITheme.hex(&"pencil"), prev_let, int(prev.get("passed", 0)),
 		int(prev.get("total", 0))])
 	if moved.is_empty():
-		lines.append("[color=#%s]Nobody moved up. They are all still here.[/color]"
-			% C_BAD)
+		lines.append(_note("[color=#%s]Nobody moved up. They are all still here.[/color]"
+			% UITheme.hex(&"terracotta")))
 	else:
-		lines.append("[color=#%s]Moved up:[/color] %s" % [C_GOOD,
+		lines.append("[color=#%s]Moved up:[/color] %s" % [UITheme.hex(&"olive"),
 			_names_line(moved)])
 	if not joined.is_empty():
-		lines.append("[color=#%s]New in your class:[/color] %s" % [C_ROOM,
+		lines.append("[color=#%s]New in your class:[/color] %s" % [UITheme.hex(&"wood_dark"),
 			_names_line(joined)])
 	# Which stage of school this is: the move up, with whoever stayed on, or
 	# how close the class is to it. A milestone's count, not a child's score.
 	var captains: Array = info.get("captains", [])
 	if bool(info.get("promoted", false)):
-		lines.append("[color=#%s]The school moves up. Welcome to %s.[/color]" % [
-			C_GOOD, String(info.get("school", Game.tier_name()))])
+		lines.append(_note("[color=#%s]The school moves up. Welcome to %s.[/color]" % [
+			UITheme.hex(&"olive"), String(info.get("school", Game.tier_name()))]))
 		if not captains.is_empty():
 			lines.append("[color=#%s]Staying on as captains:[/color] %s" % [
-				C_ROOM, _names_line(captains)])
+				UITheme.hex(&"wood_dark"), _names_line(captains)])
 	elif not Game.is_top_tier():
 		lines.append("[color=#%s]%s: %d of %d moved up at the bar.[/color]" % [
-			DIM, Game.tier_name(), Game.tier_graduates, Game.tier_graduates_needed()])
+			UITheme.hex(&"pencil"), Game.tier_name(), Game.tier_graduates, Game.tier_graduates_needed()])
 	# A whole term in this stage opens the next stage's door in the grade wing:
 	# the moment to say so is the screen that opens the new term.
 	if not Game.is_top_tier() and Game.terms_in_stage() >= Balance.tier_terms_before_move_up:
-		lines.append("[color=#%s]Or move up now: %s's door is in the hallway.[/color]" % [
-			C_GOOD, Game.tier_name(Game.age_tier + 1)])
-	lines.append("")
-	lines.append("[color=#%s]You keep[/color]  %d items   %d concepts   level %d   %d coins" % [
-		C_KNOW, Game.room_items.size(), Game.concepts.size(),
+		lines.append(_note("[color=#%s]Or move up now: %s's door is in the hallway.[/color]" % [
+			UITheme.hex(&"olive"), Game.tier_name(Game.age_tier + 1)]))
+	lines.append(_small_print(" "))
+	var tail_from := lines.size() - 1
+	lines.append("[color=#%s]You keep[/color] %d items · %d concepts · Lv.%d · %d coins" % [
+		UITheme.hex(&"amber"), Game.room_items.size(), Game.concepts.size(),
 		Game.teacher_level, Game.coins])
-	lines.append("[color=#%s]This term you need %d of them through.[/color]" % [
-		C_BAD, int(info.get("target", Game.term_target()))])
+	lines.append(_note("[color=#%s]This term you need %d of them through.[/color]" % [
+		UITheme.hex(&"terracotta"), target_n]))
 	var boss_prev := String(prev.get("boss", ""))
 	if boss_prev != "" and bool(prev.get("met", false)):
-		lines.append("[color=#%s]%s: cleared. The trophy is on the shelf.[/color]" % [
-			C_COIN, boss_prev])
-	rich.text = "\n".join(lines)
-	_reveal_rich(0.5)
-	hint.text = "E - first day of term %d" % int(info.get("term", Game.term))
+		lines.append(_note("[color=#%s]%s: cleared. The trophy is on the shelf.[/color]" % [
+			UITheme.hex(&"amber"), boss_prev]))
+	rich.text = _sheet_join(lines)
+	var k := lines.size() - 1
+	while _rich_overflows() and k >= tail_from:
+		lines[k] = _small_print(lines[k])
+		rich.text = _sheet_join(lines)
+		k -= 1
+	hint.text = "E - first day of term %d" % term_n
+	_sheet_arrive()
 
 
 ## First names only, and never more than the line holds.
@@ -6233,42 +6692,115 @@ func _worth_bar(bonus: float) -> String:
 ## names to walk to, longest way behind at the top.
 func show_quiz_report(result: Dictionary) -> void:
 	_open(Mode.REPORT)
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 34, 592, 290))
 	title.text = "QUICK QUIZ"
+	var n: int = int(result.get("flagged", 0))
+	desk_sheet.set_heading("QUICK QUIZ",
+		String(Game.lesson.get("name", Game.subject)).to_upper(),
+		"QUIZ", &"amber")
+	desk_sheet.set_cards([["BEHIND", str(n),
+		&"terracotta" if n > 0 else &"olive"]])
+	desk_sheet.set_keys([[_key_cap("interact"), "back to the lesson"]])
+
+	var rows: Array = result.get("rows", [])
 	var lines: Array[String] = []
-	for r: Dictionary in result.get("rows", []):
+	for r: Dictionary in rows:
 		var s: StudentData = r["student"]
 		lines.append("%-11s %d/%d %s" % [
 			s.first_name(), int(r["right"]), int(r["of"]),
 			"  <- behind" if bool(r["flagged"]) else ""])
 	lines.append("")
-	var n: int = int(result.get("flagged", 0))
 	if n == 0:
 		lines.append("Nobody is lost. Carry on.")
 	else:
 		lines.append("%d %s behind. Go over it at their desk." % [
 			n, "is" if n == 1 else "are"])
 	body.text = "\n".join(lines)
+
+	var rich_lines: Array[String] = []
+	var i := 0
+	while i < rows.size() and rich_lines.size() < 6:
+		var cell := _quiz_cell_rich(rows[i])
+		if i + 1 < rows.size():
+			cell += "   " + _quiz_cell_rich(rows[i + 1])
+		rich_lines.append(cell)
+		i += 2
+	rich_lines.append(_small_print(" "))
+	if n == 0:
+		rich_lines.append(_note("[color=#%s]Nobody is lost. Carry on.[/color]" % UITheme.hex(&"olive")))
+	else:
+		rich_lines.append(_note("[color=#%s]%d %s behind.[/color] [color=#%s]Go over it at their desk.[/color]" % [
+			UITheme.hex(&"terracotta"), n, "is" if n == 1 else "are", UITheme.hex(&"ink")]))
+	rich.text = _sheet_join(rich_lines)
 	hint.text = "E - back to the lesson"
+	_sheet_arrive()
+
+
+func _quiz_cell_rich(r: Dictionary) -> String:
+	var s: StudentData = r["student"]
+	var fl: bool = bool(r["flagged"])
+	var hue := UITheme.hex(&"terracotta" if fl else &"olive")
+	var mark := " " + _highlighted(" behind ", &"terracotta") if fl else "         "
+	return "[color=#%s]%-9s %d/%d[/color]%s" % [
+		hue, s.first_name().substr(0, 9), int(r["right"]), int(r["of"]), mark]
 
 
 func show_lesson_report(results: Array) -> void:
 	_open(Mode.REPORT)
-	title.text = "%s  (%s)" % [
-		String(Game.lesson.get("name", Game.subject)).to_upper(),
-		String(Game.lesson.get("standard", ""))]
+	_sheet_on(DeskSheet.Kind.CLIPBOARD, Rect2(24, 18, 592, 324))
+	rich.add_theme_constant_override("line_separation", -2)
+	var l_name := String(Game.lesson.get("name", Game.subject)).to_upper()
+	var std_code := String(Game.lesson.get("standard", ""))
+	var avg_letter := Game.grade_letter(Game.class_average())
+	title.text = "%s  (%s)" % [l_name, std_code]
 	# Plain English, not the raw floats this used to print. A player should
 	# be able to see WHY a grade happened and what to do differently.
 	# The class average moves to the TITLE and the blank line goes: a full
 	# class is eight rows, and eight rows plus a spacer plus a summary is
 	# two lines more than the panel holds.
-	title.text += "   avg %s" % Game.grade_letter(Game.class_average())
+	title.text += "   avg %s" % avg_letter
+	desk_sheet.set_heading(l_name,
+		"%s · RING THE BELL TO END THE DAY" % std_code,
+		"LESSON", &"olive")
+	desk_sheet.set_cards([["CLASS AVG", avg_letter,
+		_grade_token(avg_letter)]])
+	desk_sheet.set_keys([[_key_cap("interact"), "close"]])
+
 	var lines: Array[String] = []
+	var rich_lines: Array[String] = []
 	for r: Dictionary in results:
 		var s: StudentData = r["student"]
-		lines.append(_clip("%-11s %s   %s" % [
-			s.first_name(), String(r["letter"]), _why(s)]))
+		var let_s := String(r["letter"])
+		var why_s := _why(s)
+		lines.append(_clip("%-11s %s   %s" % [s.first_name(), let_s, why_s]))
+		if results.size() <= 8:
+			var short_why := why_s if why_s.length() <= 40 else why_s.substr(0, 37) + "..."
+			rich_lines.append("[color=#%s]%-10s[/color] [color=#%s]%s[/color]   %s" % [
+				UITheme.hex(&"ink"), s.first_name().substr(0, 10),
+				UITheme.hex(_grade_token(let_s)), let_s,
+				_note("[color=#%s]%s[/color]" % [UITheme.hex(&"pencil"), short_why])])
+	if results.size() > 8:
+		var i := 0
+		while i < results.size():
+			var rl: Dictionary = results[i]
+			var sl: StudentData = rl["student"]
+			var ll := String(rl["letter"])
+			var row_s := "[color=#%s]%-9s[/color] [color=#%s]%s[/color]" % [
+				UITheme.hex(&"ink"), sl.first_name().substr(0, 9),
+				UITheme.hex(_grade_token(ll)), ll]
+			if i + 1 < results.size():
+				var rr: Dictionary = results[i + 1]
+				var sr: StudentData = rr["student"]
+				var lr := String(rr["letter"])
+				row_s += "      [color=#%s]%-9s[/color] [color=#%s]%s[/color]" % [
+					UITheme.hex(&"ink"), sr.first_name().substr(0, 9),
+					UITheme.hex(_grade_token(lr)), lr]
+			rich_lines.append(row_s)
+			i += 2
 	body.text = "\n".join(lines)
+	rich.text = _sheet_join(rich_lines)
 	hint.text = "E - close.   Ring the bell to end the day."
+	_sheet_arrive()
 
 
 ## A one-line explanation of a grade, in words.

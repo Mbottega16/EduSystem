@@ -24,6 +24,18 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-11 — UI Overhaul Phases 9–12: Tactile Paper Details, Noticeboard, Slips, Student Dossier & Dashboards
+*PC · Antigravity · branch `ui-overhaul-2026-11-10`*
+- **Changed:**
+  1. **Phase 9 (Proposals 6 & 1 — Tactile Paper Details & Staffroom Noticeboard):** Added `trim` child Control in `scripts/ui/desk_sheet.gd` drawing a `2px` vertical red margin rule (`x = 12.0`, `UITheme.faded(&"terracotta", 0.22)`) on all `DeskSheet` pages, three punched `6x6` binder holes on `DeskSheet.Kind.DESK` sheets, and `UITheme.step_in(stamp, Vector2(0, -6))` on the tilted grade/verdict stamp. Moved `show_school()` and `show_hiring()` in `scripts/ui/hud.gd` onto `DeskSheet.Kind.CLIPBOARD` (`[STAFFROOM]` / `[APPLICANTS]` tags, summary cards, colour-coded teacher rows, and key caps).
+  2. **Phase 10 (Proposal 2 — Classroom Slips & Term/Exam Desk Sheets):** Moved `show_quiz_report()`, `show_lesson_report()`, `show_test_report()`, `show_fight_report()`, and `show_duty_report()` onto `DeskSheet.Kind.CLIPBOARD`, and moved `show_inspection()`, `show_exam()`, `show_new_term()`, and `_show_run_over_report()` onto `DeskSheet.Kind.DESK` (`DAY_SHEET_RECT`) with tilted verdict stamps and right-hand ledger columns.
+  3. **Phase 11 (Proposal 3 — Class Register & Student File Dossier):** Moved `show_class_list()` / `_render_class_list()` onto `DeskSheet.Kind.CLIPBOARD` (`[REGISTER]`) and `show_student()` (`BIO_FILE`, `BIO_STORY`, `BIO_ACTING`, `_render_student_book`) onto `DeskSheet.Kind.DESK` (`[FILE]`, pinned school portrait on `PaperCard`, compact 3-cell `_sheet_bar()` scales for `Intel`/`Talk`/`Sleep`, `_bio_actions_unclipped`, and handwritten observations in `_note()`).
+  4. **Phase 12 (Proposal 4 — Teacher Dashboard, Career Wall & Staff Rota):** Moved `show_dashboard()` / `_render_dashboard()` (`Overview`, `Items`, `Skills`, `Wardrobe`), `show_career()`, and `_render_alumni()` onto `DeskSheet.Kind.DESK`, and moved `show_rota()` onto `DeskSheet.Kind.CLIPBOARD`.
+  5. **Screenshots & Tests:** Captured and visually verified all 19 after-screenshots in `docs/ui-audit-2026-11-10/after/` (`school`, `hiring`, `quiz`, `lesson_report`, `unit_test`, `inspection`, `exam`, `fight_report`, `new_term`, `class_list`, `student`, `acting`, `dashboard`, `dashboard_items`, `dashboard_skills`, `dashboard_wardrobe`, `career`, `alumni`, `rota`). Documented Sections 14–17 in `docs/ui-audit-2026-11-10.md`. Added 12 assertions in `tests/run.gd` (`test_the_school`, `test_design_system`).
+- **Why:** Complete Phases 9–12 (the Phase 8 Flavor Pass proposals) of the UI Overhaul plan (`projects/edusystem/ui-overhaul-plan-2026-11-10.md`).
+- **Verified:** Suite green at 3291 assertions (+12). `python tools/check_docs.py` green (341 / 341). All 19 Phase 9–12 screenshots visually inspected. Balance contract (`0.63 C / 0.72 C / 0.97 A`) untouched.
+- **Left open:** Proposal 5 (unifying `Galmuri9` vs `VT323` body font across the open book and catalogue) remains an owner taste decision; branch `ui-overhaul-2026-11-10` is ready for owner review and merge.
+
 ## 2026-11-11 — UI Overhaul Phases 7 & 8: End-of-Day Desk Report Sheet & Flavor Pass Proposals
 *PC · Antigravity · branch `ui-overhaul-2026-11-10`*
 - **Changed:**

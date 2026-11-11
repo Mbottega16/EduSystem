@@ -222,6 +222,17 @@ func _open_screen(main: Node, screen: String) -> void:
 		"quiz":
 			world.start_lesson()
 			hud.show_quiz_report(world.run_quiz())
+		"lesson_report":
+			world.start_lesson()
+			for i in Game.roster.size():
+				var st: StudentData = Game.roster[i]
+				if i % 3 == 0:
+					st.work_state = StudentData.Work.COLLECTED
+				elif i % 3 == 1:
+					st.work_state = StudentData.Work.DONE
+				else:
+					st.confusion = 1.0
+			hud.show_lesson_report(Game.grade_class())
 		"specialism":
 			Game.specialism = ""
 			hud.show_specialism()

@@ -8092,9 +8092,26 @@ func test_the_school() -> void:
 	chk("and who is in it",
 		hud.rich.text.contains(String((Game.rooms[0]["teacher"] as Dictionary)["name"]).substr(0, 8)),
 		hud.rich.text)
+	chk("the school board is on the clipboard too, with an ADMIN tag and room cards",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "ADMIN"
+		and hud.desk_sheet.heading.text == "THE SCHOOL"
+		and hud.desk_sheet.cards_text().contains("ROOM 2")
+		and hud.desk_sheet.cards_text().contains("YOUR ROOM"),
+		[hud.desk_sheet.tag_label.text, hud.desk_sheet.cards_text()])
 	chk("and it fits", (hud.rich.text.split("\n").size() <= 11 and not hud._rich_overflows()),
 		"%d rows, %d px of text in a %d px box: %s" % [hud.rich.text.split("\n").size(),
 			hud.rich.get_content_height(), int(hud.rich.size.y), hud.rich.text])
+
+	# --- hiring on the clipboard ---
+	hud.show_hiring()
+	chk("the hiring sheet opens on the clipboard with a HIRING tag and full strengths in the teacher's hand",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "HIRING"
+		and hud.desk_sheet.heading.text == "HIRE TEACHER"
+		and hud.rich.text.contains("[i]Strengths:")
+		and hud.rich.text.contains("[i]Weakness:")
+		and not hud._rich_overflows(),
+		[hud.desk_sheet.tag_label.text, hud.rich.text])
+	hud.show_school()
 
 	# --- watching the day that already happened ---
 	# The playback must be the SAME roll that produced the letter, not a
@@ -8158,12 +8175,13 @@ func test_the_school() -> void:
 	hud._watch_paper()
 	hud._render_watch_frame()
 	await tap("cancel")
-	chk("Esc backs out to the school board", hud.mode == hud.Mode.SCHOOL)
-	chk("which gets its dark backing, its bamboo frame and its own font back",
-		not hud.desk_sheet.visible and hud._frame.visible and hud.title.visible
-		and hud.overlay.color == hud.OVERLAY_COLOUR
-		and not hud.rich.has_theme_font_override("normal_font"))
+	chk("Esc backs out to the school board on the same clipboard",
+		hud.mode == hud.Mode.SCHOOL and hud.desk_sheet.is_clipboard()
+		and hud.desk_sheet.heading.text == "THE SCHOOL")
 	hud.close()
+	chk("closing the sheet gives the overlay its bamboo frame, its title and its own font back",
+		not hud.desk_sheet.visible and hud._frame.visible and hud.title.visible
+		and not hud.rich.has_theme_font_override("normal_font"))
 
 	Game.new_run(SEED)
 	await step(2)
@@ -10846,6 +10864,8 @@ func test_design_system() -> void:
 		for m in literal.search_all(FileAccess.get_file_as_string(path)):
 			named.append("%s: %s" % [path.get_file(), m.get_string()])
 	chk("a converted screen names no colour of its own", named.is_empty(), named)
+	chk("a desk sheet draws its margin rule and binder holes on its trim layer",
+		_hud().desk_sheet.trim != null and _hud().desk_sheet.has_method("_draw_trim"))
 
 	# --- the title screen, the first screen built from it ---
 	Game.new_run(SEED)
@@ -10950,8 +10970,51 @@ func test_design_system() -> void:
 	UITheme.motion = false
 	t2.queue_free()
 	await step(2)
+	var hud := _hud()
+	hud.show_quiz_report(world.run_quiz())
+	chk("the quick quiz slip is on the clipboard with a QUIZ tag and fits",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "QUIZ"
+		and not hud._rich_overflows())
+	hud.show_lesson_report(Game.grade_class())
+	chk("the lesson slip is on the clipboard with a LESSON tag and fits",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "LESSON"
+		and not hud._rich_overflows())
+	world.start_test("basic_arithmetic")
+	hud.show_test_report(world.end_test())
+	chk("the unit test slip is on the clipboard with a UNIT TEST tag and fits",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "UNIT TEST"
+		and not hud._rich_overflows())
+	hud.show_inspection(Game.inspect())
+	chk("the inspector's report is on the desk sheet with an INSPECTOR tag and fits",
+		hud.desk_sheet.visible and not hud.desk_sheet.is_clipboard()
+		and hud.desk_sheet.tag_label.text == "INSPECTOR" and not hud._rich_overflows())
+	hud.show_class_list()
+	chk("the class register is on the clipboard with a REGISTER tag and fits",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "REGISTER"
+		and not hud._rich_overflows())
+	hud.show_student(Game.roster[0])
+	chk("the student file is on the desk sheet with a FILE tag, portrait, and fits",
+		hud.desk_sheet.visible and not hud.desk_sheet.is_clipboard()
+		and hud.desk_sheet.tag_label.text == "FILE" and hud.portrait.visible
+		and not hud._rich_overflows())
+	hud.show_dashboard()
+	chk("the teacher dashboard is on the desk sheet with a TEACHER tag and fits",
+		hud.desk_sheet.visible and not hud.desk_sheet.is_clipboard()
+		and hud.desk_sheet.tag_label.text == "TEACHER" and not hud._rich_overflows())
+	hud._career_page = hud.CAREER_MILESTONES
+	hud.show_career()
+	chk("the career wall is on the desk sheet with a CAREER tag and fits",
+		hud.desk_sheet.visible and not hud.desk_sheet.is_clipboard()
+		and hud.desk_sheet.tag_label.text == "CAREER" and not hud._rich_overflows())
+	hud.show_rota()
+	chk("the staff rota is on the clipboard with a ROTA tag and fits",
+		hud.desk_sheet.is_clipboard() and hud.desk_sheet.tag_label.text == "ROTA"
+		and not hud._rich_overflows())
+	hud.close()
 	Game.delete_slot(0)
 	Game.delete_save()
+	Game.new_run(SEED)
+	await step(2)
 
 
 func test_dash() -> void:

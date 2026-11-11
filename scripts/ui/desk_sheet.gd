@@ -47,6 +47,7 @@ const PENCIL_SIZE := Vector2(76, 6)
 var kind: int = Kind.DESK
 var wood: Panel = null
 var paper: Panel = null
+var trim: Control = null
 var pencil: Control = null
 var clip: Control = null
 var tag: ColorRect = null
@@ -74,6 +75,8 @@ func _init() -> void:
 	pencil.size = PENCIL_SIZE
 	pencil.draw.connect(_draw_pencil)
 	paper = _panel(&"PaperSheet")
+	trim = _plain()
+	trim.draw.connect(_draw_trim)
 	clip = _plain()
 	clip.size = CLIP_SIZE
 	clip.draw.connect(_draw_clip)
@@ -137,6 +140,9 @@ func lay(sheet_kind: int, paper_rect: Rect2) -> void:
 	kind = sheet_kind
 	paper.position = paper_rect.position
 	paper.size = paper_rect.size
+	trim.position = paper_rect.position
+	trim.size = paper_rect.size
+	trim.queue_redraw()
 	if kind == Kind.DESK:
 		# past the screen's edge on every side, so the plank's own border is
 		# never seen: the desk has no end
@@ -223,6 +229,7 @@ func set_stamp(text: String, token: StringName = &"olive") -> void:
 		stamp.size = Vector2(w, float(UITheme.size(&"display")) + 14.0 + _stamp_rise(w))
 		stamp.position = Vector2(paper.position.x + paper.size.x - _pad - 4.0 - w,
 			paper.position.y + 6.0)
+		UITheme.step_in(stamp, Vector2(0.0, -4.0))
 	stamp.queue_redraw()
 
 
@@ -417,3 +424,19 @@ func _draw_pencil() -> void:
 	pencil.draw_rect(Rect2(x + 64.0, 0, 6, 6), UITheme.color(&"paper"))
 	pencil.draw_rect(Rect2(x + 70.0, 2, 4, 2), UITheme.color(&"paper"))
 	pencil.draw_rect(Rect2(x + 72.0, 2, 4, 2), UITheme.color(&"ink"))
+
+
+## The sheet's left-hand margin rule, and on a desk sheet the three binder
+## holes punched along its edge so the wood shows through.
+func _draw_trim() -> void:
+	var h := trim.size.y
+	if h <= 8.0:
+		return
+	trim.draw_rect(Rect2(12.0, 4.0, 2.0, h - 8.0), UITheme.faded(&"terracotta", 0.22))
+	if kind == Kind.DESK:
+		var hole := UITheme.color(&"wood")
+		var rim := UITheme.color(&"wood_dark")
+		for share: float in [0.22, 0.5, 0.78]:
+			var hy := snappedf(h * share - 3.0, 2.0)
+			trim.draw_rect(Rect2(4.0, hy, 6.0, 6.0), hole)
+			trim.draw_rect(Rect2(4.0, hy, 6.0, 2.0), rim)
