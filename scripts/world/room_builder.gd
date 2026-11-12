@@ -176,6 +176,7 @@ static func build_floor(parent: Node2D) -> void:
 	floor_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	floor_spr.add_to_group("room_floor")
 	floor_spr.add_to_group("room_part")
+	floor_spr.z_index = -2
 	parent.add_child(floor_spr)
 
 
@@ -883,15 +884,22 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 			continue
 		var tiles := Items.footprint(id, placed["tile"])
 		var hung := Items.is_wall(id)
+		var underlay := Items.is_underlay(id)
 		var anchor := Layout.wall_anchor(tiles) if hung else Layout.span_anchor(tiles)
 		var tex: Texture2D = load("res://art/%s.png" % String(def["art"]))
 		# A hung piece has no collider and no shadow, and (below) takes no floor.
+		# An underlay piece (reading rug, floor mat) has no collider, no shadow,
+		# sits at z_index -1 so solid furniture and actors draw over it, and leaves floor tiles passable.
 		var body := add_prop(parent, tex, anchor,
-			Vector2.ZERO if hung else Vector2(Items.width(id) * Grid.TILE - 4, 16), 0.0,   # was * 16 - 2, 8
-			not (hung or Items.is_flat(id)))
+			Vector2.ZERO if (hung or underlay) else Vector2(Items.width(id) * Grid.TILE - 4, 16),
+			-1.0 if underlay else 0.0,
+			not (hung or Items.is_flat(id) or underlay))
 		body.add_to_group("purchased")
 		if hung:
 			body.add_to_group("hung")
+		if underlay:
+			body.add_to_group("underlay")
+			body.z_index = -1
 		_animate_if_it_moves(body, def, placed["tile"])
 
 		# every bought item can be picked up again
@@ -901,8 +909,8 @@ static func build_purchased(parent: Node2D, grid: Grid) -> Array:
 		it.origin = placed["tile"]
 		body.add_child(it)
 		nodes.append(body)
-		if hung:
-			continue          # on the wall: no floor tile is used up
+		if hung or underlay:
+			continue          # on the wall or underlay: no floor tile is blocked
 		for t: Vector2i in tiles:
 			grid.set_cell(t, Grid.Cell.BLOCKED)
 	return nodes

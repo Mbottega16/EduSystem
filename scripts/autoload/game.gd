@@ -119,8 +119,13 @@ func check_milestones() -> Array:
 	var fresh := Milestones.newly_earned(milestones)
 	if fresh.is_empty():
 		return []
+	_ensure_meta_keys()
+	var life: Array = meta["lifetime_milestones"]
 	for id: String in fresh:
 		milestones.append(id)
+		# The run forgets its milestones at new_run(); the career does not.
+		if not life.has(id):
+			life.append(id)
 	milestone_earned.emit(fresh)
 	return fresh
 
@@ -301,6 +306,8 @@ func room_cost() -> int:
 
 func can_open_room() -> bool:
 	Balance.ensure_loaded()
+	if not admin_unlocked():
+		return false
 	if rooms.size() >= Balance.max_rooms - 1:       # the player holds one
 		return false
 	# and your standing has to allow it. A school nobody thinks well of is
@@ -313,6 +320,8 @@ func can_open_room() -> bool:
 func open_room() -> String:
 	Balance.ensure_loaded()
 	if not can_open_room():
+		if not admin_unlocked():
+			return "Run your own room well for a few days first."
 		if rooms.size() >= Balance.max_rooms - 1:
 			return "There is no space for another room."
 		return "Your standing will not stretch to another room."
@@ -554,6 +563,7 @@ func choose_assignment(i: int) -> Dictionary:
 		return {}
 	assignment = (hand[i] as Dictionary).duplicate()
 	assignment_day = day
+	note_loop("planned")
 	if queued_assignment_tier != "" and Assignments.rarity_index(queued_assignment_tier) \
 			> Assignments.rarity_index(String(assignment.get("rarity", "common"))):
 		assignment = Assignments.card_for_rarity(queued_assignment_tier, lesson, assignment)
@@ -606,6 +616,7 @@ func mark_sheet(s: StudentData, pass_it: bool) -> bool:
 	s.hw_player_verdict = 1 if pass_it else 0
 	s.misjudged = pass_it and not good
 	s.hw_state = StudentData.HW.MARKED
+	note_loop("marked")
 	if pass_it:
 		var rid := String(assignment.get("rarity", "common")) if not assignment.is_empty() else "common"
 		bank_graded_assignment(rid, 1)
@@ -694,6 +705,8 @@ const META_DEFAULTS := {
 	"lifetime_graduated": 0,     ## every child ever sent up, across every run
 	"lifetime_milestones": [],   ## milestone ids ever earned, so cross-run beats fire once
 	"career_boon": {},           ## small persistent leg-up per finished run (filled in a later slice)
+	"admin_earned": false,       ## the school layer is open for good -- see admin_unlocked()
+	"duty_best": {},             ## duty id -> best shift ever, across runs
 }
 
 # --- the fork at the start of each term ------------------------------
@@ -825,6 +838,107 @@ var call_response_taught: bool = false
 ## one turns it on itself.
 var tutorials_enabled: bool = false
 var tutorials_seen: Dictionary = {}
+
+## THE ADMIN GATE (the owner's vision, 2026-08-24, and GDD §15's consolidation
+## pass). Opening rooms and the school screen wait until the player has run
+## their own room. Earned once per CAREER, in meta, so a restart never asks
+## twice. OFF everywhere but the real game, the way tutorials_enabled is:
+## main.gd turns it on for a player only, so the suite, the simulators and the
+## walkthrough open rooms exactly as they always did.
+var admin_gate_enabled: bool = false
+## The core-loop verbs done this run: verb id -> true. Saved; cleared by new_run().
+var loop_done: Dictionary = {}
+const LOOP_VERBS: Array[String] = ["taught", "planned", "quizzed", "marked", "arranged"]
+
+
+## Remember that the player has done one of the core-loop verbs this run.
+func note_loop(verb: String) -> void:
+	loop_done[verb] = true
+
+
+## Is the school layer open? Always, for a tool or the suite (the gate is off).
+## For a player, once meta says it was earned.
+func admin_unlocked() -> bool:
+	return not admin_gate_enabled or bool(meta.get("admin_earned", false))
+
+
+## Has the player shown they can run one room? Every loop verb done, and at
+## least Balance.admin_unlock_days days finished in this run.
+func admin_ready() -> bool:
+	Balance.ensure_loaded()
+	for v: String in LOOP_VERBS:
+		if not loop_done.has(v):
+			return false
+	var days_done: int = (term - 1) * Balance.term_days + (day - 1)
+	return days_done >= Balance.admin_unlock_days
+
+
+## Called at the end of a day, beside check_milestones(). True only on the day
+## the school layer opens, so the day report says it once. Does nothing while
+## the gate is off, so a tool's or a test's day report never changes.
+func check_admin_unlock() -> bool:
+	if not admin_gate_enabled:
+		return false
+	if bool(meta.get("admin_earned", false)) or not admin_ready():
+		return false
+	meta["admin_earned"] = true
+	school_changed.emit()
+	return true
+
+
+# --- duties: the staff rota's short jobs (the owner's ask, 2026-11-06) ---
+## The duty being played right now, or "". Not saved: a save never resumes
+## mid-shift, the same way it never resumes mid-test.
+var duty_active: String = ""
+## Duty id -> the day stamp it was last done on. Saved; cleared by new_run().
+var duties_done: Dictionary = {}
+
+
+## One number for "this day of this term", so a duty is once a day.
+func duty_stamp() -> int:
+	return term * 1000 + day
+
+
+func duty_done_today(id: String) -> bool:
+	return int(duties_done.get(id, -1)) == duty_stamp()
+
+
+func mark_duty_done(id: String) -> void:
+	duties_done[id] = duty_stamp()
+
+
+## A duty's own random numbers. Seeded from the run, the term, the day and the
+## duty, so the same day plays the same shift -- and NEVER drawn from Game.rng,
+## so a shift cannot reshuffle the classroom's own day.
+func duty_rng(id: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([int(rng.seed), term, day, id])
+	return r
+
+
+## A finished duty: pay what it earned, and keep the career's best (meta).
+func record_duty(result: Dictionary) -> void:
+	Balance.ensure_loaded()
+	var id := String(result.get("id", ""))
+	if id == "janitor" and bool(result.get("all", false)):
+		add_coins(Balance.duty_janitor_bonus_coins)
+		nudge_reputation(Balance.duty_janitor_rep_full)
+	_ensure_meta_keys()
+	var best: Dictionary = meta["duty_best"]
+	if _duty_better(result, best.get(id, {}) as Dictionary):
+		best[id] = result.duplicate()
+
+
+## More done wins; on a tie, more time to spare wins. Every duty reports the
+## same keys -- id, done, total, seconds_left, all -- so one rule ranks them all.
+func _duty_better(a: Dictionary, b: Dictionary) -> bool:
+	if b.is_empty():
+		return true
+	if int(a.get("done", 0)) != int(b.get("done", 0)):
+		return int(a.get("done", 0)) > int(b.get("done", 0))
+	return float(a.get("seconds_left", 0.0)) > float(b.get("seconds_left", 0.0))
+
+
 ## A first-time moment a tutorial may hang on. The HUD listens.
 signal tutorial_event(event: String)
 
@@ -942,6 +1056,16 @@ func _ensure_meta_keys() -> void:
 			meta[k] = d.duplicate() if (d is Array or d is Dictionary) else d
 
 
+## Take a career block from a save. Fills any missing key, and a save from
+## before the admin gate keeps the school it always had.
+func _adopt_meta(m: Dictionary) -> void:
+	meta = m.duplicate(true)
+	var had_gate_key: bool = meta.has("admin_earned")
+	_ensure_meta_keys()
+	if not had_gate_key:
+		meta["admin_earned"] = true
+
+
 ## A true reset: everything new_run() clears, PLUS the career-wide meta
 ## block. This is "start over completely" -- the title-screen wipe, a
 ## deleted save. new_run() on its own is a fresh RUN inside the same
@@ -950,6 +1074,30 @@ func wipe_everything() -> void:
 	meta.clear()
 	_ensure_meta_keys()
 	new_run()
+
+
+## The career block in the save file on disk, without loading the run.
+## Empty when there is no save, or the save is older than "meta".
+func read_saved_meta() -> Dictionary:
+	if not has_save():
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(save_path))
+	if not (parsed is Dictionary):
+		return {}
+	return ((parsed as Dictionary).get("meta", {}) as Dictionary).duplicate(true)
+
+
+## "New" on the title screen: a fresh RUN in the same career. The run on disk
+## goes; the career block (alumni, best term, runs ended) stays. It used to be
+## delete_save() + new_run(), which kept the career only when it happened to be
+## in memory -- so New after a fresh launch erased the alumni wall.
+func start_new_run_keep_career() -> void:
+	var kept := read_saved_meta()
+	delete_save()
+	new_run()
+	if not kept.is_empty():
+		_adopt_meta(kept)
+	save_game()
 
 
 func new_run(seed_value: int = 0) -> void:
@@ -1007,6 +1155,9 @@ func new_run(seed_value: int = 0) -> void:
 	chain_dash_taught = false
 	call_response_taught = false
 	tutorials_seen.clear()
+	loop_done.clear()
+	duties_done.clear()
+	duty_active = ""
 	_reset_consumables()
 	teacher_xp = 0
 	teacher_level = 1
@@ -2115,6 +2266,11 @@ func met_target(passed: int) -> bool:
 	return passed >= term_target()
 
 
+## The furthest term this career has reached, for the office page.
+func _note_best_term() -> void:
+	meta["best_term"] = maxi(int(meta.get("best_term", 0)), term)
+
+
 ## Close the term and open the next one.
 ##
 ## THE POINT OF THIS is that a term is a chapter rather than the whole book.
@@ -2129,6 +2285,7 @@ func met_target(passed: int) -> bool:
 ## exactly the children you got good at teaching.
 func next_term() -> Dictionary:
 	Balance.ensure_loaded()
+	_note_best_term()
 	var result := exam_result if not exam_result.is_empty() else sit_exam()
 	# The exam goes in the grade book here, where the term is closed -- once,
 	# whichever way it was reached -- and before the class moves on.
@@ -2153,6 +2310,9 @@ func next_term() -> Dictionary:
 	else:
 		hit = met_target(int(result.get("passed", 0)))
 	if not hit:
+		# The career counts a run once, on the step from playing to over.
+		if not run_over:
+			meta["runs_finished"] = int(meta.get("runs_finished", 0)) + 1
 		run_over = true
 
 	# The school moves up a stage when enough children have left it at the
@@ -2241,6 +2401,7 @@ func next_term() -> Dictionary:
 
 	term_start_concepts = concepts.size()
 	term += 1
+	_note_best_term()
 	day = 1
 	term_over = false
 	fight = null
@@ -2384,6 +2545,7 @@ func _add_graduation(s: StudentData) -> Dictionary:
 	var rec := graduate_record(s)
 	graduated.append(rec)
 	meta.alumni.append(rec.duplicate(true))
+	meta["lifetime_graduated"] = int(meta.get("lifetime_graduated", 0)) + 1
 	return rec
 
 
@@ -2757,6 +2919,7 @@ func record_taught(lesson_id: String) -> Array:
 	if lesson_id == "":
 		return []
 	taught[lesson_id] = int(taught.get(lesson_id, 0)) + 1
+	note_loop("taught")
 	var fresh: Array = []
 	for cid: String in Curriculum.concepts_unlocked_at(
 			lesson_id, int(taught[lesson_id])):
@@ -3675,6 +3838,7 @@ func run_quiz() -> Dictionary:
 		})
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a["score"]) < float(b["score"]))
+	note_loop("quizzed")
 	quiz_done = true
 	quiz_focus = true
 	return {
@@ -4272,14 +4436,26 @@ func class_average() -> float:
 # ------------------------------------------------------------------ items
 
 ## Can `id` be placed with its origin at `tile`, given what's already down?
+## Can `id` be placed with its origin at `tile`, given what's already down?
 ## The caller still has to check the grid for walls and furniture. A
 ## desk-top piece fits on a desk with nothing on it, and nowhere else.
+## An underlay rug can share floor tiles with solid furniture (chairs, desks,
+## stools, bookshelves), but two underlays cannot overlap, nor can two solid items.
 func item_fits(id: String, tile: Vector2i) -> bool:
 	if Items.is_desk_top(id):
 		return desk_top_free(tile)
+	var is_under := Items.is_underlay(id)
+	var is_w := Items.is_wall(id)
 	var want := Items.footprint(id, tile)
 	for placed: Dictionary in room_items:
-		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+		var pid := String(placed["id"])
+		var p_under := Items.is_underlay(pid)
+		var p_w := Items.is_wall(pid)
+		if is_w != p_w:
+			continue
+		if is_under != p_under:
+			continue
+		for t: Vector2i in Items.footprint(pid, placed["tile"]):
 			if t in want:
 				return false
 	return true
@@ -4335,6 +4511,7 @@ func place_item(id: String, tile: Vector2i) -> bool:
 	if not spend(shop_price(id)):
 		return false
 	add_item(id, tile)
+	note_loop("arranged")
 	return true
 
 
@@ -4354,12 +4531,19 @@ func add_item(id: String, tile: Vector2i) -> void:
 
 
 ## The placed item covering `tile`, or an empty dictionary.
+## If both an underlay rug and a solid piece of furniture share the tile,
+## the solid piece takes priority for interaction and movement.
 func item_at(tile: Vector2i) -> Dictionary:
+	var underlay_match := {}
 	for placed: Dictionary in room_items:
-		for t: Vector2i in Items.footprint(String(placed["id"]), placed["tile"]):
+		var id := String(placed["id"])
+		for t: Vector2i in Items.footprint(id, placed["tile"]):
 			if t == tile:
-				return placed
-	return {}
+				if Items.is_underlay(id):
+					underlay_match = placed
+				else:
+					return placed
+	return underlay_match
 
 
 ## Lift an item off the floor -- or off the desk at `tile`, where a desk-top
@@ -4578,6 +4762,7 @@ func place_from_cabinet(id: String, tile: Vector2i) -> bool:
 	cabinet.erase(id)
 	add_item(id, tile)
 	cabinet_changed.emit()
+	note_loop("arranged")
 	return true
 
 
@@ -4641,6 +4826,8 @@ func to_dict() -> Dictionary:
 		"chain_dash_taught": chain_dash_taught,
 		"call_response_taught": call_response_taught,
 		"tutorials_seen": tutorials_seen.duplicate(),
+		"loop_done": loop_done.duplicate(),
+		"duties_done": duties_done.duplicate(),
 		"room_w": Grid.W, "room_h": Grid.H, "expansions": expansions,
 		"term": term,
 		"specialism": specialism,
@@ -4726,6 +4913,10 @@ func from_dict(d: Dictionary) -> void:
 	chain_dash_taught = bool(d.get("chain_dash_taught", false))
 	# Not grandfathered either -- see the var's own note.
 	call_response_taught = bool(d.get("call_response_taught", false))
+	loop_done = (d.get("loop_done", {}) as Dictionary).duplicate()
+	duties_done = (d.get("duties_done", {}) as Dictionary).duplicate()
+	# A shift never resumes across a save, so a loaded game is never mid-duty.
+	duty_active = ""
 	teacher_level = Progress.level_for_xp(teacher_xp)
 	perk_ranks = d.get("perk_ranks", {}).duplicate()
 	term_path = (d.get("term_path", {}) as Dictionary).duplicate()
@@ -4734,8 +4925,18 @@ func from_dict(d: Dictionary) -> void:
 	# The career block that survives new_run(). An older save has no "meta"
 	# key -- _ensure_meta_keys() then fills a fresh one, exactly like every
 	# other forward-compat default in this function.
-	meta = (d.get("meta", {}) as Dictionary).duplicate(true)
-	_ensure_meta_keys()
+	_adopt_meta(d.get("meta", {}) as Dictionary)
+	# A save from before the career tallies were written: rebuild them from what
+	# the save already holds, so an old career does not read as empty.
+	meta["lifetime_graduated"] = maxi(int(meta.get("lifetime_graduated", 0)),
+		(meta.get("alumni", []) as Array).size())
+	var life: Array = meta["lifetime_milestones"]
+	for mid: Variant in d.get("milestones", []):
+		if not life.has(String(mid)):
+			life.append(String(mid))
+	# best_term is NOT rebuilt from the run's own term: that would change a
+	# fresh save on its first load (0 -> 1) and break the no-drift round trip.
+	# Whoever shows it reads maxi(best_term, term) instead.
 	# An older save has no size, so it simply reopens at the base room.
 	Grid.set_size(int(d.get("room_w", Grid.BASE_W)), int(d.get("room_h", Grid.BASE_H)))
 	expansions = int(d.get("expansions", 0))

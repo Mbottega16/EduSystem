@@ -7,6 +7,29 @@ extends RefCounted
 ## Effects are RANGE-BASED from the item's own tile, not a room-wide
 ## checklist. That is what makes *where* you put a bookshelf matter.
 
+## Classroom theme items (authentic stage and subject art)
+const CLASSROOM_ART := [
+	"res://art/rug_alphabet_circle.png",
+	"res://art/reading_rocking_chair.png",
+	"res://art/picture_book_ledge.png",
+	"res://art/art_splat_mat.png",
+	"res://art/counting_bears_tray.png",
+	"res://art/middle_science_bench.png",
+	"res://art/topographical_globe.png",
+	"res://art/chem_lab_bench.png",
+	"res://art/bug_hatching_cage.png",
+	"res://art/cubby_row.png",
+	"res://art/weather_calendar_chart.png",
+	"res://art/wall_timeline_banner.png",
+	"res://art/robotics_starter_kit.png",
+	"res://art/drafting_craft_table.png",
+	"res://art/graphing_grid_board.png",
+	"res://art/paperback_bookshelf.png",
+	"res://art/bunsen_glassware_rack.png",
+	"res://art/debate_podium.png",
+	"res://art/printer_3d_station.png",
+]
+
 
 static func catalogue() -> Dictionary:
 	Balance.ensure_loaded()
@@ -52,7 +75,14 @@ static func in_category(cat: String) -> Array:
 ## Lies on the floor or hangs on a wall, so it casts no contact shadow --
 ## a rug with a shadow under it looks like it is hovering.
 static func is_flat(id: String) -> bool:
-	return bool(get_def(id).get("flat", false))
+	return bool(get_def(id).get("flat", false)) or is_underlay(id)
+
+
+## A passable underlay (rug, mat) that lies flat on the floor, has no collision,
+## and allows other furniture (chairs, desks, stools, bookshelves) to be placed on top of it.
+static func is_underlay(id: String) -> bool:
+	var def := get_def(id)
+	return bool(def.get("underlay", false)) or String(def.get("layer", "")) == "underlay" or id == "rug" or id.begins_with("rug_") or id.ends_with("_mat")
 
 
 ## Hangs on the back wall rather than standing on the floor (a clock, a

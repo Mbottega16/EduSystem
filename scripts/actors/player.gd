@@ -803,8 +803,11 @@ func dash_cooldown_fraction() -> float:
 ## "clutter" item -- asked of the classroom, "" when there is no room (a
 ## bare sim) or nothing tagged nearby.
 func _dash_room_kind() -> String:
-	var room := get_tree().get_first_node_in_group("classroom")
-	if room != null and room.has_method("dash_tile_kind"):
+	# Only the classroom has furniture lanes. Anywhere else -- the corridor, a
+	# room you visit -- a dash used to read the CLASSROOM's furniture at the same
+	# tile numbers, and could crash on clutter that was not there.
+	var room := get_parent()
+	if room != null and room.is_in_group("classroom") and room.has_method("dash_tile_kind"):
 		return room.dash_tile_kind(Grid.world_to_tile(global_position))
 	return ""
 

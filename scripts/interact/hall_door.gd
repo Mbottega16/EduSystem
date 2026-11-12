@@ -39,7 +39,8 @@ func _init() -> void:
 ## abandoning the room, and nothing about this feature is meant to make
 ## that free.
 func can_interact() -> bool:
-	return Game.phase != Game.Phase.LESSON
+	# The doors lock while a duty runs, so a shift is never walked out of half done.
+	return Game.phase != Game.Phase.LESSON and Game.duty_active == ""
 
 
 func prompt_text() -> String:

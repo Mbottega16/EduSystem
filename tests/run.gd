@@ -207,6 +207,9 @@ func _main() -> void:
 	test_names()
 	test_lifetime_counters()
 	test_meta()
+	test_career_tally()
+	test_admin_gate()
+	test_duty_rota()
 	test_graduate_record()
 	await test_alumni_wall()
 	await test_moments()
@@ -2063,6 +2066,65 @@ func test_placement() -> void:
 	chk("the opening layout has nobody too close",
 		crowd.crowd_count() == 0, crowd.crowd_count())
 	crowd.queue_free()
+
+	# --- FLOOR UNDERLAY RUGS & MATS (passable, beneath furniture, stackable) ---
+	Game.add_coins(2000)
+	chk("rug is recognized as an underlay", Items.is_underlay("rug"))
+	var rug_tile := Vector2i(5, 6)
+	chk("rug tile starts free", world.grid.is_free(rug_tile))
+	var bought_rug := Game.place_item("rug", rug_tile)
+	chk("buying and placing rug succeeds", bought_rug)
+	await step(3)
+	chk("placing an underlay leaves floor cells passable and free",
+		world.grid.is_free(rug_tile) and world.grid.is_free(rug_tile + Vector2i(1, 0)))
+	chk("floor underlays sit at z_index -1 above floor sprite at -2", (func() -> bool:
+		var found_rug: Node2D = null
+		for node: Node in get_tree().get_nodes_in_group("underlay"):
+			if node is Node2D:
+				found_rug = node as Node2D
+				break
+		var found_floor: CanvasItem = null
+		for node: Node in get_tree().get_nodes_in_group("room_floor"):
+			if node is CanvasItem:
+				found_floor = node as CanvasItem
+				break
+		return found_rug != null and found_rug.z_index == -1 and found_floor != null and found_floor.z_index == -2).call())
+
+	var rug_place := Placement.new()
+	world.add_child(rug_place)
+	rug_place.begin("plant", world.grid, rug_tile)
+	chk("solid furniture can be placed directly on top of a rug", rug_place.is_valid())
+	rug_place.finish()
+	rug_place.queue_free()
+
+	Game.place_item("plant", rug_tile)
+	await step(3)
+	chk("solid item on rug now blocks the tile for walking", not world.grid.is_free(rug_tile))
+	chk("Game.item_at returns the top solid item ahead of the underlay",
+		String(Game.item_at(rug_tile).get("id", "")) == "plant")
+	chk("two underlays cannot occupy the same tile",
+		not Game.item_fits("rug", rug_tile))
+	chk("two solid items cannot occupy the same tile",
+		not Game.item_fits("bookshelf", rug_tile))
+
+	# Desk over underlay
+	var desk_place := Placement.new()
+	world.add_child(desk_place)
+	desk_place.begin_desk(0, world.grid)
+	desk_place.tile = rug_tile + Vector2i(1, 0)
+	desk_place._refresh()
+	chk("student desks can also be placed on top of an underlay rug", desk_place.is_valid())
+	desk_place.finish()
+	desk_place.queue_free()
+
+	# Clean up placed test items
+	Game.remove_item(rug_tile) # removes plant
+	await step(3)
+	chk("removing the top solid item leaves the rug intact and tile free",
+		world.grid.is_free(rug_tile) and String(Game.item_at(rug_tile).get("id", "")) == "rug")
+	Game.remove_item(rug_tile) # removes rug
+	await step(3)
+	chk("removing the rug leaves the tile free", world.grid.is_free(rug_tile))
 
 	Game.new_run(SEED)
 	await step(2)
@@ -13418,6 +13480,8 @@ func test_lifetime_counters() -> void:
 ## the lifetime tallies -- everything a fresh RUN is not allowed to erase.
 func test_meta() -> void:
 	section("META")
+	# Earlier sections end runs, and those runs are counted, so start erased.
+	Game.wipe_everything()
 	Game.new_run(SEED)
 
 	chk("a fresh run has a meta block with every key",
@@ -13478,6 +13542,361 @@ func test_meta() -> void:
 		Game.meta)
 
 	Game.new_run(SEED)   # fully isolated from whatever follows
+
+
+## The career tallies are WRITTEN by play now, not only read: a run that ends
+## counts once, every leaver counts, a milestone outlives its run, and New on
+## the title screen keeps all of it while Erase does not.
+func test_career_tally() -> void:
+	section("CAREER TALLY")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+
+	# --- a run that ends is counted, once ---
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.10)             # nobody passes this
+	Game.sit_exam()
+	var info := Game.next_term()
+	chk("the run is over", bool(info.get("run_over", false)))
+	chk("and the career counts it", int(Game.meta["runs_finished"]) == 1,
+		Game.meta["runs_finished"])
+	Game.next_term()                       # closing it twice must not count twice
+	chk("but only once", int(Game.meta["runs_finished"]) == 1,
+		Game.meta["runs_finished"])
+	chk("the term it reached is noted", int(Game.meta["best_term"]) >= 1,
+		Game.meta["best_term"])
+
+	# --- a passed term moves the best term on, and every leaver counts ---
+	Game.new_run(SEED)
+	while Game.enrol() != null:
+		pass
+	for st: StudentData in Game.roster:
+		st.grades.append(0.95)             # everybody sails it
+	Game.sit_exam()
+	Game.next_term()
+	chk("a passed term reaches term 2", Game.term == 2, Game.term)
+	chk("and the best term follows it", int(Game.meta["best_term"]) == 2,
+		Game.meta["best_term"])
+	chk("a new run did not reset the run count", int(Game.meta["runs_finished"]) == 1)
+	var sent: int = (Game.meta["alumni"] as Array).size()
+	chk("every leaver is counted", sent > 0 and int(Game.meta["lifetime_graduated"]) == sent,
+		"%d vs %d" % [int(Game.meta["lifetime_graduated"]), sent])
+
+	# --- a milestone outlives the run it was earned in ---
+	var fresh := Game.check_milestones()
+	var first_id: String = String(fresh[0]) if not fresh.is_empty() else ""
+	chk("the passed term earned a milestone", first_id != "", fresh)
+	chk("and the career keeps it",
+		(Game.meta["lifetime_milestones"] as Array).has(first_id),
+		Game.meta["lifetime_milestones"])
+	Game.new_run(SEED)
+	chk("a new run clears the run's own milestones", Game.milestones.is_empty())
+	chk("but not the career's", (Game.meta["lifetime_milestones"] as Array).has(first_id))
+
+	# --- an old save gets its tallies rebuilt ---
+	Game.new_run(SEED)
+	var raw := Game.to_dict()
+	var m: Dictionary = (raw["meta"] as Dictionary).duplicate(true)
+	m["alumni"] = [{"name": "Ada"}, {"name": "Bo"}]
+	m.erase("lifetime_graduated")
+	raw["meta"] = m
+	raw["milestones"] = ["first_term"]
+	Game.from_dict(raw)
+	chk("an old save's leavers are counted", int(Game.meta["lifetime_graduated"]) == 2,
+		Game.meta["lifetime_graduated"])
+	chk("its milestones join the career",
+		(Game.meta["lifetime_milestones"] as Array).has("first_term"))
+	# and a current save loads without changing (the plain round trip in
+	# test_game() already checks to_dict() == before for a fresh run)
+	var again := Game.to_dict()
+	Game.from_dict(again)
+	chk("a rebuilt career loads the same a second time", Game.to_dict() == again)
+
+	# --- New on the title keeps the career; Erase does not ---
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	Game.meta["runs_finished"] = 4
+	(Game.meta["alumni"] as Array).append({"name": "Cy"})
+	Game.save_game()
+	Game.meta = {}                         # a fresh launch: nothing in memory yet
+	Game.start_new_run_keep_career()
+	chk("New keeps the runs ended", int(Game.meta.get("runs_finished", 0)) == 4, Game.meta)
+	chk("and the alumni", (Game.meta.get("alumni", []) as Array).size() == 1)
+	chk("and starts a fresh run", Game.day == 1 and Game.term == 1 and not Game.run_over)
+	chk("and saves at once, career included",
+		Game.has_save() and int(Game.read_saved_meta().get("runs_finished", 0)) == 4)
+	Game.delete_save()
+	Game.wipe_everything()
+	chk("Erase clears the career", int(Game.meta["runs_finished"]) == 0
+		and (Game.meta["alumni"] as Array).is_empty())
+
+	# --- the principal reads the career back ---
+	Game.new_run(SEED)
+	Game.meta["runs_finished"] = 2
+	Game.meta["best_term"] = 5
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("the office names the furthest term", _hud().rich.text.contains("term 5"),
+		_hud().rich.text)
+	_hud().close()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("and says nothing of it before a run has ended",
+		not _hud().rich.text.contains("Runs ended"), _hud().rich.text)
+	_hud().close()
+
+	Game.wipe_everything()
+	Game.new_run(SEED)                     # fully isolated from whatever follows
+
+
+## The admin gate: the school layer opens once the player has run one room.
+## The gate is OFF in the suite (main.gd turns it on for a player only), so no
+## other section sees a closed school. This section turns it on by hand and
+## turns it off again before it ends.
+func test_admin_gate() -> void:
+	section("ADMIN GATE")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+
+	# --- off in the suite: nothing changes ---
+	chk("the gate is off in the suite", not Game.admin_gate_enabled)
+	chk("so the school is open", Game.admin_unlocked())
+	chk("and a room can be opened", Game.can_open_room())
+
+	# --- on, for a player who has run nothing yet ---
+	Game.admin_gate_enabled = true
+	Game.coins = 999999
+	chk("a new career has not earned the school", not Game.admin_unlocked())
+	chk("so no room can be opened", not Game.can_open_room())
+	var refusal := Game.open_room()
+	chk("opening one gives a reason", refusal != "", refusal)
+	chk("and opens nothing", Game.rooms.is_empty(), Game.rooms.size())
+	chk("the pause menu has no school row", not _hud()._pause_rows().has("school"),
+		_hud()._pause_rows())
+
+	# --- the hallway shows no door for a room ---
+	var hallway: Node = world.get_parent().get_node("Hallway")
+	hallway.rebuild()
+	var open_doors := 0
+	for d in hallway.doors:
+		if String(d.door_kind) == "open":
+			open_doors += 1
+	chk("the hallway has no open door", open_doors == 0, open_doors)
+
+	# --- run one room: four verbs, through their real functions ---
+	Game.lesson = Curriculum.by_id(String(Curriculum.lessons[0].get("id", "")))
+	Game.record_taught(String(Game.lesson.get("id", "")))
+	while Game.enrol() != null:
+		pass
+	Game.draw_hand()
+	Game.choose_assignment(0)
+	Game.run_quiz()
+	var s: StudentData = Game.roster[0]
+	s.hw_state = StudentData.HW.COLLECTED
+	s.hw_sheet = Questions.make_sheet(1.0, Game.rng)
+	Game.mark_sheet(s, true)
+	chk("four verbs are not yet enough", not Game.admin_ready())
+
+	# --- placing furniture is the fifth verb; day one is not enough ---
+	Game.place_item(String(Items.order()[0]), Vector2i(2, 5))
+	for v: String in Game.LOOP_VERBS:
+		chk("the verb '%s' is counted" % v, Game.loop_done.has(v))
+	chk("but day one is not enough", not Game.admin_ready(), Game.day)
+
+	# --- after enough finished days the school opens, once ---
+	Game.day = Balance.admin_unlock_days + 1
+	chk("after enough days the room counts as run", Game.admin_ready())
+	chk("the school opens on that day", Game.check_admin_unlock())
+	chk("and says so once only", not Game.check_admin_unlock())
+	chk("the earned school can open a room", Game.can_open_room())
+	chk("the pause menu gains the school row", _hud()._pause_rows().has("school"))
+	hallway.rebuild()
+	open_doors = 0
+	for d in hallway.doors:
+		if String(d.door_kind) == "open":
+			open_doors += 1
+	chk("the hallway shows the open door", open_doors == 1, open_doors)
+
+	# --- a fresh run in the same career keeps the school, not the verbs ---
+	Game.new_run(SEED)
+	chk("a new run keeps the school", Game.admin_unlocked())
+	chk("but not the verbs", Game.loop_done.is_empty())
+
+	# --- the save keeps the verbs ---
+	Game.note_loop("taught")
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("the saved verbs come back", Game.loop_done.has("taught"))
+	chk("and so does the school", Game.admin_unlocked())
+	Game.delete_save()
+
+	# --- a save from before the gate keeps its school ---
+	Game.wipe_everything()
+	var raw := Game.to_dict()
+	var m: Dictionary = (raw["meta"] as Dictionary).duplicate(true)
+	m.erase("admin_earned")
+	raw["meta"] = m
+	Game.from_dict(raw)
+	chk("an older save keeps its school", Game.admin_unlocked())
+	Game.wipe_everything()
+	chk("a wiped career has not earned the school", not Game.admin_unlocked())
+
+	# --- the office says the school is still shut ---
+	_hud()._sel = 0
+	_hud().show_office()
+	chk("the office says another room waits on this one",
+		_hud().rich.text.contains("Run this one well first"), _hud().rich.text)
+	_hud().close()
+
+	# --- the day the school opens is said once, in the day report ---
+	_hud().show_day_report({"day": 3, "average": 0.6, "days_left": 17, "admin_opened": true})
+	chk("the day report says the school opens",
+		_hud().rich.text.contains("The school opens up"), _hud().rich.text)
+	_hud().close()
+
+	# --- leave the suite as it was: the gate off, every later section unchanged ---
+	Game.admin_gate_enabled = false
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	world.get_parent().get_node("Hallway").rebuild()
+
+
+## THE STAFF ROTA (Task 4, the owner's ask 2026-11-06): the board in the
+## corridor, the janitor's shift through the real functions, the shift's own
+## numbers kept off Game.rng, once a day, saved, and the corridor dash fix.
+func test_duty_rota() -> void:
+	section("DUTY ROTA")
+	Balance.ensure_loaded()
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	var main := world.get_parent()
+	var hall: Node = main.get_node("Hallway")
+	hall.rebuild()
+
+	# --- the board: on MANAGE, and its prompt names the rota ---
+	var board: Interactable = hall.rota_board
+	chk("the corridor has a staff rota board", board != null)
+	chk("it answers on MANAGE, not on E",
+		board != null and board.uses_key == Interactable.Key.MANAGE)
+	chk("its prompt says staff rota", board != null and board.prompt_text().contains("staff rota"))
+
+	# --- hidden until the admin gate opens; the janitor is on it once it has ---
+	var offered: Array = Duties.offered()
+	chk("with the gate off the rota offers the janitor",
+		offered.size() == 1 and String((offered[0] as Dictionary).get("id", "")) == "janitor",
+		offered.size())
+	_hud()._sel = 0
+	_hud().show_rota()
+	chk("and the rota screen lists the janitor", _hud().rich.text.contains("Janitor"),
+		_hud().rich.text)
+	_hud().close()
+	Game.admin_gate_enabled = true
+	chk("a new career: the board does not answer", board != null and not board.can_interact())
+	chk("and the rota offers nothing", Duties.offered().is_empty())
+	Game.admin_gate_enabled = false
+	chk("the board answers in the open school", board != null and board.can_interact())
+
+	# --- start the shift: its own numbers leave Game.rng alone ---
+	var coins0: int = Game.coins
+	var rep0: float = Game.reputation
+	var rng0: int = Game.rng.state
+	main._start_duty("janitor")
+	var shift: JanitorShift = main._shift
+	chk("the janitor's shift is running", Game.duty_active == "janitor" and shift != null)
+	if shift == null:
+		return
+	var tiles: Array[Vector2i] = hall.duty_tiles()
+	chk("it puts one mess on each duty tile, up to the cap",
+		shift.total() == mini(Balance.duty_janitor_messes, tiles.size()) and shift.total() > 0,
+		shift.total())
+	chk("Game.rng did not move", Game.rng.state == rng0)
+	var on_tiles := true
+	for m: Interactable in shift.messes():
+		var at: Vector2i = Grid.world_to_tile((m.get_parent() as Node2D).position)
+		if not tiles.has(at):
+			on_tiles = false
+	chk("every mess sits on a duty tile", on_tiles)
+
+	# --- while it runs the doors and the board are shut, and the strip shows it ---
+	var door_free: bool = (hall.doors[0] as Interactable).can_interact()
+	chk("the doors lock while the shift runs", not door_free and not board.can_interact())
+	_hud()._update_status()
+	chk("the status strip shows the job", _hud().status.text.contains("JANITOR"),
+		_hud().status.text)
+
+	# --- the same day plays the same shift ---
+	chk("the duty's own numbers repeat for the same day",
+		Game.duty_rng("janitor").randi() == Game.duty_rng("janitor").randi())
+
+	# --- clean every mess: paid, done for the day, and not offered again ---
+	var total: int = shift.total()
+	for m in shift.messes().duplicate():
+		m.auto_complete()
+	chk("the shift is over", Game.duty_active == "")
+	chk("and it is done for the day", Game.duty_done_today("janitor"))
+	chk("it pays each mess, plus the full-sweep bonus",
+		Game.coins - coins0 == total * Balance.mess_clean_reward + Balance.duty_janitor_bonus_coins,
+		Game.coins - coins0)
+	chk("a full sweep lifts the school's standing", Game.reputation > rep0, Game.reputation)
+	chk("the career keeps the best sweep", (Game.meta["duty_best"] as Dictionary).has("janitor"))
+	chk("the report says what was cleaned", _hud().rich.text.contains("You cleaned"),
+		_hud().rich.text)
+	_hud().close()
+	chk("the rota has nothing left today", Duties.offered().is_empty())
+
+	# --- the clock: a new day offers it again, and when the clock runs out it ends ---
+	Game.day += 1
+	chk("the next day offers the janitor again", Duties.offered().size() == 1)
+	main._start_duty("janitor")
+	var late: JanitorShift = main._shift
+	if late == null:
+		chk("the next shift starts", false)
+		return
+	late.tick(Balance.duty_janitor_seconds + 1.0)
+	chk("when the clock runs out the shift ends", Game.duty_active == "" and main._shift == null)
+	chk("and the report says the clock won", _hud().rich.text.contains("The clock beat you"),
+		_hud().rich.text)
+	_hud().close()
+
+	# --- the save keeps the day's shift: a reload does not offer it again ---
+	Game.save_game()
+	Game.new_run(1)
+	Game.load_game()
+	chk("the saved shift is still done for the day", Game.duty_done_today("janitor"))
+	Game.delete_save()
+
+	# --- the dash fix: a corridor dash no longer reads the classroom's lanes ---
+	Game.new_run(SEED)
+	Game.room_items.append({"id": "crate", "tile": Vector2i(2, 3)})
+	var p: Node = world.player
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("in the classroom a crate beside you is clutter", p._dash_room_kind() == "clutter",
+		p._dash_room_kind())
+	var corridor: Node = main.get_node("Hallway")
+	corridor.rebuild()
+	world.remove_child(p)
+	corridor.add_child(p)
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("in the corridor the same tile reads as nothing", p._dash_room_kind() == "",
+		p._dash_room_kind())
+	# back to the classroom, the way main.gd's _return_home() puts the player back
+	corridor.remove_child(p)
+	world.add_child(p)
+	p.global_position = Grid.tile_to_world(Vector2i(2, 4))
+	chk("and the classroom reads its own clutter again", p._dash_room_kind() == "clutter",
+		p._dash_room_kind())
+
+	# --- leave the suite as it was ---
+	Game.wipe_everything()
+	Game.new_run(SEED)
+	hall.rebuild()
 
 
 ## The unified graduation snapshot -- one shape from both exit paths, and

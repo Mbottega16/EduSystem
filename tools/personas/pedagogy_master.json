@@ -23,6 +23,11 @@
     "steady_hands"
   ],
   "furniture_priorities": [
+    "alphabet_rug",
+    "splat_mat",
+    "science_bench",
+    "book_ledge",
+    "chem_bench",
     "bookshelf",
     "study_folder",
     "globe",

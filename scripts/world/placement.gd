@@ -232,12 +232,16 @@ func is_valid() -> bool:
 		# On the wall: its own rules, and it can never trap anyone because it
 		# takes no floor.
 		return Layout.wall_slot_ok(item_id, tile) and Game.item_fits(item_id, tile)
+	var is_under := Items.is_underlay(item_id)
+	var floor_area := Layout.floor_rect()
 	for t: Vector2i in Items.footprint(item_id, tile):
-		if not _grid.is_free(t):
+		if not is_under and not _grid.is_free(t):
+			return false
+		if is_under and not floor_area.has_point(t):
 			return false
 	if not Game.item_fits(item_id, tile):
 		return false
-	return not _would_trap_anyone()
+	return is_under or not _would_trap_anyone()
 
 
 ## A desk needs its own two tiles free, must not land on another desk, and —
@@ -257,7 +261,11 @@ func _desk_is_valid() -> bool:
 			continue
 		if not _grid.is_free(t):
 			return false
-	if not Game.item_at(tile).is_empty():
+	var item_at_seat := Game.item_at(tile)
+	if not item_at_seat.is_empty() and not Items.is_underlay(String(item_at_seat.get("id", ""))):
+		return false
+	var item_at_desk := Game.item_at(tile + Layout.DESK_OFFSET)
+	if not item_at_desk.is_empty() and not Items.is_underlay(String(item_at_desk.get("id", ""))):
 		return false
 	for i in Layout.seat_count():
 		if i == desk_index and here.has(Layout.seat(i)):

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSystem — Canva Classroom Art Generator</title>
+<style>
+  :root {
+    --bg: #111318;
+    --surface: #1a1d24;
+    --surface-hover: #222630;
+    --border: #2e3440;
+    --accent: #5eead4;
+    --accent-dark: #0f766e;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --keyline: #3a3a50;
+    --magenta: #ff00ff;
+    --amber: #f59e0b;
+    --indigo: #6366f1;
+    --rose: #f43f5e;
+    --emerald: #10b981;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    padding: 24px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  h1 { font-size: 24px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+  h1 .tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    background: var(--accent-dark);
+    color: var(--accent);
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  p.subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+  
+  .banner-box {
+    background: linear-gradient(135deg, rgba(94, 234, 212, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .banner-text { font-size: 13px; color: var(--text); max-width: 800px; }
+  .banner-text b { color: var(--accent); }
+
+  .neg-prompt-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .neg-content { font-size: 12px; color: var(--text-muted); }
+  .neg-content code { color: var(--rose); background: rgba(244, 63, 94, 0.1); padding: 2px 6px; border-radius: 4px; }
+
+  /* Filters */
+  .controls-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .search-row {
+    display: flex;
+    gap: 12px;
+  }
+  .search-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .filter-label { font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); min-width: 75px; }
+  .chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .chip:hover { color: #fff; border-color: var(--text-muted); }
+  .chip.active { background: var(--accent); color: #042f2e; border-color: var(--accent); font-weight: 600; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    color: #fff;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+  .btn:hover { background: var(--surface-hover); border-color: var(--text-muted); }
+  .btn-primary { background: var(--accent); color: #042f2e; border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { background: #2dd4bf; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* Cards Grid */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover { border-color: rgba(94, 234, 212, 0.4); transform: translateY(-2px); }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 8px; }
+  .card-title { font-size: 16px; font-weight: 600; color: #fff; }
+  .card-id { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-stage-elementary { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .badge-stage-middle     { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+  .badge-stage-high       { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; }
+  .badge-stage-college    { background: rgba(244, 63, 94, 0.15); color: #fda4af; }
+  .badge-subject { background: rgba(255, 255, 255, 0.08); color: #cbd5e1; }
+  .badge-size { background: rgba(94, 234, 212, 0.1); color: var(--accent); font-family: monospace; }
+  .badge-layer { background: rgba(217, 70, 239, 0.15); color: #f0abfc; }
+
+  .prompt-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.45;
+    margin-bottom: 14px;
+    user-select: all;
+    max-height: 110px;
+    overflow-y: auto;
+  }
+  .card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .copied-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--accent);
+    color: #042f2e;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  .copied-toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>EduSystem — Canva Classroom Art Generator <span class="tag">Canva App Edition</span></h1>
+      <p class="subtitle">Complete master prompt catalog tuned for Canva Magic Media / Text-to-Image with LimeZu Modern Interiors style conformity.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn" onclick="copyAllCSV()">📥 Copy All for Canva Bulk CSV</button>
+      <button class="btn btn-primary" onclick="copyNegativePrompt()">📋 Copy Negative Prompt</button>
+    </div>
+  </header>
+
+  <!-- LimeZu Aesthetics Rule Banner -->
+  <div class="banner-box">
+    <div class="banner-text">
+      <b>The LimeZu Aesthetic Formula for Canva:</b> 16-bit RPG pixel art, <b>3/4 top-down oblique view</b> (camera tilted 45° showing top + front), <b>1px cool slate-blue outline (#3a3a50)</b> (never pure black), soft pastel/honey oak palette, and a <b>solid magenta background (#FF00FF)</b> so the game automatically cuts out transparent PNGs!
+    </div>
+    <a href="#how-to-import" class="btn btn-sm">How to Import into Game ➔</a>
+  </div>
+
+  <!-- Negative Prompt Box -->
+  <div class="neg-prompt-box">
+    <div class="neg-content">
+      <b>Universal Canva Negative Prompt:</b>
+      <code id="neg-prompt-text">3D render, realistic, photorealistic, isometric, blurry, antialiasing, black outline, drop shadow, neon, gradient, cartoon vector, soft edges, text, watermark</code>
+    </div>
+    <button class="btn btn-sm" onclick="copyNegativePrompt()">Copy</button>
+  </div>
+
+  <!-- Search & Filter Controls -->
+  <div class="controls-bar">
+    <div class="search-row">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by item name, subject, or keyword (e.g. 'microscope', 'rug', 'high school')..." oninput="renderCards()">
+    </div>
+    
+    <div class="filter-group">
+      <span class="filter-label">School Stage:</span>
+      <div class="chip active" data-filter="stage" data-val="all" onclick="setFilter('stage', 'all')">All Stages</div>
+      <div class="chip" data-filter="stage" data-val="elementary" onclick="setFilter('stage', 'elementary')">Elementary (K-5)</div>
+      <div class="chip" data-filter="stage" data-val="middle" onclick="setFilter('stage', 'middle')">Middle School (6-8)</div>
+      <div class="chip" data-filter="stage" data-val="high" onclick="setFilter('stage', 'high')">High School (9-12)</div>
+      <div class="chip" data-filter="stage" data-val="college" onclick="setFilter('stage', 'college')">College / University</div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Subject:</span>
+      <div class="chip active" data-filter="subject" data-val="all" onclick="setFilter('subject', 'all')">All Subjects</div>
+      <div class="chip" data-filter="subject" data-val="Science" onclick="setFilter('subject', 'Science')">Science</div>
+      <div class="chip" data-filter="subject" data-val="Math" onclick="setFilter('subject', 'Math')">Math</div>
+      <div class="chip" data-filter="subject" data-val="Literacy" onclick="setFilter('subject', 'Literacy')">Reading & Literacy</div>
+      <div class="chip" data-filter="subject" data-val="Social Studies" onclick="setFilter('subject', 'Social Studies')">Social Studies</div>
+      <div class="chip" data-filter="subject" data-val="Arts & Tech" onclick="setFilter('subject', 'Arts & Tech')">Arts & Making</div>
+      <div class="chip" data-filter="subject" data-val="Structure" onclick="setFilter('subject', 'Structure')">Rugs & Cubbies</div>
+    </div>
+  </div>
+
+  <!-- Cards Grid -->
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <!-- Instructions Footer -->
+  <div id="how-to-import" style="margin-top: 40px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;">
+    <h3 style="color: #fff; margin-bottom: 12px;">How to Import Your Canva Generations into EduSystem:</h3>
+    <ol style="margin-left: 20px; font-size: 14px; color: var(--text-muted); line-height: 1.8;">
+      <li><b>Generate in Canva:</b> Paste any prompt into Canva's Magic Media / Text-to-Image app. Keep aspect ratio as <b>1:1 Square</b>.</li>
+      <li><b>Download from Canva:</b> Save your images as PNG.</li>
+      <li><b>Drop into the Game Folder:</b> Move the downloaded PNGs into <code>shots/canva_imports/</code> in the EduSystem directory. Name the file after the Item ID (e.g. <code>rug_alphabet_circle.png</code>).</li>
+      <li><b>One-Click Conform:</b> Run <code>Import Canva Art.bat</code> (or <code>python tools/canva_art_pipeline.py --import</code>). This automatically:
+        <ul style="margin-left: 20px; margin-top: 4px;">
+          <li>Strips the magenta background into transparent PNG.</li>
+          <li>Snaps every pixel to the 192 authentic LimeZu palette tones.</li>
+          <li>Applies the signature 1px <code>#3a3a50</code> cool slate keyline.</li>
+          <li>Doubles the sprite to 2x resolution and registers it into the game engine!</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<div class="copied-toast" id="toast">Copied to clipboard!</div>
+
+<script>
+const ITEMS = [
+  // Elementary School (Ages 5-10)
+  {
+    id: "rug_alphabet_circle",
+    name: "Alphabet Storytime Rug",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Structure",
+    size: "3x3 (48x48)",
+    layer: "Floor Underlay (Passable)",
+    prompt: "16-bit pixel art of a large colorful circular classroom reading rug with a ring of colorful alphabet letters around the perimeter and a cheerful smiling sun in the center, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, muted warm educational colors, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels, no blur."
+  },
+  {
+    id: "reading_rocking_chair",
+    name: "Teacher's Storytime Rocking Chair",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Literacy",
+    size: "1x1 (16x24)",
+    layer: "Solid Seating",
+    prompt: "16-bit pixel art of a cozy curved wooden rocking chair made of warm honey oak with a soft padded red cushion on the seat, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, crisp per-surface shading, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels, no blur."
+  },
+  {
+    id: "picture_book_ledge",
+    name: "Front-Facing Picture Book Ledge",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Literacy",
+    size: "2x1 (32x24)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a low two-tier wooden front-facing book ledge displaying colorful illustrated children's picture book covers facing forward, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, honey oak wood texture with dark plank seams, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "bug_hatching_cage",
+    name: "Butterfly & Caterpillar Hatching Net",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Science",
+    size: "1x1 (16x24)",
+    layer: "Solid Prop",
+    prompt: "16-bit pixel art of a cylindrical green mesh pop-up butterfly caterpillar habitat cage with leafy twigs inside and small colorful butterflies resting on the mesh, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "counting_bears_tray",
+    name: "Plastic Counting Bears Tray",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Math",
+    size: "1x1 (16x16)",
+    layer: "Tabletop Prop",
+    prompt: "16-bit pixel art of a wooden sorting tray holding small brightly colored plastic toy counting bears in red, blue, yellow, and green grouped in divided compartments, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "art_splat_mat",
+    name: "Washable Floor Splat Mat",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Arts & Tech",
+    size: "2x2 (32x32)",
+    layer: "Floor Underlay (Passable)",
+    prompt: "16-bit pixel art of a flat vinyl floor splat mat in light yellow with playful colorful paint splatters and handprints scattered across the surface, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "cubby_row",
+    name: "Kindergarten Cubby & Backpack Unit",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Structure",
+    size: "2x1 (32x32)",
+    layer: "Solid Storage",
+    prompt: "16-bit pixel art of a wooden cubby shelf unit with 4 open square compartments holding colorful children's backpacks and shoes, with coat hooks above holding little jackets, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, honey oak wood texture with dark plank seams, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "weather_calendar_chart",
+    name: "Daily Weather & Calendar Pocket Chart",
+    stage: "elementary",
+    stageLabel: "Elementary",
+    subject: "Social Studies",
+    size: "1x1 (16x24)",
+    layer: "Wall Mounted",
+    prompt: "16-bit pixel art of a blue fabric wall pocket chart showing calendar numbers, days of the week cards, and cute sun and rain cloud weather cards, 3/4 top-down oblique front view, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+
+  // Middle School (Ages 11-13)
+  {
+    id: "middle_science_bench",
+    name: "Student Science Lab Workstation",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Science",
+    size: "2x1 (32x20)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a sturdy dark-wood school science workstation table with a starter brass compound microscope, glass slides, and specimen jars on top, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "topographical_globe",
+    name: "Raised-Relief Topographical Globe",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Social Studies",
+    size: "1x1 (16x20)",
+    layer: "Tabletop Prop",
+    prompt: "16-bit pixel art of a detailed desk globe mounted on an ornate bronze meridian stand showing colorful green and brown continent topography and blue oceans, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "wall_timeline_banner",
+    name: "Historical Chronology Timeline Banner",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Social Studies",
+    size: "3x1 (48x16)",
+    layer: "Wall Mounted",
+    prompt: "16-bit pixel art of a horizontal parchment-colored wall banner showing an illustrated chronological timeline with tiny pixel icons of ancient pyramids, castles, and sailing ships, 3/4 top-down oblique front view, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "robotics_starter_kit",
+    name: "Programmable Robotics Workbench",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Arts & Tech",
+    size: "2x1 (32x16)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a low workshop table with an assembled wheeled rover robot, small plastic tool caddy, and a laptop with code blocks on screen, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "drafting_craft_table",
+    name: "Student Slanted Drafting Desk",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Arts & Tech",
+    size: "2x1 (32x20)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a slanted wooden drafting desk with a metal T-square ruler, architectural grid paper roll, and a clip-on task lamp, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "graphing_grid_board",
+    name: "Cartesian Grid Chalkboard",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Math",
+    size: "2x1 (32x24)",
+    layer: "Wall Mounted",
+    prompt: "16-bit pixel art of a wall-mounted green chalkboard pre-printed with a white Cartesian coordinate grid and an plotted parabolic curve, 3/4 top-down oblique front view, LimeZu modern interiors style, wooden frame, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "paperback_bookshelf",
+    name: "Middle-Grade Adventure Novel Shelf",
+    stage: "middle",
+    stageLabel: "Middle School",
+    subject: "Literacy",
+    size: "1x1 (16x32)",
+    layer: "Solid Storage",
+    prompt: "16-bit pixel art of a tall honey-oak wooden bookshelf filled with colorful vertical spines of paperback adventure and mystery novels, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+
+  // High School (Ages 14-18)
+  {
+    id: "chem_lab_bench",
+    name: "Chemical Resistant Lab Station",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Science",
+    size: "2x1 (32x24)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a heavy black epoxy resin laboratory workbench with a central stainless steel gooseneck sink faucet and dual brass gas valves, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF), crisp clean pixels."
+  },
+  {
+    id: "bunsen_glassware_rack",
+    name: "Bunsen Burner & Flask Rack",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Science",
+    size: "1x1 (16x20)",
+    layer: "Tabletop Prop",
+    prompt: "16-bit pixel art of a wooden test tube rack with glass vials containing colorful chemical liquids, an Erlenmeyer flask, and a small metal Bunsen burner with a tiny blue flame, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "debate_podium",
+    name: "Socratic Debate Lectern",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Literacy",
+    size: "1x1 (16x24)",
+    layer: "Solid Fixture",
+    prompt: "16-bit pixel art of a dark walnut debate lectern with an angled speech paper rest, small brass gooseneck microphone, and a school seal carved on the front panel, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "printer_3d_station",
+    name: "Enclosed 3D Printer Station",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Arts & Tech",
+    size: "2x1 (32x24)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a clear acrylic enclosed 3D printer running on a utility table, with a visible spool of blue filament and a printed geometric cube inside, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "periodic_table_wall",
+    name: "Periodic Table Wall Tapestry",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Science",
+    size: "3x1 (48x20)",
+    layer: "Wall Mounted",
+    prompt: "16-bit pixel art of a large detailed classroom wall chart displaying the complete Periodic Table of Elements in color-coded chemical family columns, 3/4 top-down oblique front view, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "graphing_calc_dock",
+    name: "Graphing Calculator Charging Dock",
+    stage: "high",
+    stageLabel: "High School",
+    subject: "Math",
+    size: "1x1 (16x16)",
+    layer: "Tabletop Prop",
+    prompt: "16-bit pixel art of a desktop charging organizer holding 10 black handheld graphing calculators with bright blue accents, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+
+  // College / University (Higher Ed)
+  {
+    id: "fume_hood",
+    name: "Laboratory Chemical Fume Hood",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Science",
+    size: "2x1 (32x32)",
+    layer: "Solid Fixture",
+    prompt: "16-bit pixel art of a professional tall stainless-steel chemical fume hood with a sliding tempered glass sash window, interior lighting, and exhaust ventilation duct on top, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "centrifuge_bench",
+    name: "Digital Centrifuge & Pipette Bench",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Science",
+    size: "2x1 (32x20)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a clean white research counter with a round benchtop centrifuge unit, digital LCD display, and a micro-pipette rack, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "research_carrel",
+    name: "Oak Library Study Carrel Desk",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Literacy",
+    size: "1x1 (16x28)",
+    layer: "Solid Seating/Desk",
+    prompt: "16-bit pixel art of a private library study carrel desk with high oak privacy partitions on three sides, an integrated overhead book shelf, and a warm task light, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "sliding_slate_board",
+    name: "Double-Sliding Slate Chalkboard",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Math",
+    size: "3x1 (48x24)",
+    layer: "Wall Mounted",
+    prompt: "16-bit pixel art of a wall-mounted academic double-tiered sliding black slate chalkboard covered in dense chalk calculus equations and geometric proofs, 3/4 top-down oblique front view, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "archival_terminal",
+    name: "University Microfilm / Microfiche Reader",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Social Studies",
+    size: "1x1 (16x20)",
+    layer: "Tabletop Prop",
+    prompt: "16-bit pixel art of a vintage university research microfiche reader machine with a glowing curved greenish CRT screen and paper spool reels, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  },
+  {
+    id: "cnc_mill_station",
+    name: "Desktop CNC Milling Station",
+    stage: "college",
+    stageLabel: "College / Uni",
+    subject: "Arts & Tech",
+    size: "2x1 (32x24)",
+    layer: "Solid Surface",
+    prompt: "16-bit pixel art of a compact enclosed desktop CNC milling machine with an emergency stop button, transparent safety shield, and routed wooden block, 3/4 top-down oblique view camera tilted 45 degrees, LimeZu modern interiors style, 1-pixel dark cool slate-blue outline (#3a3a50), solid flat magenta background (#FF00FF)."
+  }
+];
+
+let currentStageFilter = 'all';
+let currentSubjectFilter = 'all';
+
+function setFilter(type, val) {
+  if (type === 'stage') {
+    currentStageFilter = val;
+    document.querySelectorAll('[data-filter="stage"]').forEach(el => {
+      el.classList.toggle('active', el.dataset.val === val);
+    });
+  } else if (type === 'subject') {
+    currentSubjectFilter = val;
+    document.querySelectorAll('[data-filter="subject"]').forEach(el => {
+      el.classList.toggle('active', el.dataset.val === val);
+    });
+  }
+  renderCards();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyPrompt(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("Prompt copied to clipboard!");
+  });
+}
+
+function copyNegativePrompt() {
+  const neg = document.getElementById('neg-prompt-text').textContent;
+  navigator.clipboard.writeText(neg).then(() => {
+    showToast("Negative prompt copied!");
+  });
+}
+
+function copyAllCSV() {
+  let csv = "ID,Name,Stage,Subject,Size,Canva_Prompt,Negative_Prompt\n";
+  const neg = document.getElementById('neg-prompt-text').textContent;
+  ITEMS.forEach(it => {
+    const p = it.prompt.replace(/"/g, '""');
+    csv += `"${it.id}","${it.name}","${it.stageLabel}","${it.subject}","${it.size}","${p}","${neg}"\n`;
+  });
+  navigator.clipboard.writeText(csv).then(() => {
+    showToast("All prompts copied as Canva CSV!");
+  });
+}
+
+function renderCards() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+
+  const filtered = ITEMS.filter(it => {
+    const matchStage = (currentStageFilter === 'all' || it.stage === currentStageFilter);
+    const matchSubject = (currentSubjectFilter === 'all' || it.subject === currentSubjectFilter);
+    const matchQuery = !query || (
+      it.name.toLowerCase().includes(query) ||
+      it.id.toLowerCase().includes(query) ||
+      it.subject.toLowerCase().includes(query) ||
+      it.stageLabel.toLowerCase().includes(query)
+    );
+    return matchStage && matchSubject && matchQuery;
+  });
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 48px; color: var(--text-muted);">No items matched your filters.</div>`;
+    return;
+  }
+
+  filtered.forEach(it => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div>
+        <div class="card-header">
+          <div>
+            <div class="card-title">${it.name}</div>
+            <div class="card-id">${it.id}</div>
+          </div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-stage-${it.stage}">${it.stageLabel}</span>
+          <span class="badge badge-subject">${it.subject}</span>
+          <span class="badge badge-size">${it.size}</span>
+          <span class="badge badge-layer">${it.layer}</span>
+        </div>
+        <div class="prompt-box" id="p_${it.id}">${it.prompt}</div>
+      </div>
+      <div class="card-actions">
+        <span style="font-size: 11px; color: var(--text-muted);">Canva 1:1 Aspect Ratio</span>
+        <button class="btn btn-primary btn-sm" onclick="copyPrompt(ITEMS.find(x => x.id === '${it.id}').prompt)">📋 Copy Canva Prompt</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// Initial render
+renderCards();
+</script>
+
+</body>
+</html>

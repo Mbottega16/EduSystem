@@ -23,6 +23,11 @@
     "steady_hands"
   ],
   "furniture_priorities": [
+    "splat_mat",
+    "alphabet_rug",
+    "counting_tray",
+    "oak_rocker",
+    "cubby_shelf",
     "floor_cushion",
     "pot_of_pens",
     "paper_mobile",

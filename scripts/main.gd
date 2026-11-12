@@ -14,6 +14,8 @@ extends Node2D
 @onready var visit: Node2D = $VisitRoom
 
 var placement: Placement = null
+## The duty shift running in the corridor now, or null. See _start_duty().
+var _shift: Node = null
 
 
 ## Tutorial cutscenes are for a player at the real game. A tool, the suite and
@@ -29,6 +31,11 @@ func _is_real_play() -> bool:
 
 func _ready() -> void:
 	Game.tutorials_enabled = _is_real_play()
+	Game.admin_gate_enabled = _is_real_play()
+	# A fresh scene never has a shift running: its node went with the old scene.
+	# Without this, quitting to the title mid-duty and pressing Continue left
+	# duty_active set in memory -- and every corridor door locked for good.
+	Game.duty_active = ""
 	placement = Placement.new()
 	placement.visible = false
 	world.add_child(placement)
@@ -98,6 +105,11 @@ func _ready() -> void:
 	hallway.trophies_viewed.connect(func() -> void:
 		hud._sel = 0
 		hud.show_trophies())
+	# The staff rota (the owner's ask, 2026-11-06): F at the board, a job on E.
+	hallway.rota_opened.connect(func() -> void:
+		hud._sel = 0
+		hud.show_rota())
+	hud.duty_chosen.connect(_start_duty)
 	# The grade wing: E at a stage's door reads its card; moving up from the
 	# card (or at the end of a term) repaints the plaques.
 	hallway.stage_chosen.connect(hud.show_stage)
@@ -544,6 +556,49 @@ func _return_home() -> void:
 	hallway.visible = false
 	world.visible = true
 	RoomLight.phase_in(world)
+
+
+## Start one of the rota's jobs. Only the janitor exists so far. `room_index`
+## is for the jobs done in a room you hold (the principal's rounds, the
+## counselor -- next tasks); the corridor's janitor ignores it.
+func _start_duty(id: String, room_index: int = -1) -> void:
+	if Game.duty_active != "" or Game.duty_done_today(id):
+		return
+	match id:
+		"janitor":
+			var r := Game.duty_rng(id)
+			var tiles: Array[Vector2i] = hallway.duty_tiles()
+			# Fisher-Yates on the duty's own generator: Array.shuffle() would use
+			# the engine's global one, which the determinism rule bans.
+			for i in range(tiles.size() - 1, 0, -1):
+				var j: int = r.randi_range(0, i)
+				var tmp: Vector2i = tiles[i]
+				tiles[i] = tiles[j]
+				tiles[j] = tmp
+			var pick: Array[Vector2i] = []
+			for i in mini(Balance.duty_janitor_messes, tiles.size()):
+				pick.append(tiles[i])
+			var shift := JanitorShift.new()
+			shift.name = "JanitorShift"
+			hallway.add_child(shift)
+			shift.finished.connect(_on_duty_finished)
+			Game.duty_active = id
+			shift.start(pick, r)
+			_shift = shift
+			hud.principal_says("duty_janitor_first",
+				"Every spill and every wrapper, before the clock runs out. E cleans.")
+
+
+## A shift ended -- every mess cleaned, or the clock ran out.
+func _on_duty_finished(result: Dictionary) -> void:
+	var id := String(result.get("id", ""))
+	Game.duty_active = ""
+	Game.mark_duty_done(id)
+	Game.record_duty(result)
+	if _shift != null and is_instance_valid(_shift):
+		_shift.queue_free()
+	_shift = null
+	hud.show_duty_report(result)
 
 
 ## The morning's narration line, or "" for a day that gets none. Built

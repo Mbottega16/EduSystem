@@ -524,6 +524,33 @@ func _open_screen(main: Node, screen: String) -> void:
 				Game.milestones.append(String(m["id"]))
 			hud._sel = 0
 			hud.show_office()
+		"office_career":
+			# A returning player: two runs over, the furthest at term six.
+			Game.meta["runs_finished"] = 2
+			Game.meta["best_term"] = 6
+			hud._sel = 0
+			hud.show_office()
+		"office_locked":
+			# A new career's first visit: the gate still shut.
+			Game.admin_gate_enabled = true
+			Game.meta["admin_earned"] = false
+			hud._sel = 0
+			hud.show_office()
+		"day_admin":
+			# The evening the school opens.
+			var rep3 := Game.advance_day()
+			rep3["admin_opened"] = true
+			hud.show_day_report(rep3)
+		"rota":
+			hud._sel = 0
+			hud.show_rota()
+		"janitor_shift":
+			# Mid-shift in the corridor: the messes down, the clock in the strip.
+			# Hints off (in memory only, never saved), so the principal's
+			# first-time line does not cover the floor the shot is for.
+			Settings.show_hints = false
+			_into_hallway(main, world, 520.0)
+			main._start_duty("janitor")
 		"principal":
 			hud.principal_says("shot_demo",
 				"Work only moves while you are at the front.")

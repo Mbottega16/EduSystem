@@ -161,7 +161,7 @@ once produced 22 items at half the correct strength.)*
 - Optional `teaches` (a concept id it unlocks outright) or `needs` (a
   concept id that must be known before it is on sale).
 - `blurb` ≤ 60 characters. See the voice rule below.
-- Currently 75 items.
+- Currently 94 items.
 - *(Oct 2026)* Pieces that stand ON a child's desk rather than on the floor:
   `desk_top: true` (the study folder, pencil caddy, desk primer, and desk
   atlas). They keep `range: 0` and `bonus: 0.0` -- never a grade term -- and

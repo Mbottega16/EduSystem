@@ -19,7 +19,7 @@ const OVERLAY_COLOUR := Color(0.06, 0.05, 0.08, 0.93)
 enum Mode { NONE, REPORT, CATALOGUE, MARKING, TITLE, CLASS_LIST, PAUSE, STUDENT,
 	CURRICULUM, SPECIALISM, HAND, CAREER, SCHOOL, DASHBOARD, WATCH, OFFICE, INTRO,
 	ADS, PATHS, MENTOR, HELP, CALLER, SKIP, SKIP_REPORT, TROPHIES, GRADE_BOOK, HALL,
-	EXAM_PICK, TUTORIAL, STAGE }
+	EXAM_PICK, TUTORIAL, STAGE, ROTA }
 ## SELL became CABINET (Sep 2026): buying no longer places on the spot,
 ## it drops the item in the cabinet; you place it from the cabinet, and
 ## selling is done from there too. Same five-stop Tab cycle, one label
@@ -42,6 +42,9 @@ signal assignment_chosen(index: int)
 ## Long Reach changes the size of the player's pick zone, so it has to
 ## be rebuilt when a perk is bought.
 signal perk_bought()
+## A rota row was chosen -- main.gd starts that job. `room` is -1 for a
+## corridor job; a job done in a room you hold carries its room index.
+signal duty_chosen(id: String, room_index: int)
 ## The storyline cutscene's dialogue, one line at a time. hud.gd owns the
 ## PAGING (INTRO_PAGES, _sel, when it is done); main.gd owns the WORLD
 ## (the player who says it), so the words cross that boundary as a signal
@@ -760,6 +763,16 @@ func _escape_opens_pause() -> bool:
 
 func _update_status() -> void:
 	status.visible = Settings.show_status
+	# A duty is the whole job while it runs: its name, its clock, what is left.
+	if Game.duty_active != "":
+		var shift := get_tree().get_first_node_in_group("duty_shift")
+		if shift != null:
+			var duty_bits: Array[String] = [
+				String(Duties.by_id(Game.duty_active).get("name", "")).to_upper(),
+				"%ds" % int(ceil(float(shift.seconds_left()))),
+				"%d left" % int(shift.remaining())]
+			status.text = _fit_status(duty_bits)
+			return
 	# ONE LINE, and it runs off the right-hand edge if you let it. What
 	# belongs on it changes with the phase, so it is built in priority order
 	# and cut rather than assembled and hoped over: mid-lesson the subject
@@ -1695,6 +1708,12 @@ func _pause_rows() -> Array:
 			return PAUSE_QUIT
 		PauseMenu.TUTORIALS:
 			return TutorialData.ids() + ["back"]
+	# The school row waits for the admin gate. Hidden, not greyed: the rule
+	# the shop and the hallway already follow.
+	if not Game.admin_unlocked() and Game.rooms.is_empty():
+		var rows: Array = PAUSE_MAIN.duplicate()
+		rows.erase("school")
+		return rows
 	return PAUSE_MAIN
 
 
@@ -4566,6 +4585,16 @@ func show_office() -> void:
 			_cells(BAR_FULL, n), _cells(BAR_EMPTY, 20 - n), earned, all.size()])
 		lines.append("[color=#%s]%d terms taught, %d children sent up.[/color]" % [
 			ink, Game.term_history.size(), Game.graduated.size()])
+		# The career across every run -- said once a run has ended, not before.
+		var ended: int = int(Game.meta.get("runs_finished", 0))
+		# The gate, in the principal's own words, while it is still shut. It
+		# takes the career line's place: the paper holds five lines, no more.
+		if not Game.admin_unlocked():
+			lines.append("[color=#%s]Another room? Run this one well first.[/color]" % ink)
+		elif ended > 0:
+			var best: int = maxi(int(Game.meta.get("best_term", 0)), Game.term)
+			lines.append("[color=#%s]Your furthest: term %d. Runs ended: %d.[/color]" % [
+				ink, best, ended])
 	else:
 		lines.append("[color=#8a5a10]TIP %d of %d[/color]" % [_sel, TUTORIALS.size()])
 		lines.append(String(TUTORIALS[_sel - 1]))
@@ -4641,6 +4670,92 @@ func _handle_trophies_input() -> void:
 		_sel = (_sel - 1 + n) % n
 		Sfx.play("blip")
 		show_trophies()
+
+
+## THE STAFF ROTA (the owner's ask, 2026-11-06): the school's other jobs, one
+## shift each a day. Opened at the corridor's board (F). Up/Down choose, E starts
+## the shift, Esc closes.
+func show_rota() -> void:
+	_open(Mode.ROTA)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 0)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	title.text = "THE STAFF ROTA"
+	var rows := Duties.offered()
+	var lines: Array[String] = []
+	if rows.is_empty():
+		lines.append("[color=#%s]Nothing on the rota today. Come back tomorrow.[/color]" % DIM)
+		rich.text = "\n".join(lines)
+		_reveal_rich(0.2)
+		hint.text = "Esc - close"
+		return
+	_sel = clampi(_sel, 0, rows.size() - 1)
+	for i in rows.size():
+		var d: Dictionary = rows[i]
+		lines.append("%s [color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
+			">" if i == _sel else " ", C_COIN, String(d.get("name", "")),
+			DIM, String(d.get("job", ""))])
+	var sel: Dictionary = rows[_sel]
+	lines.append("")
+	lines.append(String(sel.get("blurb", "")))
+	var best: Dictionary = (Game.meta.get("duty_best", {}) as Dictionary).get(
+		String(sel.get("id", "")), {})
+	if not best.is_empty():
+		lines.append("[color=#%s]Your best: %d of %d.[/color]" % [
+			DIM, int(best.get("done", 0)), int(best.get("total", 0))])
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.2)
+	hint.text = "Up/Down choose   E start the shift   Esc close"
+
+
+func _handle_rota_input() -> void:
+	if Input.is_action_just_pressed("cancel"):
+		Sfx.play("blip")
+		close()
+		return
+	var rows := Duties.offered()
+	if rows.is_empty():
+		if Game.claim_interact():
+			close()
+		return
+	if Game.claim_interact():
+		var row: Dictionary = rows[clampi(_sel, 0, rows.size() - 1)]
+		Sfx.play("confirm")
+		close()
+		duty_chosen.emit(String(row.get("id", "")), int(row.get("room", -1)))
+	elif Input.is_action_just_pressed("move_down"):
+		_sel = (_sel + 1) % rows.size()
+		Sfx.play("blip")
+		show_rota()
+	elif Input.is_action_just_pressed("move_up"):
+		_sel = (_sel - 1 + rows.size()) % rows.size()
+		Sfx.play("blip")
+		show_rota()
+
+
+## The end of a shift: what got done, and what it paid.
+func show_duty_report(result: Dictionary) -> void:
+	_open(Mode.REPORT)
+	body.visible = false
+	rich.visible = true
+	rich.add_theme_constant_override("line_separation", 2)
+	rich.add_theme_font_size_override("normal_font_size", UI_SIZE)
+	var cleaned := int(result.get("done", 0))
+	var total := int(result.get("total", 0))
+	title.text = "CLOCKED OFF"
+	var lines: Array[String] = []
+	lines.append("[color=#%s]You cleaned %d of %d.[/color]" % [
+		C_GOOD if cleaned == total else C_BAD, cleaned, total])
+	if bool(result.get("all", false)):
+		lines.append("[color=#%s]Every last one, with %d seconds to spare.[/color]" % [
+			C_COIN, int(result.get("seconds_left", 0.0))])
+		lines.append("[color=#%s]The school looks cared for. People notice.[/color]" % DIM)
+	else:
+		lines.append("[color=#%s]The clock beat you this time.[/color]" % DIM)
+	rich.text = "\n".join(lines)
+	_reveal_rich(0.3)
+	hint.text = "E - close"
 
 
 # ------------------------------------------------------------ the grade book
@@ -6104,6 +6219,10 @@ func show_day_report(report: Dictionary) -> void:
 		var m := Milestones.by_id(id)
 		lines.append("[color=#%s]%s[/color]  [color=#%s]%s[/color]" % [
 			C_COIN, String(m.get("name", id)), DIM, String(m.get("blurb", ""))])
+	# The day the school opens: said once, in gold, the way a milestone is.
+	if bool(report.get("admin_opened", false)):
+		lines.append("[color=#%s]The school opens up.[/color]  [color=#%s]Another room can be opened from the hallway now.[/color]" % [
+			C_COIN, DIM])
 	if String(report.get("event", "")) != "":
 		lines.append("[color=#%s]Tomorrow: %s[/color] %s" % [
 			C_KNOW, String(report["event"]),
@@ -7088,6 +7207,10 @@ func _handle_input() -> void:
 
 	if mode == Mode.TROPHIES:
 		_handle_trophies_input()
+		return
+
+	if mode == Mode.ROTA:
+		_handle_rota_input()
 		return
 
 	if mode == Mode.GRADE_BOOK:

@@ -26,6 +26,20 @@
     "practised_marker"
   ],
   "furniture_priorities": [
+    "alphabet_rug",
+    "splat_mat",
+    "cubby_shelf",
+    "book_ledge",
+    "oak_rocker",
+    "science_bench",
+    "chem_bench",
+    "printer_3d",
+    "robotics_rig",
+    "time_banner",
+    "weather_chart",
+    "graph_grid",
+    "paperbacks",
+    "debate_stand",
     "rug",
     "bookshelf",
     "reading_nook",
@@ -34,12 +48,6 @@
     "beanbag",
     "whiteboard",
     "globe",
-    "wall_clock",
-    "alphabet_frieze",
-    "ottoman",
-    "pouf",
-    "art_easel",
-    "microscope",
-    "sofa"
+    "wall_clock"
   ]
 }
