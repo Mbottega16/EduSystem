@@ -103,7 +103,7 @@ appendix of `HISTORY.md`.
 | `data/balance.json` | **Every tunable number** |
 | `data/curriculum.json` | 40 lessons, 120 concepts, real standard codes |
 | `data/room_templates.json` | Seven ready-made room ideas (shop tab), checked by `room_templates.gd` `problems()`. Inspiration only |
-| `tests/run.gd` | The suite — 3215 assertions, 151 sections |
+| `tests/run.gd` | The suite — 3221 assertions, 151 sections |
 | `tools/` | Simulators, walkthroughs, the audit, art tools. `tools/godot_path.txt` is the ONE place the Godot path lives; `tools/playdrive.gd` is the ONE walk/keypress base both walkthroughs extend — add a shared helper there, never a second copy |
 | `docs/GDD.md` | **What the finished game is.** Read before designing. |
 | `docs/ARCHITECTURE.md` | Module ownership, the day, the grade pipeline, where tunables live, the harness (Mermaid) |
@@ -131,7 +131,7 @@ script can print PASSED with a silently lower count (it has happened three times
 
 ```
 Verify.bat               the suite, the docs, the contract and a whole term in one (~6 min) — run before a push
-Run Tests.bat            3215 assertions — must pass, count must not drop
+Run Tests.bat            3221 assertions — must pass, count must not drop
 Simulate a Term.bat      the three contract rows must still hold
 Play a Whole Term.bat    twenty real days through the real buttons: WALKTHROUGH PASSED / FAILED - day N
 Trace a Day.bat          walks a real day through the real buttons
@@ -199,10 +199,16 @@ To avoid wasting context or slowing down searches, **never read or grep inside**
  
  *Overwrite this at the end of every session; move the previous handoff into `HISTORY.md` first.*
  
-- **Last Worked On (2026-10-30, the owner's ask): Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite.**
-  Implemented floor underlay rug layering in `scripts/data/items.gd`, `scripts/autoload/game.gd`, `scripts/world/room_builder.gd`, `scripts/world/classroom.gd`, and `scripts/world/placement.gd`. Allows passable floor rugs/mats with zero collision blocking, z-ordering at `z_index = -1` (above room floor at -2), and allows solid furniture (chairs, stools, plants, bookshelves) and student desks to be placed directly on top of rugs. Overlapping between two underlays or two solid items remains disallowed. Conformed 11 additional sprites for a total of 19 authentic classroom items conformed to LimeZu palette and installed in `art/` with zero curator orphans. Added 13 new unit tests in `tests/run.gd` covering underlay passability, z-ordering, furniture stacking on rugs, desk stacking on rugs, and dual-layer removal.
-- **Current State (2026-10-30):** suite green at **3215 assertions** in 151 sections (all curator checks green), docs 322/322 passing, balance contract `0.63 C / 0.72 C / 0.97 A` unmoved.
+- **Last Worked On (2026-11-12, Mac, the owner's ask): the title menu works with the mouse.**
+  Synced the Mac with GitHub (merged origin/master: Canva art, rugs, career sim, school
+  layer, staff rota, on top of 7 local crew commits). The owner's playtest said "the
+  buttons aren't working": the title menu was keyboard-only, so a click did nothing. Now
+  hover selects a row, a left click picks it, the wheel moves, a right click is Esc, a
+  click on a volume/size bar's left/right half turns it down/up. In-game stays keys-only
+  by design (one dedicated key per verb). Details in `HISTORY.md`.
+- **Current State (2026-11-12):** suite green at **3221 assertions** in 151 sections;
+  balance contract not re-run this session.
 - **Next Up:**
-  1. Optional shop unlocks / progression ties for newly conformed stage sprites in future balance tuning.
-  2. Next scheduled user milestones.
-
+  1. The owner playtests on the Mac; ask whether any in-game screen should take clicks
+     (a design call, not assumed).
+  2. Optional shop unlocks / progression ties for the newly conformed stage sprites.

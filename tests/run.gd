@@ -10495,6 +10495,38 @@ func test_title() -> void:
 	t._activate()
 	chk("answering Yes erases it", not Game.has_save())
 
+	# The mouse drives the same rows (2026-11-12: a click used to do nothing,
+	# and on a Mac playtest that read as "the buttons don't work").
+	# Aimed at the line that SHOWS the words, found from the rendered text --
+	# never from the title's own row bookkeeping, which is what is on trial.
+	var click := func(words: String, button: int) -> void:
+		var lines: PackedStringArray = t.menu.text.split("\n")
+		var at := 0
+		for i in lines.size():
+			if lines[i].contains(words):
+				at = i
+				break
+		var lh: float = t.menu.get_line_height() + t.menu.get_theme_constant("line_spacing")
+		var m := InputEventMouseButton.new()
+		m.button_index = button
+		m.pressed = true
+		m.position = t.menu.get_global_rect().position + Vector2(20, lh * (at + 0.5))
+		t._mouse(m)
+	t._go(t.Page.MAIN)
+	click.call("How to play", MOUSE_BUTTON_LEFT)
+	chk("clicking a title row picks it", t.page == t.Page.HOWTO, t.page)
+	click.call("PODIUM", MOUSE_BUTTON_LEFT)
+	chk("a click on a page of prose goes back", t.page == t.Page.MAIN, t.page)
+	t._go(t.Page.SETTINGS)
+	click.call("Music", MOUSE_BUTTON_RIGHT)
+	chk("a right click goes back like Esc", t.page == t.Page.MAIN, t.page)
+	Game.new_run(SEED)
+	Game.save_game()
+	t._go(t.Page.CONFIRM_WIPE)
+	click.call("No, keep it", MOUSE_BUTTON_LEFT)
+	chk("a click lands on No, below the warning lines, and keeps the save",
+		t.page == t.Page.MAIN and Game.has_save(), [t.page, Game.has_save()])
+
 	# Save slots page
 	t._go(t.Page.MAIN)
 	chk("main page offers save slots", t._rows().has("slots"))

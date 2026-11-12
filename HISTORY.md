@@ -24,6 +24,22 @@ technical detail follows. Links that pointed into the vault are written as
 `vault: <path>` (the vault is `~/Desktop/my-brain` on the Mac,
 `~/OneDrive/Desktop/AI Projects/my-brain` on the PC).
 
+## 2026-11-12 — the title menu takes the mouse
+*Mac · Claude · commits: the merge of origin/master, then this fix*
+- **Changed:** `scripts/ui/title.gd` maps the mouse onto the menu's own rows: hover
+  selects, left click = E, wheel = up/down, right click = Esc, a click on a prose page
+  (How to play, Credits) goes back, a click on a volume/size bar's left/right half turns
+  it down/up. `_render()` records which Label line each row is on (`_hit_line0/_row0/_n`);
+  the Controls window is now `_controls_lo()`, and hover never slides it.
+- **Why:** the owner's Mac playtest: "the buttons aren't working". The keys worked
+  (probed with real key events); a click did nothing. In-game screens stay keys-only:
+  one dedicated key per verb is a settled decision, so changing it is the owner's call.
+- **Verified:** suite 3221 assertions, 0 failed. The new 4 checks aim at the rendered
+  text, not the code's bookkeeping; breaking the Erase-save row offset on purpose made
+  one fail (1 of 3221). Probed with real mouse events through `Input.parse_input_event`.
+  NOT checked: a real window with a real mouse on the owner's screen; Windows.
+- **Left open:** whether in-game panels should take clicks.
+
 ## 2026-10-30 — Floor Underlay Rug Layering System, 19 conformed authentic classroom sprites, and placement test suite
 *PC · Antigravity · commits pending*
 - **Changed:**

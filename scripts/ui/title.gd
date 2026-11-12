@@ -93,6 +93,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if rebinding != "":
 		_capture_rebind(event)
 		return
+	if event is InputEventMouse:
+		_mouse(event as InputEventMouse)
+		return
 	if not event.is_pressed() or event.is_echo():
 		return
 
@@ -110,17 +113,126 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif Input.is_action_just_pressed("interact"):
 		_activate()
 	elif Input.is_action_just_pressed("cancel"):
-		if page == Page.MAIN:
-			return
-		Sfx.play("blip")
-		if page == Page.SLOT_ACTIONS or page == Page.CONFIRM_SLOT_DELETE:
-			_go(Page.SLOTS)
-		else:
-			_go(Page.MAIN)
+		_back()
 		return
 	else:
 		return
 	_render()
+
+
+## Esc, or a right click: one page up. The main page has nowhere to go.
+func _back() -> void:
+	if page == Page.MAIN:
+		return
+	Sfx.play("blip")
+	if page == Page.SLOT_ACTIONS or page == Page.CONFIRM_SLOT_DELETE:
+		_go(Page.SLOTS)
+	else:
+		_go(Page.MAIN)
+
+
+# ----------------------------------------------------------------- mouse
+# The menu is one Label, so a click is mapped to a row by its line. The
+# mouse drives exactly the rows the keys do: hovering a row selects it, a
+# left click is E on it, the wheel is up/down, a right click is Esc. On a
+# page of prose (How to play, Credits) a left click goes back.
+
+const _SLIDERS := ["master", "sfx", "music", "scale"]
+
+var _hit_line0: int = 0   ## the Label line the first clickable row is on
+var _hit_row0: int = 0    ## which row that first clickable line shows
+var _hit_n: int = 0       ## how many rows are clickable (0 = none)
+
+
+func _mouse(event: InputEventMouse) -> void:
+	var local := menu.make_input_local(event) as InputEventMouse
+	var row := _row_at(local.position)
+	if event is InputEventMouseMotion:
+		if row >= 0 and row != sel and _hover_keeps_window(row):
+			sel = row
+			Sfx.play("blip")
+			_render()
+		return
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed:
+		return
+	var rows := _rows()
+	match mb.button_index:
+		MOUSE_BUTTON_WHEEL_DOWN:
+			if rows.is_empty():
+				return
+			sel = (sel + 1) % rows.size()
+			Sfx.play("blip")
+		MOUSE_BUTTON_WHEEL_UP:
+			if rows.is_empty():
+				return
+			sel = (sel - 1 + rows.size()) % rows.size()
+			Sfx.play("blip")
+		MOUSE_BUTTON_RIGHT:
+			_back()
+			return
+		MOUSE_BUTTON_LEFT:
+			if _hit_n == 0:
+				_back()
+				return
+			if row < 0:
+				return
+			sel = row
+			if page == Page.SETTINGS and _SLIDERS.has(String(rows[row])):
+				# the left half of the value turns it down, the right half up
+				_adjust(-1 if local.position.x < _value_mid(row) else 1)
+			else:
+				_activate()
+		_:
+			return
+	_render()
+
+
+## The row under a point in the menu Label's own coordinates, or -1.
+func _row_at(p: Vector2) -> int:
+	if _hit_n <= 0 or p.x < -16.0 or p.x > menu.size.x or p.y < 0.0:
+		return -1
+	var line_h: float = menu.get_line_height() \
+		+ menu.get_theme_constant("line_spacing")
+	if line_h <= 0.0:
+		return -1
+	var k := int(p.y / line_h) - _hit_line0
+	if k < 0 or k >= _hit_n:
+		return -1
+	return _hit_row0 + k
+
+
+## The x where a settings row's value is split into "down" and "up".
+func _value_mid(row: int) -> float:
+	var lines := menu.text.split("\n")
+	var li := _hit_line0 + row - _hit_row0
+	if li < 0 or li >= lines.size():
+		return menu.size.x / 2.0
+	var line := lines[li]
+	var font := menu.get_theme_font("font")
+	var fs := menu.get_theme_font_size("font_size")
+	# "%s %-15s %s": the value starts after the marker, the name and a space
+	var name_w := font.get_string_size(line.substr(0, 18), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var all_w := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	return (name_w + all_w) / 2.0
+
+
+## The controls list is a window that follows the selection; hovering a row
+## that would slide the window would put a different row under the pointer,
+## so hover only moves within the window (a click or the wheel still does).
+func _hover_keeps_window(row: int) -> bool:
+	if page != Page.CONTROLS:
+		return true
+	return _controls_lo(row) == _controls_lo(sel)
+
+
+const _CONTROLS_SHOWN := 10
+
+func _controls_lo(at: int) -> int:
+	var n := _rows().size()
+	if n <= _CONTROLS_SHOWN:
+		return 0
+	return clampi(at - _CONTROLS_SHOWN / 2, 0, n - _CONTROLS_SHOWN)
 
 
 ## Swallow the raw key press and turn it into a binding.
@@ -346,6 +458,10 @@ func _bar(v: float) -> String:
 func _render() -> void:
 	var rows := _rows()
 	var lines: Array[String] = []
+	# where the clickable rows sit in the Label: by default line i is row i
+	_hit_line0 = 0
+	_hit_row0 = 0
+	_hit_n = rows.size()
 
 	match page:
 		Page.MAIN:
@@ -411,6 +527,7 @@ func _render() -> void:
 			logo.visible = false
 			menu.offset_top = 80.0
 			lines = ["This cannot be undone.", ""]
+			_hit_line0 = lines.size()
 			for i in rows.size():
 				lines.append("%s %s" % [
 					">" if i == sel else " ",
@@ -451,10 +568,10 @@ func _render() -> void:
 			# assumed: this Label does not scroll, and three more actions
 			# (quiz, homework, move_desk, added when the whole key scheme
 			# changed) pushed the flat list into the footer's own row.
-			var shown_rows := 10
-			var lo := 0
-			if rows.size() > shown_rows:
-				lo = clampi(sel - shown_rows / 2, 0, rows.size() - shown_rows)
+			var shown_rows := _CONTROLS_SHOWN
+			var lo := _controls_lo(sel)
+			_hit_row0 = lo
+			_hit_n = mini(rows.size(), lo + shown_rows) - lo
 			for i in range(lo, mini(rows.size(), lo + shown_rows)):
 				var id := String(rows[i])
 				if id == "back" or id == "reset":
@@ -477,6 +594,7 @@ func _render() -> void:
 			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "HOW TO PLAY"
 			logo.visible = false
+			_hit_n = 0
 			lines = [
 				"Start the lesson at the PODIUM.",
 				"A ? means that student is STUCK and their",
@@ -493,6 +611,7 @@ func _render() -> void:
 			menu.offset_top = 80.0   # doubled Aug 2026
 			heading.text = "CREDITS"
 			logo.visible = false
+			_hit_n = 0
 			lines = [
 				"A small game about paying attention.",
 				"",
@@ -512,6 +631,7 @@ func _render() -> void:
 			heading.text = "ERASE SAVE?"
 			logo.visible = false
 			lines = ["This cannot be undone.", "Your whole career goes with it.", ""]
+			_hit_line0 = lines.size()
 			for i in rows.size():
 				lines.append("%s %s" % [
 					">" if i == sel else " ",

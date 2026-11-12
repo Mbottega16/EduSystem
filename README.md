@@ -443,7 +443,7 @@ re-scraped so the citations stay the verified ones.
 ## Running things
 
 ```
-Run Tests.bat            3215 assertions
+Run Tests.bat            3221 assertions
 tools/run_tests_guarded.sh   Mac/Linux: auto-import check, then the suite, each killed at a timeout (exit 2 = hung)
 Simulate a Term.bat      plays whole terms and prints the curves
 Browse Art.bat           every sprite on one screen, with what uses it
